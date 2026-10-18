@@ -259,7 +259,7 @@ Las siguientes precisiones son **decisiones propias** de Clínica Vida Salud, ag
 
 ### 5.8. Recordatorios internos (`CU-28`)
 
-- Notificaciones **automáticas, persistentes y únicamente internas**: regla de aviso **24 horas antes** de la cita; si se reserva con menor anticipación, generar al confirmar o en la siguiente ejecución inmediata pertinente.
+- Notificaciones **automáticas, persistentes y únicamente internas**: regla de aviso **24 horas antes del inicio** de la cita; si se registra con menor anticipación, generar inmediatamente después de que el registro de la reserva se haya guardado y confirmado satisfactoriamente en la base de datos, o en la siguiente ejecución programada inmediata pertinente. **No depende del estado Confirmada**: una cita Programada puede generar su recordatorio. Guardar la reserva mantiene su estado inicial Programada, sin confirmar automáticamente la llegada presencial, que corresponde exclusivamente a Recepción.
 - Funcionan aun sin sesión activa y pueden asociarse a fichas sin cuenta web; si posteriormente se activa la cuenta se muestran solo recordatorios todavía pertinentes y propios.
 - Reprogramación y cambio autorizado de consultorio actualizan o invalidan el aviso; cancelar, Atendida, Inasistencia o turno finalizado dejan de mostrarlo como próximo. No duplicar por reintentos; respetar preferencias internas.
 - **No** enviar recordatorios por Brevo, correo, WhatsApp, SMS ni notificaciones push externas.

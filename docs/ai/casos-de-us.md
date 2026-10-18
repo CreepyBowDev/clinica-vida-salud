@@ -1,6 +1,6 @@
 # Casos de uso — Clínica Vida Salud
 
-> **Nombre solicitado:** `casos-us.md`. Para integrarlo en la estructura actual de `AGENTS.md`, guarda este contenido como `docs/ai/casos-de-us.md`.  
+> **Ruta canónica:** `docs/ai/casos-de-us.md`.  
 > **Base vigente:** `Clinica_Vida_Salud_Captura_Actualizada(3).pdf` (104 páginas), especialmente capítulo 4, apartados 4.1–4.3.  
 > **Referencia superior:** examen oficial del Segundo Parcial de Ingeniería de Requisitos, `RF01`–`RF13` y `RN01`–`RN14`.  
 > **Estado documental:** los 30 casos están **especificados** en el PDF; su implementación y pruebas deben verificarse en el repositorio.  
@@ -462,7 +462,9 @@ El catálogo queda actualizado sin eliminar relaciones ni citas anteriores. La d
 
 **Excepciones**
 
-Nombre normalizado duplicado, campos inválidos o petición de un rol distinto del Administrador: rechazar. Desactivar no cancela ni modifica citas existentes. Reactivar sin Médico activo u horarios
+- Nombre normalizado duplicado, campos inválidos o petición de un rol distinto del Administrador: rechazar la operación.
+- Desactivar una especialidad no cancela ni modifica las citas existentes.
+- Reactivar una especialidad sin Médicos activos asociados o sin horarios válidos no genera disponibilidad de citas por sí mismo. La especialidad podrá permanecer activa, pero solo ofrecerá turnos reservables cuando existan Médicos activos asociados, horarios válidos y disponibilidad real.
 
 <a id="cu-10"></a>
 #### CU-10 — Gestionar médicos y sus especialidades
@@ -1287,7 +1289,7 @@ Existen Paciente y cita pertinente, con o sin cuenta web. Generar no requiere se
 **Flujo principal**
 
 1. El sistema calcula el aviso a 24 horas del inicio en la fecha y hora local de la clínica.
-2. Una reserva con menor anticipación genera el aviso al confirmar o en la siguiente ejecución inmediata, antes del fin del turno.
+2. Una reserva registrada con menos de 24 horas de anticipación genera el aviso inmediatamente después de que su registro se haya guardado y confirmado satisfactoriamente en la base de datos, o en la siguiente ejecución programada inmediata pertinente, antes del fin del turno. No depende de cambiar al estado Confirmada: una cita Programada puede generar su recordatorio. La reserva nueva permanece inicialmente Programada; guardarla no confirma automáticamente la llegada presencial, que corresponde exclusivamente a Recepción.
 3. Aplica preferencias y guarda un único aviso por Paciente, cita y programación: especialidad, Médico, fecha, hora, Presencial, Clínica Vida Salud y consultorio.
 4. Sin cuenta web, conserva la relación interna; al activarla muestra solo avisos propios todavía vigentes.
 5. Al consultar Notificaciones, el servidor valida sesión y titularidad.

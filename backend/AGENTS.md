@@ -514,7 +514,12 @@ Política aprobada:
 
 Para trabajadores: solo el Administrador crea cuentas del personal; invitación segura al correo de **24 horas y un solo uso** para confirmar posesión y establecer contraseña. Credenciales temporales excepcionales exigen cambio obligatorio en el primer acceso.
 
-Recuperación: correo previamente verificado → **enlace de 60 minutos**, un solo uso y reemplazo invalidante; sin correo verificado → validación de identidad por Administrador y restablecimiento autorizado. Auditar operaciones sin almacenar credenciales.
+Recuperación de contraseñas:
+
+- Los cuatro roles —Administrador, Recepcionista, Médico y Paciente— pueden recuperar su contraseña mediante **CU-06** cuando dispongan de un correo de acceso previamente verificado. Brevo envía un **enlace de 60 minutos**, de un solo uso; emitir otro invalida el anterior. La recuperación no reactiva cuentas desactivadas, invalida las sesiones anteriores y exige un nuevo inicio de sesión, sin autenticar automáticamente.
+- Si un trabajador —Administrador, Recepcionista o Médico— no tiene acceso a su correo verificado o todavía no dispone de uno verificado, puede solicitar el restablecimiento administrativo de **CU-03**. El Administrador debe comprobar su identidad y utilizar la invitación segura o credencial temporal autorizada, exigiendo establecer una contraseña nueva antes del acceso normal e invalidando las sesiones anteriores conforme a las reglas establecidas.
+- **El restablecimiento administrativo se aplica exclusivamente a cuentas del personal; no autoriza al Administrador a restablecer contraseñas de Pacientes.** Si un Paciente pierde el acceso a su correo verificado y no puede completar CU-06, el procedimiento alternativo queda pendiente de una definición funcional específica; no inventarlo ni implementarlo automáticamente.
+- El Administrador nunca consulta contraseñas anteriores ni se envían contraseñas permanentes en texto plano. Registrar los eventos relevantes en Bitácora sin contraseñas, hashes ni tokens.
 
 ---
 
@@ -666,10 +671,11 @@ La devolución o corrección permanece `En revisión`; no crea un cuarto estado.
 
 ## 23. Recordatorios internos (`CU-28`)
 
-- Los recordatorios son **persistidos en el backend** y se generan automáticamente aunque el Paciente no tenga sesión abierta.
-- Anticipación definida: **24 horas** antes de la cita. Si se reserva con menos de 24 horas, generar al confirmarla o mediante ejecución programada inmediata, evitando duplicados.
+- Los recordatorios son **persistidos en PostgreSQL** y se generan automáticamente, sin intervención manual del Paciente ni necesidad de que tenga sesión abierta.
+- Anticipación definida: **24 horas** antes del inicio de la cita. Si se registra con menos de 24 horas de anticipación, generar el aviso inmediatamente después de que el registro de la reserva se haya guardado y confirmado satisfactoriamente en la base de datos, o mediante la siguiente ejecución programada inmediata pertinente, evitando duplicados para la misma cita y evento de aviso.
+- **La generación no depende del estado `Confirmada`: una cita `Programada` puede generar su recordatorio.** La reserva nueva permanece inicialmente `Programada`; guardarla no realiza automáticamente la transición a `Confirmada`, que significa exclusivamente llegada presencial verificada por Recepción.
 - Relacionar aviso con el identificador del Paciente y la cita, incluso si todavía no tiene cuenta web; al activar la cuenta, mostrar avisos que aún sean pertinentes.
-- Reprogramación actualiza o sustituye avisos desactualizados. Cancelación, `Atendida` o `Inasistencia` impiden nuevos avisos de asistencia vigentes.
+- Reprogramación actualiza o sustituye avisos desactualizados. Cancelación, `Atendida`, `Inasistencia` o intervalo finalizado impiden nuevos avisos de próxima asistencia.
 - Utilizar scheduler, jobs o mecanismos de Laravel cuando sea apropiado; hacer las tareas idempotentes y resistentes a repeticiones.
 - **No enviar recordatorios mediante correo, SMS, WhatsApp, Brevo ni push externo.**
 

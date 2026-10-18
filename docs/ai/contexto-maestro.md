@@ -220,7 +220,7 @@ La reprogramación de una Programada conserva el mismo estado. **Atendida, Cance
 
 ## 13. Recordatorios internos y reportes
 
-- Los recordatorios son **persistentes, automáticos y exclusivamente internos**. Se programan **24 horas antes** de la cita; si se reserva con menos anticipación, se generan al confirmar o en la siguiente ejecución inmediata pertinente.
+- Los recordatorios son **persistentes, automáticos y exclusivamente internos**. Se programan **24 horas antes del inicio** de la cita; si se registra con menos anticipación, se generan inmediatamente después de que el registro de la reserva se haya guardado y confirmado satisfactoriamente en la base de datos, o en la siguiente ejecución programada inmediata pertinente. **No dependen del estado Confirmada**: una cita Programada puede generar su aviso. Guardar la reserva mantiene su estado inicial Programada; Confirmada significa exclusivamente llegada presencial verificada por Recepción.
 - Funcionan sin sesión activa y pueden relacionarse con una ficha de Paciente **sin cuenta web**; cuando esta se active, se muestran solo avisos todavía vigentes y propios.
 - Reprogramar o cambiar ubicación actualiza/invalida avisos obsoletos; Cancelada, Atendida, Inasistencia o un turno concluido dejan de generar recordatorios de asistencia. Evitar duplicados y respetar preferencias internas.
 - **No** enviar recordatorios por Brevo, correo, SMS, WhatsApp ni push externo.

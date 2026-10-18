@@ -177,14 +177,16 @@ No crear automáticamente una entidad, tabla, carpeta frontend o endpoint por ca
 
 ## 8. Roles, permisos y relaciones de identidad
 
-- **Administrador:** gestiona cuentas del personal, médicos, especialidades, consultorios, horarios, reportes y bitácora. En laboratorio puede cargar/corregir documentos y sus asociaciones, **no** interpretar ni alterar contenido clínico.
+- **Administrador:** gestiona cuentas del personal y el estado de acceso de cuentas web de Pacientes existentes y previamente verificadas, además de médicos, especialidades, consultorios, horarios, reportes y bitácora. Sobre cuentas de Pacientes solo consulta datos administrativos mínimos y desactiva/reactiva el acceso; no crea cuentas, cambia contraseñas, correo, rol o vinculación ni omite verificaciones. En laboratorio puede cargar/corregir documentos y sus asociaciones, **no** interpretar ni alterar contenido clínico.
 - **Recepcionista:** registra pacientes; verifica identidad y emite códigos de activación; programa, reprograma y cancela citas; confirma llegadas e inasistencias.
-- **Médico:** consulta su agenda y la historia autorizada de pacientes que le corresponden; registra consultas, solicita estudios, revisa y autoriza resultados. **Solo el Médico responsable** puede marcar sus citas como `Atendida`.
-- **Paciente:** registra/activa su propia cuenta, actualiza su perfil, reserva únicamente sus propias citas y consulta su información autorizada. **No** reprograma ni cancela sus citas.
+- **Médico:** consulta su agenda y la historia autorizada de pacientes que le corresponden; registra consultas y, durante una atención real y autorizada, registra, completa o corrige los antecedentes clínicos de esos pacientes con trazabilidad; solicita estudios, revisa y autoriza resultados. **Solo el Médico responsable** puede marcar sus citas como `Atendida`.
+- **Paciente:** registra/activa su propia cuenta, actualiza su perfil permitido, reserva únicamente sus propias citas y consulta su información clínica autorizada, sin edición directa de antecedentes. **No** reprograma ni cancela sus citas.
 
 Los cuatro roles y sus permisos son **fijos**. El Administrador asigna roles existentes al personal, pero no crea roles ni configura permisos dinámicos. Aplicar autorización **en el servidor**, incluyendo relación con el paciente, cita, médico y documento solicitado.
 
 Diferenciar cuenta de acceso, ficha de Paciente y registro profesional del Médico. Sus estados pueden estar relacionados, pero **no son el mismo estado**.
+
+En **CU-03 / PN02**, suspender o rehabilitar el acceso de un Paciente significa desactivar o reactivar su cuenta con los estados existentes; no crear `Suspendida`. La desactivación invalida sus sesiones. Reactivar solo habilita administrativamente el acceso y exige un nuevo login: conserva Usuario, rol Paciente, correo verificado, contraseña y vínculo original, no activa la ficha ni elimina bloqueos temporales vigentes. No habilita cuentas pendientes de verificación ni sustituye recuperación de identidad o credenciales; el restablecimiento administrativo de contraseñas sigue siendo exclusivo del personal.
 
 ## 9. Autenticación, credenciales y vinculación
 
@@ -227,12 +229,13 @@ Nunca confirmar públicamente si un CI o correo pertenece a una cuenta o a una f
 
 - Cada cita admite **como máximo una consulta médica**; registrarla no marca automáticamente la cita como `Atendida`.
 - La consulta corresponde al Médico responsable y puede incluir **varias solicitudes de laboratorio**.
+- **CU-23 / PN18:** únicamente el Médico responsable de una atención real y autorizada registra, completa o corrige tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes personales o familiares. Administrador, Recepción y Paciente no los modifican. CU-08 mantiene la edición personal permitida y CU-22 permanece de consulta; no crear consultas ficticias para cambiar antecedentes.
 - Respetar el acceso clínico por relación asistencial; Recepción no modifica diagnósticos y el Administrador no realiza actos clínicos.
 - Resultados emitidos externamente: Administrador los incorpora como archivos protegidos; Médico solicitante revisa correspondencia y decide publicar o devolver para corrección.
 - Estados internos del laboratorio: **Pendiente, En revisión, Disponible**. No confundirlos con los cinco estados de cita.
 - Resultado correcto → Médico autoriza publicación **directamente**; resultado incorrecto → devolución motivada, corrección documental por Administrador y **nueva revisión médica**.
 - El Paciente ve `Pendiente` hasta la publicación y solo puede consultar/descargar su documento **vigente y autorizado**. Nunca exponer rutas públicas de archivos clínicos.
-- Conservar trazabilidad de correcciones y versiones de documentos. No sobrescribir silenciosamente información clínica relevante.
+- Conservar trazabilidad de correcciones y versiones de documentos, consultas y antecedentes, con responsables, fechas y versiones anteriores en almacenamiento protegido. La bitácora general registra solo referencias y metadatos seguros, sin contenido clínico sensible. No sobrescribir silenciosamente información clínica relevante ni cambiar automáticamente el estado de la cita al guardar antecedentes.
 
 ## 12. Notificaciones, reportes y bitácora
 

@@ -29,10 +29,10 @@ Ante una discrepancia, contrastar el enunciado oficial y la decisión aprobada m
 
 | Rol | Responsabilidad principal aprobada | Límite de autorización |
 | --- | --- | --- |
-| **Administrador** | Configuración; cuentas del personal y roles existentes; médicos, especialidades, consultorios y horarios; reportes; documentos de laboratorio; consulta de bitácora. | No diagnostica, no marca Atendida, no autoriza publicar resultados ni cambia fecha/hora de citas como Administrador. |
+| **Administrador** | Configuración; cuentas y roles existentes del personal; estado de acceso de cuentas de Pacientes previamente verificadas; médicos, especialidades, consultorios y horarios; reportes; documentos de laboratorio; consulta de bitácora. | No crea cuentas de Pacientes ni cambia sus credenciales, rol o vinculación; no modifica antecedentes, diagnostica, marca Atendida, autoriza publicar resultados ni cambia fecha/hora de citas. |
 | **Recepcionista** | Pacientes y registro administrativo de citas; reprogramación, cancelación, llegada e inasistencia; verificación presencial y emisión de códigos para vincular una ficha existente. | No define credenciales de pacientes, no administra cuentas del personal, no altera información clínica ni marca Atendida. |
-| **Médico** | Agenda y pacientes asignados; consulta e historia clínica autorizadas; solicitudes y revisión de laboratorio; marca como Atendidas **sus propias citas** tras realizar la atención. | No administra cuentas ni cambia citas de terceros; no publica resultados ajenos. |
-| **Paciente** | Registro/activación de cuenta, perfil, reserva de citas **solo para sí**, seguimiento, historial propio, información clínica autorizada y recordatorios internos. | No se autoasigna roles, no reprograma ni cancela citas, no altera diagnósticos ni documentos de laboratorio. |
+| **Médico** | Agenda y pacientes asignados; consulta e historia clínica autorizadas; registro y actualización de antecedentes durante una atención real y autorizada; solicitudes y revisión de laboratorio; marca como Atendidas **sus propias citas** tras realizar la atención. | No administra cuentas ni cambia citas de terceros; no publica resultados ajenos. |
+| **Paciente** | Registro/activación de cuenta, perfil permitido, reserva de citas **solo para sí**, seguimiento, historial propio, información clínica autorizada y recordatorios internos. | No se autoasigna roles, no reprograma ni cancela citas, no altera antecedentes, diagnósticos, tratamientos ni documentos de laboratorio. |
 
 **Delimitación propia del proyecto:** una sede, varios consultorios identificados y atención únicamente **Presencial**. Excluidos pagos/cobros/pasarelas, farmacia, inventarios, recetas electrónicas, telemedicina, videollamadas, atención remota, múltiples sedes y administración dinámica de permisos. Exportar reportes CSV/PDF y excluir feriados/bloqueos de agenda son mejoras **opcionales**.
 
@@ -190,13 +190,14 @@ Las siguientes precisiones son **decisiones propias** de Clínica Vida Salud, ag
 ### 5.1. Usuarios y autenticación (`CU-01`–`CU-06`)
 
 - Solo cuatro roles predefinidos, sin creación/edición de tipos de roles ni permisos dinámicos. Administrador crea/gestiona cuentas del personal; el Paciente crea su propia cuenta y jamás se autoasigna un rol de personal.
+- **CU-03 / PN02:** el Administrador consulta datos administrativos mínimos y desactiva/reactiva únicamente el acceso de cuentas de Pacientes existentes y previamente verificadas. No puede crearlas, activar pendientes, restablecer sus contraseñas, cambiar correo, rol, permisos, identificador de Usuario o vínculo original, ni crear otra cuenta para la misma ficha. Antecedentes, citas, historial y resultados permanecen intactos; se auditan las operaciones sin secretos ni contenido clínico.
 - **Correo electrónico verificado + contraseña** como único método ordinario de inicio de sesión de los cuatro roles; correo de acceso único e independiente del correo de contacto de la ficha.
 - Contraseña de **mínimo 12 caracteres**, frases largas permitidas, hash seguro de Laravel. No duplicarla en Paciente o Médico, no mostrarla ni enviarla en texto plano como contraseña permanente.
 - **Tres contraseñas incorrectas consecutivas** bloquean durante **10 minutos**; intentos durante bloqueo no lo prolongan; al terminar o autenticarse correctamente, el contador queda reiniciado. Límites adicionales de solicitudes por origen.
-- Estados de la cuenta: Pendiente de verificación, Activa, Desactivada. El **bloqueo temporal** no es un cambio de estado administrativo; una desactivación invalida acceso incluso desde sesiones anteriores.
+- Estados de la cuenta: Pendiente de verificación, Activa, Desactivada. El **bloqueo temporal** no es un estado administrativo y es independiente del estado de la ficha; desactivar invalida las sesiones existentes. Reactivar desde Desactivada solo habilita administrativamente el acceso con nuevo login y correo previamente verificado: no elimina bloqueos vigentes ni activa la ficha. Una ficha inactiva sigue impidiendo nuevas reservas. Suspender/rehabilitar equivale a desactivar/reactivar, sin crear Suspendida.
 - Alta inicial del personal: **invitación segura de 24 horas**, de un solo uso, por Brevo para verificar correo y establecer contraseña. Reenvío invalida invitación previa y no crea segunda cuenta. Credencial temporal excepcional exige cambio antes de funciones normales.
 - `CU-05` permite cambiar **contraseña propia** con comprobación de la anterior, salvo flujo restringido de contraseña inicial; invalidar sesiones anteriores.
-- `CU-06` permite recuperación mediante **enlace de 60 minutos**, de un solo uso, a correo previamente verificado; nueva emisión invalida anterior; respuestas no revelan existencia de cuenta. Recuperación no inicia sesión automáticamente ni reactiva cuentas desactivadas. Personal sin correo verificado: restablecimiento del Administrador tras comprobar identidad.
+- `CU-06` permite a los cuatro roles recuperar mediante **enlace de 60 minutos**, de un solo uso, a correo previamente verificado; nueva emisión invalida anterior; respuestas no revelan existencia de cuenta. Recuperación no inicia sesión automáticamente ni reactiva cuentas desactivadas. El restablecimiento administrativo de CU-03 es exclusivo del personal sin acceso a su correo verificado o sin uno verificado, tras comprobar identidad; no se aplica a Pacientes. Su alternativa si no pueden completar CU-06 sigue pendiente de definición y no se sustituye por administrar el estado de acceso.
 - La recuperación exige volver a iniciar sesión. El cierre de sesión invalida credenciales de sesión. Todas las acciones protegidas verifican rol y vínculo con recurso en Laravel.
 - **Brevo es solo para correos transaccionales de seguridad de cuentas**: invitación, verificación y recuperación; no para avisos de citas ni envío clínico.
 
@@ -217,7 +218,7 @@ Las siguientes precisiones son **decisiones propias** de Clínica Vida Salud, ag
 ### 5.3. Pacientes y perfil (`CU-07`, `CU-08`, `CU-21`)
 
 - Recepción registra, busca y actualiza datos **administrativos**. Puede emitir código de activación, pero no establecer contraseñas de pacientes.
-- Paciente modifica sus datos propios de contacto, emergencia y preferencias permitidas; no modifica diagnósticos, consultas ni resultados clínicos.
+- Paciente modifica sus datos personales, de contacto, emergencia y preferencias permitidas por CU-08; no modifica directamente antecedentes médicos, alergias clínicas, enfermedades crónicas, medicamentos/tratamientos, diagnósticos, consultas ni resultados. Recepción y Administrador no adquieren permisos clínicos.
 - Cambiar **correo de acceso** en `CU-08`: comprobar contraseña actual, unicidad y código de verificación en el nuevo correo; el antiguo sigue siendo credencial hasta confirmar. Cambiar correo **de contacto** no cambia el de acceso.
 - Paciente inactivo: **no recibe nuevas citas** propias ni por Recepción. Si su cuenta sigue activa, puede consultar información e historial autorizados; la inactivación no elimina citas. Recepción puede reprogramar **la misma cita ya existente** cuando las otras precondiciones lo permitan.
 
@@ -244,9 +245,10 @@ Las siguientes precisiones son **decisiones propias** de Clínica Vida Salud, ag
 ### 5.6. Historia clínica y consultas (`CU-22`, `CU-23`)
 
 - Información clínica protegida: tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes familiares/relevantes, así como consultas autorizadas.
+- **CU-23 / PN18:** únicamente el Médico responsable de una atención real y autorizada puede registrar, completar o corregir antecedentes clínicos; para ello consulta los existentes y documenta la información obtenida. El servidor valida cuenta, rol, relación con cita y Paciente y modificaciones permitidas. No crear consultas ficticias para justificar cambios. CU-22 permanece de consulta para Médico y Paciente según su autorización.
 - **Máximo una consulta médica por cita**; pertenece al Paciente y Médico responsable; tipo control o enfermedad; motivo, síntomas, observaciones, diagnóstico e indicaciones cuando correspondan.
 - Médico puede registrar consulta durante atención realizada o completar documentación después; no crear consulta como atención real de una cita Cancelada o con Inasistencia. **Registrar o modificar consulta no marca la cita Atendida**.
-- Correcciones clínicas relevantes conservan autor, fecha, motivo cuando corresponda y versiones previas en almacenamiento protegido. Consulta de historia por relación asistencial; Paciente solo visualiza su información autorizada; Recepción no modifica datos clínicos.
+- Modificaciones clínicas relevantes de consultas y antecedentes conservan autor, fecha, motivo cuando corresponda y versiones anteriores y nuevas en almacenamiento protegido; no cambian automáticamente el estado de la cita. La bitácora general solo registra referencias y metadatos seguros, sin contenido médico sensible. Consulta de historia por relación asistencial; Paciente solo visualiza su información autorizada; Recepción y Administrador no modifican datos clínicos.
 
 ### 5.7. Laboratorio digital (`CU-24`–`CU-27`)
 

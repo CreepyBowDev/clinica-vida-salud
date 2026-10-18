@@ -521,6 +521,13 @@ Recuperación de contraseñas:
 - **El restablecimiento administrativo se aplica exclusivamente a cuentas del personal; no autoriza al Administrador a restablecer contraseñas de Pacientes.** Si un Paciente pierde el acceso a su correo verificado y no puede completar CU-06, el procedimiento alternativo queda pendiente de una definición funcional específica; no inventarlo ni implementarlo automáticamente.
 - El Administrador nunca consulta contraseñas anteriores ni se envían contraseñas permanentes en texto plano. Registrar los eventos relevantes en Bitácora sin contraseñas, hashes ni tokens.
 
+**Administración del acceso de Pacientes (CU-03 / PN02):**
+
+- Solo el Administrador con sesión válida puede consultar datos administrativos mínimos y desactivar/reactivar cuentas de Pacientes existentes y previamente verificadas. El servidor valida autorización, cuenta objetivo, verificación previa y vínculo original; no habilita cuentas pendientes ni crea una segunda cuenta.
+- Desactivar invalida todas las sesiones anteriores y conserva el historial. Reactivar una cuenta administrativamente desactivada solo restituye la habilitación de acceso: exige nuevo login, conserva el correo previamente verificado y no elimina ni omite un bloqueo temporal vigente.
+- Estado de cuenta, estado de ficha y bloqueo temporal son independientes. Reactivar la cuenta no activa la ficha ni habilita nuevas reservas si esta sigue inactiva. Usar los estados existentes: suspender significa desactivar y rehabilitar significa reactivar; no crear `Suspendida`.
+- Conservar identificador de Usuario, rol Paciente, contraseña, correo de acceso, vínculo con el mismo Paciente, antecedentes, citas, historial y resultados. Esta operación no concede permisos adicionales, no cambia identidad o credenciales y no sustituye CU-04, CU-05 o CU-06. Registrar responsable, resultado y referencias seguras en Bitácora, sin secretos ni contenido clínico.
+
 ---
 
 ## 17. Registro de Paciente, códigos y Brevo
@@ -566,9 +573,9 @@ Existen exactamente cuatro roles:
 
 | Rol | Backend autorizado |
 | --- | --- |
-| Administrador | Cuentas del personal, médicos, especialidades, consultorios, horarios, reportes, carga/corrección documental de laboratorio, bitácora |
+| Administrador | Cuentas del personal y estado de acceso de cuentas de Pacientes previamente verificadas según CU-03, médicos, especialidades, consultorios, horarios, reportes, carga/corrección documental de laboratorio, bitácora |
 | Recepcionista | Registro administrativo de pacientes y códigos de activación, programación, reprogramación, cancelación, llegadas e inasistencias |
-| Médico | Agenda propia, historia clínica relacionada, consultas, solicitudes, revisión y autorización de laboratorio, marcar **sus propias** citas como Atendida |
+| Médico | Agenda propia, historia clínica relacionada, consultas y mantenimiento autorizado de antecedentes según CU-23, solicitudes, revisión y autorización de laboratorio, marcar **sus propias** citas como Atendida |
 | Paciente | Alta y activación propia, perfil, reserva **solo propia**, historial e información clínica autorizada, documentos publicados y avisos internos |
 
 - No crear permisos editables, tablas de permisos dinámicos ni roles adicionales sin decisión explícita.
@@ -633,11 +640,13 @@ Reprogramar una `Programada` conserva ese estado. `Atendida`, `Cancelada` e `Ina
 
 - La historia clínica integra antecedentes, consultas y laboratorios sin confundirse con historial administrativo de citas.
 - El Médico consulta información de pacientes vinculados a una atención autorizada; el Paciente solo la suya cuando sea autorizada.
+- **CU-22 es exclusivamente de consulta. CU-23 / PN18** permite únicamente al Médico responsable registrar, completar o corregir antecedentes obtenidos durante una atención real y autorizada: tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes personales o familiares. Validar cuenta activa, sesión, rol y relación con la cita y el Paciente antes de leer o modificar.
+- CU-08 no permite al Paciente editar antecedentes, diagnósticos, alergias clínicas, enfermedades crónicas, tratamientos o resultados. Administrador y Recepción tampoco modifican antecedentes. No crear consultas ficticias para justificar su actualización.
 - Cada cita admite **máximo una consulta**, incluso frente a solicitudes concurrentes.
 - El Médico responsable puede registrar la consulta durante la atención, sin exigir previamente `Atendida`; puede completar documentación de una atención realizada conforme a los CU.
 - No registrar una atención inexistente para citas `Cancelada` o con `Inasistencia`.
-- Actualizaciones clínicas importantes deben mantener responsable, fecha, motivo cuando corresponda y traza/versiones protegidas. No sobrescribir silenciosamente diagnóstico previo.
-- La modificación de una consulta **no** cambia automáticamente el estado de la cita.
+- Actualizaciones clínicas importantes de consultas o antecedentes deben mantener responsable, fecha, motivo cuando corresponda y versiones anteriores y nuevas en almacenamiento clínico protegido. La bitácora general solo registra referencias y metadatos seguros, sin antecedentes, diagnósticos ni otro contenido clínico sensible. No sobrescribir silenciosamente información clínica previa.
+- La modificación de una consulta o de antecedentes **no** cambia automáticamente el estado de la cita.
 - Solo el Médico correspondiente puede registrar/modificar las consultas y solicitar los estudios asociados.
 - Proteger consultas, antecedentes y documentos ante acceso por ID ajeno o URL manipulada.
 

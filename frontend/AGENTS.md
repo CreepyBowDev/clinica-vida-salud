@@ -404,12 +404,14 @@ export const ROLES = {
 
 No inventar IDs numéricos de roles si el backend todavía no los fijó. No usar números mágicos ni comparaciones dispersas cuando existan constantes.
 
-- **Administrador:** cuentas del personal, especialidades, médicos, consultorios, horarios, reportes, carga documental de laboratorio y consulta de bitácora.
+- **Administrador:** cuentas del personal, consulta administrativa mínima y desactivación/reactivación de cuentas de Pacientes previamente verificadas según CU-03, especialidades, médicos, consultorios, horarios, reportes, carga documental de laboratorio y consulta de bitácora.
 - **Recepcionista:** registros administrativos de pacientes, generación de códigos de activación, programación, reprogramación, cancelación, confirmación de llegada e inasistencia.
-- **Médico:** propia agenda, consultas clínicas y estudios autorizados; solo el responsable marca `Atendida` y autoriza publicar resultados propios.
+- **Médico:** propia agenda, consultas y registro/actualización de antecedentes durante una atención real y autorizada según CU-23, y estudios autorizados; solo el responsable marca `Atendida` y autoriza publicar resultados propios.
 - **Paciente:** activa cuenta, consulta y actualiza propio perfil, reserva para sí mismo, consulta historial y resultados publicados; no cancela ni reprograma.
 
 **La protección visual de una ruta no sustituye la autorización del backend.** Cualquier usuario puede intentar una petición HTTP manual. Validar permisos y relaciones reales en Laravel.
+
+En el panel administrativo, CU-03 separa las acciones del personal de las cuentas de Pacientes: estas últimas solo permiten consultar datos mínimos y desactivar/reactivar acceso si ya fueron verificadas. No ofrecer creación, cambio de contraseña, correo, rol, permisos o vinculación, ni activación de cuentas pendientes. Suspender y rehabilitar corresponden a Desactivada y Activa, sin un estado nuevo. Desactivar invalida sesiones; reactivar exige nuevo login y no activa la ficha ni elimina bloqueos temporales vigentes. La interfaz representa la respuesta del servidor y conserva independientes cuenta, ficha y bloqueo.
 
 ---
 
@@ -585,7 +587,7 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 ## 23. Pacientes, perfil, agenda e historial (`CU-07`, `CU-08`, `CU-20`, `CU-21`)
 
-- El Paciente ve y edita solo información permitida de su propia ficha; Recepción gestiona el registro administrativo, sin editar diagnósticos.
+- El Paciente ve y edita solo datos personales, de contacto, emergencia y preferencias permitidas de su propia ficha; no edita antecedentes, alergias registradas clínicamente, enfermedades crónicas, medicamentos/tratamientos, diagnósticos ni resultados. Recepción gestiona el registro administrativo, sin permisos clínicos ni de administración de contraseñas o acceso de cuentas de Pacientes.
 - El Paciente no puede cambiar arbitrariamente el identificador de su ficha o vincularse con otra persona.
 - Diferenciar **correo de contacto** y **correo de acceso**. Cambiar el primero no cambia el segundo; cambiar el correo de acceso exige el procedimiento de verificación definido por el servidor.
 - Un Paciente puede tener ficha y citas antiguas sin cuenta web. La activación conserva historial y no crea un segundo registro.
@@ -600,7 +602,8 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 - Acceso clínico exclusivamente cuando exista autorización y relación asistencial; no exponer historias ajenas en tablas administrativas.
 - Cada cita tiene como máximo **una consulta**; una consulta puede originar varias solicitudes de laboratorio.
 - Registrar o actualizar una consulta no cambia automáticamente a `Atendida`.
-- El Médico responsable puede completar/corregir información autorizada manteniendo trazabilidad, incluso en atenciones previas conforme a las reglas aprobadas.
+- El Médico responsable puede registrar, completar o corregir antecedentes durante una atención real y autorizada por CU-23, y completar/corregir información de atenciones previas conforme a las reglas aprobadas. Consultar primero los antecedentes existentes y enviar solo modificaciones permitidas; Laravel valida cuenta, rol y relación asistencial y conserva versiones, responsables y fechas. No crear consultas ficticias ni marcar Atendida automáticamente al guardar antecedentes.
+- CU-22 permanece de consulta para Médico y Paciente dentro de sus permisos. La edición clínica de CU-23 no se ofrece a Administrador, Recepción o Paciente; la bitácora general solo contiene referencias y metadatos seguros, sin contenido de antecedentes.
 - Mostrar antecedentes, diagnósticos y observaciones solo a usuarios autorizados por la API; no usar estado de frontend para conceder acceso.
 - Formularios médicos deben evitar filtraciones en errores, mensajes, consola, analytics y persistencia del navegador.
 - No hacer copia de seguridad local de datos clínicos en `localStorage` o `sessionStorage`.

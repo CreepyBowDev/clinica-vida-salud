@@ -12,16 +12,18 @@ Fuente operativa de consulta para implementar los **30 casos de uso** con la num
 
 **Precedencia:** el examen es obligatorio; las decisiones aprobadas más recientes desarrollan lo no especificado; este archivo reproduce las fichas de la versión fuente. En caso de diferencia, contrastar la fuente y pedir definición en lugar de alterar silenciosamente requisitos. Los plazos, códigos, Brevo, módulos clínicos y bitácora son decisiones del proyecto cuando el examen no los exige expresamente.
 
+**Precisiones aprobadas incorporadas:** CU-03 / PN02 incluye la administración exclusiva del estado de acceso de cuentas de Pacientes previamente verificadas; CU-23 / PN18 incluye el mantenimiento médico de antecedentes durante una atención autorizada. Se conservan títulos, identificadores y ciclos existentes. La denominación académica actualizada de CU-03 queda pendiente de cotejo con el Word vigente, no disponible en el repositorio; no se presume que estas precisiones ya figuren en las páginas del PDF citado ni que estén implementadas.
+
 **Navegación:** cada caso tiene ancla de encabezado `CU-XX`; los números no se reinician por módulo. El **ciclo** es el registrado en 4.2/4.3; no equivale al estado de implementación.
 
 ## 2. Actores y límites comunes
 
 | Actor | Responsabilidad y prohibiciones principales |
 | --- | --- |
-| Administrador | Cuentas de personal, roles predefinidos, médicos, especialidades, consultorios, horarios, reportes, bitácora y documentación de laboratorio. No diagnostica, no publica resultados, no marca Atendida ni reprograma fechas u horas. |
+| Administrador | Cuentas de personal, roles predefinidos y estado de acceso de cuentas de Pacientes previamente verificadas; médicos, especialidades, consultorios, horarios, reportes, bitácora y documentación de laboratorio. No cambia credenciales, rol o vínculo de Pacientes, modifica antecedentes, diagnostica, publica resultados, marca Atendida ni reprograma fechas u horas. |
 | Recepcionista | Fichas de pacientes, verificación presencial, códigos de activación, programación/reprogramación/cancelación, llegadas e inasistencias. No administra credenciales de pacientes ni modifica contenidos clínicos. |
-| Médico | Agenda e información clínica autorizadas, consultas médicas propias, solicitudes y revisión/publicación de laboratorio y Atendida solo de citas propias. |
-| Paciente | Registro/activación de su cuenta, perfil, reserva únicamente para sí, historial, resultados publicados y recordatorios internos. No reprograma ni cancela citas. |
+| Médico | Agenda e información clínica autorizadas, consultas médicas propias y mantenimiento de antecedentes durante una atención real y autorizada, solicitudes y revisión/publicación de laboratorio y Atendida solo de citas propias. |
+| Paciente | Registro/activación de su cuenta, perfil permitido, reserva únicamente para sí, historial, información clínica autorizada, resultados publicados y recordatorios internos. No edita antecedentes, reprograma ni cancela citas. |
 
 En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y relación con el recurso**; React no sustituye la autorización. Brevo es servicio externo transaccional, no rol nuevo. Los procesos automáticos (notificaciones/auditoría) no crean un quinto actor.
 
@@ -155,7 +157,7 @@ Comprobar que volver atrás o solicitar directamente un archivo no restablezca e
 
 **Propósito**
 
-Crear y mantener cuentas del personal con roles fijos y credenciales establecidas de forma segura.
+Crear y mantener cuentas del personal con roles fijos y credenciales establecidas de forma segura; consultar datos administrativos mínimos y desactivar/reactivar únicamente el acceso de cuentas web de Pacientes existentes y previamente verificadas, sin modificar credenciales, rol o vinculación.
 
 **Actores**
 
@@ -167,12 +169,12 @@ Administrador
 
 **Precondición**
 
-El Administrador tiene sesión válida. Existen los roles predefinidos; el registro profesional existe cuando se crea la cuenta de un Médico.
+El Administrador tiene sesión válida y el servidor comprueba su permiso. Existen los roles predefinidos; el registro profesional existe cuando se crea la cuenta de un Médico. Para administrar acceso de un Paciente, la cuenta objetivo ya existe, fue verificada legítimamente y conserva su vínculo original; reactivarla requiere que esté desactivada administrativamente.
 
 **Flujo principal**
 
-1. El Administrador lista cuentas o abre su detalle por identificador.
-2. Selecciona crear, modificar, asignar un rol existente, activar, desactivar o restablecer credenciales del personal.
+1. El Administrador lista cuentas o abre su detalle por identificador; para Pacientes solo obtiene los datos administrativos mínimos autorizados.
+2. Sobre cuentas del personal selecciona crear, modificar, asignar un rol existente, activar, desactivar o restablecer credenciales. Si administra el acceso de una cuenta de Paciente, aplica exclusivamente el flujo alternativo.
 3. Para una nueva cuenta registra los datos y un correo único, asigna Administrador, Recepcionista o Médico y vincula al Médico con su registro profesional.
 4. El servidor valida autorización, unicidad y relación profesional; crea una sola cuenta pendiente.
 5. Envía mediante Brevo una invitación de 24 horas y uso único. El trabajador confirma el control del correo y establece su contraseña; el servidor activa la cuenta.
@@ -180,13 +182,25 @@ El Administrador tiene sesión válida. Existen los roles predefinidos; el regis
 7. Si el trabajador no puede recuperar su acceso por correo, el Administrador verifica su identidad y emite una invitación a un correo comprobado o una credencial temporal entregada por un medio seguro. Exige cambiarla antes de usar las funciones normales.
 8. Registra los cambios y restablecimientos en la bitácora sin guardar secretos.
 
+**Flujo alternativo**
+
+ADMINISTRAR EL ACCESO DE UNA CUENTA DE PACIENTE PREVIAMENTE VERIFICADA
+
+1. El Administrador consulta los datos mínimos de la cuenta y solicita desactivar o reactivar su acceso.
+2. El servidor revalida sesión, permiso, existencia, rol Paciente, verificación legítima previa y vínculo original con la ficha.
+3. Para desactivar, cambia el estado administrativo a Desactivada e invalida sus sesiones anteriores; conserva la cuenta y sus relaciones.
+4. Para reactivar, comprueba que estaba desactivada administrativamente y conserva el correo previamente verificado. Cambia únicamente su habilitación a Activa, sin iniciar sesión ni restaurar sesiones anteriores; el titular debe realizar un nuevo login y cumplir las restricciones de seguridad, incluido cualquier bloqueo temporal vigente.
+5. En ambas operaciones conserva identificador de Usuario, rol Paciente, contraseña, correo de acceso, vínculo con el mismo Paciente, antecedentes, citas, historial y resultados. No crea otra cuenta ni cambia el estado de la ficha: si sigue inactiva, continúa impidiendo nuevas reservas.
+6. Registra responsable, cuenta objetivo, operación y resultado en Bitácora, únicamente mediante referencias y metadatos seguros, sin contraseñas, hashes, tokens ni contenido clínico.
+7. Informa el estado de acceso actualizado. Suspender y rehabilitar significan desactivar y reactivar con los estados existentes; no se crea Suspendida ni se habilita un procedimiento de recuperación de identidad o credenciales.
+
 **Postcondición**
 
-Las cuentas del personal quedan creadas o actualizadas con los permisos del rol existente; no se modifican permisos generales ni individuales.
+Las cuentas del personal quedan creadas o actualizadas con los permisos del rol existente; no se modifican permisos generales ni individuales. En cuentas de Pacientes solo cambia el estado administrativo de acceso: identidad, credenciales, verificación previa, vínculo y datos históricos permanecen intactos, al igual que el estado de la ficha y los bloqueos temporales vigentes. La desactivación invalida sesiones y la reactivación exige nuevo login.
 
 **Excepciones**
 
-Correo duplicado, datos inválidos, vínculo profesional incompatible o rol no permitido: rechazar. Invitación vencida, utilizada o envío fallido: permitir reenvío controlado por el Administrador sobre la misma cuenta e invalidar la anterior. La recuperación automática se realiza por CU-06; el restablecimiento administrativo no revela contraseñas anteriores. Las cuentas del Paciente se crean por CU-04, sin registro público del personal. La primera cuenta de Administrador se configura de forma segura durante la instalación.
+Correo duplicado, datos inválidos, vínculo profesional incompatible o rol no permitido: rechazar. Invitación vencida, utilizada o envío fallido: permitir reenvío controlado por el Administrador sobre la misma cuenta e invalidar la anterior. La recuperación automática de los cuatro roles se realiza por CU-06; el restablecimiento administrativo es exclusivo del personal y no revela contraseñas anteriores. Las cuentas del Paciente se crean y verifican por CU-04, sin registro público del personal. Cuenta de Paciente inexistente, pendiente de verificación, vínculo incompatible, reactivación sin desactivación previa o petición de cambiar contraseña, correo, rol, permisos o vinculación: rechazar. No omitir bloqueos vigentes ni activar la ficha al reactivar acceso. Fallo o cambio simultáneo: no confirmar cambios parciales ni registrar éxito inexistente. Un Paciente sin acceso a su correo verificado no obtiene recuperación administrativa; la alternativa sigue pendiente de definición. La primera cuenta de Administrador se configura de forma segura durante la instalación.
 
 <a id="cu-04"></a>
 #### CU-04 — Registrar cuenta del Paciente y vincular su registro
@@ -393,12 +407,12 @@ Paciente
 
 **Precondición**
 
-Cuenta activa, sesión válida y vinculación con la ficha personal. No se permite cambiar información clínica de una atención.
+Cuenta activa, sesión válida y vinculación con la ficha personal. No se permite editar directamente antecedentes médicos, alergias registradas clínicamente, enfermedades crónicas, medicamentos/tratamientos, diagnósticos ni resultados de laboratorio.
 
 **Flujo principal**
 
 1. El Paciente abre Mi perfil; el servidor recupera sus datos personales, contacto de emergencia e información de salud autorizada.
-2. Modifica datos personales, de contacto o emergencia y las preferencias internas permitidas.
+2. Modifica datos personales, de contacto o emergencia y las preferencias internas permitidas; la información clínica autorizada se presenta solo para consulta.
 3. El servidor verifica titularidad, campos y unicidad, sin cambiar el identificador ni la vinculación.
 4. Guarda los cambios y registra las modificaciones administrativas relevantes en la bitácora.
 5. El correo de contacto se conserva separado del de acceso; el cambio de contraseña se realiza exclusivamente por CU-05.
@@ -416,11 +430,11 @@ CAMBIO DEL CORREO DE ACCESO
 
 **Postcondición**
 
-El perfil o correo de acceso quedan actualizados solo tras sus validaciones. No cambian contraseña, rol, permisos, diagnósticos, consultas, resultados ni vínculos de la cuenta.
+El perfil o correo de acceso quedan actualizados solo tras sus validaciones. No cambian contraseña, rol, permisos, antecedentes, alergias clínicas, enfermedades crónicas, medicamentos/tratamientos, diagnósticos, consultas, resultados ni vínculos de la cuenta.
 
 **Excepciones**
 
-Contraseña actual incorrecta, correo ocupado, código inválido, vencido o agotado, envío fallido o cuenta sin autorización: rechazar el cambio de acceso. Interrupción o conflicto simultáneo: conservar el correo anterior y evitar cambios parciales o cuentas duplicadas. Los reenvíos respetan las políticas existentes. Ficha ajena o campos clínicos de la atención: denegar. El correo de contacto no verifica ni modifica automáticamente el de acceso.
+Contraseña actual incorrecta, correo ocupado, código inválido, vencido o agotado, envío fallido o cuenta sin autorización: rechazar el cambio de acceso. Interrupción o conflicto simultáneo: conservar el correo anterior y evitar cambios parciales o cuentas duplicadas. Los reenvíos respetan las políticas existentes. Ficha ajena o intento de editar antecedentes u otros campos clínicos: denegar. El correo de contacto no verifica ni modifica automáticamente el de acceso.
 
 
 ### 4.3. Médicos y especialidades (`CU-09` a `CU-10`)
@@ -1031,7 +1045,7 @@ Existe sesión válida; el Médico accede a pacientes que le corresponden y el P
 
 **Postcondición**
 
-Se muestra información clínica autorizada sin modificar el historial administrativo ni los resultados.
+Se muestra información clínica autorizada en modo consulta, sin modificar antecedentes, consultas, historial administrativo ni resultados.
 
 **Excepciones**
 
@@ -1039,7 +1053,7 @@ Paciente ajeno o relación clínica no autorizada: denegar el acceso. Sin atenci
 
 **Notas y verificaciones de la ficha**
 
-Recepción no obtiene acceso clínico por gestionar reservas. Este caso desarrolla las funciones de salud ya definidas en el perfil.
+Recepción no obtiene acceso clínico por gestionar reservas ni el Administrador por gestionar el acceso de cuentas. CU-22 no permite editar antecedentes; su registro, ampliación o corrección corresponde exclusivamente al Médico responsable durante una atención real y autorizada por CU-23. El Paciente solo consulta su información clínica autorizada.
 
 <a id="cu-23"></a>
 #### CU-23 — Registrar o actualizar una consulta médica
@@ -1049,7 +1063,7 @@ Recepción no obtiene acceso clínico por gestionar reservas. Este caso desarrol
 
 **Propósito**
 
-Documentar la atención realizada por el Médico responsable, con un máximo de una consulta por cita.
+Documentar la atención realizada por el Médico responsable y registrar, completar o corregir los antecedentes clínicos obtenidos durante esa atención autorizada, con un máximo de una consulta por cita.
 
 **Actores**
 
@@ -1061,25 +1075,26 @@ Médico
 
 **Precondición**
 
-El Médico responsable tiene cuenta activa y sesión válida y documenta una atención real de su cita Programada, Confirmada o Atendida. No se crean consultas para Cancelada o Inasistencia.
+El Médico responsable tiene cuenta activa y sesión válida y documenta una atención real de su cita Programada, Confirmada o Atendida. El servidor valida rol y relación con la cita y el Paciente. No se crean consultas para Cancelada o Inasistencia ni consultas ficticias para justificar modificaciones de antecedentes.
 
 **Flujo principal**
 
-1. El Médico abre su cita; el servidor verifica titularidad y consulta existente.
+1. El Médico abre una cita que le corresponde; el servidor verifica cuenta, sesión, rol, relación con el Paciente y consulta existente.
 2. Si existe, muestra el mismo registro para completarlo o corregirlo.
-3. El Médico registra fecha, tipo control o enfermedad, motivo, síntomas, observaciones, diagnóstico e indicaciones cuando correspondan.
-4. El servidor valida datos, relaciones y máximo de una consulta por cita, incluso con solicitudes simultáneas.
-5. Guarda sin cambiar el estado de la cita. Las correcciones relevantes conservan versión anterior y nueva, autor, fecha y motivo cuando corresponda en almacenamiento clínico protegido.
-6. La bitácora general registra operación, responsable, resultado y referencia sin diagnósticos.
-7. Permite varios estudios por CU-24; CU-19 marca Atendida por separado.
+3. El Médico consulta los antecedentes existentes: tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes personales relevantes o familiares.
+4. Registra fecha, tipo control o enfermedad, motivo, síntomas, observaciones, diagnóstico e indicaciones cuando correspondan; durante la atención real y autorizada puede registrar nueva información, completar o corregir los antecedentes obtenidos.
+5. El servidor valida modificaciones permitidas, datos y relaciones, y el máximo de una consulta por cita, incluso con solicitudes simultáneas. Solo el Médico responsable puede modificar los antecedentes.
+6. Guarda sin cambiar el estado de la cita. Las modificaciones clínicas relevantes de consultas o antecedentes conservan versión anterior y nueva, autor, fecha y motivo cuando corresponda en almacenamiento clínico protegido.
+7. La bitácora general registra operación, responsable, resultado y referencias y metadatos seguros, sin antecedentes, diagnósticos, tratamientos ni otro contenido médico sensible.
+8. Permite varios estudios por CU-24; CU-19 marca Atendida por separado.
 
 **Postcondición**
 
-Existe una única consulta por cita, con trazabilidad de correcciones autorizadas y sin modificación automática del estado de la reserva.
+Existe una única consulta por cita y los antecedentes registrados, completados o corregidos por el Médico responsable conservan trazabilidad y versionado clínico de las modificaciones relevantes. No se modifica automáticamente el estado de la reserva ni se duplica contenido médico en Bitácora.
 
 **Excepciones**
 
-Cita Cancelada o con Inasistencia, atención no realizada, cita ajena, cuenta desactivada o datos inválidos: rechazar. Segunda consulta simultánea: rechazar y abrir la existente. El Médico profesionalmente inactivo con cuenta activa puede completar atenciones ya asignadas, sin recibir nuevas citas. Un fallo no confirma consulta ni versión parcial. Las versiones clínicas permanecen protegidas.
+Cita Cancelada o con Inasistencia, atención no realizada o ficticia, cita ajena, cuenta desactivada o datos inválidos: rechazar. Administrador, Recepción y Paciente no pueden modificar antecedentes ni otros datos clínicos, incluso mediante petición directa. Segunda consulta simultánea: rechazar y abrir la existente. El Médico profesionalmente inactivo con cuenta activa puede completar atenciones ya asignadas, sin recibir nuevas citas. Un fallo no confirma consulta, antecedentes ni versión parcial. Las versiones clínicas permanecen protegidas.
 
 
 ### 4.10. Laboratorio digital (`CU-24` a `CU-27`)

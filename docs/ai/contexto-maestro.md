@@ -111,10 +111,10 @@ Solo existen los siguientes **cuatro roles**. No crear roles, permisos configura
 
 | Rol | Funciones principales | Prohibiciones y límites |
 | --- | --- | --- |
-| **Administrador** | Administra cuentas del personal, roles existentes, médicos, especialidades, consultorios y horarios; consulta reportes y bitácora; carga/corrige documentos de laboratorio. | No diagnostica, no publica resultados, no marca citas como Atendidas, no reprograma fechas u horas por administración de consultorios. |
+| **Administrador** | Administra cuentas del personal y el estado de acceso de cuentas de Pacientes existentes y previamente verificadas según CU-03; gestiona roles del personal, médicos, especialidades, consultorios y horarios; consulta reportes y bitácora; carga/corrige documentos de laboratorio. | No crea cuentas de Pacientes ni cambia sus credenciales, rol o vinculación; no modifica antecedentes, diagnostica, publica resultados, marca Atendida ni reprograma fechas u horas. |
 | **Recepcionista** | Registra/consulta pacientes, verifica identidad y emite códigos presenciales; programa, reprograma y cancela citas; confirma llegada y registra inasistencia. | No crea credenciales de pacientes, no administra cuentas del personal, no modifica contenido clínico, no marca Atendida. |
-| **Médico** | Consulta su agenda y datos clínicos autorizados; registra/corrige sus consultas; solicita estudios; revisa, devuelve o autoriza publicar resultados que le corresponden; marca sus citas Atendidas. | No administra cuentas ni citas de terceros; no marca Atendida en citas ajenas. |
-| **Paciente** | Registra/activa su propia cuenta, actualiza perfil, reserva citas **solo para sí mismo**, consulta historial, información clínica autorizada, resultados publicados y recordatorios internos. | No se autoasigna rol del personal, no reprograma ni cancela citas, no modifica diagnósticos o resultados. |
+| **Médico** | Consulta su agenda y datos clínicos autorizados; registra/corrige sus consultas y los antecedentes de pacientes bajo su responsabilidad durante una atención real y autorizada por CU-23; solicita estudios; revisa, devuelve o autoriza publicar resultados que le corresponden; marca sus citas Atendidas. | No administra cuentas ni citas de terceros; no marca Atendida en citas ajenas. |
+| **Paciente** | Registra/activa su propia cuenta, actualiza perfil permitido, reserva citas **solo para sí mismo**, consulta historial, información clínica autorizada, resultados publicados y recordatorios internos. | No se autoasigna rol del personal, no reprograma ni cancela citas, no modifica antecedentes, diagnósticos, tratamientos o resultados. |
 
 La autorización definitiva corresponde a **Laravel en cada petición**, comprobando sesión, rol, estado de cuenta y **relación con el recurso**. Ocultar acciones en React solo mejora la interfaz, no constituye una barrera de seguridad.
 
@@ -140,6 +140,8 @@ La numeración es **única y continua**, `CU-01` a `CU-30`. No renumerar, fusion
 
 **Modelo de Negocio:** procesos `PN01`–`PN24`, sin añadir un proceso solo para registrar auditoría. **Alcance:** módulos `1.4.1`–`1.4.13`, con Bitácora en `1.4.13` y condiciones generales en `1.4.14`. **El apartado académico 4.5 se desarrollará en una actividad separada**; no presentarlo como diagrama general terminado.
 
+**Precisiones funcionales aprobadas:** PN02 / CU-03 incluye administrar únicamente el estado de acceso de cuentas de Pacientes previamente verificadas, además de las operaciones propias del personal. PN18 / CU-23 incluye mantener antecedentes clínicos durante una atención autorizada. Se conservan identificadores, ciclos y títulos actuales; la denominación de CU-03 queda pendiente de cotejo con la versión académica actualizada, no disponible en el repositorio. Estas precisiones están especificadas, no acreditan implementación.
+
 ## 8. Autenticación y cuentas
 
 - Los cuatro roles inician sesión **solo con correo electrónico y contraseña**; el correo de acceso es único y verificado y es independiente del correo de contacto de la ficha del Paciente.
@@ -147,9 +149,11 @@ La numeración es **única y continua**, `CU-01` a `CU-30`. No renumerar, fusion
 - **Tres errores consecutivos de contraseña** bloquean el acceso **10 minutos**; intentos durante el bloqueo no extienden su duración; al vencer se reinicia el contador, al igual que después de un acceso exitoso. Añadir límites de peticiones por origen.
 - Diferenciar cuenta **pendiente**, **activa** y **desactivada** del **bloqueo temporal**. Una cuenta pendiente no entra a funciones normales; una desactivada no accede ni desde sesiones anteriores. Recuperar contraseña no reactiva cuentas desactivadas.
 - El Administrador crea y administra cuentas **del personal** (Administrador, Recepcionista y Médico); vincula cuentas médicas con el registro profesional. El primer Administrador se establece mediante instalación segura.
+- En CU-03 puede consultar datos administrativos mínimos y desactivar/reactivar el acceso de cuentas web de Pacientes existentes y previamente verificadas. No crea esas cuentas ni modifica Usuario, rol Paciente, contraseña, correo de acceso, vínculo original o datos históricos; tampoco activa cuentas pendientes ni añade permisos. Suspender/rehabilitar significa desactivar/reactivar con los estados existentes, sin crear Suspendida.
+- Cuenta, ficha administrativa y bloqueo temporal son independientes. Desactivar una cuenta invalida sus sesiones; reactivarla desde Desactivada conserva el correo verificado y solo habilita el acceso administrativo: requiere nuevo login, no elimina un bloqueo vigente ni activa la ficha. Si la ficha sigue inactiva, no admite nuevas reservas. Ambas operaciones se auditan mediante referencias y metadatos seguros.
 - Personal nuevo: **invitación de 24 horas**, un solo uso, enviada por Brevo; confirma control del correo y establece contraseña. Reenvío controlado sobre la **misma cuenta**, invalidando la invitación anterior. Si se usan credenciales temporales por excepción, cambio obligatorio antes del uso normal.
 - `CU-05`: cambio propio con comprobación de contraseña actual (salvo flujo restringido de credencial temporal), invalidación de sesiones anteriores y renovación segura de la sesión actual.
-- `CU-06`: recuperación mediante **enlace de 60 minutos y un solo uso** enviado a correo verificado, respuesta no enumerativa, nuevo enlace invalida el anterior, invalidación de sesiones y **nuevo inicio de sesión obligatorio**. Personal sin correo verificable: restablecimiento administrativo tras identificación.
+- `CU-06`: recuperación para los cuatro roles mediante **enlace de 60 minutos y un solo uso** enviado a correo verificado, respuesta no enumerativa, nuevo enlace invalida el anterior, invalidación de sesiones y **nuevo inicio de sesión obligatorio**. El restablecimiento administrativo de CU-03 es exclusivo del personal tras identificación; gestionar el acceso de Pacientes no permite cambiar sus contraseñas. La alternativa para un Paciente sin acceso a su correo verificado continúa pendiente de definición.
 - El Paciente puede cambiar su **correo de acceso** en `CU-08` confirmando contraseña y verificando un código en la nueva dirección; el anterior conserva vigencia hasta concluir el cambio. Cambiar correo de contacto no cambia automáticamente el correo de acceso.
 - Brevo se usa para **correo de seguridad de cuentas**. No se usa para recordatorios de citas ni envío de información clínica.
 
@@ -203,10 +207,10 @@ La reprogramación de una Programada conserva el mismo estado. **Atendida, Cance
 ## 11. Agenda, perfil, historia clínica y consultas
 
 - Las agendas muestran citas por Médico, fecha y estado dentro de los permisos. El historial del Paciente incluye citas pasadas y canceladas, ubicación, fecha de registro y trazabilidad.
-- Los antecedentes clínicos y los datos personales del Paciente tienen controles diferenciados; Recepción **no modifica diagnósticos ni consultas**.
+- Los antecedentes clínicos y los datos personales del Paciente tienen controles diferenciados. Solo el Médico responsable registra, completa o corrige tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes personales o familiares durante una atención real y autorizada en CU-23 / PN18. Administrador, Recepción y Paciente no los modifican; CU-08 permite solo la edición personal autorizada y CU-22 permanece de consulta.
 - Cada cita puede tener **cero o una consulta médica**; el Médico responsable la registra durante la atención o al completarla. No crear consultas para citas Canceladas o con Inasistencia.
 - Una consulta puede generar **varias solicitudes de laboratorio**.
-- La corrección posterior de una consulta requiere conservar **autor, fecha, motivo cuando corresponda, versión anterior y nueva**, en almacenamiento clínico protegido. La bitácora general registra solamente metadatos de la operación y referencias, nunca el contenido clínico completo.
+- Las modificaciones clínicas relevantes de consultas o antecedentes requieren conservar **autor, fecha, motivo cuando corresponda, versión anterior y nueva**, en almacenamiento clínico protegido. El servidor valida cuenta, rol y relación asistencial; no se crean consultas ficticias para cambiar antecedentes ni se modifica automáticamente el estado de la cita. La bitácora general registra solamente metadatos seguros y referencias, nunca contenido de antecedentes, diagnósticos u otra información médica sensible.
 - La historia clínica se compone de información autorizada de antecedentes, consultas y resultados; no confundirla con el historial administrativo de citas.
 
 ## 12. Laboratorio digital

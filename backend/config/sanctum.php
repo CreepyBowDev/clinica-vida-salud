@@ -2,6 +2,7 @@
 
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
 
 return [
 
@@ -72,8 +73,7 @@ return [
     */
 
     'middleware' => [
-        // Integrar AuthenticateSession con los flujos de cambio/recuperación de CU-05/CU-06.
-        'authenticate_session' => null,
+        'authenticate_session' => AuthenticateSession::class,
         'encrypt_cookies' => EncryptCookies::class,
         'validate_csrf_token' => ValidateCsrfToken::class,
     ],

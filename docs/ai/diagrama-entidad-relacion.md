@@ -100,6 +100,8 @@ Contraseña NULL solo durante invitación pendiente; obligatoria para una cuenta
 
 **Ampliación aprobada posterior al Draw.io:** el catálogo original de dos propósitos se amplía con `CredencialTemporal` por decisión expresa para CU-03. No cambia nombres, tipos, nulabilidades, número de atributos ni relaciones. El `.drawio` original no se modifica; la migración y evidencia actual se registran en §6.15.
 
+**Uso funcional desde fase 6:** `CredencialTemporal` conserva un HMAC-SHA256 separado por propósito y los instantes existentes; se consume solo al confirmar el cambio definitivo y se invalida al reemitir, cerrar expresamente sin completar o cambiar estado/rol. El hash anterior de Usuario permanece inhabilitado por `cambio_clave_obligatorio` hasta guardar el definitivo. El identificador del token y el tipo restringido se guardan en el payload cifrado de la sesión nativa, sin atributos nuevos del dominio. La exclusividad de sesión y la emisión/consumo se coordinan bajo bloqueo de Usuario; continuidad global antes de emitir. Plazos y pruebas en reglas §4.4/análisis §20/contexto §17.23; no se añaden tablas, columnas, FK o migraciones.
+
 **Restricciones únicas declaradas:** `(token_hash)`.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |

@@ -2,6 +2,8 @@
 
 ## Estado de esta fase
 
+**Usuarios y autenticación — backend primero, fase 6:** API ordinaria y restringida de CU-01/CU-02, CU-05, recuperación por correo CU-06, alta/invitación, administración de acceso/roles y restablecimiento temporal del personal con último Administrador (CU-03) implementados. Contratos/análisis en [`../docs/ai/analisis-clases.md`](../docs/ai/analisis-clases.md) §20; progreso y plan vigente en contexto §§17.16–17.23 y detalle operativo al final de este README. Siguiente fase: 7A, registro de Paciente nuevo; CU-04 y cierre integrado backend siguen pendientes. Brevo integrado mediante **API HTTP**, con pruebas simuladas y configuración privada habilitada; entrega real pendiente de la integración React posterior.
+
 La población posterior mediante seeders está aplicada en desarrollo: catálogos/consultorios, conjunto ficticio de demostración y Administrador inicial activo por excepción de instalación. Su estado y comandos se describen en el último apartado; los estados anteriores son registros históricos.
 
 Preparación local inicial verificada el **18 de octubre de 2026**. Las **fases 0–7 de datos**, completadas el **19 de octubre de 2026**, se registran al final de este documento y en `../docs/ai/diagrama-entidad-relacion.md`, §6.6–§6.13. Desarrollo contiene las **28 tablas de dominio, 239 columnas y 43 FK** del DER, además de `migrations` y dos exclusiones de citas. **Ningún CU-01 a CU-30 está implementado por este trabajo.**
@@ -63,11 +65,30 @@ La contraseña del rol técnico se generó aleatoriamente y quedó únicamente e
 
 - `composer.json` registra `Clinica\` → `src/`, con las cuatro capas en minúsculas y exige `ext-pdo`/`ext-pdo_pgsql`.
 - `bootstrap/app.php` registra las entradas HTTP de Laravel y habilita `statefulApi()`.
-- `routes/api.php` es el puente que carga `src/presentation/routes/api.php`; este último aún no declara rutas de negocio.
+- `routes/api.php` carga explícitamente `src/presentation/routes/auth.php`, `personal.php` y `usuarios.php`, donde se declaran las rutas funcionales. Laravel aplica el prefijo `/api` y el grupo `api` desde el registro de `bootstrap/app.php`.
 - `app/Providers/AppServiceProvider.php` registra `src/data/database/migrations/` mediante `loadMigrationsFrom`.
 - Se conservaron los 19 archivos originales de `backend/`, incluidos `AGENTS.md`, `prueba.php` y los archivos de `src/`; se compararon sus hashes SHA-256.
 
 Los archivos de `app/`, `bootstrap/`, `config/` y `routes/` son infraestructura del framework. Al desarrollar los CU, presentación adaptará HTTP, servicios aplicarán reglas y transacciones, repositorios accederán a Eloquent y modelos representarán las entidades aprobadas. Esta fase no agrega esas clases de negocio.
+
+### Organización modular de rutas
+
+```text
+routes/
+├── api.php                       # Carga central: auth → personal → usuarios
+├── web.php
+└── console.php
+src/presentation/routes/
+├── auth.php                      # Login, me, logout, cambio y recuperación de contraseña
+├── personal.php                  # Alta, reenvío y aceptación de invitaciones
+└── usuarios.php                  # Consulta administrativa, estado y rol
+```
+
+`routes/api.php` incluye cada archivo una sola vez, sin añadir otro prefijo `/api` ni repetir el grupo de middleware `api`. Cada archivo funcional conserva sus grupos, middlewares y restricciones originales. La aceptación pública de invitaciones está en `personal.php`, con la misma URL `/api/auth/invitaciones/aceptar`, fuera del grupo exclusivo del Administrador. El antiguo `src/presentation/routes/api.php` fue sustituido por esos tres archivos; no hay otros módulos con rutas de negocio definidas en este momento.
+
+La comparación histórica antes/después del traslado verificó 13 declaraciones sin duplicados: cuatro en auth, tres en personal, cuatro en usuarios y dos de infraestructura (`/up` y `/sanctum/csrf-cookie`). Se preservaron métodos (incluido HEAD), URL, nombres, dominios, prefijos, acciones, orden de registro, middleware declarado/resuelto, parámetros, restricciones y valores predeterminados. También se comprobaron hashes idénticos de 106 archivos de lógica/infraestructura ajenos al traslado. Evidencia de regresión en contexto §17.20. La fase 5 añade dos rutas de recuperación a auth.php; el registro actual tiene 15 declaraciones.
+
+Regresión posterior a la reorganización: **158 pruebas y 2062 aserciones correctas** (50,39 s) de autenticación, cambio de contraseña, invitaciones, cuentas y concurrencia; PostgreSQL aislado y correo simulado. Cambio exclusivamente estructural, sin clases, dependencias o funcionalidades nuevas.
 
 El esqueleto se obtuvo con `--no-install --no-scripts`. Se integraron únicamente los archivos necesarios; no se copiaron sus instrucciones de agentes, modelo `User`, factories, seeders, migraciones de usuarios/cache/jobs, aplicación Vite ni pantalla Blade inicial. Se retiraron los scripts que creaban SQLite o ejecutaban migraciones y npm. **No se ejecutó `migrate`, `install:api`, `db:seed` ni publicación de migraciones de Sanctum.**
 
@@ -80,7 +101,7 @@ El esqueleto se obtuvo con `--no-install --no-scripts`. Se integraron únicament
 - En la instalación inicial las sesiones eran temporales en archivo; **desde fase 2 usan la tabla nativa `sessions`, con contenido cifrado**. Caché en archivo, cola síncrona y mailer `array` en memoria se conservan.
 - El disco local apunta a `storage/app/private`, sin rutas automáticas de entrega/subida de archivos ni enlace público creado.
 
-**Integración actual y autenticación pendiente:** fase 2 registra `Usuario`, el guard de sesión `web`, el proveedor Eloquent `usuarios` y su uso por Sanctum. La tabla `sessions` y el manejador nativo se verificaron con sesiones anónimas y vinculadas a usuarios. `AuthenticateSession`, login/logout, bloqueo, estados/permisos y revocación automática se integrarán con sus CU. No se configura un broker paralelo de recuperación ni existen endpoints de credenciales o emisión de tokens. La eliminación por Usuario de varias sesiones se probó como soporte persistente, sin dar por completada su coordinación de negocio.
+**Antecedente de fase 2 de datos:** se registraron `Usuario`, guard `web`, proveedor Eloquent `usuarios` y Sanctum; se comprobaron sesiones anónimas y vinculadas. La implementación posterior de **fase 1 de autenticación**, al final de este README, integra AuthenticateSession, login/me/logout, bloqueo y controles transversales. La recuperación, emisión de tokens y administración de cuentas permanecen en sus fases funcionales; no hay un broker paralelo de recuperación.
 
 El futuro cliente Axios deberá usar credenciales, obtener primero la cookie CSRF y enviar la cabecera XSRF correspondiente. No se ha creado ni probado todavía ese frontend.
 
@@ -494,3 +515,376 @@ Se añadió la migración incremental `src/data/database/migrations/2026_10_19_0
 - Sincronizados los cinco documentos existentes de `../docs/ai/`: CU-03/CU-05/CU-06 separados de la invitación inicial; sesión temporal restringida con cierre y nuevo login; cambios de rol con identidad e historial preservados; rechazo de obligaciones médicas incompatibles/no verificables y protección transaccional del último Administrador. Son políticas aprobadas del proyecto, no nuevos RF/RN oficiales ni controles implementados. Referencias: reglas §§4.3–4.4, DER §§3.4 y 6.15, contexto §17.14.
 
 Quedan por definir duración, generación/entrega, intentos, reemisión/usos y consumo de la credencial, tratamiento de contraseña anterior al emitir y concurrencia con sesiones/cambios/recuperaciones. Admitir el propósito en PostgreSQL no implementa ese flujo. **Ningún CU queda completado**; análisis y diagrama de clases siguen pendientes del desarrollo funcional. CU-01/CU-02 pueden abordarse con los controles definidos, impidiendo acceso normal ante cambio obligatorio.
+
+## Usuarios y autenticación — fase 1, backend de CU-01/CU-02 (2026-10-19)
+
+### Contrato y uso desde la SPA
+
+La API utiliza sesiones Laravel/Sanctum con cookies. Desarrollo está configurado para backend `http://localhost:8000` y frontend `http://localhost:5173`, con CORS de credenciales y comprobación exacta de origen. Las peticiones de la SPA necesitan Origin/Referer permitido; no hay acceso alternativo por bearer token.
+
+| Operación | Petición | Resultado |
+| --- | --- | --- |
+| Preparar CSRF | GET `/sanctum/csrf-cookie` | 204; cookies de sesión HttpOnly y XSRF-TOKEN para la cabecera CSRF. |
+| Iniciar sesión | POST `/api/auth/login`, JSON con `correo_acceso` y `password` | 200; sesión regenerada y `data` con `id_usuario` como string, `correo_acceso`, `nombre_visible` y `rol`. |
+| Restaurar sesión | GET `/api/auth/me` | 200 con el mismo Resource; 401 sin sesión válida. No recibe un ID de usuario seleccionable. |
+| Cerrar sesión | POST `/api/auth/logout` | 204 sin JSON; invalida la sesión actual y renueva CSRF. |
+
+El cliente conserva cookies y envía `Accept: application/json`, credenciales y `X-XSRF-TOKEN` en escrituras. Resolver CSRF contra la raíz del backend, no contra `/api/sanctum/csrf-cookie`. Logout repetido es idempotente con CSRF válido; un 419 exige renovar el mecanismo sin reenvío automático de escrituras. Login desde sesión normal ya válida devuelve 409 para impedir un intercambio silencioso de identidad.
+
+- Credenciales/estado no admitidos devuelven el mismo 401 genérico, sin revelar bloqueo o existencia de correo. Me devuelve 401 por ausencia, expiración/revocación o contexto incompatible; falta de permiso con sesión válida es 403.
+- Entradas inválidas: 422 con mensajes por campo; CSRF ausente/vencido: 419; límites técnicos: 429 y Retry-After accesible desde la SPA mediante CORS. Los errores usan `success: false`, `error.code` y `error.message`, con detalles seguros solo cuando proceden. Los fallos inesperados usan 500 seguro.
+- Tres contraseñas incorrectas consecutivas bloquean diez minutos. El bloqueo no se extiende por intentos posteriores; expiración/éxito reinician contador. El limitador técnico independiente usa 20 solicitudes/minuto/IP y 5/minuto/correo+IP, configurable en `config/seguridad.php`, con ámbitos HMAC persistidos en ControlIntentos.
+- Sesiones database cifradas; el guard nativo regenera ID/CSRF e inicializa huella HMAC. Login guarda y comprueba la fila en la transacción del Usuario/auditoría antes de confirmar éxito. La primitiva de revocación múltiple exige transacción y debe coordinarse con el bloqueo de Usuario en los CU consumidores futuros. Un guardado tardío no recrea una sesión revocada.
+- Cuenta, ficha y bloqueo permanecen independientes. Paciente/Médico con ficha inactiva y cuenta habilitada pueden autenticarse para operaciones autorizadas; el acceso clínico exige su propio rol/vínculo. Cambio obligatorio impide acceso normal mientras se desarrolla fase 6 del plan vigente.
+
+### Verificación y alcance
+
+Pruebas de API: `tests/Feature/AutenticacionTest.php`. Pruebas de procesos/conexiones PostgreSQL independientes: `tests/Feature/AutenticacionConcurrenteTest.php`, con fixtures de navegador, worker y barreras de respuesta. Solo se usan base/rol `clinica_vida_salud_test` y datos ficticios; las pruebas de CSRF conservan esa conexión aislada aunque ejerciten el middleware real fuera de la omisión habitual de testing.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/AutenticacionTest.php tests/Feature/AutenticacionConcurrenteTest.php
+php artisan test --compact --no-ansi
+php artisan route:list --path=api/auth -v
+```
+
+Autoload PSR-4 estricto y Composer validados; Pint sobre los 26 PHP afectados y sintaxis comprobados. Documentación actualizada en análisis de clases y contexto §17.16. La API ordinaria está implementada; React/recorrido en navegador real corresponden a la **etapa frontend posterior**, según la reorganización de contexto §17.17, y el módulo backend completo sigue en desarrollo. Brevo, invitaciones, recuperación, administración de cuentas y credencial temporal se desarrollan en las fases acordadas. El esquema permanece en 28 entidades/239 atributos/43 relaciones; este bloque no requiere migraciones. El diagrama global de clases corresponde al cierre backend del módulo.
+
+**Resultado final de fase 1:** suite completa con **324 pruebas y 2216 aserciones correctas** (106,58 s). Las tres rutas de autenticación están registradas y `git diff --check` es correcto. Desarrollo conserva siete usuarios, dos eventos y cero tokens, con 29 migraciones; no se ejecutaron seeders ni envíos de correo.
+
+## Plan vigente — completar backend antes de frontend
+
+Las fases siguientes sustituyen la antigua fase 2 de React. Son independientes de las fases históricas de preparación de datos de este README.
+
+| Fase | Entrega |
+| --- | --- |
+| 0–1 | Diseño y API de login/me/logout; completadas. |
+| 2 | Cambio de contraseña propia CU-05; implementado, detalle siguiente. |
+| 3 | Alta/invitación del personal CU-03 e integración Brevo de seguridad; implementada con pruebas simuladas. |
+| 4 | Administración de acceso/roles CU-03 y protección del último Administrador; implementada. |
+| 5 | Recuperación por correo CU-06 para los cuatro roles; implementada con correo simulado. |
+| 6 | Restablecimiento administrativo temporal del personal CU-03 implementado; política aprobada y contratos al final de este README/contexto §17.23. |
+| 7A / 7B | Registro de Paciente nuevo / vinculación existente CU-04; 7B integra emisión autorizada de código por CU-07. |
+| 8 | Integración/pruebas y cierre backend del módulo; diagrama global acumulativo. |
+
+La protección del último Administrador se aplica en cada operación que lo requiera, incluidos restablecimientos. Se mantienen los rechazos aprobados al abandonar Médico con obligaciones incompatibles/no verificables. La documentación se actualiza por CU/fase; el cierre backend se distingue del recorrido completo posterior con React. AUT-21 se conserva pendiente para esa etapa frontend.
+
+## Usuarios y autenticación — fase 2 backend, CU-05
+
+**PUT `/api/auth/password`**, para cualquiera de los cuatro roles con cuenta habilitada y sesión normal, origen permitido y CSRF. JSON de entrada:
+
+```json
+{
+  "current_password": "Contraseña actual ficticia",
+  "password": "Nueva frase ficticia 456",
+  "password_confirmation": "Nueva frase ficticia 456"
+}
+```
+
+Al confirmar devuelve **204 sin cuerpo** y cookies renovadas: mantiene la sesión actual de forma segura con un ID y CSRF nuevos, revocando todos los IDs anteriores de ese Usuario. El cliente debe utilizar las cookies/cabecera CSRF nuevas. La identidad se deriva de la sesión; los campos ajenos como id_usuario/rol no se utilizan. No se modifica la cuenta de otro Usuario ni se duplica el hash en Paciente/Médico.
+
+- Mínimo **12 caracteres**, confirmación exacta, conservación de espacios/caso/Unicode y máximo técnico de 1024 caracteres. Con el algoritmo bcrypt vigente se valida además máximo **72 bytes y ausencia de NUL**, para evitar truncamiento o fallo al guardar. No se cambia algoritmo ni contraseñas existentes.
+- Contraseña actual incorrecta: **422 AUTH_CLAVE_ACTUAL_INVALIDA**, con evento DENEGADO y sin modificar hash/sesiones ni contador de login. Validación de campos: 422 VALIDACION_ERROR con details; errores restantes mantienen el contrato central.
+- Límite técnico propio: 20 solicitudes/minuto/IP y 5/minuto/Usuario, compartidas entre dispositivos e IP de ese Usuario, con ámbitos HMAC persistentes separados de login y 429/Retry-After. No prolonga la ventana ni desactiva/bloquea la cuenta. Parámetros en config/seguridad.php.
+- Cuenta/rol/vínculo/huella, condición normal y fila de sesión vigente se comprueban otra vez después del bloqueo de Usuario. Hash, revocación, persistencia de sesión renovada y auditoría de éxito confirman juntos; el fallo necesario revierte todo y limpia ambos guards web/Sanctum.
+- No cambia estados administrativos, vínculos ni bloqueo temporal de login. Invitación inicial, recuperación y sesión restringida temporal mantienen sus flujos independientes en fases posteriores. No se envían correos por CU-05.
+
+Clases nuevas: CambiarClaveRequest, ClaveController, ClaveService y LimitarCambioClave. Reutiliza y amplía los Services/Repositories de fase 1. Contrato, colaboraciones y evidencia en analisis-clases §14 y contexto §17.17. No se agregan tablas, columnas, modelos ni migraciones; DER vigente y diagrama global pendiente de fase 8.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/CambioClaveTest.php tests/Feature/AutenticacionTest.php tests/Feature/AutenticacionConcurrenteTest.php
+php artisan route:list --path=api/auth -v
+```
+
+**Verificación focalizada de fase 2:** 83 pruebas y 1015 aserciones correctas, incluidas conexiones/procesos PostgreSQL independientes y CSRF real. Composer validate y autoload PSR-4 estrictos, Pint/sintaxis de los 32 PHP acumulados, cuatro rutas y formato/JSON/referencias documentales comprobados. Desarrollo conserva siete usuarios, dos eventos, cero tokens y 29 migraciones, con bcrypt; no se ejecutaron seeders ni envíos de correo.
+
+**Resultado final de fase 2:** suite completa con **363 pruebas y 2787 aserciones correctas** (133,65 s). Se ejecutó con margen de 300 s después de que el límite inicial de 120 s interrumpiera la primera ejecución. Backend de CU-05 completado y verificado; el módulo completo continúa con fase 3.
+
+## Usuarios y autenticación — fase 3 backend, alta/invitación del personal (CU-03 parcial)
+
+### API y recorrido
+
+| Operación | Acceso/entrada | Respuesta |
+| --- | --- | --- |
+| POST `/api/personal` | Administrador normal con sesión/CSRF. `rol`, `correo_acceso`; `nombres_personal`/`apellidos_personal` para Administrador o Recepcionista; para Médico solo `id_medico` existente y libre, sin sustituir sus nombres. | 201: `data` con id_usuario string, correo_acceso, rol y estado_cuenta Pendiente; `meta.invitacion` con envio y expira_en. |
+| POST `/api/personal/{id}/invitacion` | Mismo actor; solo personal pendiente de primera contraseña y con vínculo válido. ID BIGINT positivo de ruta. | 200 con el mismo Usuario y nueva invitación que invalida la anterior. |
+| POST `/api/auth/invitaciones/aceptar` | Anónimo, origen permitido y CSRF; token, password y password_confirmation. | 204 sin cuerpo: correo verificado/contraseña establecida/cuenta Activa; exige login posterior, no autentica automáticamente. |
+
+Ejemplo ficticio de alta administrativa (el Administrador no asigna una contraseña):
+
+```json
+{
+  "rol": "Recepcionista",
+  "correo_acceso": "trabajador@example.test",
+  "nombres_personal": "Persona",
+  "apellidos_personal": "Ficticia"
+}
+```
+
+La API nunca devuelve la invitación en claro. El titular recibe por correo un enlace de 24 horas y un solo uso, generado con 256 bits aleatorios y guardado como HMAC-SHA256 en TokenAcceso/InvitacionPersonal. El enlace previsto es `FRONTEND_URL/activar-personal#token=...`: usa fragmento para que el servidor web no reciba el secreto por GET. La pantalla React todavía no existe; el contrato del backend recibe el token por POST JSON junto con la primera contraseña y confirmación. La política se comparte con CU-05 mediante ClaveRequest, sin exigir contraseña anterior para invitación.
+
+Se revalida al Administrador bajo bloqueo de su cuenta/sesión persistida. Médico requiere el mismo registro profesional existente y sin vínculo a otra cuenta; se bloquea y vincula sin alterar nombres, actividad, consultorio u horarios. Los correos normalizados cuentan con unicidad PostgreSQL. Se rechazan alta de Pacientes, Médico inexistente/ocupado, roles adicionales y reenvío a cuentas activas/desactivadas/Paciente. La instalación del primer Administrador no se reutiliza ni se modifican sus credenciales.
+
+### Envío y recuperación ante fallos
+
+Alta/vínculo/token/eventos se guardan en una transacción; **el envío ocurre con DB::afterCommit después del commit exterior**, nunca dentro de un rollback SQL. La respuesta distingue:
+
+- `meta.invitacion.envio = simulado`: transporte array local/de pruebas, sin salida externa.
+- `aceptado`: el transporte aceptó el mensaje; no prueba entrega al buzón ni verificación del correo.
+- `fallido`: no se confirmó el envío; la cuenta permanece Pendiente y permite reenvío administrativo controlado.
+- `pendiente`: callback diferido por una transacción exterior todavía abierta.
+
+El resultado de envío se audita por separado sin secretos. No hay reintentos SMTP automáticos ni cola/outbox nueva. Una interrupción después del commit se recupera reemitiendo sobre la misma cuenta. Un fallo de auditoría posterior al envío puede devolver 500 sin deshacer correo/cuenta ya confirmados. Reenviar invalida el enlace anterior y emite otro con su propia vigencia de 24 horas; un fallo SQL antes de confirmar la nueva emisión conserva el enlace previo. La aceptación y reemisión comparten bloqueo de Usuario antes del token, evitando doble consumo y estados parciales.
+
+Parámetros técnicos iniciales en `config/seguridad.php`: espera de 60 segundos y cinco emisiones/hora por cuenta, incluidas inicial/fallidas; límites por acción de 20 solicitudes/minuto/IP y cinco/minuto/ámbito (Admin o token), mediante HMAC y ControlIntentos. 429/Retry-After no prolonga ventana. Estos valores no son nuevos RF/RN ni parámetros del flujo temporal todavía pendiente.
+
+### Brevo HTTP y configuración privada
+
+Por decisión posterior a fase 5, el mailer Laravel `brevo` usa el transporte propio `brevo-http`, registrado con Mail::extend. Envía JSON a `https://api.brevo.com/v3/smtp/email` mediante el cliente HTTP nativo de Laravel, sin instalar SDK. Verificación HTTPS obligatoria, timeout de conexión de 3 segundos y total de 10 segundos, sin redirecciones ni reintentos automáticos. Esta configuración sustituye a Brevo SMTP; los resultados históricos de fases 3/5 corresponden al transporte anterior. Las variables están declaradas sin secretos en `.env.example`; el `.env` privado no se modificó.
+
+Para utilizar envío real, el responsable debe configurar privadamente:
+
+- `SEGURIDAD_MAILER=brevo`.
+- `BREVO_API_KEY`, una API key HTTP de Brevo, cargada en services.brevo.key; no es una clave SMTP.
+- `MAIL_FROM_ADDRESS`/`MAIL_FROM_NAME` con remitente autorizado por Brevo.
+- `FRONTEND_URL` con el destino real de la SPA; producción exige HTTPS y su configuración de cookies/CORS correspondiente.
+
+El valor predeterminado de seguridad sigue siendo `array`, admitido solo en local/testing y señalado como simulado. No se admite el transporte log/failover para correos de seguridad ni se simula entrega con array en producción. No se realizaron envíos reales ni se verificó entrega a buzón. La plantilla Blade es exclusivamente de correo, no una interfaz funcional. Brevo permanece reservado a seguridad, nunca citas, recordatorios o contenido clínico.
+
+La API requiere remitente, destinatario, asunto y contenido HTML; autentica con cabecera `api-key`, sin credenciales en URL. Solo una respuesta **201 con messageId válido** confirma aceptación por Brevo; no demuestra llegada al buzón. Errores HTTP, confirmación incompleta o fallos de conexión producen errores saneados sin copiar respuestas, claves o enlaces del proveedor. La cuenta/token ya confirmados se conservan para reemisión controlada. Un timeout no demuestra si el proveedor llegó a aceptar el correo; se evita reintentarlo automáticamente.
+
+### Verificación y alcance
+
+`tests/Feature/InvitacionPersonalTest.php` cubre los tres roles, validaciones, correo/vínculo, hash/verificación pendientes, primera contraseña sin login automático, uso único/vigencia/reenvío/límites, conflictos, errores SQL/auditoría/SMTP, callback solo después del commit exterior y rollback sin correo, transporte Brevo simulado y exclusión de configuraciones inseguras. `AutenticacionConcurrenteTest` añade procesos independientes para doble consumo, altas con correo duplicado, dos cuentas compitiendo por el mismo Médico y reenvío frente a aceptación.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/InvitacionPersonalTest.php tests/Feature/AutenticacionConcurrenteTest.php tests/Feature/CambioClaveTest.php tests/Feature/AutenticacionTest.php
+php artisan route:list --path=personal -v
+php artisan route:list --path=api/auth -v
+```
+
+Regresión focalizada de fases 1–3: **124 pruebas y 1519 aserciones correctas**, con PostgreSQL aislado y correos simulados. Análisis de clases §15 y contexto §17.18 sincronizados. No se agregan tablas, columnas, modelos ni migraciones: permanecen 28 entidades, 239 atributos y 43 relaciones; DER vigente y diagrama global pendiente de fase 8. **CU-03 completo sigue pendiente** de fases 4/6; frontend posterior. La siguiente entrega es administración de acceso/roles y último Administrador.
+
+**Resultado final de fase 3:** suite completa con **404 pruebas y 3291 aserciones correctas** (146,07 s). Composer validate/autoload PSR-4 estrictos, Pint de 46 PHP, sintaxis de 47 PHP incluida la plantilla, siete rutas API, formato/JSON/referencias documentales y git diff --check correctos. Desarrollo conserva siete usuarios, dos eventos, cero tokens y 29 migraciones; seguridad usa transporte array y no se enviaron correos reales ni se ejecutaron seeders. Entrega real con Brevo pendiente de configuración privada y comprobación autorizada.
+
+## Usuarios y autenticación — fase 4 backend, acceso/roles y último Administrador (CU-03 parcial)
+
+### Contratos de cuenta
+
+Todos requieren Administrador con sesión normal y origen permitido; los PATCH exigen CSRF.
+
+| Endpoint | Uso / respuesta |
+| --- | --- |
+| GET `/api/usuarios` | Filtros opcionales rol, estado_cuenta y correo_acceso exacto normalizado; page/per_page, 20 por defecto y 100 máximo. Orden ID descendente fijo. 200 data/links/meta. |
+| GET `/api/usuarios/{id}` | Datos administrativos mínimos, ID BIGINT validado. 200 data; 404 para inexistente o Paciente sin verificación/vínculo previo. |
+| PATCH `/api/usuarios/{id}/estado` | Cuerpo solo estado_cuenta=Activa o Desactivada. 200 data; exige transición real desde estado opuesto y credencial/verificación/vínculo legítimos. |
+| PATCH `/api/usuarios/{id}/rol` | Cuerpo rol=Administrador/Recepcionista/Médico; para Médico id_medico y, si es vínculo inicial, identidad_verificada=true. 200 data; conserva identidad y revoca sesiones. |
+
+Ejemplos de cuerpos ficticios:
+
+```json
+{"estado_cuenta": "Desactivada"}
+```
+
+```json
+{"rol": "Recepcionista"}
+```
+
+```json
+{"rol": "Médico", "id_medico": "123", "identidad_verificada": true}
+```
+
+La declaración de identidad corresponde a una comprobación real del Administrador, no a una prueba automática por coincidencia de nombres. El backend también exige correspondencia de nombres/apellidos normalizados por caso/espacios, registro profesional existente/libre y vínculo histórico compatible; rechaza diferencias sin corregir identidades automáticamente. Con vínculo histórico solo acepta el mismo Médico y lo conserva al retirarle el rol. No crea horarios, consultorios, especialidades, citas o profesionales ni activa la ficha.
+
+Para Paciente, el Resource devuelve únicamente id_usuario, correo_acceso, rol, estado_cuenta y correo_verificado_en, sin CI, ficha, clínica, hashes, contadores o tokens. Para personal agrega nombres administrativos/nombre visible e ID profesional histórico. Los Requests por cuenta rechazan campos adicionales y toman el objetivo exclusivamente de la ruta. No cambian correo, credenciales, identidad o rol del Paciente ni convierten Paciente↔personal.
+
+Desactivar/reasignar rol revoca **todas** las sesiones en la misma transacción del cambio y auditoría. Reactivar también elimina cualquier sesión anterior: exige nuevo login, conserva hash/correo/verificación/bloqueo e identidad y no activa la ficha administrativa/profesional. No habilita ni cancela invitaciones Pendiente mediante cambio de estado. Los cambios sobre la cuenta propia cierran su contexto actual.
+
+### Continuidad administrativa y límite clínico
+
+Antes de modificar se toma un bloqueo advisory transaccional PostgreSQL reservado `(736201, 1)`, luego se bloquea/revalida actor y sesión vigente y después el objetivo. Tras aplicar el cambio se exige al menos un Administrador Activa/verificado/con hash/sin cambio obligatorio/con identidad administrativa utilizable. El bloqueo pasajero de login no lo excluye del cómputo. Si no queda ninguno, **409 ULTIMO_ADMINISTRADOR** y rollback, incluso de un vínculo profesional tentativo. El futuro restablecimiento temporal debe reutilizar este protocolo antes de restringir cuentas; no es un trigger para SQL externo.
+
+Retirar Médico exige inactividad profesional expresa previa por CU-10 y ausencia comprobable de obligaciones: no admite citas Programada/Confirmada/Atendida ni consulta vinculada a cualquiera de sus citas. Atendida, consulta existente o iniciada_en=NULL no demuestran cierre documental. Una consulta con solicitudes de laboratorio también impide retiro. El modelo actual solo permite comprobar ausencia de atenciones o únicamente Cancelada/Inasistencia sin consulta; el resto devuelve **409 MEDICO_OBLIGACIONES_NO_RESUELTAS**. Conserva vínculo, historia y autores, sin cancelar, trasladar o inventar cierres. Los futuros flujos de reservas/actividad deben respetar el mismo bloqueo de Médico; esos módulos aún están pendientes.
+
+Eventos de éxito: responsable/objetivo/roles y cambios_seguros con antes/después de rol, estado e ID profesional, sin clínica ni secretos. Conflictos autorizados se auditan como denegados tras revertir; errores SQL/auditoría devuelven 500 seguro sin cambio parcial. 401/403/419/422/404/409 conservan su semántica centralizada.
+
+### Verificación y alcance
+
+AdministracionCuentaTest cubre cuatro roles, sesiones múltiples/reactivación/bloqueos, cuenta propia/último Admin, identidad/vínculo histórico, rechazos clínicos, consulta mínima/filtros/paginación, campos ajenos y fallos de auditoría/revocación. AutenticacionConcurrenteTest prueba con procesos PostgreSQL independientes retiros simultáneos de dos últimos Admin, retiros cruzados, actor revocado mientras espera coordinación, respuesta tardía de login frente a desactivación y competencia por mismo vínculo profesional.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/AdministracionCuentaTest.php tests/Feature/AutenticacionConcurrenteTest.php tests/Feature/InvitacionPersonalTest.php tests/Feature/CambioClaveTest.php tests/Feature/AutenticacionTest.php
+php artisan route:list --path=api/usuarios -v
+```
+
+Regresión focalizada conjunta: **157 pruebas y 2053 aserciones correctas**, más **1 prueba/9 aserciones** de rollback del vínculo tentativo por último Administrador. **Suite completa: 438 pruebas y 3834 aserciones correctas** (135,66 s).
+
+Comprobaciones de cierre: Composer validate/autoload PSR-4 estrictos, Pint de 55 PHP, sintaxis de 56 PHP/Blade, cuatro rutas nuevas de cuentas, formato/JSON/referencias documentales y git diff --check correctos. Desarrollo conserva siete usuarios, dos eventos, cero tokens y 29 migraciones; transporte de seguridad array. No se ejecutaron seeders, migraciones de desarrollo o correos reales ni se modificaron credenciales privadas en esta fase.
+
+Análisis §16 y contexto §17.19 sincronizados. DER contrastado y sin cambios de esquema/modelos/migraciones: 28 entidades, 239 atributos, 43 relaciones. Diagrama global todavía pendiente de fase 8. CU-03 completo requiere el restablecimiento temporal de fase 6; la **siguiente entrega es fase 5, recuperación por correo de los cuatro roles (CU-06)**. React sigue para después del backend.
+
+## Usuarios y autenticación — fase 5 backend, CU-06 (2026-10-19)
+
+### API de recuperación
+
+Ambos endpoints son públicos, exigen origen SPA permitido y CSRF y se declaran en `src/presentation/routes/auth.php`. Obtener antes `GET /sanctum/csrf-cookie` y conservar cookies/cabecera XSRF, como en login.
+
+**POST `/api/auth/password/forgot`** recibe:
+
+```json
+{
+  "correo_acceso": "persona@example.test"
+}
+```
+
+Normaliza el correo conforme al acceso actual. Responde **202**, privado/no-store, con el mismo cuerpo para cuenta elegible, inexistente, pendiente, desactivada o no vinculada, incluso si falla el envío:
+
+```json
+{
+  "data": {
+    "message": "Si corresponde, recibirás un enlace para recuperar tu contraseña."
+  }
+}
+```
+
+La consulta de cuenta, emisión y envío se ejecutan en terminación mediante `defer`. El cuerpo incluye Content-Length para que el cliente pueda completarlo antes del cierre de conexión. El 202 acepta la solicitud: no confirma existencia, emisión, entrega ni cambio de contraseña. Una prueba HTTP real con transporte bloqueado comprueba la finalización del cliente antes de liberar el envío. La topología productiva, incluidos buffering/proxy y finalización FastCGI, requiere su propia verificación de despliegue.
+
+Cuando corresponde, emite un secreto aleatorio de 256 bits, persiste solo HMAC-SHA256 con propósito `RecuperacionClave`, vigencia de 60 minutos y consumo único. Cada emisión invalida las recuperaciones anteriores bajo bloqueo del mismo Usuario. La URL usa únicamente FRONTEND_URL configurado y `/recuperar-clave#token=...`; la pantalla React está pendiente. El secreto del fragmento debe enviarse por POST/JSON, nunca consultarse por GET.
+
+**POST `/api/auth/password/reset`** recibe:
+
+```json
+{
+  "token": "<secreto hexadecimal de 64 caracteres recibido por correo>",
+  "password": "Nueva frase ficticia 456",
+  "password_confirmation": "Nueva frase ficticia 456"
+}
+```
+
+Tras confirmar devuelve **204 sin cuerpo** y exige nuevo login; no autentica al titular. El ID/rol/estado enviados no seleccionan ni modifican la cuenta. Token mal formado o contraseña inválida: 422 VALIDACION_ERROR; enlace inexistente, vencido, consumido, invalidado, de otro propósito o cuenta no elegible: 422 RECUPERACION_INVALIDA genérico. Origen ajeno: 403; CSRF: 419; límites: 429 con Retry-After; fallo necesario de persistencia/auditoría en consumo: 500 seguro con rollback.
+
+### Reglas, coordinación y correo
+
+- Los cuatro roles requieren cuenta Activa, correo previamente verificado, hash y vínculo de identidad compatible. La actividad profesional/ficha y el bloqueo temporal son independientes: se conservan, y recuperar no omite el bloqueo de login. Mientras fase 6 no defina la coordinación del flujo temporal, una cuenta con cambio obligatorio no emite ni consume recuperación; no se quita esa marca ni se alteran tokens CredencialTemporal por CU-06.
+- Reutiliza `ClaveRequest`: mínimo 12 caracteres, confirmación, espacios/caso/Unicode preservados; con bcrypt actual, máximo 72 bytes y sin NUL. No requiere la clave anterior.
+- El Service bloquea Usuario antes de TokenAcceso y revalida elegibilidad/vigencia/uso. Hash nuevo, consumo, invalidación de otras recuperaciones, revocación de todas las sesiones y evento de éxito confirman en una sola transacción. Conserva identidad, permisos, vínculos e historial. Si el navegador pertenece al titular, cierra también su contexto actual; una sesión de otra cuenta no se sustituye por la recuperada.
+- CU-05 y los cambios administrativos de estado/rol invalidan las recuperaciones anteriores en su misma transacción. Se prueba la carrera con emisión/consumo, cambio ordinario, desactivación y respuestas de login tardías. Invitaciones y CredencialTemporal conservan propósitos separados.
+- Parámetros técnicos en `config/seguridad.php`, separados de login/invitaciones: solicitud y consumo, cada acción con 20 peticiones/minuto/IP y cinco/minuto/ámbito (correo o token); solicitud además cinco/hora/correo, compartidas entre orígenes y aplicadas también a correos inexistentes. Controles persistidos como HMAC, sin correo/token en claro. Los rechazos no prolongan ventanas ni modifican contador/bloqueo de login. No se hereda la espera de 60 s de invitaciones como regla nueva de CU-06.
+- Correo de seguridad reutiliza el mailer Brevo, actualmente HTTP, y su configuración privada descrita arriba. `DB::afterCommit` envía solo después de confirmar token/auditoría; resultado de envío se registra después en transacción independiente. Un fallo de transporte o de auditoría posterior al commit no revierte lo ya confirmado ni cambia el 202. Logs solo con tipo de excepción/correlación; sin correo, secreto, contraseña o SQL. No hay cola/outbox persistida ni reintento automático: ante interrupción o falta de entrega se solicita otro enlace, dentro de los límites.
+
+### Pruebas y alcance
+
+`RecuperacionClaveTest` cubre los cuatro roles, privacidad, claves, estados/vínculos, fronteras de vigencia, propósito/reemisión, revocación multidispositivo, bloqueo preservado, fallos SMTP/auditoría y coordinación con CU-05/acceso/rol. `AutenticacionConcurrenteTest` amplía las barreras PostgreSQL para consumos/emisiones simultáneos, emisión frente a consumo, cambio ordinario, desactivación y sesión tardía. `tests/Fixtures/recuperacion-http.php` es solo el servidor loopback de pruebas, con validación de base/rol/esquema aislados y transporte simulado.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/RecuperacionClaveTest.php tests/Feature/AutenticacionConcurrenteTest.php
+php artisan test --compact --no-ansi
+php artisan route:list --path=api/auth -v
+```
+
+Documentación sincronizada: análisis §18 y contexto §17.21. DER contrastado, sin tablas, atributos, relaciones o migraciones nuevas: 28 entidades, 239 atributos, 43 relaciones. Diagrama global pendiente del cierre backend en fase 8. CU-06 tiene implementación backend con correo simulado; entrega real Brevo e integración React pendientes. La próxima fase del plan es la 6, cuyos parámetros funcionales deben concretarse antes de implementarla.
+
+Comprobaciones de fase 5: Composer validate/autoload PSR-4 estrictos, Pint de 61 PHP del alcance, sintaxis de 66 PHP/Blade, UTF-8/cercas/JSON documentales y git diff --check correctos. Registro efectivo: 15 rutas, 20 combinaciones método/dominio/URI, sin duplicados. Lectura de desarrollo conserva mailer array, siete usuarios, dos eventos, cero tokens y 29 migraciones; no se ejecutaron seeders, migraciones de desarrollo ni envíos reales.
+
+**Suite completa de fase 5: 480 pruebas y 4445 aserciones correctas** (152,40 s, margen de 300 s), con PostgreSQL aislado y correo simulado. Incluye las 36 pruebas de recuperación y seis carreras nuevas, además de toda la regresión previa.
+
+## Adaptación a la API HTTP de Brevo — 2026-10-19
+
+Cambio aprobado del transporte de los correos de seguridad de CU-03/CU-06. Se conserva el flujo:
+
+```text
+Service del CU → afterCommit → CorreoSeguridadService → Mailable/plantilla
+    → mailer brevo → BrevoHttpTransport → cliente HTTP Laravel → API Brevo
+```
+
+`src/shared/utils/BrevoHttpTransport.php` adapta el correo ya renderizado a sender/to/subject/htmlContent. Se registra mediante un puente de infraestructura en `app/Providers/AppServiceProvider.php`; `config/mail.php` selecciona brevo-http y `config/services.php` lee BREVO_API_KEY. Conserva InvitacionPersonalMail y RecuperacionClaveMail, sus fragmentos de enlace y las respuestas/auditoría existentes. El transporte se limita a un destinatario de seguridad, sin copias o adjuntos. No incorpora dependencias ni migraciones.
+
+Para habilitarlo en una instalación, configurar privadamente los valores siguientes, sin copiar secretos a documentación o al frontend:
+
+```dotenv
+SEGURIDAD_MAILER=brevo
+BREVO_API_KEY=
+MAIL_FROM_ADDRESS=remitente_verificado@example.test
+MAIL_FROM_NAME="Clínica Vida Salud"
+```
+
+BREVO_API_KEY debe completarse con una clave nueva privada y MAIL_FROM_ADDRESS con el remitente real autorizado. El ejemplo no es una cuenta configurada. Tras editar el entorno local, ejecutar `php artisan config:clear`. MAIL_FROM del proyecto anterior corresponde aquí a MAIL_FROM_ADDRESS; MAIL_PROVIDER y RECOVERY_ENABLED no se utilizan. BREVO_SMTP_USERNAME/BREVO_SMTP_KEY dejan de ser necesarios para este transporte. El valor predeterminado sigue en array hasta habilitar explícitamente Brevo; no se configuraron secretos ni se realizó una entrega real durante la adaptación.
+
+`BrevoHttpTransportTest` usa mailer Laravel real con Http::fake: valida endpoint/cabeceras/cuerpo, tiempos y HTTPS, 201/messageId, errores 400/401/429/503, redirección rechazada, estados inesperados, confirmación inválida y excepción de conexión/timeout sin datos externos encadenados. Las pruebas de invitación y recuperación comprueban aceptación/rechazo HTTP posterior al commit y reemisión, manteniendo la respuesta pública genérica de recuperación. Tests\TestCase y los workers bloquean peticiones HTTP externas sin simulación explícita; la prueba de navegador loopback conserva su transporte controlado.
+
+Regresión focalizada: **94 pruebas y 1103 aserciones correctas** (14,84 s), con HTTP simulado y PostgreSQL aislado donde corresponde. Comando reproducible:
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/BrevoHttpTransportTest.php tests/Feature/InvitacionPersonalTest.php tests/Feature/RecuperacionClaveTest.php
+```
+
+Documentación sincronizada: contexto §17.22 y análisis §19, con colaboraciones actualizadas en §§15/18. El DER mantiene 28 entidades, 239 atributos y 43 relaciones; diagrama global pendiente de fase 8, sin cierre nuevo del módulo. Referencia del proveedor: https://developers.brevo.com/reference/sendtransacemail.
+
+**Suite completa tras la adaptación: 501 pruebas y 4575 aserciones correctas** (145,67 s). Composer validate y autoload PSR-4 estrictos, sintaxis/Pint de los 14 PHP afectados, UTF-8/cercas/JSON documentales y git diff --check correctos. Revisión de desarrollo de solo lectura: transporte Brevo brevo-http, seguridad todavía array y API key sin configurar; siete usuarios, dos eventos, cero tokens y 29 migraciones. Activación del envío real y entrega a buzón pendientes de configuración privada; durante esta tarea solo se realizaron envíos simulados.
+
+## Fase 6 backend — credencial temporal del personal, CU-03 (2026-10-19)
+
+Política aprobada por el usuario e implementada en `CredencialTemporalService`, con validación reutilizable en `business/validators/CredencialTemporalValidator.php` e integración en login, sesiones y administración de estado/rol. Detalle de clases/colaboraciones en análisis §20; reglas §4.4 y contexto §17.23. Completa el bloque backend de restablecimiento del personal; no completa CU-04 ni el cierre integrado del módulo o React.
+
+### Emisión administrativa y entrega presencial
+
+```http
+POST /api/usuarios/{id}/credencial-temporal
+Content-Type: application/json
+```
+
+```json
+{
+  "identidad_verificada": true
+}
+```
+
+Requiere Administrador con sesión **normal**, origen SPA autorizado, CSRF válido y límites. ID BIGINT de ruta; no admite IDs/campos privilegiados alternativos en cuerpo. El Administrador debe comprobar presencialmente identidad del trabajador antes de declarar true. Solo personal Activo/previamente verificado/con vínculo legítimo: Administrador, Recepcionista o Médico; nunca Paciente, cuenta Pendiente o Desactivada. Médico profesionalmente inactivo conserva este acceso si su cuenta sigue Activa.
+
+Respuesta **201** con `data.id_usuario` como cadena, `data.credencial_temporal` y `data.expira_en`; `Cache-Control: no-store, private`. La credencial de **20 caracteres aleatorios** se entrega **una sola vez al Administrador**, para comunicación presencial. No se puede volver a consultar en listados/detalles ni se envía por correo; no registrar, guardar en el navegador ni tratarla como contraseña permanente. El servidor conserva solo HMAC-SHA256 separado por propósito en TokenAcceso/CredencialTemporal.
+
+- **30 minutos** desde emisión para ingresar y completar; login/reingreso no prolongan vigencia.
+- Emisión conserva hash anterior pero impide usarlo, marca cambio obligatorio, revoca todas las sesiones e invalida anteriores temporales/recuperaciones. No modifica bloqueo, intentos, correo, rol, identidad ni ficha/Médico.
+- Protege al último Administrador con el protocolo global existente antes de bloquear actor/objetivo. Restricción de cuenta propia solo procede si queda otro Admin habilitado y cierra su propia sesión normal.
+- **60 segundos** entre emisiones y **cinco emisiones/hora/cuenta**, compartidos entre Administradores/IP. Cada nueva emisión invalida la anterior.
+
+### Login, estado restringido y cambio definitivo
+
+Se ingresa por el **POST `/api/auth/login` existente**, con `correo_acceso` y `password` temporal. Aplica el bloqueo aprobado de tres errores/diez minutos y respeta bloqueos vigentes. Devuelve únicamente:
+
+```json
+{
+  "data": {
+    "acceso": "cambio_clave",
+    "cambio_clave_obligatorio": true
+  }
+}
+```
+
+GET `/api/auth/me` restaura ese mismo estado mínimo en sesión restringida, sin perfil/rol/permisos ordinarios. En sesión normal conserva su contrato anterior. El payload de sesión permanece cifrado y solo añade referencia técnica del token/tipo de contexto. Se admite reingreso antes de completar dentro de la vigencia, con **una sola sesión restringida vigente**: el ingreso posterior revoca la anterior. La credencial se consume únicamente al confirmar el cambio definitivo.
+
+```http
+PUT /api/auth/password/temporal
+Content-Type: application/json
+```
+
+Entrada: `password` y `password_confirmation`, mínimo 12 caracteres y los mismos límites técnicos de ClaveRequest/bcrypt; espacios/caso/Unicode preservados. No requiere contraseña anterior y la cuenta procede exclusivamente de la sesión. Solo sesión restringida vigente/origen/CSRF; una sesión normal recibe 403. Al confirmar devuelve **204 sin cuerpo**: guarda definitiva, consume/invalida temporales/recuperaciones, elimina cambio obligatorio y revoca/cierra sesiones en una transacción con auditoría. Exige **nuevo login** con la contraseña definitiva; no convierte automáticamente la sesión restringida en normal.
+
+PUT `/api/auth/password` ordinario y las operaciones normales mantienen ExigirSesionNormal: una restringida válida recibe **403 AUTH_CAMBIO_CLAVE_OBLIGATORIO**. POST `/api/auth/logout` con sesión restringida vigente invalida la credencial, conserva cambio obligatorio y exige reemisión. Vencer sin completar también exige reemisión, sin restaurar el hash anterior. Cerrar una pestaña sin pedir logout no cierra la sesión del servidor; se permite el reingreso aprobado hasta vencer.
+
+CU-06 no emite ni consume recuperaciones durante cambio obligatorio, y no elimina esa marca. Cambios administrativos de estado/rol invalidan temporales y sesiones; reactivar no restablece credenciales. Service revalida Usuario→Token/sesión persistida tras esperar bloqueos y vigencia tras calcular hash, protegiendo contra completados dobles, CU-05/CU-06 y cambios concurrentes. Las emisiones toman global→actor→objetivo→tokens; no se invierte el protocolo del último Admin.
+
+### Errores, límites y evidencia
+
+409 `CREDENCIAL_TEMPORAL_NO_PERMITIDA` para cuenta no elegible, 409 `ULTIMO_ADMINISTRADOR`, 404 objetivo inexistente, 422 campos inválidos, 403 sin permiso/origen y 429/Retry-After para límites. Login inválido conserva 401 genérico. Sesiones eliminadas pueden responder 419 por CSRF antes de autenticación en escrituras; refrescar CSRF no recupera acceso y me devuelve 401. Limitador técnico separado por acción: 20 solicitudes/minuto/IP y cinco/minuto/actor, HMAC/ControlIntentos/config/seguridad.php, sin ampliar ventanas ni bloquear login.
+
+Pruebas focalizadas **67 pruebas/1042 aserciones correctas** (36,42 s): 21 de `CredencialTemporalTest` y 46 de `AutenticacionConcurrenteTest`, incluidas regresiones. Usan cookies/CSRF reales, PostgreSQL aislado, barreras/procesos independientes y correo simulado. Cubren roles/identidad, entrega/consumo, vencimiento/logout/reingreso único, reemisión/cupo compartido, bloqueo, último Admin paralelo/cruzado, CU-05/CU-06 concurrentes, revocación entre middleware/Service, guardado tardío y rollback de auditoría sin secretos.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/CredencialTemporalTest.php tests/Feature/AutenticacionConcurrenteTest.php
+```
+
+No se requiere migración nueva: reutiliza propósito ya aplicado, **28 entidades/239 atributos/43 relaciones**, con referencia técnica de sesión en payload cifrado nativo. Documentación funcional, análisis, contexto y nota del DER sincronizados. El diagrama global de clases sigue pendiente de fase 8, al cerrar el módulo; siguiente entrega fase 7A/CU-04 nuevo y después 7B/vinculación.
+
+**Configuración privada posterior a la adaptación HTTP:** por autorización expresa ya se guardaron API key/remitente/nombre en `.env` ignorado, se habilitó `SEGURIDAD_MAILER=brevo` y se comprobó carga efectiva tras config:clear, sin reproducir secretos. No se ha verificado externamente remitente/entrega ni enviado correo real. El usuario aplazó esa prueba al recorrido integrado con React; las pruebas automatizadas siguen simuladas. Esta fase no envía correo ni modifica `.env`.
+
+**Cierre verificado de fase 6:** suite completa **538 pruebas y 5234 aserciones correctas** (161,61 s). Composer validate/autoload optimizado PSR-4 estrictos, Pint y sintaxis de 21 PHP correctos. Registro efectivo de 17 rutas/22 combinaciones método/dominio/URI sin duplicados (15 API y dos de infraestructura); `.env` ignorado. Formato/JSON/referencias documentales y git diff --check revisados al finalizar. Sin migraciones/seeders de desarrollo ni envío real; fase 6 backend completada y siguiente entrega 7A.

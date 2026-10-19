@@ -4,11 +4,11 @@
 > **Proyecto:** Sistema Web para la Gestión de Citas Médicas para la Clínica Vida Salud  
 > **Fuente estructural primaria:** `DER_Clinica_Vida_Salud_Reorganizado_Corregido(2).drawio` (archivo recibido, **dos pestañas**, **28 entidades**, **239 atributos** y **43 relaciones gráficas**)  
 > **Referencia académica:** `Clinica_Vida_Salud_Coherencia_Actualizada(2).pdf` (117 páginas) y enunciado oficial del Segundo Parcial de Ingeniería de Requisitos  
-> **Alcance:** especificación del modelo lógico e instrucciones para futuros modelos Eloquent, migraciones, seeders y validaciones. **No acredita implementación.**
+> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.15.
 
 ## 1. Propósito, precedencia y reglas de uso
 
-Este documento permite que OpenCode traduzca el **DER corregido** a la base de datos PostgreSQL y a la capa de datos Laravel **sin inventar requisitos**. Contiene un inventario fiel de los atributos que figuran en Draw.io, sus nulabilidades, claves y catálogos, además de las reglas recogidas en la segunda pestaña del mismo archivo. Las guías de implementación están señaladas como **propuestas técnicas pendientes**, no como hechos implementados.
+Este documento permite que OpenCode traduzca el **DER corregido** a la base de datos PostgreSQL y a la capa de datos Laravel **sin inventar requisitos**. Contiene un inventario fiel de los atributos que figuran en Draw.io, sus nulabilidades, claves y catálogos, además de las reglas recogidas en la segunda pestaña del mismo archivo. La ampliación posterior aprobada de `TokenAcceso.proposito` se distingue expresamente en §§3.4 y 6.15. Las guías de implementación pendientes se distinguen de los avances verificados por fase.
 
 **Orden de autoridad:** (1) enunciado oficial del examen para RF01–RF13 y RN01–RN14; (2) decisiones funcionales aprobadas más recientes; (3) documento académico vigente; (4) DER corregido para el esquema lógico; (5) documentación técnica interna; (6) implementación existente, que es evidencia del estado del código, pero no autoriza cambiar los requisitos. Las decisiones aprobadas recogidas en los documentos funcionales `docs/ai/` conservan la prioridad de su fuente; no quedan subordinadas al DER por su ubicación. Ante una contradicción, **detener el cambio afectado, documentar el conflicto y pedir una decisión**. No inventar tablas, relaciones, reglas ni permisos para solucionarlo unilateralmente.
 
@@ -98,13 +98,15 @@ Contraseña NULL solo durante invitación pendiente; obligatoria para una cuenta
 
 ### 3.4. `TokenAcceso`
 
+**Ampliación aprobada posterior al Draw.io:** el catálogo original de dos propósitos se amplía con `CredencialTemporal` por decisión expresa para CU-03. No cambia nombres, tipos, nulabilidades, número de atributos ni relaciones. El `.drawio` original no se modifica; la migración y evidencia actual se registran en §6.15.
+
 **Restricciones únicas declaradas:** `(token_hash)`.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
 | PK | `id_token` | `BigInt` | No | — | — |
 | FK | `id_usuario` | `BigInt` | No | `Usuario` | — |
-| — | `proposito` | `String` | No | — | Valores: `InvitacionPersonal`, `RecuperacionClave` |
+| — | `proposito` | `String` | No | — | Valores: `InvitacionPersonal`, `RecuperacionClave`, `CredencialTemporal` (ampliación aprobada, §6.15) |
 | UQ | `token_hash` | `String` | No | — | — |
 | — | `emitido_en` | `TimestampTZ` | No | — | — |
 | — | `expira_en` | `TimestampTZ` | No | — | — |
@@ -607,8 +609,10 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Usuario.correo_acceso es único tras normalización uniforme, sin duplicados por mayúsculas/minúsculas; la estrategia física se definirá en PostgreSQL. El correo de contacto no autentica ni cambia el de acceso.
 - Paciente.id_usuario es FK opcional y única: cada paciente tiene cero o una cuenta y una cuenta vinculada identifica un solo paciente. Su rol debe ser Paciente.
 - Medico.id_usuario es FK opcional y única. El acceso profesional exige una cuenta habilitada con rol Médico y vinculación al registro profesional correspondiente.
+- CU-03 conserva el vínculo histórico Medico–Usuario al retirar el rol Médico; ese vínculo no concede acceso clínico con otro rol. Administrador ↔ Recepcionista y paso a Médico con identidad profesional legítima se rigen por VS-AUT-25/26. Retirar Médico exige resolver citas futuras/obligaciones incompatibles; si el modelo no permite comprobar su resolución, rechazar e informar, sin inventar cierre clínico. Rol, cuenta y actividad profesional son independientes; la inactivación necesaria se realiza expresamente por CU-10 y se coordina con nuevas reservas. No trasladar citas ni reasignar identidades/historia.
 - El Administrador asigna exclusivamente roles del personal compatibles. No convierte cuentas de Paciente en personal ni modifica su rol, contraseña, correo de acceso o vinculación.
-- Paciente conserva código y CI único cuando se proporciona, sin CI ficticios; se admiten los casos sin CI ya autorizados. Ficha administrativa, cuenta web y bloqueo temporal son condiciones independientes.
+- Paciente conserva identificador interno y código únicos; el CI es `Paciente.documento_identidad`, no un atributo adicional llamado `ci` ni una PK. Su nulabilidad y unicidad cuando se informa se conservan: CU-07 admite excepcionalmente fichas administrativas sin CI, con NULL, nunca un documento ficticio o ajeno. Pueden mantener citas presenciales autorizadas e historial. Recepción revisa posibles fichas previas sin asumir que semejanza de nombres prueba identidad ni fusionarlas automáticamente; resolver identidades dudosas queda pendiente de diseño administrativo. Cuando el Paciente obtiene CI, Recepción comprueba identidad/documento y el servidor valida formato y unicidad conforme a la normalización vigente; se actualiza la misma ficha con trazabilidad, conservando identificador y todas sus relaciones, sin modificar contenido clínico ni crear otra ficha o cuenta. Ficha administrativa, cuenta web y bloqueo temporal son condiciones independientes.
+- **Obligatoriedad funcional, no cambio estructural:** CU-04 exige CI para crear o vincular una cuenta web de Paciente. No cambiar `Paciente.documento_identidad` a NOT NULL por esta condición del procedimiento ni añadir CI a Usuario. Sin CI se rechaza CU-04 y se orienta a Recepción, sin alternativa de vinculación web. Es una decisión del proyecto, no exigencia literal universal de RF02; la vinculación posterior a incorporar CI conserva todos los controles ordinarios.
 - Usuario conserva exclusivamente el hash de la contraseña. password_hash solo admite NULL durante una invitación pendiente; una cuenta activa exige hash y correo verificado.
 - Pendiente, Activa y Desactivada son condiciones de la cuenta; el valor persistido Pendiente equivale funcionalmente a Pendiente de verificación (§3.2), sin crear otro estado. El bloqueo temporal se registra aparte. No son estados de cita ni de laboratorio.
 - Tres contraseñas incorrectas consecutivas bloquean diez minutos; los intentos durante el bloqueo no lo extienden. El éxito o vencimiento reinicia el contador.
@@ -616,11 +620,13 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - CU-03: Administrador solo desactiva/reactiva cuentas de Pacientes existentes y verificadas por CU-04; conserva identificador, rol, credenciales, vínculo y todos sus registros. No activa cuentas pendientes omitiendo verificaciones.
 - Desactivar invalida sesiones; reactivar exige nuevo inicio de sesión, no restaura sesiones ni elimina bloqueos vigentes y no activa la ficha. Ficha inactiva impide nuevas reservas, pero una cuenta activa puede consultar su historial autorizado.
 - Usuario.nombres_personal y apellidos_personal (VARCHAR(120)) son obligatorios y no vacíos para Administrador/Recepcionista sin entidad personal propia; opcionales en general. No se duplican nombres de Medico o Paciente.
+- Desactivaciones, cambios de rol y restablecimientos administrativos deben conservar al menos un Administrador Activo con activación/verificación completada, hash y acceso normal sin cambio obligatorio exclusivo, incluida la propia cuenta. Un bloqueo pasajero no equivale a desactivación ni excluye del cómputo, sin autorizar login mientras dure. Es una validación de conjunto transaccional de Services/PostgreSQL; las FK/CHECK existentes no implementan esa protección ni bastan conteos sin coordinación.
+- **Primer Administrador:** la estructura actual de Usuario/Rol permite crearlo Activo por instalación local controlada, con correo único, hash seguro y marca de correo verificado por autorización administrativa, sin tabla, rol o estado especial. Esa marca no prueba control técnico del buzón ni implica envío Brevo; no aplica a cuentas ordinarias ni a Pacientes. Creación idempotente, sin credenciales predeterminadas ni sobrescritura de cuentas existentes y sin reutilizarla como alta general; véase contexto §17.12. No acredita CU-01 implementado. Los registros históricos posteriores de este documento conservan la decisión Pendiente original como antecedente, sustituida por la actualización de §6.14.
 
 ### 5.3. ACTIVACIÓN, CORREO Y RECUPERACIÓN
 
-- Paciente nuevo: un RegistroPacientePendiente de tipo Nuevo conserva los datos administrativos exigidos en datos_registro; no requiere código de Recepción.
-- Vinculación: RegistroPacientePendiente exige id_paciente e id_codigo_activacion del mismo paciente. Antes, Recepción verifica presencialmente la identidad.
+- Paciente nuevo: un RegistroPacientePendiente de tipo Nuevo conserva los datos administrativos exigidos en datos_registro; el Service debe exigir CI no vacío y válido, verificar su unicidad y ausencia de ficha previa y correo único antes de iniciar y revalidar al confirmar. No requiere código de Recepción. La nulabilidad lógica de documento_identidad en entidades persistidas no autoriza iniciar/completar CU-04 sin CI; no se modifica por ello el diccionario de §§2–4 ni el esquema físico.
+- Vinculación: RegistroPacientePendiente exige id_paciente e id_codigo_activacion del mismo paciente y CI válido correspondiente a esa ficha. Antes, Recepción verifica presencialmente identidad y CI y comprueba ausencia de cuenta; si la ficha no tenía documento, debe incorporarlo primero por CU-07 conservando su identificador. No basta conocer el CI o id_paciente para vincular.
 - La validación y reserva del código de Recepción deben ser atómicas: solo un proceso pendiente vigente puede reservarlo para ese Paciente. Mientras esté reservado, otro proceso independiente no puede utilizarlo. Reanudar exige el contexto protegido del mismo proceso, no solo conocer CI o correo.
 - Para Nuevo y Vinculacion, impedir procesos independientes vigentes que compitan por el mismo CI cuando exista o correo propuesto, con normalización uniforme; para Vinculacion, también por el mismo Paciente o código de Recepción. Un reintento reutiliza el proceso válido sin reiniciar su vigencia ni sus límites; no expone datos de otro proceso ni crea una ficha definitiva anticipada.
 - El código de Recepción tiene doce caracteres aleatorios criptográficos, vigencia de 24 horas, cinco errores y uso único. Solo se conserva su hash.
@@ -638,6 +644,8 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Invitación al personal: token de uso único, 24 horas, confirmación de correo y establecimiento de contraseña. Una reemisión invalida la anterior.
 - Recuperación: token de uso único, sesenta minutos y cuenta activa con correo verificado. No inicia sesión ni reactiva cuentas; invalida sesiones anteriores al completarse.
 - El cambio ordinario de contraseña invalida sesiones anteriores y renueva la actual. Las credenciales temporales excepcionales obligan al cambio antes del acceso normal.
+- Procedimientos separados: CU-05 exige sesión normal y contraseña actual; la invitación inicial de CU-03 no exige una anterior inexistente; CU-06 mantiene enlace de 60 minutos/uso único y nuevo login, sin contraseña anterior. CU-03 restablece exclusivamente al personal previa identidad mediante credencial temporal: sesión restringida a formulario/envío de contraseña definitiva y cierre, nunca operaciones ordinarias. Al completar guarda hash, invalida credencial, elimina cambio obligatorio, revoca sesiones incompatibles, registra metadatos seguros y cierra la restringida con nuevo login obligatorio.
+- `CredencialTemporal` reutiliza TokenAcceso con propósito propio (§3.4), no invitación o recuperación disfrazadas; emisión y expiración obligatorias, consumo e invalidación existentes. Duración, intentos, entrega, reemisión/usos, momento de consumo, tratamiento de contraseña anterior y concurrencia siguen pendientes del diseño técnico. La ampliación física de §6.15 no implementa ese ciclo ni permite omitir cuenta activa, verificaciones o bloqueos.
 - Brevo se utiliza solo para correos de seguridad. Los límites y respuestas genéricas no revelan si una persona o una ficha existe.
 - Sesion representa exclusivamente la tabla nativa sessions de Laravel: id PK VARCHAR(255), user_id FK BIGINT opcional, ip_address VARCHAR(45) opcional, user_agent TEXT opcional, payload TEXT obligatorio y last_activity INTEGER obligatorio.
 - user_id → Usuario.id_usuario; índices en user_id y last_activity. Se conservan los nombres esperados por el manejador nativo. Un Usuario tiene 0..* sesiones; cada sesión tiene 0..1 Usuario y puede ser anónima.
@@ -745,9 +753,9 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Las reglas entre varias tablas, roles, transiciones y vencimientos requieren validación del servidor y transacciones; el dibujo no las implementa automáticamente.
 - Los avisos se generan y conservan sin sesión activa ni acción manual; solo se consultan con cuenta y titularidad válidas. No usan correo ni canales externos. La frecuencia del programador se definirá durante el diseño técnico.
 
-## 6. Contrato para el diseño físico PostgreSQL (trabajo futuro)
+## 6. Contrato para el diseño físico PostgreSQL
 
-Lo siguiente es **guía de ejecución**, no estructura adicional exigida por el DER. Antes de generar código, leer los tres `AGENTS.md`, `docs/ai/contexto-maestro.md`, `docs/ai/requerimientos.md`, `docs/ai/reglas-negocio.md` y `docs/ai/casos-de-us.md`. El DER tiene prioridad sobre decisiones improvisadas de nombres y relaciones.
+Las secciones 6.1–6.5 son **guía de ejecución**; §6.6 registra las decisiones técnicas concretadas durante la fase 0. No incorporan entidades ni atributos adicionales al DER. Antes de generar código, leer los tres `AGENTS.md`, `docs/ai/contexto-maestro.md`, `docs/ai/requerimientos.md`, `docs/ai/reglas-negocio.md` y `docs/ai/casos-de-us.md`. El DER tiene prioridad sobre decisiones improvisadas de nombres y relaciones.
 
 ### 6.1. Convenciones y decisiones a documentar antes de migrar
 
@@ -795,7 +803,7 @@ En un repositorio existente, **inspeccionar primero las migraciones aplicadas** 
 
 - Configurar `protected $table`, `protected $primaryKey`, autoincremento, `casts` y `timestamps` con los nombres exactos del DER. `TIMESTAMPTZ` y `JSONB` deben tener conversiones seguras.
 - **Modelo Usuario:** integrar la autenticación Laravel con `correo_acceso` y `password_hash`; adaptar cómo el proveedor de autenticación obtiene el hash (no asumir una columna `password`). La cuenta activa debe estar verificada; proteger la cuenta de pacientes del CRUD del personal. `Sesion` corresponde a la **única tabla `sessions`** nativa y usa `user_id` nullable.
-- **Relaciones de identidad:** `Usuario` pertenece a `Rol`; `Paciente`/`Medico` pertenecen opcionalmente a `Usuario`, y cada Usuario tiene como máximo una ficha vinculada compatible con su rol. `ContactoEmergencia` y `PreferenciaPaciente` son relaciones 1:0..1 con Paciente.
+- **Relaciones de identidad:** `Usuario` pertenece a `Rol`; `Paciente`/`Medico` pertenecen opcionalmente a `Usuario`, y sus FK únicas preservan vínculos de identidad. Paciente mantiene rol Paciente; Medico conserva el vínculo histórico aunque el rol actual del personal cambie por CU-03, sin permisos clínicos hasta cumplir rol Médico y demás condiciones de acceso. No se convierte una cuenta Paciente en personal ni se reasigna su identidad. `ContactoEmergencia` y `PreferenciaPaciente` son relaciones 1:0..1 con Paciente.
 - **Profesionales y agenda:** `Medico` pertenece opcionalmente a `Consultorio`, N:M con `Especialidad` por `MedicoEspecialidad`, y 1:N con `HorarioAtencion`. La clave primaria compuesta del pivote se mantiene en la base, aunque las operaciones Eloquent sobre pivotes exijan tratamiento específico.
 - **Citas:** `Cita` pertenece a `Paciente`, `Consultorio` y un par válido Médico–Especialidad; posee muchos `CambioCita`, posibles recordatorios por versión y a lo sumo una `ConsultaMedica`. Respetar `Cita.inicio_at`/`fin_at`, `version_programacion` y los estados.
 - **Clínica:** `ConsultaMedica` pertenece a `Cita`; tiene varias `VersionConsulta` y `SolicitudLaboratorio`. `VersionAntecedente` pertenece a `Paciente`, `Usuario` autor y a su `ConsultaMedica` origen; los datos de Médico/Paciente de la consulta se derivan de Cita.
@@ -820,6 +828,450 @@ La definición exacta de seeders es una **propuesta para el futuro**. No se ejec
 | Datos demo de médicos, pacientes, citas, clínicos y laboratorio | Opcionales en entorno de pruebas, mediante factories o seeds delimitados | Nunca en producción por defecto; no simular historias médicas reales, aprobaciones clínicas ni acciones de un usuario sin mecanismos acordados. |
 
 Probar que volver a ejecutar los seeders no duplique catálogos ni altere claves utilizadas por registros históricos. No crear recordatorios mediante seeders como sustituto del programador de tareas.
+
+### 6.6. Fase 0 — decisiones físicas e infraestructura (2026-10-19)
+
+**Estado al cerrar fase 0:** preparación técnica verificada, todavía sin tablas ni modelos de dominio. Las convenciones siguientes concretan el diseño lógico para el desarrollo por fases; son decisiones técnicas de este trabajo, no nuevas exigencias del examen. Las longitudes aquí indicadas se aplican al primer bloque; las de los bloques restantes se precisarán antes de sus migraciones. La implementación posterior del primer bloque se registra en §6.7.
+
+#### 6.6.1. Mapeo de las 28 entidades a tablas físicas
+
+Nombres explícitos en minúsculas, sin tildes y con palabras separadas por guion bajo. Los modelos declararán `$table` y `$primaryKey`; no dependerán de la pluralización automática en inglés. Se mantienen las excepciones `sessions` y `bitacora`, el pivote `medico_especialidad` y la configuración única `configuracion_clinica`.
+
+| Entidad lógica | Tabla física | Fase de datos |
+|---|---|---|
+| `Rol` | `roles` | 1 |
+| `ControlIntentos` | `controles_intentos` | 1 |
+| `Consultorio` | `consultorios` | 1 |
+| `Especialidad` | `especialidades` | 1 |
+| `ConfiguracionClinica` | `configuracion_clinica` | 1 |
+| `Usuario` | `usuarios` | 2 |
+| `Sesion` | `sessions` | 2 |
+| `TokenAcceso` | `tokens_acceso` | 2 |
+| `Bitacora` | `bitacora` | 2 |
+| `Paciente` | `pacientes` | 3 |
+| `ContactoEmergencia` | `contactos_emergencia` | 3 |
+| `PreferenciaPaciente` | `preferencias_paciente` | 3 |
+| `CodigoActivacionPaciente` | `codigos_activacion_paciente` | 3 |
+| `RegistroPacientePendiente` | `registros_paciente_pendientes` | 3 |
+| `VerificacionCorreo` | `verificaciones_correo` | 3 |
+| `Medico` | `medicos` | 4 |
+| `MedicoEspecialidad` | `medico_especialidad` | 4 |
+| `HorarioAtencion` | `horarios_atencion` | 4 |
+| `Cita` | `citas` | 5 |
+| `CambioCita` | `cambios_cita` | 5 |
+| `Recordatorio` | `recordatorios` | 5 |
+| `ConsultaMedica` | `consultas_medicas` | 6 |
+| `VersionConsulta` | `versiones_consulta` | 6 |
+| `VersionAntecedente` | `versiones_antecedente` | 6 |
+| `SolicitudLaboratorio` | `solicitudes_laboratorio` | 7 |
+| `DocumentoLaboratorio` | `documentos_laboratorio` | 7 |
+| `VersionResultado` | `versiones_resultado` | 7 |
+| `RevisionResultado` | `revisiones_resultado` | 7 |
+
+`migrations` es el repositorio de infraestructura de Artisan, no una entidad adicional del dominio. La auditoría puede crearse en fase 2 porque sus únicas dependencias externas son Usuario; su existencia no implementa los eventos de otros módulos.
+
+#### 6.6.2. Convenciones comunes para las migraciones y modelos
+
+- **Identificadores:** PK simples `BigInt` generadas por PostgreSQL mediante `$table->bigIncrements(...)` (`BIGSERIAL` en la versión instalada de Laravel). FK correspondientes con `BIGINT`, sin `UNSIGNED`. Se conserva la PK compuesta del pivote, el ID textual de `sessions` y el ID `INTEGER` fijo de ConfiguracionClinica. No asignar IDs de roles por posición ni calcular `MAX(id)+1`.
+- **Tipos:** `Text` → `TEXT`, `Integer` → `INTEGER`, `Boolean` → `BOOLEAN`, `Date` → `DATE`, `Time` → `TIME(0)`, `JSONB` → `JSONB`. `String` se concretará como `VARCHAR(n)` por bloque; no se aplica silenciosamente un límite global de 255. Se mantienen los tipos y longitudes nativos ya explícitos en el diccionario.
+- **Instantes:** `TimestampTZ` → `TIMESTAMPTZ(6)`; conservar los tipos nativos `TIMESTAMPTZ`. La conexión PostgreSQL usa zona `UTC`; las reglas y presentación locales mantienen `America/La_Paz`. Al escribir instantes desde Eloquent, conservar el desplazamiento y la precisión, por ejemplo con `$dateFormat = 'Y-m-d H:i:s.uP'`; no enviar una hora local sin zona como si fuera UTC.
+- **Timestamps de modelos:** declarar los nombres propios mediante `CREATED_AT` / `UPDATED_AT`; usar `null` para el timestamp inexistente o `$timestamps = false` para registros controlados explícitamente. No crear `created_at`, `updated_at` ni `deleted_at` adicionales. Las versiones y eventos inmutables no adquieren una fecha de actualización automática.
+- **Valores cerrados:** columnas de texto y restricciones `CHECK` con los valores exactos del DER, en lugar de tipos enum PostgreSQL nuevos. Las condiciones de varias tablas y permisos se resolverán además en los Services y sus transacciones.
+- **Integridad referencial:** criterio inicial `ON DELETE RESTRICT` / `ON UPDATE RESTRICT` para preservar referencias e identificadores. Toda excepción debe justificarse en su fase antes de migrar. La desactivación se representa con los campos existentes; no activa borrado lógico o cascadas automáticas. Revocar una sesión elimina/invalida esa sesión, no su Usuario.
+- **Unicidad opcional:** `UNIQUE` ordinario con NULL distintos cuando corresponda; varias filas pueden carecer de valor. Elegir índices parciales solo si una condición lo requiere. Las FK de consulta frecuente tendrán índices explícitos cuando PK/UQ existentes no cubran ya el acceso; PostgreSQL no los crea automáticamente en el lado dependiente.
+- **Nombres de restricciones e índices:** explícitos, deterministas y de hasta 63 bytes; usar sufijos `_pk`, `_fk`, `_uq`, `_ck`, `_idx`. Abreviar nombres largos por bloque y documentarlos, evitando truncamientos o colisiones de PostgreSQL.
+- **Valores predeterminados:** únicamente los concretados para cada bloque o explícitos en el DER. Las fechas de consumo, invalidación y verificación siguen NULL hasta el evento correspondiente; no reciben `now()` por conveniencia.
+
+#### 6.6.3. Tipos y valores predeterminados del primer bloque
+
+Esta tabla complementa §3 sin cambiar sus atributos, nulabilidades o catálogos. El contrato se definió en fase 0 y se materializó en las migraciones de fase 1 (§6.7). «Sin default» exige un valor explícito; «secuencia» representa la PK generada por PostgreSQL.
+
+| Tabla | Columna(s) | Tipo físico | Default |
+|---|---|---|---|
+| `roles` | `id_rol` | `BIGSERIAL`, PK | Secuencia |
+| `roles` | `nombre` | `VARCHAR(24)` | Sin default |
+| `controles_intentos` | `id_control` | `BIGSERIAL`, PK | Secuencia |
+| `controles_intentos` | `clave_ambito_hash` | `VARCHAR(255)` | Sin default |
+| `controles_intentos` | `inicio_ventana` | `TIMESTAMPTZ(6)` | Sin default; lo determina el control de intentos |
+| `controles_intentos` | `cantidad_intentos` | `INTEGER` | `0` |
+| `controles_intentos` | `bloqueado_hasta` | `TIMESTAMPTZ(6)`, NULL | NULL |
+| `controles_intentos` | `actualizado_en` | `TIMESTAMPTZ(6)` | `CURRENT_TIMESTAMP` al insertar |
+| `consultorios` | `id_consultorio` | `BIGSERIAL`, PK | Secuencia |
+| `consultorios` | `codigo_consultorio` | `VARCHAR(50)` | Sin default |
+| `consultorios` | `nombre` | `VARCHAR(120)` | Sin default |
+| `consultorios` | `activo` | `BOOLEAN` | `true` |
+| `especialidades` | `id_especialidad` | `BIGSERIAL`, PK | Secuencia |
+| `especialidades` | `nombre` | `VARCHAR(120)` | Sin default |
+| `especialidades` | `descripcion` | `TEXT`, NULL | NULL |
+| `especialidades` | `activa` | `BOOLEAN` | `true` |
+| `configuracion_clinica` | `id_configuracion` | `INTEGER`, PK, sin secuencia | `1` |
+| `configuracion_clinica` | `nombre_sede` | `VARCHAR(120)` | Sin default |
+| `configuracion_clinica` | `direccion_sede` | `TEXT`, NULL | NULL |
+| `configuracion_clinica` | `zona_horaria` | `VARCHAR(64)` | `'America/La_Paz'` |
+| `configuracion_clinica` | `duracion_turno_minutos` | `INTEGER` | `15` |
+| `configuracion_clinica` | `actualizado_en` | `TIMESTAMPTZ(6)` | `CURRENT_TIMESTAMP` al insertar |
+
+`actualizado_en` deberá actualizarse en cada escritura posterior desde Eloquent/Repository, también en operaciones masivas; el default no es un trigger. Las longitudes son elecciones técnicas revisables antes de implementar sus consumidores; no se atribuyen al examen.
+
+#### 6.6.4. Restricciones y carga inicial definidas para fase 1
+
+Especificación acordada en fase 0; su implementación y evidencia de ejecución se detallan en §6.7.
+
+- `roles`: PK, UQ de nombre y `CHECK` de pertenencia a los cuatro valores exactos. Los cuatro registros se cargan mediante seeder; el CHECK impide un quinto nombre y la UQ impide repetirlo, pero no garantiza por sí solo que estén presentes las cuatro filas.
+- `controles_intentos`: UQ de clave y `CHECK (cantidad_intentos >= 0)`. La clave es un resumen opaco; su algoritmo, ámbitos y coordinación concurrente se concretarán con autenticación. El tipo de columna no decide por sí solo ese algoritmo.
+- `consultorios`: UQ exacta de código y comprobaciones de texto no vacío para código y nombre. No se impone una unicidad de nombre no prevista por el DER ni una normalización insensible a mayúsculas del código.
+- `especialidades`: la UQ lógica de nombre se materializará mediante un índice único de expresión `lower(btrim(nombre))`, sin columna auxiliar. Nombre no vacío después de `btrim`. La aplicación recortará espacios U+0020 de los extremos y convertirá a minúsculas para comparar de forma consistente; se conservarán tildes y la presentación del nombre. Probar equivalencia con PostgreSQL antes de implementar el catálogo; no eliminar acentos ni fusionar especialidades distintas por una normalización no acordada.
+- `configuracion_clinica`: `CHECK (id_configuracion = 1)`, zona horaria fija, duración positiva y nombre de sede no vacío. La PK y el CHECK permiten como máximo una fila; el seeder garantiza su existencia inicial. No se inventa una duración máxima ni dirección física obligatoria.
+- El primer bloque no tiene FK. Los índices adicionales se incorporarán cuando un acceso real los justifique; no se crearán índices duplicados de los aportados por PK/UQ.
+- Seeders previstos: roles fijos, Pediatría/Medicina General/Geriatría y configuración inicial. Serán idempotentes y conservarán claves y configuración ya existente. Los consultorios concretos y el primer Administrador requieren sus datos/procedimiento; no se insertan identidades o credenciales de ejemplo como datos reales.
+
+#### 6.6.5. Integración y entorno verificados en fase 0
+
+- `composer.json`: autoload PSR-4 `Clinica\` → `src/` comprobado en modo estricto. El seeder raíz es `Clinica\data\database\seeders\DatabaseSeeder`, ubicado en `src/data/database/seeders/`; `composer seed` invoca `db:seed` con esa clase explícita. En esta fase su ejecución no inserta datos. El comando Laravel sin `--class` conserva su nombre predeterminado y no es el punto de entrada configurado para el proyecto.
+- `AppServiceProvider` registra `src/data/database/migrations/` mediante `loadMigrationsFrom`. Generar futuras migraciones con `php artisan make:migration <nombre> --path=src/data/database/migrations`; `php artisan migrate` las descubre mediante el proveedor. No duplicarlas en `database/migrations/`.
+- Se preparó `clinica_vida_salud_test` con rol propietario independiente del mismo nombre, sin superusuario, creación de bases/roles, replicación, bypass RLS ni membresías. Se retiró el acceso público a esa base. La credencial aleatoria y la clave de aplicación se guardan únicamente en `.env.testing`, ignorado por Git; `.env.testing.example` no contiene secretos.
+- PHPUnit fija `testing`, PostgreSQL y la base de pruebas. `Tests\TestCase` rechaza configuración cacheada o una conexión predeterminada con base/usuario/URL incompatibles antes de ejecutar los hooks de pruebas. Las credenciales se leen del entorno privado de pruebas, no de valores vacíos impuestos en XML.
+- Se verificaron conexión, propietario, privilegios y zona UTC, así como migración Artisan, escritura de un instante con microsegundos y desplazamiento y ejecución del seeder raíz. La migración auxiliar vive exclusivamente en `tests/Fixtures/`, se registra solo durante la prueba y se ejecuta dentro de una transacción revertida; no forma parte de las migraciones del dominio.
+- Resultado de PHPUnit: **6 pruebas, 39 aserciones correctas**, incluidas las cuatro pruebas HTTP previas. La base de desarrollo conserva cero tablas; la prueba de DDL no deja tablas en la base aislada. Esta evidencia no acredita concurrencia de citas, activaciones ni publicación, que se verificarán en sus fases y CU.
+
+**Pendientes por bloque:** longitudes y defaults de fases 2–7; normalización de correo/CI y ámbitos de activación; revocación real de sesiones; mecanismo de exclusión/bloqueo de citas y cambios de horarios; secuencias de versiones y publicación concurrente; conservación técnica de datos. Se mantienen además pendientes el retiro de habilitación de Médico–Especialidad (§3.15) y cualquier procedimiento posterior a publicación (§5.8). Ninguna de estas decisiones se considera implementada por completar fase 0.
+
+### 6.7. Fase 1 — catálogos y configuración implementados (2026-10-19)
+
+**Estado:** bloque de persistencia implementado y verificado sobre PostgreSQL 18.6 con Laravel 13.37.0. Se crearon cinco migraciones, cinco modelos y tres seeders de datos coordinados por el seeder raíz. Se aplicaron las migraciones en la base local de desarrollo `clinica_vida_salud`, previamente inspeccionada y vacía. La carga inicial se ejecutó y se repitió sin modificar los registros existentes.
+
+#### 6.7.1. Tablas, modelos y objetos de integridad
+
+Las migraciones `2026_10_19_000001` a `2026_10_19_000005` residen únicamente en `backend/src/data/database/migrations/`. Los cinco modelos usan el namespace `Clinica\data\models` y sus nombres físicos explícitos.
+
+| Tabla / modelo | Migración | Restricciones e índices propios |
+|---|---|---|
+| `roles` / `Rol` | `2026_10_19_000001_create_roles_table.php` | `roles_pk`, `roles_nombre_uq`, `roles_nombre_ck` |
+| `controles_intentos` / `ControlIntentos` | `2026_10_19_000002_create_controles_intentos_table.php` | `controles_intentos_pk`, `controles_intentos_clave_ambito_hash_uq`, `controles_intentos_cantidad_ck` |
+| `consultorios` / `Consultorio` | `2026_10_19_000003_create_consultorios_table.php` | `consultorios_pk`, `consultorios_codigo_uq`, `consultorios_codigo_ck`, `consultorios_nombre_ck` |
+| `especialidades` / `Especialidad` | `2026_10_19_000004_create_especialidades_table.php` | `especialidades_pk`, `especialidades_nombre_ck`, índice único `especialidades_nombre_normalizado_uq` sobre `lower(btrim(nombre))` |
+| `configuracion_clinica` / `ConfiguracionClinica` | `2026_10_19_000005_create_configuracion_clinica_table.php` | `configuracion_clinica_pk`, `configuracion_clinica_unica_ck`, `configuracion_clinica_zona_ck`, `configuracion_clinica_duracion_ck`, `configuracion_clinica_nombre_ck` |
+
+- Las columnas, tipos, nulabilidades, defaults y condiciones corresponden a §3 y §6.6.3–§6.6.4: **22 columnas de dominio** en este bloque. No se agregaron timestamps convencionales ni atributos auxiliares de normalización.
+- El bloque no contiene FK: las **43 relaciones del modelo global** siguen documentadas y se incorporarán al desarrollar sus entidades dependientes. El repositorio `migrations` es infraestructura adicional de Laravel, no una entidad del DER.
+- Laravel genera el nombre de PK nativo `_pkey` en PostgreSQL; cada migración lo renombra explícitamente a `_pk` para conservar el criterio de nombres acordado. El cambio forma parte de la misma migración transaccional.
+- Los modelos tienen listas de asignación masiva limitadas: no admiten IDs ni estados de actividad desde `fill`/`create`; ControlIntentos tampoco admite contadores o bloqueo por esa vía. Esos campos se modifican mediante asignación explícita del servidor cuando corresponda al flujo autorizado. Esto no sustituye autorización de endpoints.
+- `Rol`, `Consultorio` y `Especialidad` no generan timestamps. ControlIntentos y ConfiguracionClinica usan solo `actualizado_en`, con instantes inmutables, zona y microsegundos. Los booleanos y contadores se convierten a sus tipos PHP; el resumen de ámbito de intentos se oculta de la serialización del modelo.
+- El nombre de Especialidad conserva su presentación; la barrera de unicidad se aplica en PostgreSQL incluso ante escrituras directas. Se comprobó coincidencia entre `lower(btrim(...))` y `mb_strtolower(trim(..., ' '), 'UTF-8')` para los nombres iniciales, sin eliminar tildes. El catálogo admite nuevas especialidades diferentes, no solo las iniciales.
+
+#### 6.7.2. Seeders y carga real
+
+`Clinica\data\database\seeders\DatabaseSeeder` coordina, en una transacción, `RolSeeder`, `EspecialidadSeeder` y `ConfiguracionClinicaSeeder`. Los seeders utilizan Query Builder como infraestructura de carga, con `insertOrIgnore`/`ON CONFLICT DO NOTHING`: insertan los valores ausentes y conservan claves, descripciones, estados y configuración ya existentes. El índice normalizado también protege la reejecución si una especialidad existente tiene otra presentación de mayúsculas o espacios.
+
+| Tabla | Resultado de la carga local |
+|---|---|
+| `roles` | 4 filas: Administrador, Recepcionista, Médico, Paciente |
+| `especialidades` | 3 filas: Pediatría, Medicina General, Geriatría |
+| `configuracion_clinica` | 1 fila: ID 1, Clínica Vida Salud, America/La_Paz, duración 15 minutos y dirección NULL |
+| `consultorios` | 0 filas; datos concretos pendientes |
+| `controles_intentos` | 0 filas; las generará el control técnico correspondiente |
+
+No se fijan IDs numéricos de roles o especialidades ni se reinician secuencias. Los intentos de inserción ignorados pueden avanzar una secuencia sin crear filas: los saltos de IDs son válidos y no representan pérdida de datos. No se crearon cuentas, personal ni pacientes.
+
+#### 6.7.3. Evidencia de verificación y límites
+
+- `composer test -- --compact`: **33 pruebas, 166 aserciones correctas** sobre el entorno PostgreSQL aislado. Incluye las pruebas previas y `tests/Feature/CatalogosInicialesTest.php`.
+- Se verificaron columnas exactas y PK nombradas, defaults SQL sin Eloquent, CHECK/UQ/NOT NULL/longitudes mediante escrituras directas, normalización, singleton de configuración, modelos/casts/timestamps y protección de asignación masiva.
+- La reejecución conserva filas e IDs, una especialidad inactiva con descripción y una configuración modificada. Un fallo provocado al final del seeder raíz revierte también la carga de roles y especialidades, sin un catálogo parcial.
+- Se probó rollback y reaplicación de las cinco migraciones **solo dentro de una transacción de la base de pruebas**, posteriormente revertida. Cada prueba de este bloque migra dentro de su propia transacción; la base aislada termina sin tablas persistidas. No se utilizó `migrate:fresh` ni se ejecutó rollback sobre desarrollo.
+- `php artisan migrate` y `migrate:status`: las cinco migraciones aplicadas en desarrollo, lote 1. `composer seed` y comprobación posterior: filas e identificadores sin cambios al repetir la carga.
+- Autoload PSR-4 estricto y Pint correctos. La comparación documental conserva **28 entidades, 239 atributos y 43 relaciones** del modelo lógico.
+
+**Alcance funcional:** esta fase proporciona datos y modelos para RF01, RF04, RF05 y los CU relacionados; no completa CU-01, CU-09, CU-11 ni CU-12. Autenticación, autorización administrativa, APIs, repositorios y Services de esos flujos se incorporarán con sus casos de uso. No existen todavía citas o referencias históricas sobre las que verificar cambios de horarios, consultorios o duración. El siguiente bloque de datos es Usuario, Sesion, TokenAcceso y Bitacora (fase 2).
+
+### 6.8. Fase 2 — usuarios, sesiones, tokens y bitácora (2026-10-19)
+
+**Estado:** persistencia e integración técnica implementadas y verificadas. Se aplicaron las migraciones `2026_10_19_000006` a `000009` como lote 2, conservando todos los datos del primer bloque. El esquema local comprende **9 tablas de dominio, 72 columnas y 6 FK**, además de `migrations`. Este bloque incorpora 4 entidades y 50 columnas del diccionario, sin alterar el modelo global de 28 entidades, 239 atributos y 43 relaciones.
+
+#### 6.8.1. Diseño físico concretado
+
+| Tabla | Tipos y defaults de fase 2 |
+|---|---|
+| `usuarios` | ID BIGSERIAL; rol BIGINT obligatorio; correo VARCHAR(254); hash VARCHAR(255) opcional; estado VARCHAR(16), default Pendiente; nombres/apellidos VARCHAR(120) opcionales; contador INTEGER default 0; cambio obligatorio BOOLEAN default false; instantes TIMESTAMPTZ(6). Creación/actualización default CURRENT_TIMESTAMP; verificación y bloqueo inician NULL. |
+| `sessions` | Exactamente los seis nombres/tipos/nulabilidades nativos de §3.3. ID VARCHAR(255) PK; `user_id` BIGINT opcional; `last_activity` INTEGER, asignado por el manejador Laravel. Sin atributos adicionales. |
+| `tokens_acceso` | ID BIGSERIAL, usuario BIGINT obligatorio, propósito VARCHAR(24), hash VARCHAR(255); cuatro instantes TIMESTAMPTZ(6). Emisión/expiración obligatorias y explícitas; consumo/invalidación opcionales, inicialmente NULL. |
+| `bitacora` | Tipos/longitudes nativos exactos de §3.21: VARCHAR, INET, UUID, SMALLINT, JSONB y TIMESTAMPTZ. ID BIGSERIAL; `registrado_en` default `clock_timestamp()` y versión de formato default 1. Fecha de ocurrencia, correlación y campos obligatorios explícitos; campos opcionales inicialmente NULL. |
+
+Son decisiones técnicas, no límites nuevos del examen. PK nombradas `usuarios_pk`, `sessions_pk`, `tokens_acceso_pk`, `bitacora_pk`. Las seis FK usan `ON DELETE RESTRICT` y `ON UPDATE RESTRICT`.
+
+- **Usuario:** FK `usuarios_rol_fk`, índice `usuarios_rol_idx` e índice único `usuarios_correo_normalizado_uq` sobre `lower(btrim(correo_acceso))`. Los CHECK limitan estados, contador no negativo, textos informados no vacíos, hash NULL solo en Pendiente y cuenta Activa con hash/correo verificado. El modelo recorta espacios U+0020 extremos y aplica minúsculas UTF-8; otras escrituras y búsquedas del servidor deberán mantener ese criterio.
+- La FK y los CHECK no demuestran invitación válida, compatibilidad de rol/vínculo ni nombres administrativos obligatorios por rol. Formato del correo y política de contraseña se validarán en los Services de sus CU; no se deducen del hash almacenado.
+- **Sesion:** FK `sessions_usuario_fk`; índices `sessions_usuario_idx` y `sessions_actividad_idx`. Admite sesiones anónimas y varias por Usuario. Expira según `last_activity` y configuración Laravel, sin añadir columnas de estado o vencimiento.
+- **TokenAcceso:** FK `tokens_acceso_usuario_fk`, UQ `tokens_acceso_hash_uq`, índice `tokens_acceso_usuario_proposito_idx`. CHECK de los dos propósitos originales en esta fase (ampliado posteriormente por §6.15), hash no vacío y expiración posterior a emisión. Plazos de 24 horas/60 minutos, reemisión, consumo único y revocación de sesiones se coordinarán con sus CU; no quedan implementados por esas restricciones.
+- **Bitacora:** FK `bitacora_responsable_fk`, `bitacora_objetivo_fk`, `bitacora_evento_relacionado_fk`. CHECK de origen/identidad, cuatro roles históricos, objetivo/rol ambos presentes o ausentes, resultados, procedencia IP, recurso con entidad, versión positiva, clasificación no vacía y JSONB opcionales de tipo objeto. La correlación **no es única**.
+- Índices de Bitacora: `bitacora_orden_idx` (`registrado_en`, `id_evento`), `bitacora_fecha_idx`, `bitacora_responsable_idx`, `bitacora_objetivo_idx`, `bitacora_evento_relacionado_idx`. Los índices de otros filtros se ajustarán a las consultas reales de CU-30.
+
+#### 6.8.2. Inmutabilidad y referencias anteriores
+
+La migración crea las funciones `bitacora_rechazar_mutacion()` y `bitacora_validar_evento_anterior()`, con search_path `public, pg_temp`, y tres triggers:
+
+- `bitacora_inmutable_trg`: rechaza UPDATE/DELETE de filas, tanto desde Eloquent como desde SQL directo.
+- `bitacora_no_truncate_trg`: rechaza TRUNCATE como sentencia.
+- `bitacora_evento_anterior_trg`: antes de insertar exige un evento relacionado ya existente. `bitacora_evento_no_auto_ck` rechaza autorreferencia directa. Las referencias adelantadas y las modificaciones posteriores se rechazan, impidiendo construir ciclos mediante inserciones múltiples o actualizaciones.
+
+La protección cubre operaciones ordinarias de aplicación; no se presenta como defensa frente a un operador autorizado a cambiar el esquema o deshabilitar triggers. La migración inversa elimina tabla y funciones al revertirse expresamente; esa reversibilidad se probó en la base aislada.
+
+#### 6.8.3. Modelos e integración con Laravel
+
+- `Usuario` extiende el autenticable de Laravel, mapea `id_usuario`, `password_hash`, `creado_en`/`actualizado_en`, oculta hash/contador/bloqueo y limita asignación masiva a correo y nombres administrativos. No agrega columna ni mecanismo de «recordarme».
+- `Rol::usuarios()` y `Usuario::rol()` implementan su relación. Usuario relaciona tokens y eventos como responsable/objetivo. `TokenAcceso::usuario()` y las relaciones de Bitacora conservan los actores separados y el evento anterior/posteriores.
+- TokenAcceso oculta el hash y convierte fechas; Bitacora convierte instantes, versión y objetos JSON. Ambos protegen la asignación masiva; sus futuras escrituras se harán con datos explícitos del servidor. La respuesta HTTP requerirá Resources/DTO y autorización.
+- `config/auth.php` registra guard de sesión `web` y proveedor Eloquent `usuarios` con el modelo aprobado; Sanctum consulta ese guard. Se verificó el proveedor con sus columnas reales. No se configura un broker paralelo de recuperación. Comprobar contraseña mediante el proveedor no sustituye el flujo de bloqueo o rechazo de cuentas desactivadas de CU-01.
+- Sesion se administra mediante el manejador nativo, sin modelo Eloquent adicional. Después de crear la tabla, el driver local y default/ejemplo pasan de archivo a `database`, conservando el cifrado. PHPUnit usa `array` en general y habilita `database` expresamente para probar sesiones.
+- Se probaron sesión anónima cifrada, vinculación a Usuario, lectura, expiración, destrucción nativa y eliminación por Usuario de varias sesiones. Esto verifica el soporte persistente; la revocación automática y coordinación concurrente en desactivación/cambio/recuperación se completarán con los Services/middlewares. `AuthenticateSession` sigue pendiente de esa integración.
+
+#### 6.8.4. Evidencia y pendientes
+
+- **68 pruebas, 335 aserciones correctas**, incluidas `tests/Feature/UsuariosAuditoriaTest.php` y las pruebas anteriores. Se verificaron columnas, defaults, FK restrictivas, correo y hash de token únicos, serialización, relaciones, sesiones y rechazo SQL de mutaciones, ciclos y referencias adelantadas de bitácora.
+- Nueve migraciones aplicadas: cinco en lote 1, cuatro en lote 2. Las tablas nuevas quedaron sin carga inicial; no se añadieron seeders de cuentas, tokens, sesiones o eventos. Se compararon los registros del primer bloque antes/después sin diferencias.
+- Comprobación adicional con el kernel HTTP local: CSRF respondió 204 y persistió sesión anónima mediante EncryptedStore/database. La sesión auxiliar se destruyó por su ID exacto, sin mostrar cookies ni contenido. Las pruebas automatizadas revierten su DDL/datos; no dejan cuentas ficticias en desarrollo.
+- Autoload PSR-4 estricto, Pint y sintaxis PHP comprobados; definición lógica de entidades, atributos, nulabilidades y relaciones conservada.
+
+**Pendientes funcionales:** CU-01–CU-06 y CU-30 sin completar. Faltan identidad/rol/vínculo y nombres administrativos obligatorios por rol, login/logout/bloqueo, emisión/consumo seguro de tokens, correo Brevo, revocación automática, generación de eventos con autor auténtico, listas permitidas de tipos/claves/valores/tamaños seguros y consulta autorizada con filtros/paginación. JSON de tipo objeto y FK no validan ausencia de secretos/contenido clínico ni legitimidad del actor. El primer Administrador mantiene pendiente su procedimiento seguro. La siguiente fase de datos comprende Paciente, ContactoEmergencia, PreferenciaPaciente, CodigoActivacionPaciente, RegistroPacientePendiente y VerificacionCorreo (fase 3).
+
+### 6.9. Fase 3 — pacientes y activación (2026-10-19)
+
+**Estado: persistencia implementada y verificada.** El diseño físico siguiente se concretó antes de migrar. Se mantienen las seis entidades y sus 56 atributos de §3.6–§3.11, sus nulabilidades y relaciones. Sin catálogos nuevos de sexo, parentesco o privacidad, ni columnas auxiliares. Las seis migraciones se aplicaron como lote 3, conservando los registros de las nueve tablas previas. El acumulado local es **15 tablas de dominio, 128 columnas y 15 FK**, además de `migrations`.
+
+#### 6.9.1. Tipos, defaults y condiciones
+
+- PK simples BIGSERIAL, FK BIGINT y política RESTRICT en ambas acciones. Instantes TIMESTAMPTZ(6), nacimiento DATE, datos/preferencias JSONB, dirección TEXT. Nombres/apellidos VARCHAR(120), nombre de emergencia VARCHAR(240), parentesco VARCHAR(80), teléfono VARCHAR(40), sexo VARCHAR(32), CI VARCHAR(50), código de paciente VARCHAR(50), correos VARCHAR(254), hashes VARCHAR(255), tipo de registro VARCHAR(16), propósito VARCHAR(24). Son límites técnicos, no requisitos del examen.
+- Paciente: activo default true; creación/actualización CURRENT_TIMESTAMP. UQ de cuenta opcional, código exacto y CI con `btrim(documento_identidad)` cuando no sea NULL; se permiten varios NULL. Se recortan solo espacios U+0020 exteriores del CI, sin quitar signos, letras, espacios interiores o ceros iniciales ni convertir mayúsculas. No se imponen formato civil, edad o catálogo de sexo desde SQL.
+- Contacto y preferencia: una fila como máximo por Paciente mediante UQ de FK. Preferencia exige booleano y objeto JSONB explícitos, sin defaults funcionales; actualización default CURRENT_TIMESTAMP. Las claves de privacidad permitidas se definirán con CU-08, sin otorgar permisos mediante el JSON.
+- Código de Recepción: hash único, contador INTEGER default 0 entre 0 y 5, expiración posterior a emisión; consumo e invalidación inicialmente NULL. Índice por Paciente. Reemisión, duración de 24 horas, rol/identidad y agotamiento se coordinan con sus CU.
+- Registro pendiente: tipo Nuevo con ambas FK NULL, Vinculacion con ambas presentes. Expiración posterior al inicio; contador no existe en esta entidad. Hash temporal obligatorio mientras no esté completado ni invalidado; datos de Nuevo obligatorios en esa misma condición y, cuando se informen, de tipo objeto. Sin default para inicio/expiración, correo, tipo o datos.
+- Exclusividad: cuatro índices únicos parciales sobre Paciente, código de Recepción, CI recortado y correo `lower(btrim(...))`, con predicado `completado_en IS NULL AND invalidado_en IS NULL`. Protegen también escrituras concurrentes. Un proceso expirado sigue ocupando su reserva hasta invalidarse explícitamente; el Service deberá bloquear/revalidar, invalidar el vencido y crear o reanudar el proceso dentro de una transacción. No se usa `now()` en predicados de índice ni se presenta la exclusividad como consumo atómico implementado.
+- Verificación: CHECK de propósito y XOR compatible con §3.11; contador 0–5, expiración posterior al envío, hash/correo no vacíos. Índices de las dos FK, sin unicidad global del hash de códigos de seis dígitos. Reemisión invalida el anterior mediante el flujo autorizado; plazos de 10 minutos, límites de envío y consumo conjunto quedan para los Services.
+- Los modelos normalizarán correo propuesto/destino con el criterio de Usuario y CI con `trim(..., ' ')`. SQL directo conserva barreras normalizadas de unicidad. Campos secretos, datos temporales e intentos se ocultan; asignación masiva restringida. No se cargan pacientes, procesos, preferencias ni códigos mediante seeders.
+
+Las condiciones entre tablas (mismo Paciente del código, rol de cuenta y emisor, ausencia de cuenta, igualdad del correo destino y el propuesto) se revalidarán con bloqueos en los CU. Los CHECK no verifican identidad, contenido permitido del JSON, hash criptográfico, reglas civiles de nacimiento ni autorización. No se declara implementado CU-04, CU-07 o CU-08 por crear persistencia.
+
+#### 6.9.2. Archivos y relaciones implementados
+
+Las migraciones residen en `backend/src/data/database/migrations/` y los modelos en `backend/src/data/models/`, sin duplicados convencionales.
+
+| Tabla / modelo | Migración `2026_10_19_…` | FK |
+|---|---|---|
+| `pacientes` / `Paciente` | `000010_create_pacientes_table.php` | `pacientes_usuario_fk` |
+| `contactos_emergencia` / `ContactoEmergencia` | `000011_create_contactos_emergencia_table.php` | `contactos_emergencia_paciente_fk` |
+| `preferencias_paciente` / `PreferenciaPaciente` | `000012_create_preferencias_paciente_table.php` | `preferencias_paciente_paciente_fk` |
+| `codigos_activacion_paciente` / `CodigoActivacionPaciente` | `000013_create_codigos_activacion_paciente_table.php` | `codigos_activacion_paciente_fk`, `codigos_activacion_recepcionista_fk` |
+| `registros_paciente_pendientes` / `RegistroPacientePendiente` | `000014_create_registros_paciente_pendientes_table.php` | `registros_pendientes_paciente_fk`, `registros_pendientes_codigo_fk` |
+| `verificaciones_correo` / `VerificacionCorreo` | `000015_create_verificaciones_correo_table.php` | `verificaciones_correo_registro_fk`, `verificaciones_correo_usuario_fk` |
+
+- PK con nombre `<tabla>_pk`. UQ `pacientes_usuario_uq`, `pacientes_codigo_uq`, `pacientes_documento_uq`, `contactos_emergencia_paciente_uq`, `preferencias_paciente_paciente_uq` y `codigos_activacion_hash_uq`.
+- Índices parciales `registros_pendientes_paciente_abierto_uq`, `registros_pendientes_codigo_abierto_uq`, `registros_pendientes_documento_abierto_uq`, `registros_pendientes_correo_abierto_uq`. Los opcionales excluyen NULL y los cuatro excluyen completados/invalidados.
+- Índices ordinarios por Paciente/emisor en códigos, Paciente/código en registros y registro/Usuario en verificaciones; permiten consultar historia y FK aunque el proceso esté cerrado. Las UQ de contacto, preferencia y cuenta ya cubren sus FK.
+- Paciente tiene relaciones opcionales `usuario`, `contactoEmergencia`, `preferencia`, y colecciones `codigosActivacion`/`registrosPendientes`. Usuario incorpora `paciente`, `codigosActivacionEmitidos` y `verificacionesCorreo`. Código vincula Paciente/emisor y sus registros; Registro vincula Paciente/código y verificaciones; Verificacion vincula exclusivamente registro o Usuario según propósito.
+- Paciente usa timestamps propios y nacimiento `immutable_date:Y-m-d`, con serialización de fecha sin hora; Preferencia solo actualiza `actualizado_en`. Los demás modelos no generan timestamps. Fechas/contadores/booleanos/objetos JSON tienen casts explícitos. No se anticipan relaciones hacia entidades de fases posteriores.
+- Paciente permite asignación masiva solo de datos administrativos, nunca ID, código generado, cuenta o actividad. Contacto permite sus tres datos, sin FK. Preferencias y procesos tienen asignación masiva totalmente protegida; se escribirán tras validación explícita del servidor. Código/verificación ocultan hash e intentos; Registro oculta hash temporal y datos temporales. Estas medidas no sustituyen autorización ni Resources públicos.
+
+#### 6.9.3. Evidencia, concurrencia y límites
+
+- **111 pruebas, 585 aserciones correctas** en PostgreSQL. `PacientesActivacionTest` verifica columnas/PK, ausencia de carga inicial, múltiples NULL permitidos, unicidad de código/CI/cuenta, contacto/preferencia únicos, normalización, fechas con microsegundos y zona, relaciones y serialización protegida. SQL directo inválido es rechazado para tipos de proceso, datos requeridos, XOR compatible, FK, intervalos y contadores.
+- `ReservaActivacionConcurrenteTest` usa dos conexiones y PID PostgreSQL distintos en un esquema desechable de la base aislada de pruebas. Ejecuta las migraciones reales necesarias en ese esquema; no modifica `public` ni usa datos de desarrollo. Para cada una de las cuatro claves de reserva comprueba espera ante una escritura sin confirmar, rechazo UNIQUE tras COMMIT y posibilidad de insertar tras ROLLBACK. La espera se acota con `lock_timeout` para que una falla no cuelgue la suite. El esquema auxiliar se elimina en `finally`.
+- Se prueban liberación explícita de reservas vencidas, conservación del historial al completar/invalidar, posibilidad de limpiar secretos al cerrar y rollback de vínculos/cierre ante fallo. Son pruebas de persistencia, no un Service de activación completo. La prueba general de migraciones revierte y reaplica las quince migraciones dentro de una transacción aislada.
+- Desarrollo: quince migraciones aplicadas (5/4/6 en lotes 1/2/3). Las seis tablas nuevas permanecen vacías; se comparó el contenido de las nueve anteriores antes/después sin diferencias. No se introdujeron seeders de pacientes, cuentas, preferencias, procesos o códigos.
+- Autoload PSR-4 estricto, Pint y sintaxis PHP comprobados. El modelo lógico se conserva en **28 entidades, 239 atributos y 43 relaciones**. La base de pruebas termina sin tablas ni esquemas auxiliares persistidos.
+
+**Pendientes funcionales:** emisión criptográfica/entrega presencial, reemisión e invalidaciones vinculadas, contexto protegido para reintentos, cierre oportuno de vencidos y limpieza de secretos, roles/vínculos, validaciones de datos y preferencias, envío Brevo con reintentos, límites de envío/intentos y confirmación transaccional de ambos códigos/cuenta/ficha. Las pruebas de unicidad concurrente no certifican todavía el consumo único ni la ausencia de duplicados entre registro web y alta administrativa simultáneos: esos flujos deberán coordinar la escritura definitiva y la reserva desde sus Services. No existen endpoints de CU-04, CU-07 o CU-08. Análisis/diagrama de clases siguen pendientes del desarrollo funcional; la siguiente fase de datos es Médico, MedicoEspecialidad y HorarioAtencion.
+
+### 6.10. Fase 4 — médicos, especialidades del médico y horarios (2026-10-19)
+
+**Estado: persistencia implementada y verificada.** El diseño físico siguiente se concretó antes de migrar. Tres entidades y 18 atributos de §3.13, §3.15 y §3.16, sin cambios de nulabilidad, catálogos ni nuevas columnas. Las migraciones `2026_10_19_000016`–`000018` se aplicaron como lote 4; el acumulado local es **18 tablas de dominio, 146 columnas y 20 FK**, además de `migrations`.
+
+#### 6.10.1. Tipos, defaults y condiciones
+
+- `medicos`: PK BIGSERIAL, cuenta/consultorio BIGINT opcionales, código VARCHAR(50), registro profesional VARCHAR(80), nombres/apellidos VARCHAR(120), teléfono VARCHAR(40), correo de contacto VARCHAR(254), actividad BOOLEAN default true. Sin timestamps. Código único exacto y cuenta única cuando exista, permitiendo varios NULL; consultorio no es único porque puede compartirse. No se añade unicidad al registro profesional ni al correo de contacto, no declarada en el DER.
+- `medico_especialidad`: solo dos BIGINT obligatorios; PK compuesta `(id_medico, id_especialidad)`. No tiene ID sustituto, actividad, vigencias ni timestamps. Índice inverso por especialidad para FK/consulta N:M.
+- `horarios_atencion`: PK BIGSERIAL, Médico BIGINT obligatorio, día INTEGER entre 1=lunes y 7=domingo, inicio/fin TIME(0), actividad BOOLEAN default true. CHECK de fin posterior al inicio; no representa intervalos que cruzan medianoche. Sin timestamps ni consultorio duplicado. Índice compuesto `(id_medico, dia_semana)` para recuperar intervalos de un profesional/día, incluidos los inactivos.
+- Cinco FK con ON DELETE RESTRICT y ON UPDATE RESTRICT. CHECK de textos médicos obligatorios no vacíos. Los únicos defaults son secuencias y actividad; los datos profesionales y horarios se proporcionan explícitamente.
+- Modelos `Medico`, `HorarioAtencion` y pivote `MedicoEspecialidad` en `src/data/models/`. N:M mediante `belongsToMany()->using(...)` con las dos claves explícitas; operaciones del pivote por la relación o por ambas columnas, sin fingir soporte nativo de PK compuesta en `find(id)`. Modelos sin timestamps, estados/FK/códigos fuera de asignación masiva y actividad con cast booleano; horas como cadenas HH:mm:ss sin conversión a fecha ni zona.
+- No se crean seeders de médicos, asignaciones o horarios. Las relaciones se agregan a Usuario, Consultorio y Especialidad existentes. Actividad profesional y de cuenta permanecen independientes.
+
+**Límite del bloque:** las FK no comprueban rol Médico ni exclusividad de identidad entre roles; el Service comprobará rol/vínculo y al menos una especialidad al registrar al profesional. Un horario reservable requiere consultorio válido y duración compatible. La exclusión de solapamientos de Médico/consultorio, coordinación concurrente de cambios con citas y conservación de ubicaciones históricas se implementarán con CU-11/CU-12 y las entidades de citas; no se consideran garantizadas por el índice de horario ni por su CHECK. La política de retiro del par Médico–Especialidad sigue pendiente (§3.15); esta fase no la define ni añade atributos para suplirla. No se completan CU-09–CU-12.
+
+#### 6.10.2. Archivos, restricciones y relaciones
+
+Migraciones propias únicamente en `backend/src/data/database/migrations/`; modelos en `backend/src/data/models/`.
+
+| Tabla / modelo | Migración `2026_10_19_…` | Claves e índices |
+|---|---|---|
+| `medicos` / `Medico` | `000016_create_medicos_table.php` | PK `medicos_pk`; FK `medicos_usuario_fk`, `medicos_consultorio_fk`; UQ `medicos_usuario_uq`, `medicos_codigo_uq`; índice `medicos_consultorio_idx` |
+| `medico_especialidad` / pivote `MedicoEspecialidad` | `000017_create_medico_especialidad_table.php` | PK compuesta `medico_especialidad_pk`; FK `medico_especialidad_medico_fk`, `medico_especialidad_especialidad_fk`; índice `medico_especialidad_especialidad_idx` |
+| `horarios_atencion` / `HorarioAtencion` | `000018_create_horarios_atencion_table.php` | PK `horarios_atencion_pk`; FK `horarios_atencion_medico_fk`; índice `horarios_atencion_medico_dia_idx` |
+
+- CHECK `medicos_codigo_ck`, `medicos_registro_ck`, `medicos_nombres_ck`, `medicos_apellidos_ck`, `medicos_telefono_ck`, `medicos_correo_ck`: texto obligatorio no vacío. `horarios_atencion_dia_ck` y `horarios_atencion_intervalo_ck`: día 1–7 y fin posterior al inicio. TIME(0) permite `24:00:00` como extremo final, sin convertirlo en un intervalo nocturno que cruza de día.
+- `Medico` pertenece opcionalmente a Usuario/Consultorio; tiene `especialidades` N:M y `horarios` 1:N. Usuario incorpora `medico` 1:0..1; Consultorio `medicos` 1:N; Especialidad la relación N:M inversa. Las relaciones no filtran implícitamente inactivos, para conservar acceso autorizado al historial; los futuros Services filtrarán nuevas disponibilidades.
+- `MedicoEspecialidad` extiende `Pivot`, sin autoincremento ni clave simple. Se hidrata desde las relaciones con sus dos claves; se comprobaron lectura y escrituras técnicas acotadas por ambas columnas en las dos direcciones. No usar APIs de clave simple como `find(id)` para este pivote. Las pruebas con pares sin referencias históricas no autorizan un flujo de retiro funcional pendiente.
+- Médico admite asignación masiva solo de datos profesionales/contacto; Horario solo de día/horas. ID, vínculos, código y actividad requieren asignación explícita del servidor tras autorización. Pivote completamente protegido frente a asignación masiva ordinaria; la relación N:M es el adaptador técnico autorizado para sus claves.
+
+#### 6.10.3. Evidencia y pendientes
+
+- **140 pruebas, 752 aserciones correctas** sobre PostgreSQL. `MedicosHorariosTest` comprueba columnas/PK/tipos de hora, ausencia de carga inicial, NULL opcionales, código/cuenta únicos, relaciones y pivote en ambas direcciones, ausencia de ID/timestamps añadidos, estados independientes, día/horas, protección de campos y rollback conjunto.
+- SQL directo inválido rechazado para textos vacíos, NULL obligatorios, FK inexistentes, días fuera de rango, intervalos vacíos/invertidos y hora inválida. Se verificaron DELETE/UPDATE restrictivos en las cinco FK; no se borra historial mediante cascadas.
+- La suite anterior permanece correcta, incluida concurrencia de reservas de activación. La prueba general revierte y reaplica las dieciocho migraciones únicamente dentro de la transacción de la base aislada; no se revirtieron migraciones de desarrollo.
+- Desarrollo: dieciocho migraciones en lotes 1/2/3/4 con 5/4/6/3 migraciones respectivamente. Se comparó el contenido de las quince tablas anteriores antes/después, sin diferencias. Las tres nuevas quedaron vacías y no se añadieron seeders de profesionales o horarios.
+- Autoload PSR-4 estricto, Pint, sintaxis PHP y diff comprobados. Modelo lógico conservado: **28 entidades, 239 atributos y 43 relaciones**. Base aislada de pruebas sin tablas ni esquemas auxiliares persistidos.
+
+**Pendientes funcionales:** CU-09–CU-12, autorización administrativa, rol/vínculo de cuenta, al menos una especialidad por alta, datos profesionales válidos, compatibilidad de duración, consultorio válido antes de ofrecer turnos, protección concurrente de horarios/asignaciones y cambios que afecten citas y avisos. No se probó ni implementó exclusión de solapamientos de atención por este bloque. El retiro de habilitación específica del par requiere la decisión de §3.15. No se completó un CU o módulo funcional; análisis y diagrama de clases siguen pendientes de ese desarrollo. La siguiente fase de datos es Cita, CambioCita y Recordatorio.
+
+### 6.11. Fase 5 — citas, cambios y recordatorios (2026-10-19)
+
+**Estado: persistencia implementada y verificada.** El diseño físico siguiente se concretó antes de migrar. Tres entidades y 34 atributos de §3.18–§3.20, conservando sus nulabilidades y relaciones. Las migraciones `2026_10_19_000019`–`000021` se aplicaron como lote 5. Acumulado local: **21 tablas de dominio, 180 columnas y 27 FK**, además de `migrations`, con dos exclusiones de solapamiento.
+
+#### 6.11.1. Tipos, defaults y condiciones
+
+- Cita: PK BIGSERIAL, FK BIGINT, código VARCHAR(50), estado/modalidad VARCHAR(16), sede VARCHAR(120), consultorio histórico VARCHAR(200), motivo TEXT opcional, duración/versión INTEGER, instantes TIMESTAMPTZ(6). Defaults Programada, Presencial, versión 1 y CURRENT_TIMESTAMP para creación/actualización. Duración efectiva, sede e identificación histórica del consultorio son explícitas, sin derivación automática desde la configuración actual.
+- CHECK de cinco estados, modalidad única, duración/versión positivas, fin posterior a inicio y `fin_at = inicio_at + duracion_minutos * interval '1 minute'`; textos obligatorios no vacíos. UQ exacta de código. FK compuesta hacia `(id_medico,id_especialidad)` del pivote, además de Paciente, Consultorio y Usuario creador; todas RESTRICT en DELETE/UPDATE.
+- Dos exclusiones GiST sobre `tstzrange(inicio_at, fin_at, '[)')`, una por Médico y otra por consultorio, con predicado `estado <> 'Cancelada'`. Incluyen Atendida e Inasistencia para conservar ocupación histórica. Verifican INSERT/UPDATE y concurrencia, sin añadir columnas de rango. Requieren `btree_gist`, inspeccionada como disponible/confiable y con privilegio CREATE en desarrollo/pruebas. La migración instala la extensión en public si falta; la inversa conserva esa infraestructura compartida y elimina solo las tablas propias. Una extensión preexistente en otro esquema requerirá ajuste explícito antes de migrar, no se reubica automáticamente.
+- CambioCita: PK BIGSERIAL, dos FK BIGINT, operación VARCHAR(60), estados VARCHAR(16), fecha TIMESTAMPTZ(6), snapshots JSONB y motivo TEXT. Todos los campos obligatorios son explícitos. CHECK de estados válidos y objetos JSON; anterior opcional. Triggers rechazan UPDATE/DELETE/TRUNCATE, como historial administrativo inmutable. No se inventa un catálogo cerrado de operaciones; listas de claves, contenido y permisos se validarán en el Service.
+- Recordatorio: PK BIGSERIAL, Cita BIGINT, versión INTEGER positiva, tres instantes TIMESTAMPTZ(6); generado explícito, lectura/invalidación inicialmente NULL. UQ `(id_cita,version_programacion)` y FK restrictiva solo a Cita, sin FK duplicadas de destinatario ni dependencia de cuenta web. Se conservan versiones antiguas; no se liga la versión mediante FK a la programación actual mutable de la cita.
+- Modelos con tablas/claves y casts explícitos, asignación masiva protegida. Cita mapea `creada_en`/`actualizada_en`; los otros dos no generan timestamps. Se ocultan motivo breve y snapshots/motivo de cambios en serialización genérica; Resources autorizados determinarán salidas públicas. Relaciones con las entidades ya implementadas, sin anticipar consultas clínicas.
+
+**Límite del bloque:** no completa CU-13–CU-21 ni CU-28. La exclusión comprueba ocupación escrita, no roles, estados de fichas, horario habilitado, fecha no pasada, duración configurada, consultorio fijo actual ni atención clínica real. Los Services coordinarán transiciones/reprogramación/versiones, historial y avisos atómicos, cambios de horarios/asignaciones y manejo de conflictos `23P01`. La generación automática de recordatorios, 24 horas, preferencias y consulta autorizada siguen pendientes; no se fija la frecuencia del programador ni una preferencia predeterminada ausente.
+
+#### 6.11.2. Archivos, claves e integración
+
+Migraciones únicamente en `backend/src/data/database/migrations/`; modelos `Cita`, `CambioCita` y `Recordatorio` en `backend/src/data/models/`.
+
+| Tabla | Migración `2026_10_19_…` | Claves |
+|---|---|---|
+| `citas` | `000019_create_citas_table.php` | PK `citas_pk`, UQ `citas_codigo_uq`; FK `citas_paciente_fk`, `citas_medico_especialidad_fk` (compuesta), `citas_consultorio_fk`, `citas_creador_fk` |
+| `cambios_cita` | `000020_create_cambios_cita_table.php` | PK `cambios_cita_pk`; FK `cambios_cita_cita_fk`, `cambios_cita_actor_fk` |
+| `recordatorios` | `000021_create_recordatorios_table.php` | PK `recordatorios_pk`, UQ `recordatorios_cita_version_uq`; FK `recordatorios_cita_fk` |
+
+- Exclusiones `citas_medico_no_solapado_excl` y `citas_consultorio_no_solapado_excl`. Usan explícitamente la clase `public.gist_int8_ops` de `btree_gist` para BIGINT y la clase nativa de rangos para el intervalo; no incorporan un rango persistido ni duplican identificadores.
+- Índices de Cita por `(id_paciente,inicio_at)`, `(id_medico,id_especialidad)`, consultorio, creador e inicio. Las FK conservan acceso indexado también a citas canceladas, excluidas de los GiST parciales. CambioCita indexa `(id_cita,realizado_en,id_cambio_cita)` y actor; la UQ de Recordatorio cubre la FK y versión.
+- Función `cambios_cita_rechazar_mutacion()` y triggers `cambios_cita_inmutable_trg`/`cambios_cita_no_truncate_trg` rechazan escrituras ordinarias que alterarían historia, incluso por SQL directo. La inversa elimina tabla y función; no protege frente a un operador autorizado a cambiar el esquema o deshabilitar triggers.
+- Cita pertenece a Paciente, Médico, Especialidad, Consultorio y Usuario creador. Eloquent representa Médico/Especialidad como relaciones de lectura individuales; PostgreSQL garantiza conjuntamente el par mediante la FK compuesta. Cita tiene muchos cambios/recordatorios. Los modelos relacionados incorporan las colecciones inversas; Usuario distingue citas creadas de cambios realizados.
+- `btree_gist` queda instalada en desarrollo como infraestructura compartida, sin entidades ni filas de dominio nuevas. Revertir la migración de Cita no elimina esa extensión, que puede ser usada por otras restricciones. Las pruebas transaccionales revierten su instalación junto con el DDL; las pruebas concurrentes retiran la extensión sin CASCADE únicamente si la crearon ellas mismas.
+
+#### 6.11.3. Evidencia y pendientes
+
+- **178 pruebas, 976 aserciones correctas** en PostgreSQL. `CitasRecordatoriosTest` comprueba esquema, FK compuesta, defaults, relaciones, precisión/zona temporal, asignación protegida y serialización, cinco estados, duración efectiva, snapshots históricos, historial inmutable y avisos únicos por versión, incluso sin cuenta de Paciente.
+- Se verificó rechazo de solapamientos parciales y de contención, por Médico y consultorio, en los cuatro estados no cancelados. Intervalos contiguos y recursos distintos se aceptan; cancelar conserva el registro y libera ocupación. Una reprogramación SQL fallida mantiene intervalo/versión originales y su ocupación.
+- `CitasConcurrentesTest` utiliza dos conexiones/PID PostgreSQL distintos y esquemas desechables de la base aislada. Para cada recurso comprueba espera mientras la primera reserva no se confirma, rechazo `23P01` tras COMMIT y aceptación tras ROLLBACK. También comprueba dos reprogramaciones al mismo destino: rechaza la segunda conservando íntegramente su registro anterior. La UQ de recordatorio serializa emisiones simultáneas y rechaza el duplicado confirmado.
+- Se probó rollback conjunto de intervalo/versión, cambio histórico e invalidación de avisos si falla un paso posterior. Las pruebas ejercitan operaciones de persistencia, no Services o endpoints terminados. No se envían correos ni se ejecuta un programador de recordatorios.
+- Desarrollo: 21 migraciones en lotes 1/2/3/4/5 con 5/4/6/3/3 migraciones. Se compararon los registros de las dieciocho tablas anteriores antes/después sin diferencias; las tres nuevas quedaron vacías y no se añadieron seeders de reservas, cambios ni avisos.
+- La suite general revierte y reaplica las veintiuna migraciones dentro de una transacción aislada. Pruebas sin tablas, esquemas auxiliares ni extensión auxiliar persistidos; autoload PSR-4 estricto, Pint, sintaxis PHP y diff comprobados. DER lógico conservado: **28 entidades, 239 atributos y 43 relaciones**.
+
+**Pendientes funcionales:** permisos y titularidad, fechas/horarios/estados activos, transiciones por actor, invariantes de identidad y versión al reprogramar, atención efectivamente realizada, auditoría y cambios/avisos coordinados, modificación concurrente de horarios/consultorios, consulta de agenda/historial y generación automática con preferencias de CU-28. El código de exclusión deberá traducirse centralmente a conflicto HTTP 409 al implementar los endpoints. No se completan CU-13–CU-21 ni CU-28, y análisis/diagrama de clases siguen pendientes del desarrollo funcional. La siguiente fase de datos es ConsultaMedica, VersionConsulta y VersionAntecedente.
+
+### 6.12. Fase 6 — consultas y versiones clínicas (2026-10-19)
+
+**Estado: persistencia implementada y verificada.** El diseño físico se concretó antes de migrar. Tres entidades y 30 atributos de §3.22–§3.24, con las nulabilidades y relaciones del diccionario intactas. Migraciones `2026_10_19_000022`–`000024` aplicadas en desarrollo como lote 6; acumulado de **24 tablas de dominio, 210 columnas y 33 FK**, además de `migrations` y las dos exclusiones de Cita.
+
+- ConsultaMedica: PK BIGSERIAL; código VARCHAR(50) único y FK BIGINT de Cita única, ambas obligatorias; dos instantes TIMESTAMPTZ(6). `creada_en` default CURRENT_TIMESTAMP; `iniciada_en` inicialmente NULL, sin deducirla ni copiarla. No se agregan IDs de Paciente/Médico, contenido clínico, estado ni timestamp de actualización.
+- VersionConsulta: PK BIGSERIAL, Consulta/autor BIGINT, número INTEGER positivo, registro TIMESTAMPTZ(6) explícito, tipo VARCHAR(16) limitado a Control/Enfermedad, motivo de consulta TEXT obligatorio no vacío y restantes textos según nulabilidad del DER. Número sin default: la UQ `(id_consulta,numero_version)` impide dos versiones con el mismo número, pero no los asigna ni reintenta. El mayor número confirmado determina la versión vigente.
+- VersionAntecedente: PK BIGSERIAL, Paciente/autor/consulta de origen BIGINT obligatorios, número INTEGER positivo, registro TIMESTAMPTZ(6) explícito, tipo de sangre VARCHAR(16) opcional y restantes textos TEXT opcionales. No se inventa un catálogo cerrado de sangre ni se sustituyen desconocidos por antecedentes ficticios. UQ `(id_paciente,numero_version)`.
+- Seis FK, todas ON DELETE RESTRICT y ON UPDATE RESTRICT. Las UQ cubren las FK de consulta/paciente; índices adicionales por autor en ambas versiones y consulta de origen en antecedentes. Los campos de versión, fechas de registro y contenido se proporcionan explícitamente; no hay seeders clínicos.
+- Cada tabla de versiones dispone de función/trigger contra UPDATE/DELETE y trigger contra TRUNCATE, preservando también autor, número, origen, fecha y motivos. La migración inversa elimina solo la tabla y su función al revertirse expresamente, sin modificar la infraestructura de citas.
+- Modelos `ConsultaMedica`, `VersionConsulta` y `VersionAntecedente` con tablas/claves explícitas, asignación masiva totalmente protegida y fechas inmutables con zona/microsegundos. Consulta solo usa `creada_en`; las versiones no generan timestamps. Los atributos clínicos y motivos de cambio se ocultan en serialización genérica, sin convertir esa medida en autorización de acceso.
+- Relaciones Cita–Consulta 1:0..1, Consulta–VersionConsulta 1:N, Paciente–VersionAntecedente 1:N, Consulta origen–VersionAntecedente 1:N y Usuario autor–versiones 1:N. No se crean tablas duplicadas de historia ni relaciones hacia laboratorio todavía no implementado.
+
+**Límite del bloque:** CU-22/CU-23 siguen pendientes. Los Services revalidarán cuenta, rol y relación asistencial, coincidencia Paciente–Consulta–Cita y autor Médico responsable bajo protección transaccional. Bloquearán el registro para Cancelada/Inasistencia y cambios administrativos incompatibles con atención real aunque `iniciada_en` sea NULL. Para nuevas versiones deberán coordinar la lectura de la vigente y la asignación de número bloqueando su entidad padre; las UQ no evitan por sí solas pérdidas lógicas si se reintenta sin revalidar. Guardar consulta/antecedentes no cambia automáticamente el estado de Cita. Lectura autorizada, validación de contenido, motivo de corrección y auditoría con metadatos seguros se incorporarán en esos CU; no se copia contenido clínico a Bitácora.
+
+#### 6.12.1. Archivos y claves
+
+Migraciones en `backend/src/data/database/migrations/`; modelos en `backend/src/data/models/`, con relaciones inversas en Cita, Paciente y Usuario.
+
+| Tabla | Migración `2026_10_19_…` | Claves |
+|---|---|---|
+| `consultas_medicas` | `000022_create_consultas_medicas_table.php` | PK `consultas_medicas_pk`; UQ `consultas_medicas_codigo_uq`, `consultas_medicas_cita_uq`; FK `consultas_medicas_cita_fk` |
+| `versiones_consulta` | `000023_create_versiones_consulta_table.php` | PK `versiones_consulta_pk`; UQ `versiones_consulta_numero_uq`; FK `versiones_consulta_consulta_fk`, `versiones_consulta_autor_fk` |
+| `versiones_antecedente` | `000024_create_versiones_antecedente_table.php` | PK `versiones_antecedente_pk`; UQ `versiones_antecedente_numero_uq`; FK `versiones_antecedente_paciente_fk`, `versiones_antecedente_autor_fk`, `versiones_antecedente_consulta_fk` |
+
+CHECK de código no vacío, número de versión positivo, tipo de consulta cerrado y motivo de consulta obligatorio no vacío. Funciones `versiones_consulta_rechazar_mutacion()` y `versiones_antecedente_rechazar_mutacion()`, con search_path `public, pg_temp`; triggers `<tabla>_inmutable_trg` y `<tabla>_no_truncate_trg`. Protegen escrituras ordinarias, no a un operador autorizado a modificar el esquema o deshabilitar triggers.
+
+#### 6.12.2. Evidencia y pendientes
+
+- **210 pruebas, 1214 aserciones correctas**, con `ConsultasVersionesTest`, `ConsultasConcurrentesTest` y suite anterior. Verifican las 30 columnas exactas, PK/UQ/FK/CHECK/NOT NULL, relaciones/casts, instantes con zona/microsegundos, asignación protegida y ocultación de contenido en serialización genérica.
+- Consulta única por cita y código; versiones completas conservadas, vigente por mayor número; opcionales desconocidos siguen NULL. SQL directo y Eloquent rechazan modificar versiones. Un fallo revierte conjuntamente consulta, versión de consulta y versión de antecedentes.
+- Dos conexiones/PID distintos en esquemas aislados verifican contención de consulta por cita y numeración por consulta/Paciente: espera con transacción abierta, rechazo UQ tras COMMIT y aceptación tras ROLLBACK. Para antecedentes se usan consultas de origen distintas del mismo Paciente; el ámbito de unicidad sigue siendo el Paciente.
+- Guardar versiones no marca Atendida, no completa inicio desconocido y no escribe contenido clínico en Bitácora. Las pruebas no afirman autorización ni numeración automática implementadas.
+- Desarrollo: 24 migraciones, lotes 1–6 con 5/4/6/3/3/3 archivos. Los registros de las veintiuna tablas anteriores se compararon antes/después sin diferencias; las tres nuevas quedaron vacías. Sin seeders de consultas o versiones.
+- Reversión/reaplicación de las veinticuatro migraciones solo en transacción de pruebas; base aislada posteriormente sin tablas public, esquemas auxiliares ni extensión auxiliar. Autoload PSR-4 estricto, Pint, sintaxis de doce PHP afectados y diff correctos. Secciones lógicas 2–4 idénticas a HEAD en comparación UTF-8 directa: **28 entidades, 239 atributos y 43 relaciones**.
+
+Análisis/diagrama de clases pendientes de CU/módulos funcionales. El siguiente bloque de datos comprende SolicitudLaboratorio, VersionResultado, DocumentoLaboratorio y RevisionResultado (fase 7); las restricciones de pertenencia de versiones/revisiones y publicación se concretarán antes de sus migraciones.
+
+### 6.13. Fase 7 — laboratorio digital (2026-10-19)
+
+**Estado: persistencia implementada y verificada.** El diseño físico se concretó antes de migrar. Cuatro entidades y 29 atributos de §3.25–§3.28; sin cambiar diccionario ni conectores. Migraciones `2026_10_19_000025`–`000028` aplicadas como lote 7. Acumulado final: **28 tablas de dominio, 239 columnas y 43 FK**, además de `migrations` y las dos exclusiones de citas.
+
+- Solicitud: PK BIGSERIAL, Consulta y punteros BIGINT; estudio VARCHAR(255) no vacío; solicitud TIMESTAMPTZ(6) explícita; estado VARCHAR(16), default Pendiente. CHECK de tres estados y coherencia: Pendiente sin punteros; En revisión sin revisión publicada (versión opcional para permitir corregir asociación); Disponible con ambos punteros. UQ individuales de punteros opcionales, admitiendo varios NULL. Índice de Consulta.
+- Documento: PK BIGSERIAL, cargador BIGINT, ruta VARCHAR(1024) única, nombre VARCHAR(255), MIME VARCHAR(127), tamaño BIGINT positivo, SHA-256 VARCHAR(64) con exactamente 64 dígitos hexadecimales, carga TIMESTAMPTZ(6) explícita. Textos obligatorios no vacíos. El SHA no es único: documentos distintos pueden tener iguales bytes. Sin límite funcional de tamaño ni catálogo MIME inventado; formato real, legibilidad, ruta generada del disco privado y protección de bytes se validarán en CU-25/CU-27.
+- Versión: PK BIGSERIAL, Solicitud/documento/origen/autor BIGINT; número INTEGER positivo sin default; registro TIMESTAMPTZ(6) explícito y motivo TEXT opcional. UQ `(id_solicitud,numero_version)` y `(id_solicitud,id_version_resultado)`. Origen opcional, existente antes de insertar y distinto de sí misma; puede pertenecer a otra solicitud para conservar corrección de asociación. Inmutabilidad y existencia previa evitan ciclos sin deducir antigüedad de los IDs. Índices de documento, origen y autor.
+- Revisión: PK BIGSERIAL, versión y Médico BIGINT, decisión VARCHAR(16) Autorizar/Devolver, motivo TEXT opcional salvo Devolver (obligatorio no vacío), revisión TIMESTAMPTZ(6) explícita. UQ `(id_revision,id_version_resultado)` e índices de versión y Médico. No se impone una sola revisión por versión ni se confunde decisión con estado.
+- Diez FK RESTRICT en DELETE/UPDATE, incluidas las dos compuestas circulares de Solicitud. Orden: Solicitud (`000025`), Documento (`000026`), Versión (`000027`), Revisión (`000028`); al terminar la última se añaden las FK compuestas inmediatas, con MATCH SIMPLE para punteros opcionales. Su inversa retira primero esas dos FK y después Revisión; el resto se revierte en orden inverso sin CASCADE destructivo.
+- Documento, Versión y Revisión rechazan UPDATE/DELETE/TRUNCATE mediante funciones/triggers propios. Solicitud rechaza UPDATE/DELETE si el estado anterior es Disponible; protege estudio, consulta y punteros publicados, incluso ante escrituras SQL concurrentes. No se habilitan retiro, sustitución o reasociación después de publicar. Las protecciones no sustituyen las validaciones de autorización al publicar ni protegen de un operador autorizado a alterar el esquema o archivos.
+- Cuatro modelos con tabla/PK explícitas, sin timestamps automáticos, asignación masiva protegida, instantes inmutables con zona/microsegundos y contenido/ruta/nombre/hash ocultos en serialización genérica. Relaciones con Consulta, Usuario, Médico, Documento, versiones/origen/derivadas y revisiones. Eloquent usa los IDs simples para lectura; PostgreSQL garantiza la pertenencia compuesta al escribir.
+
+**Límite del bloque:** CU-24–CU-27 siguen pendientes. FK/CHECK no demuestran Médico solicitante, sesión/cuenta/rol, decisión Autorizar del puntero publicado, versión aún vigente al confirmar, devolución previa que habilite sustitución, asignación del siguiente número, ni validez de bytes. Los Services coordinarán bloqueos de solicitudes afectadas, revalidación de versión revisada, correcciones y publicación atómicas, escritura/compensación de archivos privados y auditoría segura. No se crea carga/descarga pública ni se fija tamaño máximo o formatos de imagen sin el diseño de CU-25. El Paciente verá Pendiente hasta publicación mediante Resources autorizados, no por serializar directamente el estado interno.
+
+#### 6.13.1. Archivos y claves implementados
+
+Migraciones únicamente en `backend/src/data/database/migrations/`; cuatro modelos en `backend/src/data/models/`, con relaciones inversas en ConsultaMedica, Usuario y Medico.
+
+| Tabla | Migración `2026_10_19_…` | Claves |
+|---|---|---|
+| `solicitudes_laboratorio` | `000025_create_solicitudes_laboratorio_table.php` | PK `solicitudes_laboratorio_pk`; UQ `solicitudes_laboratorio_version_uq`, `solicitudes_laboratorio_revision_uq`; FK `solicitudes_laboratorio_consulta_fk` y compuestas `solicitudes_laboratorio_version_fk`, `solicitudes_laboratorio_revision_fk` (añadidas en `000028`) |
+| `documentos_laboratorio` | `000026_create_documentos_laboratorio_table.php` | PK `documentos_laboratorio_pk`; UQ `documentos_laboratorio_ruta_uq`; FK `documentos_laboratorio_cargador_fk` |
+| `versiones_resultado` | `000027_create_versiones_resultado_table.php` | PK `versiones_resultado_pk`; UQ `versiones_resultado_numero_uq`, `versiones_resultado_solicitud_id_uq`; FK `versiones_resultado_solicitud_fk`, `versiones_resultado_documento_fk`, `versiones_resultado_origen_fk`, `versiones_resultado_autor_fk` |
+| `revisiones_resultado` | `000028_create_revisiones_resultado_table.php` | PK `revisiones_resultado_pk`; UQ `revisiones_resultado_revision_version_uq`; FK `revisiones_resultado_version_fk`, `revisiones_resultado_medico_fk` |
+
+- Funciones `<tabla>_rechazar_mutacion()` y triggers `<tabla>_inmutable_trg`/`<tabla>_no_truncate_trg` en documentos, versiones y revisiones. `solicitudes_laboratorio_proteger_publicada()` y `solicitudes_laboratorio_publicada_trg` comprueban el estado anterior a UPDATE/DELETE.
+- `versiones_resultado_validar_origen()` y `versiones_resultado_origen_trg` exigen origen ya existente; CHECK impide autorreferencia. La función consulta la tabla del esquema del trigger usando `TG_TABLE_SCHEMA` e identificador escapado, sin asumir `public` en las pruebas aisladas. Todas las funciones fijan search_path `public, pg_temp`.
+- Modelos explicitan IDs simples para relaciones de lectura, sin simular soporte de claves compuestas de Eloquent. Las dos FK SQL garantizan la coherencia de escritura; la UQ de número de versión no asigna el siguiente automáticamente.
+
+#### 6.13.2. Evidencia y cierre de datos
+
+- **259 pruebas, 1609 aserciones correctas**, con `LaboratorioPersistenciaTest`, `LaboratorioConcurrenteTest` y suite anterior. Columnas/tipos, PK/UQ/CHECK/NOT NULL, diez FK RESTRICT, claves compuestas exactas, relaciones/casts, precisión temporal y serialización/asignación protegidas verificados.
+- Escrituras de persistencia para publicación directa, devolución/sustitución/nueva revisión y corrección de asociación entre solicitudes conservan documentos/versiones/revisiones anteriores. Se rechazan versión ajena, revisión de versión sustituida, datos inválidos, autorreferencia/ciclos y modificaciones de registros inmutables o solicitudes publicadas.
+- Dos conexiones/PID PostgreSQL distintos comprueban contención de ruta y número de versión: espera, rechazo UQ tras COMMIT y aceptación tras ROLLBACK. Cuatro carreras corrección/publicación prueban ambos órdenes y ambos desenlaces transaccionales; escrituras condicionadas a estado/versión no aplican una decisión basada en lectura desactualizada. Incluso sin esa condición, las FK rechazan revisión no correspondiente y el trigger rechaza alterar Disponible. El Service deberá incorporar el protocolo y sus errores; no se afirma autorización clínica implementada.
+- Fallos provocados revierten conjuntamente metadatos de documento, versión y puntero de corrección, o revisión/publicación. No se escriben bytes ni se atribuye rollback SQL a archivos externos.
+- Veintiocho migraciones en lotes 1–7 con 5/4/6/3/3/3/4 archivos. Los registros de las veinticuatro tablas previas se compararon antes/después sin diferencias; las cuatro nuevas quedaron vacías. Sin seeders o archivos clínicos nuevos en desarrollo.
+- Reversión/reaplicación de las veintiocho migraciones solo en transacción de pruebas; base aislada posteriormente sin tablas public, esquemas auxiliares ni btree_gist residual. Autoload PSR-4 estricto, Pint (77 archivos), sintaxis de catorce PHP afectados y diff correctos. Secciones lógicas 2–4 idénticas a HEAD en comparación UTF-8 directa.
+
+**Preparación de datos 0–7 completada:** el inventario físico corresponde a **28 entidades, 239 atributos y 43 relaciones**. Reglas entre recursos, roles, archivos y transiciones se completarán en los CU; no se da por finalizado ningún CU/módulo funcional ni el análisis/diagrama de clases. El siguiente trabajo es negocio/API, priorizando usuarios y autenticación.
+
+### 6.14. Población de datos mediante seeders (2026-10-19)
+
+**Estado: implementada y aplicada en desarrollo.** Sin cambios de tablas, columnas, relaciones ni restricciones: 28 entidades, 239 atributos y 43 relaciones; las 28 migraciones siguen aplicadas.
+
+- `DatabaseSeeder` coordina roles, especialidades, configuración y el nuevo `ConsultorioSeeder`: tres consultorios iniciales CONS-01–CONS-03, sin sobreescritura de registros existentes. `composer seed` no carga cuentas ni escenarios clínicos.
+- Decisión explícita del usuario: primer Administrador **Pendiente**. `AdministradorInicialSeeder` usa correo/nombres del entorno privado, valida/normaliza, crea sin hash/verificación y registra instalación como SISTEMA con referencia segura; reejecución conserva cuentas y rechaza promoción de otro rol u otra identidad de instalación. `composer seed:admin` separado; faltan datos privados para ejecutarlo en desarrollo e invitación/verificación para habilitarlo. En local/testing el correo demo reservado no cuenta como Administrador de instalación.
+- `DemostracionSeeder` es optativo mediante `composer seed:demo`, limitado por entorno e identidad real de base/rol PostgreSQL. Bloqueo transaccional compartido con instalación, códigos estables DEMO-VS y correos example.test. Las claves reservadas con vínculos incompatibles se rechazan. No se modifican filas previamente pobladas, estados finales ni hashes al repetir.
+- Se aplicó un dataset ficticio: seis cuentas de los cuatro roles; tres médicos, tres consultorios demo y 21 horarios; cinco pacientes y cinco citas en los estados permitidos, con nueve cambios y autores de rol adecuado. Una consulta Atendida deriva dos versiones de consulta y dos de antecedentes del mismo Paciente/Médico. Tres solicitudes cubren Pendiente, En revisión con devolución/sustitución y Disponible con autorización de la versión exacta; tres documentos/versiones y dos revisiones conservadas. No se añaden preferencias, sesiones, tokens, códigos o recordatorios ficticios.
+- Las seis cuentas demo simulan estado Activa/correo verificado dentro de este dataset local, sin verificación real ni envío de mensajes. Hash Laravel de contraseña privada opcional (mínimo 12), o de secreto aleatorio no divulgado si se omite. Nunca se resetean contraseñas mediante reejecución. El Administrador real de instalación es una identidad distinta, pendiente de configurar.
+- Tres PDF ficticios legibles en `storage/app/private/demo-seeders/`, sin publicación de rutas. Tamaño/hash coinciden con bytes; archivos previos de otro contenido se conservan y provocan rechazo. Los nuevos se compensan ante fallo dentro de la transacción de carga antes de liberar el bloqueo. Un evento SISTEMA marca el dataset sin secretos o contenido clínico.
+- Se compararon filas previas antes/después, sin pérdidas ni cambios. Segunda ejecución idéntica en filas, IDs, fechas, hashes y bytes. Total local: seis consultorios (tres iniciales y tres demo), seis usuarios ficticios, tres médicos, cinco pacientes y cinco citas; la distribución detallada está en `backend/README.md`.
+- **270 pruebas, 1716 aserciones correctas**, con verificaciones de repetición tras avanzar fechas, conservación de ediciones, coherencia clínica/administrativa, PDF y metadatos, instalación pendiente, usos rechazados y rollback/compensación. Composer, autoload PSR-4 estricto, Pint, sintaxis y diff correctos. No se acredita un CU por poblar ejemplos; Services, API, invitaciones y descarga autorizada siguen pendientes.
+
+**Actualización posterior de instalación (2026-10-19):** la decisión Pendiente descrita en esta fase queda sustituida por autorización explícita del usuario para provisionar al primer Administrador **Activo**, con contraseña privada del entorno y hash Laravel, `correo_verificado_en` de instalación y sin cambio obligatorio. No utiliza código/invitación ni acredita comprobación del buzón. `AdministradorInicialSeeder` conserva cuenta y credenciales al repetir y registra `INSTALACION_ADMIN_INICIAL` como SISTEMA, con metadatos de autorización de instalación sin secretos. Aplicado y repetido en desarrollo: datos previos intactos, **7 usuarios y 2 eventos de bitácora**; ningún token emitido. Las otras cuentas del personal mantienen invitación ordinaria. Es una decisión de instalación: **sin cambios en tablas, columnas, FK ni modelo lógico**. Detalle vigente en contexto §17.12 y README.
+
+Verificación posterior de la excepción: **274 pruebas, 1738 aserciones correctas**; activación/hash, origen explícito de verificación, auditoría sin secretos, credenciales ausentes/cortas, conservación al repetir y rollback de la cuenta si falla el evento. Pint y sintaxis correctos. Los resultados de 270 pruebas anteriores corresponden al cierre original de población.
+
+### 6.15. Ampliación aprobada de TokenAcceso y reglas de CU-03/CU-05 — 2026-10-19
+
+**Cambio autorizado:** `CredencialTemporal` es el tercer propósito de TokenAcceso para el restablecimiento administrativo del personal. Se reutilizan los ocho atributos existentes; no se añaden tablas, columnas, FK, roles o estados. El inventario conserva **28 entidades, 239 atributos y 43 relaciones**. La única variación del diccionario lógico de §§2–4 respecto al cierre anterior es la ampliación explícita del catálogo en §3.4, con procedencia distinguida del Draw.io original.
+
+**Migración incremental:** `2026_10_19_000029_allow_temporary_credentials_in_tokens_acceso.php` sustituye `tokens_acceso_proposito_ck` mediante una sola sentencia ALTER TABLE y acepta los dos propósitos anteriores más `CredencialTemporal`. Conserva VARCHAR(24), FK, UQ de hash, índice, NOT NULL y CHECK de expiración posterior a emisión. No modifica la migración original ni filas. PostgreSQL hace atómica la sustitución; el `down` restaura el catálogo anterior y rechaza la operación si existe cualquier credencial temporal, incluso consumida/invalidada, en lugar de borrarla o cambiar su propósito. Reversión/reaplicación probadas solo en PostgreSQL aislado.
+
+**Modelo y alcance:** TokenAcceso Eloquent ya protege hash/asignación masiva y convierte las fechas existentes; no requiere cambios para persistir el nuevo valor. Admitir el propósito no demuestra rol del destinatario, identidad comprobada, vigencia al utilizarlo, consumo exclusivo o revocación de sesiones. Esas decisiones pertenecen a Services/autorización/transacciones todavía pendientes; no se emiten credenciales ni correos por esta ampliación.
+
+**Políticas funcionales aprobadas, sin nuevas estructuras:** reglas VS-AUT-08/09/10 y VS-AUT-25/26/27 separan contraseñas, cierran sesión restringida con nuevo login, conservan vínculos profesionales y protegen al último Administrador. Las FK/UQ ayudan a conservar integridad, pero no implementan la autorización ni la protección del conjunto de administradores. No existe un indicador de cierre documental clínico: si no puede comprobarse que no hay obligaciones incompatibles, se rechaza el cambio de rol sin crear estados o trasladar la responsabilidad clínica. La inactivación profesional necesaria es expresa por CU-10 y se coordina con reservas concurrentes.
+
+**Aplicación local verificada:** migración `000029` aplicada como **lote 8**. Comparación antes/después de huellas de todas las filas y definiciones de columnas de las 28 tablas: sin diferencias; siguen **239 columnas, 43 FK, 7 usuarios, 2 eventos de Bitácora y cero tokens**. Solo cambia el CHECK y se registra la migración; no se ejecutan seeders ni se emiten credenciales o correos.
+
+**Pruebas ejecutadas:** suite completa de **280 pruebas, 1772 aserciones correctas**, sobre PostgreSQL aislado. `UsuariosAuditoriaTest` cubre catálogo anterior/nuevo, conservación de tokens existentes y columnas, reversión/reaplicación, rechazo de reversión con credenciales temporales sin consumir/consumidas/invalidadas, UQ del hash entre propósitos, expiración obligatoria y posterior a emisión, relación Eloquent, casts y ocultación del hash. Pint y sintaxis de migración/pruebas correctos. La reversión no se ejecuta sobre desarrollo ni borra historial.
+
+**Pendientes técnicos:** mecanismo y entrega de credencial, duración, intentos/reemisión/usos, momento de consumo, contraseña anterior al emitir y coordinación con recuperación/cambio/sesiones. No hereda los plazos de invitación/recuperación. Ningún CU queda implementado por este soporte; CU-01/CU-02 pueden desarrollarse con sus controles definidos, denegando acceso normal ante cambio obligatorio.
 
 ## 7. Validaciones de aceptación antes de implementar casos de uso
 
@@ -888,7 +1340,7 @@ RN01–RN14 permanecen como reglas **oficiales**, sin renumeración; las demás 
 ## 10. Control de integridad final de esta documentación
 
 - **28 entidades**, **239 atributos** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada.
-- Se conservan todos los identificadores, FK simples y compuestas, restricciones UQ, atributos opcionales y listas cerradas indicadas en el Draw.io.
+- Se conservan todos los identificadores, FK simples y compuestas, restricciones UQ y atributos opcionales indicados en el Draw.io. Las listas cerradas se conservan salvo la ampliación expresamente aprobada de `TokenAcceso.proposito` con `CredencialTemporal`, identificada en §§3.4 y 6.15; no se presenta como parte del original.
 - La documentación distingue los datos fuente de las **orientaciones propuestas para Laravel/PostgreSQL**.
-- No hay cambios de código ni migraciones generadas por elaborar este archivo.
+- La elaboración inicial del diccionario no generó código ni migraciones. La infraestructura de fase 0 (§6.6.5) y las migraciones verificadas de fases 1–7 (§6.7–§6.13) completan la preparación de datos, diferenciada de los CU/módulos funcionales pendientes.
 - Si futuras modificaciones cambian el `.drawio`, actualizar conjuntamente este diccionario y su trazabilidad; nunca dejar descripciones contradictorias.

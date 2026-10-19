@@ -12,7 +12,7 @@ Fuente operativa de consulta para implementar los **30 casos de uso** con la num
 
 **Precedencia:** el examen es obligatorio; las decisiones aprobadas más recientes desarrollan lo no especificado; este archivo reproduce las fichas de la versión fuente. En caso de diferencia, contrastar la fuente y pedir definición en lugar de alterar silenciosamente requisitos. Los plazos, códigos, Brevo, módulos clínicos y bitácora son decisiones del proyecto cuando el examen no los exige expresamente.
 
-**Precisiones aprobadas incorporadas:** CU-03 / PN02 incluye la administración exclusiva del estado de acceso de cuentas de Pacientes previamente verificadas; CU-23 / PN18 incluye el mantenimiento médico de antecedentes durante una atención autorizada. Se conservan títulos, identificadores y ciclos existentes. La denominación académica actualizada de CU-03 queda pendiente de cotejo con el Word vigente, no disponible en el repositorio; no se presume que estas precisiones ya figuren en las páginas del PDF citado ni que estén implementadas.
+**Precisiones aprobadas incorporadas:** CU-03 / PN02 incluye la administración exclusiva del estado de acceso de cuentas de Pacientes previamente verificadas y la excepción controlada del primer Administrador activo; CU-04 / PN03 exige CI para registro/vinculación web, mientras CU-07 / PN04 admite fichas administrativas sin CI y su incorporación posterior sobre la misma ficha. CU-23 / PN18 incluye el mantenimiento médico de antecedentes durante una atención autorizada. Se conservan identificadores y ciclos. El título actualizado de CU-03, «Administrar cuentas de usuario y su acceso», se sincroniza por instrucción expresa del responsable del proyecto; el Word/PDF original no está disponible para cotejo directo. No se presume que estas precisiones ya figuren en las páginas del PDF citado ni que estén implementadas.
 
 **Navegación:** cada caso tiene ancla de encabezado `CU-XX`; los números no se reinician por módulo. El **ciclo** es el registrado en 4.2/4.3; no equivale al estado de implementación.
 
@@ -33,7 +33,7 @@ En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y r
 | --- | --- | --- | :---: | --- | --- |
 | [CU-01](#cu-01) | Iniciar sesión | Administrador, Recepcionista, Médico, Paciente | 1 | Alto | p. 70 |
 | [CU-02](#cu-02) | Cerrar sesión | Administrador, Recepcionista, Médico, Paciente | 1 | Medio | p. 71 |
-| [CU-03](#cu-03) | Administrar cuentas del personal y asignar roles | Administrador | 1 | Alto | p. 72 |
+| [CU-03](#cu-03) | Administrar cuentas de usuario y su acceso | Administrador | 1 | Alto | p. 72 |
 | [CU-04](#cu-04) | Registrar cuenta del Paciente y vincular su registro | Paciente | 1 | Alto | p. 73 |
 | [CU-05](#cu-05) | Cambiar contraseña propia | Administrador, Recepcionista, Médico y Paciente | 1 | Alto | p. 75 |
 | [CU-06](#cu-06) | Recuperar contraseña mediante correo electrónico | Administrador, Recepcionista, Médico y Paciente | 1 | Alto | p. 76 |
@@ -95,8 +95,8 @@ La cuenta está activa y tiene correo verificado; no está bloqueada temporalmen
 1. El usuario introduce correo electrónico y contraseña.
 2. El servidor aplica límites de solicitudes por origen y comprueba el estado de la cuenta y su bloqueo.
 3. Verifica el hash mediante Laravel. Tras tres contraseñas incorrectas consecutivas, bloquea el acceso durante diez minutos.
-4. Si el acceso es válido, reinicia el contador de errores, genera una sesión segura e identifica uno de los cuatro roles fijos.
-5. Muestra el panel correspondiente y comprueba sesión, permiso y relación con el recurso en cada petición posterior.
+4. Si el acceso es válido, reinicia el contador de errores e identifica uno de los cuatro roles fijos. Con credencial temporal y cambio obligatorio del personal, genera únicamente el contexto restringido de CU-03; en el acceso ordinario genera la sesión normal segura.
+5. Solo la sesión normal permite mostrar el panel del rol. Comprueba sesión, estado, permiso y relación con el recurso en cada petición; la restringida solo permite formulario/envío de contraseña definitiva y cierre de sesión.
 6. Registra el resultado de autenticación en la bitácora, sin guardar la contraseña.
 
 **Postcondición**
@@ -105,7 +105,7 @@ Existe una sesión válida únicamente para una cuenta habilitada; los datos de 
 
 **Excepciones**
 
-Credenciales incorrectas, cuenta inexistente, pendiente, desactivada o bloqueada: denegar con un mensaje general sin revelar si existe el correo. Durante el bloqueo no se autentica ni se amplían sus diez minutos. Al terminar, se reinicia el contador y se permiten nuevos intentos si la cuenta sigue activa. Una cuenta desactivada no recupera acceso por vencer el bloqueo. El cambio obligatorio de credencial temporal solo habilita el procedimiento restringido de CU-05.
+Credenciales incorrectas, cuenta inexistente, pendiente, desactivada o bloqueada: denegar con un mensaje general sin revelar si existe el correo. Durante el bloqueo no se autentica ni se amplían sus diez minutos. Al terminar, se reinicia el contador y se permiten nuevos intentos si la cuenta sigue activa. Una cuenta desactivada no recupera acceso por vencer el bloqueo. La credencial temporal solo habilita el cambio obligatorio restringido de CU-03, no el cambio ordinario de CU-05; al completarlo se cierra esa sesión y se exige login normal. No omite activación/verificación pendientes.
 
 <a id="cu-02"></a>
 #### CU-02 — Cerrar sesión
@@ -150,7 +150,7 @@ Sesión ya finalizada: mostrar el acceso sin restablecerla. Fallo de comunicaci�
 Comprobar que volver atrás o solicitar directamente un archivo no restablezca el acceso autenticado.
 
 <a id="cu-03"></a>
-#### CU-03 — Administrar cuentas del personal y asignar roles
+#### CU-03 — Administrar cuentas de usuario y su acceso
 
 **Trazabilidad de la ficha:** Alcance: 1.4.1. Proceso: PN02. Correspondencia: RF01. RN12, RN14. Ciclo: 1.  
 **Estado documental:** Especificado · **Ciclo:** 1 · **Fuente:** PDF, página 72.
@@ -178,8 +178,8 @@ El Administrador tiene sesión válida y el servidor comprueba su permiso. Exist
 3. Para una nueva cuenta registra los datos y un correo único, asigna Administrador, Recepcionista o Médico y vincula al Médico con su registro profesional.
 4. El servidor valida autorización, unicidad y relación profesional; crea una sola cuenta pendiente.
 5. Envía mediante Brevo una invitación de 24 horas y uso único. El trabajador confirma el control del correo y establece su contraseña; el servidor activa la cuenta.
-6. Para cambios administrativos conserva el identificador y la historia; desactivar impide también el uso de sesiones anteriores.
-7. Si el trabajador no puede recuperar su acceso por correo, el Administrador verifica su identidad y emite una invitación a un correo comprobado o una credencial temporal entregada por un medio seguro. Exige cambiarla antes de usar las funciones normales.
+6. Para cambios administrativos conserva identificador, identidad, vínculos profesionales e historia. Aplica VS-AUT-25/26 para cambios de rol: revoca sesiones y exige nuevo login. Desactivar impide también el uso de sesiones anteriores. Desactivaciones, cambios de rol y restablecimientos respetan VS-AUT-27 bajo coordinación transaccional, incluyendo operaciones simultáneas y sobre la propia cuenta.
+7. Para el restablecimiento administrativo excepcional, el Administrador comprueba identidad del trabajador sin conocer su contraseña anterior; el sistema genera una credencial temporal segura, con vencimiento y uso controlado, para el flujo restringido descrito abajo. No aplica a Pacientes y no sustituye la invitación de primera contraseña ni CU-06.
 8. Registra los cambios y restablecimientos en la bitácora sin guardar secretos.
 
 **Flujo alternativo**
@@ -194,13 +194,40 @@ ADMINISTRAR EL ACCESO DE UNA CUENTA DE PACIENTE PREVIAMENTE VERIFICADA
 6. Registra responsable, cuenta objetivo, operación y resultado en Bitácora, únicamente mediante referencias y metadatos seguros, sin contraseñas, hashes, tokens ni contenido clínico.
 7. Informa el estado de acceso actualizado. Suspender y rehabilitar significan desactivar y reactivar con los estados existentes; no se crea Suspendida ni se habilita un procedimiento de recuperación de identidad o credenciales.
 
+RESTABLECIMIENTO ADMINISTRATIVO DEL PERSONAL Y CAMBIO OBLIGATORIO
+
+1. El Administrador con sesión normal válida selecciona una cuenta del personal y comprueba su identidad. El servidor valida autorización, cuenta y restricciones, incluida la continuidad del último Administrador; no conoce ni exige contraseña anterior.
+2. El sistema genera una credencial temporal segura y trazable sin registrar el secreto. Utiliza el propósito separado `CredencialTemporal` de TokenAcceso, con vencimiento y uso controlado; mecanismo, entrega, duración e intentos concretos siguen pendientes del diseño técnico.
+3. Tras validar la credencial de la cuenta correcta y sus restricciones, establece solo una sesión restringida. No habilita cuentas desactivadas ni omite verificaciones pendientes o bloqueos; no concede funciones ordinarias.
+4. El trabajador accede únicamente al formulario de contraseña definitiva, envía/ confirma la nueva contraseña de mínimo 12 caracteres o cierra sesión por CU-02. La credencial temporal válida acredita este procedimiento, sin exigir una contraseña anterior desconocida. El backend deniega cualquier otra operación, incluidas agenda, administración, historia clínica, laboratorio, archivos y reportes.
+5. Al completar válidamente, el servidor guarda el nuevo hash, invalida/consume definitivamente la credencial, elimina cambio obligatorio y revoca sesiones incompatibles, coordinando los cambios para evitar estados parciales o consumos concurrentes.
+6. Registra responsable y resultado mediante metadatos seguros, sin secretos, y finaliza la sesión restringida. Exige un nuevo login por CU-01 con la contraseña definitiva; no convierte la restringida en normal.
+7. Vencimiento, revocación, intento inválido o fallo: no concede acceso normal ni confirma un cambio inexistente. Los límites y la reemisión se definirán antes de implementar sin inventar cantidades. Cerrar la sesión no borra la historia ni determina por sí solo un nuevo uso de la credencial.
+
 **Postcondición**
 
 Las cuentas del personal quedan creadas o actualizadas con los permisos del rol existente; no se modifican permisos generales ni individuales. En cuentas de Pacientes solo cambia el estado administrativo de acceso: identidad, credenciales, verificación previa, vínculo y datos históricos permanecen intactos, al igual que el estado de la ficha y los bloqueos temporales vigentes. La desactivación invalida sesiones y la reactivación exige nuevo login.
 
+Un cambio de rol autorizado conserva identidad y vínculos e invalida sesiones, con nuevo login. El restablecimiento temporal completado deja vigente la contraseña definitiva y termina la sesión restringida. Las operaciones administrativas no dejan sin un Administrador habilitado para acceso normal.
+
 **Excepciones**
 
 Correo duplicado, datos inválidos, vínculo profesional incompatible o rol no permitido: rechazar. Invitación vencida, utilizada o envío fallido: permitir reenvío controlado por el Administrador sobre la misma cuenta e invalidar la anterior. La recuperación automática de los cuatro roles se realiza por CU-06; el restablecimiento administrativo es exclusivo del personal y no revela contraseñas anteriores. Las cuentas del Paciente se crean y verifican por CU-04, sin registro público del personal. Cuenta de Paciente inexistente, pendiente de verificación, vínculo incompatible, reactivación sin desactivación previa o petición de cambiar contraseña, correo, rol, permisos o vinculación: rechazar. No omitir bloqueos vigentes ni activar la ficha al reactivar acceso. Fallo o cambio simultáneo: no confirmar cambios parciales ni registrar éxito inexistente. Un Paciente sin acceso a su correo verificado no obtiene recuperación administrativa; la alternativa sigue pendiente de definición. La primera cuenta de Administrador se configura de forma segura durante la instalación.
+
+**Excepción de instalación inicial aprobada:** el primer Administrador se crea Activo mediante procedimiento local controlado por el responsable autorizado, sin sesión administrativa previa, con identificador único de Usuario, rol Administrador y permisos fijos, correo de acceso único y contraseña privada de mínimo 12 caracteres, almacenada como hash seguro. No usar credenciales predeterminadas ni secretos legibles en seeders, archivos versionados, logs o documentación. La marca de correo verificado por autorización de instalación es una excepción administrativa de arranque, no prueba de control del buzón mediante enlace, código o Brevo. No usa invitación ni cambio obligatorio; recomendar un correo legítimo bajo control del responsable para recuperación posterior. Registrar creación como SISTEMA sin secretos. La creación es idempotente: conserva cuentas, estado y credenciales al repetir, sin activar una cuenta previa ni crear otra identidad inicial; no es alta general de Administradores ni aplica a Pacientes. La forma de suministrar credenciales pertenece al diseño técnico; `AdministradorInicialSeeder` y su ejecución existente se documentan en contexto §17.12. Esta excepción sustituye la preparación Pendiente anterior y no modifica la invitación ordinaria del resto del personal ni CU-06. No es ruta pública ni CU adicional y no completa CU-01: el acceso normal depende de implementar autenticación, sesiones y autorización.
+
+**Cambios de rol aprobados — precisiones del proyecto:**
+
+| Transición | Condiciones y efectos |
+| --- | --- |
+| Administrador ↔ Recepcionista | Autorizar, conservar identidad/identificador e historia; respetar último Administrador, revocar sesiones, exigir login y registrar bitácora. |
+| Administrador/Recepcionista → Médico | Registro profesional legítimo de la misma persona, sin vínculo a otra identidad; conservar o establecer el vínculo compatible. No crear disponibilidad, horarios, especialidades, consultorios ni citas automáticamente. |
+| Médico → Administrador/Recepcionista | Resolver previamente citas futuras y obligaciones asistenciales incompatibles, incluidas atención/documentación y revisión propia de laboratorio. Si hay obligación o no puede comprobarse su resolución con el modelo actual, rechazar e informar la limitación sin exponer contenido clínico. La inactivación profesional necesaria se realiza expresamente por CU-10; coordinar con nuevas reservas y obligaciones concurrentes. No guardar una transición pendiente. |
+| Paciente ↔ personal; cuenta del Médico A → Médico B | No permitido por CU-03. La corrección extraordinaria de identidad no está definida por este flujo. |
+
+Todas conservan registro/vínculo profesional, citas, consultas, autores/versiones y resultados; retirar el rol Médico retira sus permisos clínicos sin borrar el vínculo histórico ni inactivar automáticamente al profesional. No cancelar, trasladar, reprogramar o reasignar citas/resultados automáticamente. `Atendida`, la existencia de una consulta o `iniciada_en = NULL` no prueban cierre documental: no inventar estados o marcas para autorizar el cambio.
+
+**Último Administrador — política aprobada del proyecto, no RN literal:** rechazar desactivación, cambio de rol o restablecimiento administrativo que deje sin al menos un Administrador Activo, con hash, activación/verificación aplicable completada y sin restricción exclusiva de cambio obligatorio. Incluye la propia cuenta; comprobar el estado resultante bajo coordinación transaccional para impedir que operaciones simultáneas retiren los últimos accesos. Un bloqueo pasajero no desactiva ni excluye la cuenta de este cómputo administrativo, pero impide login durante su vigencia. No garantiza disponibilidad permanente ante bloqueos u olvidos. Se aplica una vez habilitada la cuenta inicial de instalación.
 
 <a id="cu-04"></a>
 #### CU-04 — Registrar cuenta del Paciente y vincular su registro
@@ -210,7 +237,7 @@ Correo duplicado, datos inválidos, vínculo profesional incompatible o rol no p
 
 **Propósito**
 
-Crear la cuenta propia del Paciente y vincularla con una única ficha, sin exponer información ajena.
+Crear la cuenta propia del Paciente con CI obligatorio y vincularla con una única ficha, sin exponer información ajena ni sustituir su identificador interno.
 
 **Actores**
 
@@ -222,39 +249,39 @@ Paciente, antes de autenticarse; Recepción interviene previamente mediante CU-0
 
 **Precondición**
 
-No se requiere sesión. El solicitante dispone de un correo al que puede acceder. Puede existir una ficha administrativa previa sin cuenta web.
+No se requiere sesión. El solicitante dispone de CI válido y un correo al que puede acceder. El CI es obligatorio tanto para registro nuevo como para vinculación web por decisión particular de Clínica Vida Salud, no por exigencia literal de RF02 para toda ficha administrativa. Puede existir una ficha previa con ese CI y sin cuenta web; si fue registrada sin documento, Recepción debe incorporarlo primero a la misma ficha por CU-07. No se permite una vinculación web alternativa sin CI.
 
 **Flujo principal**
 
 
 **ESCENARIO A. PACIENTE NUEVO**
 
-1. El Paciente introduce CI cuando corresponda, nombres, apellidos, fecha de nacimiento, sexo según formulario, teléfono, correo y contraseña; la dirección es opcional.
-2. El servidor valida los campos y la unicidad del CI y del correo de acceso. Si no existe ficha previa, inicia un registro pendiente de 24 horas.
+1. El Paciente introduce obligatoriamente CI, nombres, apellidos, fecha de nacimiento, teléfono, correo de acceso y contraseña, además de sexo según el formulario aprobado; la dirección conserva su carácter opcional.
+2. El servidor exige CI no vacío, valida formato y unicidad conforme a la normalización vigente y comprueba los demás campos y el correo de acceso único, aunque la interfaz ya los valide. Si el CI corresponde a una ficha previa, no crea otra y orienta genéricamente al procedimiento autorizado de vinculación. Si no existe ficha previa, inicia un registro pendiente de 24 horas.
 3. Envía por Brevo un código de correo de seis dígitos, vigente diez minutos.
-4. El Paciente introduce el código. El servidor valida vigencia, intentos y uso, y completa de forma atómica una sola ficha y su cuenta activa. No exige código de Recepción.
+4. El Paciente introduce el código. El servidor valida vigencia, intentos y uso, revalida unicidades y completa de forma atómica una sola ficha con CI y su cuenta activa de rol Paciente. No permite seleccionar roles del personal ni crea datos clínicos ficticios. No exige código de Recepción.
 
-**ESCENARIO B. FICHA PREEXISTENTE SIN CUENTA**
+**ESCENARIO B. FICHA PREEXISTENTE CON CI Y SIN CUENTA**
 
 1. Si el CI ya está registrado, el sistema impide una ficha duplicada y muestra un mensaje general con las opciones de asistencia, acceso, recuperación y Ya tengo un código.
-2. Recepción comprueba presencialmente la identidad y genera mediante CU-07 el código de activación asociado a la ficha existente.
+2. Recepción comprueba presencialmente la identidad y la correspondencia del CI con la ficha existente y genera mediante CU-07 el código de activación asociado a esa misma ficha.
 3. El Paciente introduce CI, código de Recepción, correo electrónico y contraseña.
-4. El servidor verifica correspondencia, vigencia, intentos y ausencia de cuenta vinculada; reserva de forma segura la activación pendiente para ese proceso.
+4. El servidor valida presencia y formato del CI, correspondencia entre CI, ficha y código, correo único, vigencia, intentos y ausencia de cuenta vinculada; reserva de forma segura la activación pendiente para ese proceso.
 5. Envía por Brevo un segundo código, numérico de seis dígitos, que verifica exclusivamente el correo indicado.
-6. El Paciente introduce el segundo código. El servidor comprueba ambos controles y su vigencia y completa la cuenta, la vinculación y el consumo de los códigos en una operación atómica.
+6. El Paciente introduce el segundo código. El servidor comprueba ambos controles y su vigencia, revalida que no exista otra cuenta vinculada y completa la cuenta, la vinculación y el consumo de los códigos en una operación atómica, conservando el identificador original, citas, consultas, antecedentes y resultados.
 7. En ambos escenarios informa la activación y permite iniciar sesión mediante correo y contraseña; registra el evento en la bitácora.
 
 **Postcondición**
 
-Existe como máximo una cuenta por Paciente, vinculada a su único identificador. La ficha previa conserva citas, consultas y resultados autorizados. El registro pendiente no permite acceso protegido.
+Existe como máximo una cuenta por Paciente, con CI informado y vinculada a su único identificador interno; el CI no es su clave primaria. La ficha previa conserva citas, consultas, antecedentes y resultados autorizados. No se completa registro/vinculación web sin CI ni se habilita acceso protegido durante el registro pendiente.
 
 **Excepciones**
 
-CI previo: no revelar nombre, historia, citas ni existencia o estado de cuenta; no vincular automáticamente. Con cuenta ya vinculada, impedir una segunda y ofrecer opciones generales de acceso o recuperación. Código incorrecto, vencido, usado o con cinco errores: rechazar. Si corresponde al de Recepción, exigir otro emitido tras verificar identidad. Para el de correo, permitir reenvío dentro de los límites y vigencia principal. Interrupción: reanudar el mismo proceso mediante un contexto protegido, sin duplicar fichas ni permitir que otra solicitud reutilice el código reservado. Envío fallido: informar sin confirmar un envío inexistente. Registro principal vencido: invalidar la activación pendiente; en B se necesita otro código de Recepción y en A puede reiniciarse el registro. Cambio simultáneo o fallo al guardar: no dejar vínculos parciales. Sin CI, aplicar identificación administrativa asistida sin duplicar registros.
+CI previo: no revelar nombre, historia, citas ni existencia o estado de cuenta; no vincular automáticamente. Con cuenta ya vinculada, impedir una segunda y ofrecer opciones generales de acceso o recuperación. Código incorrecto, vencido, usado o con cinco errores: rechazar. Si corresponde al de Recepción, exigir otro emitido tras verificar identidad. Para el de correo, permitir reenvío dentro de los límites y vigencia principal. Interrupción: reanudar el mismo proceso mediante un contexto protegido, sin duplicar fichas ni permitir que otra solicitud reutilice el código reservado. Envío fallido: informar sin confirmar un envío inexistente. Registro principal vencido: invalidar la activación pendiente; en B se necesita otro código de Recepción y en A puede reiniciarse el registro. Cambio simultáneo o fallo al guardar: no dejar vínculos parciales. CI ausente, vacío o inválido: rechazar también en servidor y explicar que es obligatorio para el registro web; orientar a Recepción para asistencia administrativa sin crear CI ficticio, otra ficha o una cuenta ni ofrecer vinculación web sin documento.
 
 **Notas y verificaciones de la ficha**
 
-El código de Recepción acredita la autorización de vinculación; el del correo acredita control del buzón. Ninguno habilita por sí solo acceso clínico. Verificar el correo no prueba identidad civil.
+El código de Recepción acredita la autorización de vinculación tras comprobación presencial; el del correo acredita control del buzón. Ninguno sustituye al otro ni habilita por sí solo acceso clínico. Conocer el CI o verificar el correo no prueba identidad civil. Se mantienen los límites de VS-AUT-15, VS-AUT-17 y VS-AUT-18: código de Recepción de 12 caracteres alfanuméricos, 24 horas, cinco errores y uso único; código de correo de seis dígitos, diez minutos, cinco errores y uso único; reenvío mínimo cada 60 segundos y máximo cinco por hora por proceso/correo, sin ampliar la vigencia principal. La ficha administrativa sin CI pertenece a CU-07 y no autoriza omitir estos controles.
 
 <a id="cu-05"></a>
 #### CU-05 — Cambiar contraseña propia
@@ -276,7 +303,7 @@ Administrador, Recepcionista, Médico y Paciente
 
 **Precondición**
 
-Cuenta activa y sesión válida; se conoce la contraseña actual. Una sesión restringida puede exigir sustituir la credencial temporal antes del acceso normal.
+Cuenta activa, sesión **normal** válida y conocimiento de la contraseña actual. Es el cambio ordinario para cualquiera de los cuatro roles. La sesión restringida del restablecimiento administrativo pertenece al flujo separado de CU-03 y no cumple esta precondición; la primera contraseña por invitación también pertenece a CU-03 y no exige una anterior inexistente.
 
 **Flujo principal**
 
@@ -284,7 +311,7 @@ Cuenta activa y sesión válida; se conoce la contraseña actual. Una sesión re
 2. Introduce su contraseña actual, la nueva y su confirmación.
 3. El servidor comprueba titularidad, contraseña actual y política común de contraseñas.
 4. Guarda el nuevo hash mediante Laravel sin duplicarlo en la ficha de Paciente o Médico.
-5. Invalida las sesiones anteriores y renueva de forma segura la sesión actual; si el cambio era obligatorio, elimina esa restricción.
+5. Invalida las sesiones anteriores y renueva de forma segura la sesión normal actual. Esta renovación no se aplica a la sesión restringida de CU-03, que se cierra al completar su cambio obligatorio y exige nuevo login.
 6. Registra el cambio en la bitácora sin incluir contraseñas ni hashes y confirma la operación.
 
 **Postcondición**
@@ -293,7 +320,7 @@ La nueva contraseña queda vigente y la anterior deja de autenticar; no cambian 
 
 **Excepciones**
 
-Contraseña actual incorrecta, nueva contraseña inválida o confirmación diferente: rechazar sin cambios. Sesión inválida o cuenta ajena: denegar. Error al guardar: no confirmar el cambio. El restablecimiento administrativo del personal pertenece a CU-03, no a este caso.
+Contraseña actual incorrecta, nueva contraseña inválida o confirmación diferente: rechazar sin cambios. Sesión inválida, restringida o cuenta ajena: denegar este flujo ordinario. Error al guardar: no confirmar el cambio. El restablecimiento administrativo del personal y su cambio obligatorio pertenecen a CU-03; olvidar la contraseña se resuelve por CU-06 sin exigirla, no omitiendo la comprobación de este caso.
 
 **Notas y verificaciones de la ficha**
 
@@ -319,7 +346,7 @@ Administrador, Recepcionista, Médico y Paciente
 
 **Precondición**
 
-No se necesita sesión. Para emitir el enlace debe existir una cuenta activa con correo verificado y cumplirse los límites de solicitudes.
+No se necesita sesión ni conocer la contraseña anterior. Para emitir el enlace debe existir una cuenta activa con correo verificado y cumplirse los límites de solicitudes. Es independiente de invitación, cambio ordinario y restablecimiento administrativo.
 
 **Flujo principal**
 
@@ -367,25 +394,35 @@ Recepcionista
 
 **Precondición**
 
-Recepción tiene una sesión válida; el Paciente puede existir sin cuenta web. La emisión de código exige comprobar presencialmente su identidad.
+Recepción tiene una sesión válida; el Paciente puede existir sin CI o sin cuenta web. La emisión de código para vinculación web exige comprobar presencialmente su identidad y que la ficha ya tenga CI válido.
 
 **Flujo principal**
 
 1. Recepción lista o busca pacientes por CI, nombre o apellido antes de registrar otro.
 2. Selecciona registrar, modificar, desactivar, consultar citas anteriores o generar un código de activación web.
-3. Para la ficha conserva código único, CI cuando corresponda, nombres, apellidos, nacimiento, sexo según formulario y teléfono; correo de contacto y dirección son opcionales.
-4. Para emitir el código localiza la ficha, verifica el documento y comprueba que no tenga cuenta vinculada.
+3. Para la ficha conserva identificador interno y código únicos, CI cuando se proporciona, nombres, apellidos, nacimiento, sexo según formulario y teléfono; correo de contacto y dirección son opcionales. Excepcionalmente puede registrar sin CI, con `documento_identidad = NULL`, tras revisar posibles fichas previas. No inventa un documento temporal, ficticio o ajeno ni sustituye la PK por el CI.
+4. Para emitir el código de vinculación web localiza la ficha, comprueba presencialmente identidad y CI válido y verifica que no tenga cuenta vinculada. La exigencia de CI en este paso no impide crear una ficha administrativa sin documento.
 5. El servidor genera un código aleatorio criptográfico alfanumérico de 12 caracteres, asociado al identificador del Paciente, vigente 24 horas y con un máximo de cinco errores. Lo almacena de forma segura e invalida el anterior y su activación pendiente si se sustituye.
 6. Presenta el nuevo código para entregarlo de forma segura al titular y registra emisión o sustitución en la bitácora, sin su valor secreto.
 7. Para las demás operaciones valida datos y permisos, guarda la ficha sin eliminar historia y permite consultar citas anteriores por CU-21.
 
+**Flujo alternativo**
+
+INCORPORAR CI A UNA FICHA REGISTRADA SIN DOCUMENTO
+
+1. El Paciente acude a Recepción, que identifica la ficha original y comprueba el CI que desea incorporar.
+2. El servidor valida formato y unicidad conforme a la normalización vigente; si pertenece a otra ficha, no guarda ni fusiona registros automáticamente.
+3. Recepción incorpora el CI a la misma ficha conservando su identificador interno, citas, consultas, antecedentes, solicitudes, resultados, recordatorios e historial. No modifica contenido clínico ni crea otra ficha o cuenta web.
+4. Registra la modificación administrativa con responsable y referencias seguras, sin contenido clínico.
+5. Si el Paciente desea cuenta web, posteriormente inicia la vinculación ordinaria de CU-04 con CI, código de Recepción y verificación de correo; incorporar el CI no verifica el correo ni sustituye esos controles.
+
 **Postcondición**
 
-La ficha mantiene su identidad e historia; el código autoriza iniciar CU-04, pero no crea por sí mismo una cuenta ni publica información clínica.
+La ficha mantiene su identidad e historia, también sin CI, y permite las citas presenciales autorizadas conforme a sus reglas y estado. Un CI proporcionado es único. El código autoriza iniciar CU-04 solo cuando se cumplen sus condiciones, incluido CI, pero no crea por sí mismo una cuenta ni publica información clínica.
 
 **Excepciones**
 
-Paciente inexistente, identidad no comprobada, cuenta ya vinculada o petición sin permiso: no emitir código. CI duplicado o datos inválidos: rechazar cambios y permitir revisar el registro existente. Código vencido o agotado: solo Recepción puede emitir otro tras verificar nuevamente la identidad. Recepción no establece contraseñas del Paciente, no accede a ellas ni modifica diagnósticos. La desactivación no elimina fichas, citas ni cuentas relacionadas.
+Paciente inexistente, identidad no comprobada, CI ausente para vinculación web, cuenta ya vinculada o petición sin permiso: no emitir código. CI duplicado o datos inválidos: rechazar cambios y permitir revisar el registro existente. La ausencia de CI no impide el alta administrativa excepcional. Revisar posibles duplicados reduce errores, pero conocer nombres, nacimiento o teléfono no prueba identidad; no fusionar fichas por semejanza. La resolución de identidades dudosas queda pendiente del diseño administrativo. Código vencido o agotado: solo Recepción puede emitir otro tras verificar nuevamente la identidad y las condiciones de vinculación. Recepción no establece contraseñas del Paciente, no accede a ellas ni modifica antecedentes, diagnósticos u otros contenidos clínicos. La desactivación no elimina fichas, citas ni cuentas relacionadas.
 
 <a id="cu-08"></a>
 #### CU-08 — Actualizar el perfil personal
@@ -513,7 +550,7 @@ El Administrador inició sesión; existen las especialidades que se van a asocia
 
 **Postcondición**
 
-El médico y sus relaciones quedan actualizados; la inactivación conserva la información anterior. Si el Médico queda inactivo no recibe nuevas citas ni reprogramaciones a su favor. Con cuenta activa puede completar atenciones y revisiones ya asignadas; la desactivación de la cuenta impide todo acceso protegido.
+El médico y sus relaciones quedan actualizados; la inactivación conserva la información anterior. Si el Médico queda inactivo no recibe nuevas citas ni reprogramaciones a su favor. Con cuenta activa, rol Médico y vínculo legítimo puede completar atenciones y revisiones ya asignadas; la desactivación de la cuenta impide todo acceso protegido. La inactivación profesional no cambia automáticamente el rol, ni un cambio de rol por CU-03 inactiva automáticamente al profesional. Se conserva el vínculo histórico tras retirar el rol Médico, sin que ello conceda permisos clínicos.
 
 **Excepciones**
 

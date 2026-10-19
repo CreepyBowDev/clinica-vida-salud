@@ -514,6 +514,8 @@ Política aprobada:
 
 Para trabajadores: solo el Administrador crea cuentas del personal; invitación segura al correo de **24 horas y un solo uso** para confirmar posesión y establecer contraseña. Credenciales temporales excepcionales exigen cambio obligatorio en el primer acceso.
 
+**Excepción controlada de instalación:** el primer Administrador se crea Activo, con correo único, contraseña privada de mínimo 12 caracteres y hash seguro, mediante un procedimiento local reservado al responsable autorizado, nunca un formulario público. No usar credenciales predeterminadas, secretos versionados ni logs de contraseñas. La creación debe ser idempotente, preservar cuentas/credenciales existentes y no reutilizarse como alta general de Administradores. Su marca de correo verificado por autorización de instalación no acredita control del buzón mediante Brevo, enlace o código; recomendar un correo legítimo bajo control del responsable para CU-06. No aplica al resto del personal ni a Pacientes. La implementación existente y su origen SISTEMA están documentados en contexto §17.12; preparar la cuenta no completa CU-01 ni sus controles de sesiones/autorización.
+
 Recuperación de contraseñas:
 
 - Los cuatro roles —Administrador, Recepcionista, Médico y Paciente— pueden recuperar su contraseña mediante **CU-06** cuando dispongan de un correo de acceso previamente verificado. Brevo envía un **enlace de 60 minutos**, de un solo uso; emitir otro invalida el anterior. La recuperación no reactiva cuentas desactivadas, invalida las sesiones anteriores y exige un nuevo inicio de sesión, sin autenticar automáticamente.
@@ -536,7 +538,7 @@ Reglas obligatorias para `CU-04` y `CU-07`:
 
 ### 17.1. Paciente nuevo
 
-- Se registra en la web con sus datos, CI cuando corresponda, correo y contraseña.
+- Se registra en la web con sus datos, **CI obligatorio**, correo y contraseña. Validar presencia, formato y unicidad del CI también en el servidor, aunque React lo valide; conservar la normalización vigente, sin inventar formatos nuevos.
 - El servidor impide duplicar ficha o cuenta.
 - Se envía un **código de verificación de correo de seis dígitos** mediante Brevo.
 - El registro pendiente dura **24 horas** desde su inicio; reintentos sobre el mismo proceso, sin duplicar fichas definitivas.
@@ -544,7 +546,7 @@ Reglas obligatorias para `CU-04` y `CU-07`:
 
 ### 17.2. Paciente ya registrado por Recepción
 
-1. Recepción verifica **presencialmente** la identidad y encuentra su ficha.
+1. Recepción verifica **presencialmente** la identidad, encuentra su ficha y comprueba su CI válido para iniciar la vinculación web.
 2. Confirma que no tenga cuenta web vinculada.
 3. Genera un código de activación **alfanumérico aleatorio de 12 caracteres**, **24 horas**, **5 intentos incorrectos**, un solo uso.
 4. El Paciente introduce **CI, código de Recepción, correo y contraseña**.
@@ -562,6 +564,8 @@ Reglas obligatorias para `CU-04` y `CU-07`:
 - CI o correo por sí solos **no demuestran identidad**. No permitir enumeración pública de cuentas o datos clínicos.
 - Guardar códigos y enlaces de manera segura (hash o resumen criptográfico protegido apropiado al tipo de secreto), nunca en claro ni en bitácora.
 - No entregar a Recepción herramientas para crear contraseña o cuenta web del Paciente.
+
+**Diferencia entre CU-04 y CU-07:** el CI es obligatorio para crear o vincular una cuenta web por decisión del proyecto, sin convertir RF02 en una exigencia universal de documento. Recepción puede registrar excepcionalmente una ficha sin CI: mantener `Paciente.documento_identidad` nullable y la unicidad cuando se informa; no añadir CI a Usuario ni sustituir la PK de Paciente. Revisar posibles duplicados administrativamente sin asumir que nombres, nacimiento o teléfono prueban identidad y sin fusionar automáticamente fichas. La ficha sin CI puede recibir las citas presenciales autorizadas, pero no iniciar una vinculación web sin documento. Al obtener CI, Recepción comprueba identidad, formato y unicidad y lo incorpora a la misma ficha con trazabilidad y preservación de todas sus relaciones; no crea otra ficha ni cuenta. La vinculación posterior conserva reserva exclusiva y confirmación atómica de ambos códigos. El tratamiento de identidades dudosas queda pendiente de diseño administrativo.
 
 **Brevo se usa exclusivamente para correos de seguridad de cuentas.** No enviar avisos de cita, historia clínica o resultados médicos mediante Brevo.
 

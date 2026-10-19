@@ -42,6 +42,9 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "seed": "@php artisan db:seed --class=\"Clinica\\data\\database\\seeders\\DatabaseSeeder\"",
+        "seed:admin": "@php artisan db:seed --class=\"Clinica\\data\\database\\seeders\\AdministradorInicialSeeder\"",
+        "seed:demo": "@php artisan db:seed --class=\"Clinica\\data\\database\\seeders\\DemostracionSeeder\"",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

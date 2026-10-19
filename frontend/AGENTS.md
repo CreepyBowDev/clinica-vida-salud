@@ -445,7 +445,7 @@ Los formularios deben representar **exactamente dos caminos distintos**:
 
 ### Paciente nuevo (`CU-04`)
 
-1. Introduce datos de registro, CI cuando corresponda, correo y contraseña.
+1. Introduce datos de registro, **CI obligatorio**, correo y contraseña.
 2. El frontend envía la solicitud al servidor y muestra el paso de verificación de correo.
 3. El sistema envía un **código de seis dígitos** mediante Brevo.
 4. El Paciente introduce el código y completa la verificación.
@@ -453,9 +453,13 @@ Los formularios deben representar **exactamente dos caminos distintos**:
 
 **No solicitar código de Recepción para un Paciente realmente nuevo.**
 
+El CI es obligatorio tanto para registro nuevo como para vinculación web por decisión propia de Clínica Vida Salud; no es una exigencia literal de RF02 para toda ficha administrativa. Validar su presencia y formato conforme a las reglas vigentes, explicar «El CI es obligatorio para el registro web» y orientar a Recepción si falta. No ofrecer omitirlo ni una vinculación web alternativa sin CI; el servidor también valida presencia, formato y unicidad, y conocer el CI no prueba titularidad de una ficha.
+
+Los formularios administrativos de Recepción de CU-07 sí permiten excepcionalmente una ficha sin CI, con documento NULL e identificador interno único. Presentar la revisión de posibles duplicados sin fusionar por semejanza de nombres. Permitir incorporar después el CI a la **misma ficha**, según comprobación y respuesta del servidor, preservando historial y sin generar una cuenta web automáticamente. La ficha conserva las operaciones presenciales autorizadas; esta excepción no es autorregistro web.
+
 ### Paciente previamente registrado por Recepción (`CU-04` y `CU-07`)
 
-1. Recepción verifica presencialmente la identidad y entrega el código de activación.
+1. Recepción verifica presencialmente la identidad y el CI de la ficha y entrega el código de activación.
 2. El Paciente abre «Ya tengo un código de activación».
 3. Introduce **CI, código de Recepción, correo electrónico y contraseña**.
 4. Laravel valida la primera autorización y establece el proceso pendiente.
@@ -467,6 +471,7 @@ Los formularios deben representar **exactamente dos caminos distintos**:
 - **Código de correo:** seis dígitos; **10 min**, cinco intentos y un solo uso; el reenvío respeta **60 segundos entre envíos** y **máximo cinco por hora** por proceso y correo, más límites del backend por origen.
 - **Registro de Paciente nuevo:** proceso pendiente de **24 h**; solicitar otro código de correo no reinicia esas 24 h.
 - **Invitación del personal:** enlace temporal de **24 h**, un solo uso, para verificar correo y establecer contraseña.
+- **Primer Administrador:** única excepción de instalación local controlada; se prepara Activo con credenciales privadas, sin formulario público ni invitación ordinaria. La marca de correo verificado por autorización de instalación no demuestra control del buzón y no aplica a Pacientes. No mostrar login como funcional solo porque la cuenta exista; consultar contexto §17.12 y la API real.
 - **Recuperación:** enlace seguro de **60 min**, un solo uso, con posterior inicio de sesión; **no** reutilizar los códigos numéricos para recuperar contraseñas.
 - Aplicar la política de contraseña mínima de **12 caracteres** como ayuda visual, y dejar al backend su verificación definitiva.
 

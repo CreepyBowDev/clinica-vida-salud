@@ -124,7 +124,7 @@ La numeración es **única y continua**, `CU-01` a `CU-30`. No renumerar, fusion
 
 | Módulo | Casos de uso |
 | --- | --- |
-| **Usuarios y autenticación** | `CU-01` Iniciar sesión; `CU-02` Cerrar sesión; `CU-03` Administrar cuentas del personal y asignar roles; `CU-04` Registrar cuenta del Paciente y vincular su registro; `CU-05` Cambiar contraseña propia; `CU-06` Recuperar contraseña mediante correo electrónico. |
+| **Usuarios y autenticación** | `CU-01` Iniciar sesión; `CU-02` Cerrar sesión; `CU-03` Administrar cuentas de usuario y su acceso; `CU-04` Registrar cuenta del Paciente y vincular su registro; `CU-05` Cambiar contraseña propia; `CU-06` Recuperar contraseña mediante correo electrónico. |
 | **Pacientes y perfil personal** | `CU-07` Gestionar el registro administrativo de pacientes; `CU-08` Actualizar el perfil personal. |
 | **Médicos y especialidades** | `CU-09` Gestionar especialidades médicas; `CU-10` Gestionar médicos y sus especialidades. |
 | **Consultorios, horarios y disponibilidad** | `CU-11` Gestionar consultorios y su asignación fija; `CU-12` Configurar horarios y duración de citas. |
@@ -140,7 +140,7 @@ La numeración es **única y continua**, `CU-01` a `CU-30`. No renumerar, fusion
 
 **Modelo de Negocio:** procesos `PN01`–`PN24`, sin añadir un proceso solo para registrar auditoría. **Alcance:** módulos `1.4.1`–`1.4.13`, con Bitácora en `1.4.13` y condiciones generales en `1.4.14`. **El apartado académico 4.5 se desarrollará en una actividad separada**; no presentarlo como diagrama general terminado.
 
-**Precisiones funcionales aprobadas:** PN02 / CU-03 incluye administrar únicamente el estado de acceso de cuentas de Pacientes previamente verificadas, además de las operaciones propias del personal. PN18 / CU-23 incluye mantener antecedentes clínicos durante una atención autorizada. Se conservan identificadores, ciclos y títulos actuales; la denominación de CU-03 queda pendiente de cotejo con la versión académica actualizada, no disponible en el repositorio. Estas precisiones están especificadas, no acreditan implementación.
+**Precisiones funcionales aprobadas:** PN02 / CU-03 incluye administrar únicamente el estado de acceso de cuentas de Pacientes previamente verificadas, además de las operaciones propias del personal. PN03 / CU-04 exige CI para crear o vincular una cuenta web; PN04 / CU-07 permite excepcionalmente fichas administrativas sin CI e incorporación posterior sobre la misma ficha. PN18 / CU-23 incluye mantener antecedentes clínicos durante una atención autorizada. Se conservan identificadores y ciclos; el título de CU-03, «Administrar cuentas de usuario y su acceso», se sincroniza por instrucción expresa del responsable del proyecto. El documento académico original no está disponible para cotejo directo. Estas precisiones están especificadas, no acreditan implementación.
 
 ## 8. Autenticación y cuentas
 
@@ -149,19 +149,25 @@ La numeración es **única y continua**, `CU-01` a `CU-30`. No renumerar, fusion
 - **Tres errores consecutivos de contraseña** bloquean el acceso **10 minutos**; intentos durante el bloqueo no extienden su duración; al vencer se reinicia el contador, al igual que después de un acceso exitoso. Añadir límites de peticiones por origen.
 - Diferenciar cuenta **pendiente**, **activa** y **desactivada** del **bloqueo temporal**. Una cuenta pendiente no entra a funciones normales; una desactivada no accede ni desde sesiones anteriores. Recuperar contraseña no reactiva cuentas desactivadas.
 - El Administrador crea y administra cuentas **del personal** (Administrador, Recepcionista y Médico); vincula cuentas médicas con el registro profesional. El primer Administrador se establece mediante instalación segura.
+- Decisión vigente posterior de instalación: el primer Administrador se crea **Activo**, con identidad y contraseña en el entorno privado, hash Laravel, correo marcado verificado por autorización de instalación y sin cambio obligatorio. No hay código, invitación ni comprobación automática del buzón para esta única instalación. Sustituye la decisión anterior de cuenta Pendiente; las cuentas posteriores del personal conservan su invitación ordinaria y las cuentas demo son identidades separadas. Véase §17.12.
 - En CU-03 puede consultar datos administrativos mínimos y desactivar/reactivar el acceso de cuentas web de Pacientes existentes y previamente verificadas. No crea esas cuentas ni modifica Usuario, rol Paciente, contraseña, correo de acceso, vínculo original o datos históricos; tampoco activa cuentas pendientes ni añade permisos. Suspender/rehabilitar significa desactivar/reactivar con los estados existentes, sin crear Suspendida.
 - Cuenta, ficha administrativa y bloqueo temporal son independientes. Desactivar una cuenta invalida sus sesiones; reactivarla desde Desactivada conserva el correo verificado y solo habilita el acceso administrativo: requiere nuevo login, no elimina un bloqueo vigente ni activa la ficha. Si la ficha sigue inactiva, no admite nuevas reservas. Ambas operaciones se auditan mediante referencias y metadatos seguros.
-- Personal nuevo: **invitación de 24 horas**, un solo uso, enviada por Brevo; confirma control del correo y establece contraseña. Reenvío controlado sobre la **misma cuenta**, invalidando la invitación anterior. Si se usan credenciales temporales por excepción, cambio obligatorio antes del uso normal.
-- `CU-05`: cambio propio con comprobación de contraseña actual (salvo flujo restringido de credencial temporal), invalidación de sesiones anteriores y renovación segura de la sesión actual.
+- Personal nuevo: **invitación de 24 horas**, un solo uso, enviada por Brevo; confirma control del correo y establece primera contraseña sin exigir una anterior inexistente. Reenvío controlado sobre la **misma cuenta**, invalidando la invitación anterior. Es distinto del restablecimiento administrativo posterior.
+- `CU-03`: restablecimiento administrativo exclusivo del personal, previa identidad y sin conocer/exigir contraseña anterior; el sistema genera credencial temporal segura con vencimiento y uso controlado. Tras validarla, solo permite formulario/envío de contraseña definitiva y cierre, también restringidos en backend. Al completar: guardar hash, invalidar credencial, eliminar cambio obligatorio, revocar sesiones incompatibles, registrar metadatos seguros, cerrar la sesión restringida y exigir nuevo login normal. No activa cuentas desactivadas ni omite verificaciones o bloqueos. La ampliación aprobada de TokenAcceso y los detalles técnicos pendientes se registran en §17.14.
+- `CU-05`: cambio ordinario de los cuatro roles con sesión normal válida, comprobación de contraseña actual, nueva y confirmación, invalidación de sesiones anteriores y renovación segura de la actual. No incluye primera contraseña, recuperación ni finalización de la sesión restringida de CU-03.
 - `CU-06`: recuperación para los cuatro roles mediante **enlace de 60 minutos y un solo uso** enviado a correo verificado, respuesta no enumerativa, nuevo enlace invalida el anterior, invalidación de sesiones y **nuevo inicio de sesión obligatorio**. El restablecimiento administrativo de CU-03 es exclusivo del personal tras identificación; gestionar el acceso de Pacientes no permite cambiar sus contraseñas. La alternativa para un Paciente sin acceso a su correo verificado continúa pendiente de definición.
 - El Paciente puede cambiar su **correo de acceso** en `CU-08` confirmando contraseña y verificando un código en la nueva dirección; el anterior conserva vigencia hasta concluir el cambio. Cambiar correo de contacto no cambia automáticamente el correo de acceso.
 - Brevo se usa para **correo de seguridad de cuentas**. No se usa para recordatorios de citas ni envío de información clínica.
+- **Roles del personal, política aprobada:** Administrador ↔ Recepcionista; acceso al rol Médico solo con registro profesional legítimo de la misma persona. Para abandonar Médico, resolver antes citas futuras y obligaciones asistenciales incompatibles; si su resolución no puede verificarse con el modelo existente, rechazar la transición insegura e informar la limitación, sin inventar estados clínicos. La inactivación profesional necesaria se realiza expresamente por CU-10, coordinando con nuevas reservas; no se deriva automáticamente del rol. Conservar identidad, vínculo e historia, sin convertir Paciente ↔ personal ni reasignar Médico A → B, ni alterar citas/resultados automáticamente. Revocar sesiones, exigir nuevo login y auditar cambios.
+- **Último Administrador, protección aprobada:** desactivaciones, cambios de rol y restablecimientos administrativos no pueden dejar sin al menos un Administrador Activo, con hash, activación/verificación aplicable completada y sin restricción exclusiva de cambio obligatorio. Incluir la propia cuenta y comprobar transaccionalmente el estado resultante incluso con operaciones simultáneas. Un bloqueo pasajero no equivale a desactivación ni excluye del cómputo administrativo, sin permitir login durante el bloqueo. No garantiza disponibilidad permanente ante olvidos/incidentes; conserva la instalación inicial activa de §17.12.
 
 ### 8.1. Registro de pacientes y doble verificación
 
-**Paciente nuevo:** completa datos y credenciales; se abre registro **pendiente hasta 24 horas**; Brevo envía código de correo de **6 dígitos**, válido **10 minutos**, máximo **5 intentos incorrectos**. Solo tras verificarlo se confirma una **ficha única y cuenta vinculada**, sin requerir código de Recepción.
+**CI obligatorio en CU-04, por decisión propia del proyecto:** todo registro nuevo o vinculación web requiere CI no vacío y válido, con validación de presencia, formato y unicidad normalizada en frontend y servidor. RF02 conserva la unicidad del documento cuando corresponde, sin exigirlo universalmente a toda ficha administrativa. No permitir completar CU-04 sin CI; orientar a Recepción, sin documentos ficticios ni alternativas de vinculación web sin documento.
 
-**Paciente ya registrado por Recepción y sin cuenta:**
+**Paciente nuevo:** completa CI obligatorio, datos y credenciales; el servidor comprueba que el CI no corresponda a una ficha previa que deba vincularse y que el correo sea único. Se abre registro **pendiente hasta 24 horas**; Brevo envía código de correo de **6 dígitos**, válido **10 minutos**, máximo **5 intentos incorrectos**. Solo tras verificarlo y revalidar unicidades se confirma atómicamente una **ficha única y cuenta vinculada de rol Paciente**, sin requerir código de Recepción ni crear datos clínicos ficticios.
+
+**Paciente ya registrado por Recepción, con CI y sin cuenta:**
 
 1. Recepción comprueba presencialmente identidad/CI y que la ficha existente no tenga cuenta web.
 2. Emite un código de activación **alfanumérico aleatorio de 12 caracteres**, válido **24 horas**, máximo **5 intentos incorrectos**, de un solo uso; un nuevo código invalida el anterior.
@@ -173,6 +179,8 @@ La numeración es **única y continua**, `CU-01` a `CU-30`. No renumerar, fusion
 **Reenvíos:** mínimo **60 segundos** entre envíos de código de correo y máximo **5 envíos por hora por proceso y dirección**, además de límites por origen. Sustituir el código invalida el anterior y **no prolonga** las 24 horas del proceso principal. Un código de Recepción vencido/agotado requiere nueva emisión tras comprobación presencial.
 
 **Privacidad e integridad:** conocer el CI o verificar el correo no prueba, por sí solo, titularidad de una ficha anterior; mensajes públicos no deben revelar historia, nombres ni estado de cuenta. No duplicar Pacientes ni cuentas. Proteger reintentos y solicitudes simultáneas con restricciones y transacciones.
+
+**Excepción administrativa de CU-07:** Recepción puede registrar sin CI, manteniendo `Paciente.documento_identidad = NULL` e identificador interno único, con revisión administrativa razonable de posibles fichas previas, sin documentos ficticios ni fusiones automáticas por semejanza de datos. La ficha conserva las operaciones presenciales autorizadas, incluidas citas conforme a sus reglas. Al obtener CI, el Paciente acude a Recepción: se identifica la ficha original, se comprueba el documento, el servidor valida formato/unicidad y se incorpora a la misma ficha con trazabilidad. No cambia su identificador ni contenido clínico; conserva citas, consultas, antecedentes, solicitudes, resultados, recordatorios e historial. No crea otra ficha o cuenta ni verifica correo automáticamente. La vinculación web posterior requiere el flujo ordinario con CI y ambos códigos. Resolver identidades dudosas queda pendiente del diseño administrativo; la ausencia de CI no se resuelve con una vía alternativa web.
 
 ## 9. Pacientes y médicos inactivos
 
@@ -317,7 +325,224 @@ Pendientes / limitaciones: ...
 
 **Límites y pendientes:** el modelo de Usuario, los guards/providers de autenticación, `AuthenticateSession`, login, registro, permisos y revocación efectiva de múltiples sesiones se implementarán junto a sus CU y el DER aprobado. Las sesiones en archivo son provisionales. No se copiaron modelos, migraciones ni frontend del esqueleto; no se ejecutaron migraciones ni se publicaron las de Sanctum. Brevo y React no están configurados. La base/rol aislados indicados para futuras pruebas de persistencia todavía no existen; las pruebas actuales no acceden a la base.
 
-**Documentación sincronizada:** este registro y `backend/README.md`. Se comprobaron presentes `requerimientos.md`, `reglas-negocio.md` y `casos-de-us.md`. `analisis-clases.md`, `diagrama-clases.md` y `diagrama-entidad-relacion.md` aún no existen en `docs/ai/`; no se elaboraron por esta preparación ni se declara cerrado un CU, módulo o diseño de persistencia.
+**Documentación de aquella preparación:** este registro y `backend/README.md`. Se comprobaron presentes `requerimientos.md`, `reglas-negocio.md` y `casos-de-us.md`. Al cerrar esa instalación todavía no se habían elaborado `analisis-clases.md`, `diagrama-clases.md` ni `diagrama-entidad-relacion.md`. El avance posterior del DER y de datos se registra en 17.3; no se declara cerrado un CU o módulo por preparar infraestructura.
+
+### 17.3. Fase 0 de datos — 2026-10-19
+
+**Alcance aprobado:** concretar el diseño físico inicial e integrar migraciones, seeders y PostgreSQL aislado para pruebas, antes de desarrollar las tablas de fase 1. Estado: **Verificado** para esta preparación técnica; ningún CU o módulo funcional completado.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| DER lógico | `diagrama-entidad-relacion.md` conserva 28 entidades, 239 atributos y 43 relaciones |
+| Diseño físico inicial | DER §6.6: mapeo explícito de las 28 tablas; criterios de tipos, IDs, FK, índices y timestamps; tipos, defaults y restricciones del primer bloque de cinco entidades |
+| Integración Laravel | Ruta personalizada de migraciones comprobada; autoload PSR-4 estricto correcto; `composer seed` resuelve el seeder raíz de `src/data/database/seeders/`, todavía sin cargas |
+| Tiempo y persistencia | Conexión PostgreSQL en UTC; aplicación/reglas locales en America/La_Paz; microsegundos y desplazamiento comprobados mediante escritura/lectura real |
+| Entorno de pruebas | Base y rol independientes `clinica_vida_salud_test`, propietario sin privilegios elevados ni membresías; acceso público revocado; secretos aleatorios solo en `.env.testing` ignorado |
+| Aislamiento de PHPUnit | Entorno/base PostgreSQL fijados; credenciales privadas; rechazo de configuración cacheada o identidad incompatible antes de hooks de pruebas; rechazo del usuario de desarrollo comprobado |
+| Pruebas | 6 pruebas, 39 aserciones correctas; incluye las cuatro HTTP previas y dos de infraestructura PostgreSQL; migración auxiliar y seeder ejecutados con DDL transaccional revertido |
+| Preservación | Desarrollo conserva cero tablas; prueba auxiliar sin tablas persistidas en la base aislada; catálogo de las otras bases conservado |
+
+**Documentación sincronizada:** DER §6.6, `backend/README.md` y este registro. No se crean análisis ni diagramas de clases al no haberse completado CU o módulos.
+
+**Siguiente fase:** `Rol`, `ControlIntentos`, `Consultorio`, `Especialidad` y `ConfiguracionClinica`: migraciones de dominio, modelos, seeders de catálogos/configuración y pruebas de sus restricciones. Después: usuarios/auditoría; pacientes/activación; médicos/horarios; citas/recordatorios; clínica; laboratorio, según el mapeo del DER.
+
+**Pendientes:** decisiones físicas específicas de fases 2–7 y garantías transaccionales de sus flujos; retirar habilitación futura de Médico–Especialidad sin romper historial; cualquier operación posterior a publicación de laboratorio; procedimiento seguro del primer Administrador y datos concretos de consultorios. Las sesiones de aplicación siguen provisionalmente en archivo hasta implementar autenticación y revocación. Las pruebas de esta fase no acreditan concurrencia de negocio ni implementación de los CU.
+
+### 17.4. Fase 1 de datos — 2026-10-19
+
+**Alcance aprobado:** migraciones, modelos Eloquent, seeders y pruebas del primer bloque de cinco entidades, sobre el diseño físico de fase 0. Estado: **Implementado y verificado** como bloque de persistencia; ningún CU o módulo funcional completado.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Tablas | `roles`, `controles_intentos`, `consultorios`, `especialidades`, `configuracion_clinica`: 22 columnas de dominio, sin FK en este bloque |
+| Migraciones | Cinco archivos `2026_10_19_000001` a `000005` en `backend/src/data/database/migrations/`; aplicados en desarrollo como lote 1 tras comprobar que la base estaba vacía |
+| Modelos | `Rol`, `ControlIntentos`, `Consultorio`, `Especialidad`, `ConfiguracionClinica` en `backend/src/data/models/`, con PK/tablas explícitas, casts, timestamps propios y asignación masiva limitada |
+| Integridad | PK/UQ/CHECK y NOT NULL/longitudes; especialidades únicas por `lower(btrim(nombre))`; configuración ID 1, zona fija y duración positiva |
+| Carga inicial | Seeder raíz transaccional y tres seeders: 4 roles, 3 especialidades y 1 configuración; consultorios y controles de intentos vacíos |
+| Idempotencia | Reejecución comprobada en pruebas y desarrollo; conserva IDs y datos existentes. En pruebas conserva especialidad inactiva/configuración modificada y revierte toda la carga ante un fallo |
+| Pruebas | **33 pruebas, 166 aserciones correctas** en PostgreSQL; SQL directo inválido, defaults, normalización, modelos/casts/instantes y reversibilidad de migraciones en transacción aislada |
+| Verificaciones complementarias | Autoload PSR-4 estricto y Pint correctos; cinco migraciones aplicadas según Artisan; base de pruebas sin tablas persistidas al terminar |
+| DER | Modelo lógico conservado: 28 entidades, 239 atributos y 43 relaciones. Implementación física inicial registrada en §6.7 |
+
+**Documentación sincronizada:** `diagrama-entidad-relacion.md` §6.7, `backend/README.md` y este registro. Los CU administrativos y de autenticación aún requieren sus capas de negocio, presentación, autorización y auditoría; no se declaran CU-01, CU-09, CU-11 o CU-12 terminados ni se crean todavía sus análisis/diagrama de clases como módulos completos.
+
+**Siguiente fase de datos:** Usuario, Sesion, TokenAcceso y Bitacora. Concretar sus tipos/defaults/restricciones y soporte de sesiones nativas antes de implementar. Permanecen las decisiones funcionales pendientes ya registradas, el procedimiento seguro del primer Administrador y los datos concretos de consultorios. No se crearon cuentas ni datos de pacientes en esta fase.
+
+### 17.5. Fase 2 de datos — 2026-10-19
+
+**Alcance:** Usuario, Sesion, TokenAcceso y Bitacora: diseño físico, migraciones, modelos e integración persistente con Laravel. Estado: **Implementado y verificado** como bloque de datos; CU-01–CU-06 y CU-30 continúan pendientes de desarrollo funcional.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Migraciones | `2026_10_19_000006` a `000009`, aplicadas como lote 2; datos de fase 1 preservados |
+| Esquema acumulado | 9 tablas de dominio, 72 columnas y 6 FK, más el repositorio `migrations`; modelo lógico global de 28 entidades/239 atributos/43 relaciones conservado |
+| Modelos | Usuario, TokenAcceso y Bitacora en `src/data/models/`; relaciones con Rol/Usuario y autorreferencia; Sesion usa el manejador nativo sin modelo adicional |
+| Autenticación técnica | Guard `web`, proveedor `usuarios`, modelo y columnas reales registrados en `config/auth.php`; Sanctum consulta ese guard; todavía sin endpoints de acceso |
+| Sesiones | Driver local database con contenido cifrado; escritura/lectura anónima y con Usuario, expiración, destrucción y eliminación por Usuario comprobadas; revocación automática y AuthenticateSession pendientes de los CU |
+| Usuarios/tokens | Unicidad normalizada de correo, estados/defaults y FK; hash de token único, propósitos y vigencia básica. Consumo único y coordinación de credenciales pendientes de Services |
+| Bitácora | FK de responsable/objetivo/evento anterior, checks e índices; triggers contra UPDATE/DELETE/TRUNCATE y referencias adelantadas/cíclicas. Emisión automática, autor auténtico, metadatos seguros y consulta autorizada pendientes |
+| Pruebas | 68 pruebas, 335 aserciones correctas; suite anterior y UsuariosAuditoriaTest. DDL/datos se revierten en base aislada; reversibilidad de migraciones/funciones comprobada |
+| Comprobación adicional | Kernel HTTP local: CSRF 204 con sesión anónima cifrada persistida; sesión auxiliar destruida por su ID exacto |
+| Calidad | Autoload PSR-4 estricto, Pint y sintaxis PHP correctos; sin seeders de cuentas/tokens/sesiones/eventos ni datos ficticios en desarrollo |
+
+**Documentación sincronizada:** DER §6.8, `backend/README.md` y este registro. No se elaboran todavía `analisis-clases.md` ni `diagrama-clases.md`: ningún CU o módulo funcional se considera terminado por este bloque de persistencia.
+
+**Siguiente fase:** Paciente, ContactoEmergencia, PreferenciaPaciente, CodigoActivacionPaciente, RegistroPacientePendiente y VerificacionCorreo. Continúan pendientes los flujos completos de autenticación, bloqueo/revocación, invitación/recuperación, auditoría, el procedimiento seguro del primer Administrador y las decisiones funcionales abiertas ya registradas.
+
+### 17.6. Fase 3 de datos — 2026-10-19
+
+**Alcance:** Paciente, ContactoEmergencia, PreferenciaPaciente, CodigoActivacionPaciente, RegistroPacientePendiente y VerificacionCorreo. Estado: **persistencia implementada y verificada**; CU-04, CU-07 y CU-08 no se consideran completos.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Migraciones/modelos | Seis migraciones `2026_10_19_000010`–`000015`, aplicadas como lote 3; seis modelos de `src/data/` y relaciones con Usuario |
+| Acumulado | 15 tablas de dominio, 128 columnas y 15 FK, más `migrations`; 28 entidades/239 atributos/43 relaciones lógicas conservadas |
+| Ficha y preferencias | Cuenta y CI opcionales únicos, código único; contacto/preferencia opcionales únicos; datos de preferencia explícitos sin defaults funcionales |
+| Normalización | CI recortado solo en espacios U+0020 exteriores, sin alterar signos/letras/ceros; correos propuesto/destino según criterio de Usuario |
+| Proceso pendiente | Nuevo/Vinculacion coherentes con FK, hash/datos temporales requeridos al estar abierto; cuatro UQ parciales por ficha/código/CI/correo |
+| Exclusividad y vencimiento | Reserva conservada hasta completar/invalidar explícitamente; un vencido debe cerrarse transaccionalmente antes de otro proceso. Sin predicados dependientes del reloj |
+| Verificación | XOR de FK compatible con propósito, contadores 0–5 y vigencia básica; consumo, reenvío y reglas entre tablas pendientes de los Services |
+| Pruebas | 111 pruebas, 585 aserciones correctas; PacientesActivacionTest y ReservaActivacionConcurrenteTest más suite anterior |
+| Concurrencia | Dos conexiones PostgreSQL distintas comprueban espera, rechazo tras COMMIT y aceptación tras ROLLBACK para las cuatro claves; esquema auxiliar aislado eliminado al terminar |
+| Preservación | Nueve tablas previas comparadas antes/después sin diferencias; nuevas tablas vacías, sin seeders ni identidades de ejemplo en desarrollo |
+| Calidad | Autoload PSR-4 estricto, Pint, sintaxis PHP y diff comprobados; base de pruebas sin tablas ni esquemas auxiliares persistidos |
+
+**Documentación sincronizada:** DER §6.9, `backend/README.md` y este registro. Análisis/diagrama de clases siguen pendientes del desarrollo funcional; ningún CU o módulo se declara terminado por este bloque.
+
+**Pendientes del bloque:** rol/identidad/vínculos, formato y autorización de datos, claves permitidas de privacidad, reintentos con contexto protegido, reemisión y cierre de procesos/códigos, limpieza de secretos, correo Brevo y límites de envío, consumo atómico y coordinación del registro web con altas administrativas concurrentes. La exclusividad de las reservas probada no sustituye esos flujos. **Siguiente fase de datos:** Medico, MedicoEspecialidad y HorarioAtencion; se conserva la decisión pendiente sobre retiro de habilitación futura del par Médico–Especialidad.
+
+### 17.7. Fase 4 de datos — 2026-10-19
+
+**Alcance:** Medico, MedicoEspecialidad y HorarioAtencion. Estado: **persistencia implementada y verificada**; no se completan CU-09–CU-12.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Migraciones/modelos | Tres migraciones `2026_10_19_000016`–`000018`, aplicadas como lote 4; Medico, pivote MedicoEspecialidad y HorarioAtencion en `src/data/` |
+| Acumulado | 18 tablas de dominio, 146 columnas y 20 FK, más `migrations`; 28 entidades/239 atributos/43 relaciones lógicas conservadas |
+| Médico | Cuenta opcional única, consultorio opcional compartible, código único y actividad independiente; sin nuevas unicidades de registro profesional o correo |
+| Especialidades del Médico | PK compuesta y dos FK restrictivas; N:M con pivote Eloquent en ambas direcciones, sin ID sustituto, timestamps o vigencias |
+| Horarios | Día 1–7 y fin posterior al inicio, TIME(0) local, varios intervalos por Médico/día; no agrega consultorio duplicado |
+| Relaciones | Usuario–Medico 1:0..1, Consultorio–Medico 1:N, Medico–Especialidad N:M y Medico–Horario 1:N |
+| Pruebas | 140 pruebas, 752 aserciones correctas; MedicosHorariosTest más suite anterior. PK/FK/UQ/CHECK, pivote, intervalos, campos protegidos, estados y rollback |
+| Preservación | Quince tablas previas comparadas antes/después sin diferencias; tres nuevas vacías, sin nuevos seeders ni datos de ejemplo en desarrollo |
+| Calidad | Autoload PSR-4 estricto, Pint, sintaxis PHP y diff comprobados; base de pruebas sin tablas ni esquemas auxiliares persistidos |
+
+**Documentación sincronizada:** DER §6.10, `backend/README.md` y este registro. Análisis/diagrama de clases siguen pendientes del desarrollo funcional; ningún CU/módulo se declara terminado por la persistencia.
+
+**Pendientes:** autorización administrativa, rol/vínculo de cuenta, al menos una especialidad por alta, formato de datos, consultorio/duración válidos y protección concurrente de horarios/asignaciones frente a solapamientos y cambios que afecten citas/avisos. Los CHECK y FK no implementan esos flujos. Se conserva pendiente la política de retiro de habilitación futura del par Médico–Especialidad. **Siguiente fase de datos:** Cita, CambioCita y Recordatorio.
+
+### 17.8. Fase 5 de datos — 2026-10-19
+
+**Alcance:** Cita, CambioCita y Recordatorio. Estado: **persistencia implementada y verificada**; CU-13–CU-21 y CU-28 no se consideran completados.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Migraciones/modelos | Tres migraciones `2026_10_19_000019`–`000021`, aplicadas como lote 5; Cita, CambioCita, Recordatorio y relaciones inversas en `src/data/` |
+| Acumulado | 21 tablas de dominio, 180 columnas y 27 FK, más `migrations`; 28 entidades/239 atributos/43 relaciones lógicas conservadas |
+| Cita | Código único, FK compuesta al par Médico–Especialidad, cinco estados y modalidad Presencial; duración efectiva coherente con inicio/fin y ubicación histórica explícita |
+| Concurrencia de ocupación | Dos exclusiones GiST por Médico/consultorio, intervalos `[inicio,fin)`; solo Cancelada libera ocupación. Atendida/Inasistencia conservan su intervalo |
+| Infraestructura | btree_gist confiable, disponible y con privilegios inspeccionados; instalada en public por migración. La inversa conserva la extensión compartida |
+| Historial | CambioCita con estados/snapshots y autor; triggers rechazan UPDATE/DELETE/TRUNCATE |
+| Avisos | UQ cita/versión y FK restrictiva a Cita; destinatario derivado sin exigir cuenta web; generación automática todavía pendiente |
+| Pruebas | 178 pruebas, 976 aserciones correctas; CitasRecordatoriosTest/CitasConcurrentesTest más suite anterior |
+| Concurrencia verificada | Dos conexiones/PID comprueban espera/rechazo de reservas y reprogramaciones por ambos recursos, aceptación tras rollback y UQ concurrente de recordatorios |
+| Preservación/calidad | Dieciocho tablas previas comparadas sin diferencias; tres nuevas vacías. Autoload estricto, Pint, sintaxis PHP, diff e aislamiento comprobados |
+
+**Documentación sincronizada:** DER §6.11, `backend/README.md` y este registro. Ningún CU/módulo se declara terminado; análisis/diagrama de clases siguen pendientes de esos flujos funcionales.
+
+**Pendientes:** roles/titularidad, fecha/horarios/estados activos, transiciones y atención real, identidad/versión al reprogramar, cambios y auditoría coordinados con avisos, modificación concurrente de horarios/asignaciones y generación/consulta de recordatorios con preferencias. El conflicto `23P01` se traducirá a HTTP 409 en el límite de presentación cuando existan endpoints. No se fijó frecuencia del programador ni preferencia ausente. **Siguiente fase de datos:** ConsultaMedica, VersionConsulta y VersionAntecedente.
+
+### 17.9. Fase 6 de datos — 2026-10-19
+
+**Alcance:** ConsultaMedica, VersionConsulta y VersionAntecedente. Estado: **persistencia implementada y verificada**; CU-22/CU-23 siguen pendientes de implementación funcional.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Migraciones/modelos | Tres migraciones `2026_10_19_000022`–`000024`, aplicadas como lote 6; tres modelos y relaciones inversas en Cita, Paciente y Usuario |
+| Acumulado | 24 tablas de dominio, 210 columnas y 33 FK, más `migrations` y dos exclusiones de citas; modelo lógico de 28 entidades/239 atributos/43 relaciones conservado |
+| Consulta | Código y cita únicos; inicio real opcional, independiente de creación; Paciente/Médico derivados de Cita |
+| Versiones | Número positivo único por consulta o Paciente, autor/fecha explícitos, snapshots completos; origen de antecedentes obligatorio |
+| Conservación | Triggers PostgreSQL rechazan UPDATE/DELETE/TRUNCATE de versiones, incluidos metadatos; seis FK restrictivas |
+| Modelos | Asignación masiva protegida, instantes inmutables con zona/microsegundos y contenido clínico oculto en serialización genérica |
+| Pruebas | 210 pruebas, 1214 aserciones correctas; ConsultasVersionesTest/ConsultasConcurrentesTest y suite anterior |
+| Concurrencia verificada | Dos conexiones/PID: espera, rechazo UQ tras COMMIT y aceptación tras ROLLBACK de consulta duplicada y números de versión competidores; antecedentes de distintas consultas compiten por el mismo Paciente |
+| Atomicidad | Fallo revierte consulta y ambas clases de versiones; guardar clínica no cambia estado de cita ni deduce inicio real |
+| Preservación/calidad | Veintiuna tablas anteriores comparadas sin diferencias; nuevas vacías, sin seeds clínicos. Autoload estricto, Pint, sintaxis PHP, diff e identidad/limpieza de pruebas comprobados |
+
+**Documentación sincronizada:** DER §6.12, `backend/README.md` y este registro. Reversión/reaplicación de las veinticuatro migraciones comprobada solo en pruebas aisladas; base de pruebas sin tablas public, esquemas auxiliares ni btree_gist residual. Las secciones lógicas 2–4 del DER se compararon en UTF-8 con HEAD, sin diferencias.
+
+**Pendientes:** autorización de lectura/escritura y relación asistencial, coincidencia Paciente–Consulta–Cita y autor Médico responsable, atención real y rechazo de cambios administrativos incompatibles aunque inicio sea NULL, contenido y motivo de corrección, asignación de números y revalidación bajo bloqueo del padre, auditoría segura. Las UQ evitan números duplicados, pero no implementan por sí solas coordinación lógica de ediciones. `analisis-clases.md` y `diagrama-clases.md` siguen pendientes del desarrollo de CU/módulos. **Siguiente fase de datos:** SolicitudLaboratorio, VersionResultado, DocumentoLaboratorio y RevisionResultado; sin anticipar operaciones posteriores a publicación.
+
+### 17.10. Fase 7 de datos — 2026-10-19
+
+**Alcance:** SolicitudLaboratorio, DocumentoLaboratorio, VersionResultado y RevisionResultado. Estado: **persistencia implementada y verificada**; CU-24–CU-27 siguen pendientes de implementación funcional.
+
+| Elemento | Evidencia y resultado |
+|---|---|
+| Migraciones/modelos | Cuatro migraciones `2026_10_19_000025`–`000028`, aplicadas como lote 7; cuatro modelos y relaciones inversas en ConsultaMedica, Usuario y Medico |
+| Acumulado final de datos | 28 tablas de dominio, 239 columnas y 43 FK, más `migrations` y dos exclusiones de citas; corresponden al inventario lógico del DER |
+| Pertenencia | Dos FK compuestas inmediatas: versión actual de la misma solicitud y revisión publicada de esa versión exacta; se añaden al terminar la última migración |
+| Estados/publicación | Pendiente, En revisión y Disponible; punteros coherentes con estado. Disponible rechaza modificaciones y eliminación ordinarias de la solicitud |
+| Conservación | Documento, versión y revisión inmutables por triggers contra UPDATE/DELETE/TRUNCATE; origen previo de versión, incluso entre solicitudes, sin ciclos |
+| Archivos | Solo metadatos; ruta única, tamaño BIGINT positivo y SHA-256 de 64 hexadecimales. Sin carga real, ruta pública ni validación de bytes implementadas |
+| Pruebas | 259 pruebas, 1609 aserciones correctas; LaboratorioPersistenciaTest/LaboratorioConcurrenteTest y suite anterior |
+| Concurrencia verificada | Dos conexiones/PID: UQ de ruta/número frente a COMMIT/ROLLBACK; corrección/publicación concurrentes con revalidación SQL de estado/versión y rechazo de revisión desactualizada |
+| Atomicidad | Fallo revierte metadatos, versión y punteros de corrección, o revisión/publicación; la coordinación de bytes externos se implementará con CU-25 |
+| Preservación/calidad | Veinticuatro tablas previas sin diferencias; nuevas vacías, sin semillas/archivos clínicos. Autoload estricto, Pint, sintaxis PHP, diff e identidad/limpieza de pruebas comprobados |
+
+**Documentación sincronizada:** DER §6.13, `backend/README.md` y este registro. Las veintiocho migraciones se revirtieron/reaplicaron solo en transacción aislada; base de pruebas sin tablas public, esquemas auxiliares ni btree_gist residual. Secciones lógicas 2–4 del DER idénticas a HEAD en comparación UTF-8 directa.
+
+**Cierre de las fases de datos 0–7:** tablas, columnas y FK del inventario consolidado están creadas en desarrollo. Esto no completa RF, PN ni CU: faltan Services, Repositories, Controllers, autorización, validación funcional y frontend. En laboratorio siguen pendientes Médico solicitante, cuenta/rol/sesión, devolución previa para corregir, validación y entrega privada de bytes, decisión Autorizar de la revisión publicada, numeración/revalidación bajo bloqueo, auditoría segura y coordinación de archivos/transacciones. Las pruebas SQL de carreras no son una API funcional.
+
+**Siguiente trabajo:** iniciar negocio/API, priorizando usuarios y autenticación y definiendo el procedimiento seguro del primer Administrador al abordar su creación. `analisis-clases.md` y `diagrama-clases.md` siguen pendientes de desarrollar y cerrar CU/módulos. Conservan su estado pendiente la política futura de retiro Médico–Especialidad, cualquier procedimiento posterior a publicación y la alternativa para Paciente sin acceso a su correo verificado.
+
+### 17.11. Población mediante seeders — 2026-10-19
+
+**Estado al cerrar la población original:** carga inicial ampliada y demostración ficticia aplicadas y verificadas. Se mantiene el esquema de 28 tablas, 239 columnas y 43 FK; sin nuevas migraciones ni CU funcionales completados. La preparación Pendiente descrita abajo fue sustituida por la excepción de instalación de §17.12.
+
+- `ConsultorioSeeder` agrega tres consultorios iniciales CONS-01–CONS-03 mediante el seeder ordinario, conservando registros existentes. Roles/especialidades/configuración mantienen su carga idempotente.
+- `AdministradorInicialSeeder`, mediante `composer seed:admin`, valida identidad privada de `config/seeders.php`, normaliza correo y prepara una cuenta Pendiente, sin hash/verificación/token. Reejecuciones no cambian estado o credenciales y no promueven otros roles ni crean otro Administrador de instalación. Transacción y bloqueo PostgreSQL compartido con demo; evento SISTEMA sin secretos. **No ejecutado en desarrollo por falta de correo/nombres reales proporcionados**; probado con identidad ficticia aislada. Invitación/verificación siguen pendientes.
+- `DemostracionSeeder`, mediante `composer seed:demo`, solo permite la base/rol del proyecto en local o testing. Códigos DEMO-VS, correos example.test y documentación explícitamente ficticios. Seis cuentas simulan activación/verificación solo para el dataset; no verifican correo real ni envían mensajes. Contraseña opcional del entorno privado (mínimo 12); al omitirse se usa secreto aleatorio no divulgado. No sobrescribe hashes al repetir.
+- Dataset: 3 consultorios demo adicionales, 3 médicos/especialidades, 21 horarios compatibles, 5 pacientes (uno con cuenta), 5 citas en los cinco estados, 9 cambios con actores adecuados, 1 consulta, 2 versiones de consulta/antecedentes, 3 solicitudes, 3 documentos/versiones de resultado, 2 revisiones y 1 evento de instalación del dataset. Sin sesiones, códigos, tokens, preferencias inventadas ni avisos automáticos.
+- Tres PDF ficticios legibles en disco privado, sin enlaces públicos y con MIME/tamaño/SHA correctos; devolución y sustitución conservan historia, y Disponible apunta a su revisión Autorizar. Se compensan archivos nuevos ante fallo durante la carga, sin tratar archivos como parte del rollback SQL.
+- Carga y segunda ejecución en desarrollo: datos previos conservados y filas/bytes idénticos al repetir. Hay 6 consultorios en total; los 6 usuarios son ficticios y distintos del Administrador de instalación pendiente de configurar. Fechas se fijan al cargar por primera vez y no se desplazan al repetir.
+- **270 pruebas, 1716 aserciones correctas**, con `PoblacionDatosTest` y suite anterior. Idempotencia, conservación, rol/origen/publicación, estados, fechas, hashes/PDF, fallos con compensación y rechazo de usos indebidos comprobados. Composer, autoload estricto, Pint, sintaxis y diff correctos.
+
+**Documentación:** `backend/README.md` detalla comandos, configuración y limitaciones; DER §6.14 registra población sin alterar modelo lógico. Análisis/diagrama de clases siguen pendientes de CU/módulos funcionales. Los seeders no sustituyen autorización, flujos de estados, invitación, login ni entrega autorizada de documentos.
+
+### 17.12. Primer Administrador activo por instalación — 2026-10-19
+
+**Decisión explícita aprobada:** el seeder completa la instalación del primer Administrador sin código ni invitación. Su identidad y contraseña proceden únicamente del entorno privado; se marca Activa, con fecha de correo verificado por autorización del responsable de instalación y sin cambio de clave obligatorio. Esta marca no acredita comprobación del buzón. Se sustituye la decisión Pendiente de §17.11; el alta ordinaria de otras cuentas del personal conserva invitación de 24 horas y un solo uso.
+
+**Condiciones funcionales de la instalación controlada:** procedimiento local reservado al responsable autorizado, correo de acceso único e identificador de Usuario con rol Administrador y permisos fijos. No usar formulario público, credenciales predeterminadas ni contraseñas legibles en archivos versionados, seeders, logs o documentación. La creación debe ser idempotente, sin sobrescribir cuentas/credenciales existentes ni reutilizarse como alta general de Administradores. La autorización administrativa de correo verificado no es prueba técnica del control del buzón mediante enlace/código o Brevo; se recomienda usar un correo legítimo bajo control del responsable para CU-06. No aplica a Pacientes ni omite CU-04 o recuperación ordinaria. La forma de suministrar credenciales pertenece al diseño técnico; la solución existente se describe a continuación. El acceso normal requiere CU-01, verificación de hash, sesiones, estado y autorización funcionando, no solo la cuenta en PostgreSQL.
+
+**Implementación aplicada:** `AdministradorInicialSeeder` valida contraseña mínima de 12 caracteres, usa `Hash::make` y confirma cuenta y evento SISTEMA `INSTALACION_ADMIN_INICIAL` en una transacción con bloqueo PostgreSQL. El evento identifica método SEEDER y AUTORIZACION_INSTALACION, sin correo, hash ni contraseña. Las reejecuciones preservan cuentas existentes, incluso pendientes/desactivadas, y no restablecen credenciales. No promueve otro rol ni crea otra identidad de instalación.
+
+**Desarrollo comprobado:** correo proporcionado por el usuario y nombres Administrador / Vida Salud configurados solo en `.env`. Contraseña aleatoria de 32 caracteres almacenada allí como `CLINICA_ADMIN_PASSWORD`; hash comprobado sin divulgar la clave. Cuenta activa/verificación de instalación/evento confirmados; segunda ejecución idéntica y datos previos preservados. Total: 7 usuarios (6 demo y 1 inicial) y 2 eventos. No se enviaron correos ni se emitieron tokens.
+
+**Verificaciones:** suite completa **274 pruebas, 1738 aserciones correctas**; hash/estado/verificación de instalación, contraseña ausente/corta, auditoría sin secretos, rollback ante fallo de evento y conservación de credenciales/desactivación al repetir. Pint, sintaxis de tres PHP afectados y diff correctos; `.env` ignorado por Git.
+
+**Alcance:** instalación lista; CU-01–CU-06 siguen pendientes de negocio/API. Documentación sincronizada: README, reglas VS-AUT-06/07, precisiones de requerimientos §5.1, excepción CU-03 y DER §6.14. Sin cambios del modelo lógico ni migraciones. Análisis y diagrama global de clases siguen pendientes del desarrollo funcional.
+
+### 17.13. Sincronización documental de instalación y CI — 2026-10-19
+
+**Decisiones aprobadas sincronizadas, sin implementación funcional nueva:** se conserva el primer Administrador activo de §17.12 y se distingue CI obligatorio en CU-04 de ficha administrativa excepcional sin CI en CU-07, con incorporación posterior sobre el mismo identificador e historial. La denominación de CU-03 se actualiza por instrucción expresa. No se alteran RF01–RF13, RN01–RN14, CU-01–CU-30, PN01–PN24, roles, estados ni el inventario del DER de 28 entidades, 239 atributos y 43 relaciones.
+
+**Documentación sincronizada:** contexto, requerimientos, reglas, casos de uso, interpretación funcional del DER y los tres AGENTS. No se modifica software, configuración, datos ni modelo lógico. Los registros anteriores de fases se conservan como historia; las referencias a primer Administrador pendiente o a su procedimiento todavía por definir quedan superadas por §17.12, y las formulaciones anteriores de CI opcional no autorizan CU-04 sin documento. Esto no completa CU-01, CU-03, CU-04 ni CU-07; análisis y diagrama de clases siguen pendientes del desarrollo funcional.
+
+**Pendientes al cerrar esta sincronización de CI:** transición de roles, último Administrador y finalización de sesión restringida todavía no estaban aprobados en ese momento; quedan sustituidos por las decisiones posteriores de §17.14. Continúan pendientes los detalles técnicos de credenciales temporales, retiro de asociaciones Médico–Especialidad, resolución administrativa de identidades dudosas, operaciones posteriores a publicación y alternativa para Paciente sin acceso al correo verificado. La vinculación web sin CI no es alternativa pendiente: no está permitida por la decisión vigente.
+
+### 17.14. Políticas de CU-03/CU-05 y ampliación de TokenAcceso — 2026-10-19
+
+**Aprobación funcional posterior:** se consolidan los procedimientos independientes de restablecimiento administrativo temporal del personal (CU-03), cambio ordinario con contraseña actual/sesión normal (CU-05), recuperación por correo sin contraseña anterior, 60 minutos y uso único (CU-06), e invitación para primera contraseña (CU-03). Se aprueban cierre de la sesión restringida con nuevo login, transiciones del personal con preservación profesional, rechazo de obligaciones incompatibles/no verificables y protección transaccional del último Administrador, incluidos restablecimientos. Son precisiones del proyecto, no RF/RN literales ni funciones implementadas. Se mantienen el primer Administrador activo, CI web obligatorio y ficha administrativa excepcional sin CI.
+
+**Ampliación mínima autorizada:** añadir `CredencialTemporal` a `TokenAcceso.proposito`, junto a `InvitacionPersonal` y `RecuperacionClave`, reutilizando hash y fechas de emisión/expiración/consumo/invalidación. La migración nueva `2026_10_19_000029_allow_temporary_credentials_in_tokens_acceso` amplía únicamente el CHECK PostgreSQL; la original se conserva. El modelo Eloquent existente ya maneja esos campos y no necesita duplicación ni nuevas columnas. El inventario sigue en 28 entidades, 239 atributos y 43 relaciones; cambia el catálogo de un atributo, documentado en DER §§3.4 y 6.15, sin editar `.drawio`.
+
+**Límites vigentes antes de implementar el flujo temporal de CU-03:** concretar duración de la credencial, generación y entrega, intentos/reemisión/usos, momento de consumo y tratamiento de contraseña anterior al emitir; coordinar revocación, expiración y solicitudes de cambio/recuperación concurrentes. No hereda plazos de invitación o recuperación. No existen estados de cierre clínico nuevos: sin evidencia suficiente de resolución se rechaza el cambio de rol. Rol/actividad profesional siguen separados y CU-15 no autoriza trasladar la cita a otro Médico. La corrección extraordinaria de identidad y retiro Médico–Especialidad continúan pendientes. CU-01/CU-02 pueden abordarse con los controles definidos, impidiendo acceso normal ante cambio obligatorio mientras se desarrolla su flujo específico.
+
+**Verificación y aplicación:** migración `000029` aplicada en desarrollo como **lote 8**, comprobando antes/después igualdad de filas y definiciones de columnas en las 28 tablas; permanecen 239 columnas, 7 usuarios, 2 eventos y cero tokens. Suite completa en PostgreSQL aislado: **280 pruebas y 1772 aserciones correctas**, incluidas reversión/reaplicación, catálogo, vigencia obligatoria, hash único y preservación del historial. Pint y sintaxis de los dos PHP afectados correctos. Detalle en DER §6.15 y README.
+
+**Alcance real:** documentación funcional y soporte persistente del nuevo propósito; no se implementan emisión/entrega de credenciales, login/logout, controles de último Administrador, transiciones, Services ni API por este avance. Ningún CU queda completado. Análisis/diagrama de clases siguen pendientes de los CU/módulos funcionales.
 
 ## 18. Protocolo de implementación y cierre de tareas
 

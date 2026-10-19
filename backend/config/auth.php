@@ -1,5 +1,7 @@
 <?php
 
+use Clinica\data\models\Usuario;
+
 return [
 
     /*
@@ -14,8 +16,7 @@ return [
     */
 
     'defaults' => [
-        // Se habilitarán al implementar autenticación con el modelo del DER aprobado.
-        'guard' => null,
+        'guard' => 'web',
         'passwords' => null,
     ],
 
@@ -36,7 +37,12 @@ return [
     |
     */
 
-    'guards' => [],
+    'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'usuarios',
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -55,7 +61,12 @@ return [
     |
     */
 
-    'providers' => [],
+    'providers' => [
+        'usuarios' => [
+            'driver' => 'eloquent',
+            'model' => Usuario::class,
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

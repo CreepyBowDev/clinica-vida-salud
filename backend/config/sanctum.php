@@ -30,8 +30,7 @@ return [
     |
     */
 
-    // El guard de sesión se añadirá junto al modelo de autenticación aprobado.
-    'guard' => [],
+    'guard' => ['web'],
 
     /*
     |--------------------------------------------------------------------------
@@ -73,7 +72,7 @@ return [
     */
 
     'middleware' => [
-        // Habilitar AuthenticateSession junto al guard y al modelo de usuario.
+        // Integrar AuthenticateSession con los flujos de cambio/recuperación de CU-05/CU-06.
         'authenticate_session' => null,
         'encrypt_cookies' => EncryptCookies::class,
         'validate_csrf_token' => ValidateCsrfToken::class,

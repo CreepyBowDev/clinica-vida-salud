@@ -10,7 +10,9 @@
 
 Este documento permite que OpenCode traduzca el **DER corregido** a la base de datos PostgreSQL y a la capa de datos Laravel **sin inventar requisitos**. Contiene un inventario fiel de los atributos que figuran en Draw.io, sus nulabilidades, claves y catálogos, además de las reglas recogidas en la segunda pestaña del mismo archivo. Las guías de implementación están señaladas como **propuestas técnicas pendientes**, no como hechos implementados.
 
-**Orden de autoridad:** (1) enunciado oficial del examen para RF01–RF13 y RN01–RN14; (2) decisiones funcionales aprobadas y documento académico actualizado; (3) el archivo `.drawio` corregido para el esquema lógico; (4) documentos funcionales `docs/ai/`; (5) implementación real, que es evidencia del estado del código, pero no autoriza cambiar los requisitos. Ante una contradicción, **detener el cambio afectado, documentar el conflicto y pedir una decisión**. No inventar tablas, relaciones, reglas ni permisos para solucionarlo unilateralmente.
+**Orden de autoridad:** (1) enunciado oficial del examen para RF01–RF13 y RN01–RN14; (2) decisiones funcionales aprobadas más recientes; (3) documento académico vigente; (4) DER corregido para el esquema lógico; (5) documentación técnica interna; (6) implementación existente, que es evidencia del estado del código, pero no autoriza cambiar los requisitos. Las decisiones aprobadas recogidas en los documentos funcionales `docs/ai/` conservan la prioridad de su fuente; no quedan subordinadas al DER por su ubicación. Ante una contradicción, **detener el cambio afectado, documentar el conflicto y pedir una decisión**. No inventar tablas, relaciones, reglas ni permisos para solucionarlo unilateralmente.
+
+Esta revisión consolida las aclaraciones del modelo lógico sin aprobar decisiones físicas pendientes. Los archivos `.drawio` y PDF citados no están disponibles en el repositorio para este contraste: las cifras y referencias de origen se conservan como antecedente documental, sin afirmar una nueva comprobación contra esos originales ni la precedencia entre versiones académicas no disponibles.
 
 El examen requiere PHP y PostgreSQL, con conexión por PDO/`pdo_pgsql` o equivalente aprobado. La solución del proyecto utilizará Laravel (Eloquent y migraciones), React y notificaciones internas. **No se permite añadir nuevos roles, estados de citas, RF/RN oficiales ni CU.** Los módulos de consulta clínica, laboratorio, seguridad ampliada y recordatorios son decisiones aprobadas del proyecto, no nuevos requisitos literales del enunciado.
 
@@ -58,6 +60,8 @@ Cuatro filas fijas; sin CRUD de tipos de roles ni permisos configurables.
 ### 3.2. `Usuario`
 
 Contraseña NULL solo durante invitación pendiente; obligatoria para una cuenta activa.
+
+**Equivalencia de estado:** el valor persistido `Pendiente` de `Usuario.estado_cuenta` corresponde a la condición funcional **Pendiente de verificación**. Es la misma condición, no un estado adicional ni una autorización de acceso protegido; se conserva la lista cerrada del diccionario.
 
 **Restricciones únicas declaradas:** `(correo_acceso)`.
 
@@ -191,6 +195,8 @@ Preferencias internas ya definidas; no alteran roles ni autorizaciones clínicas
 
 Reserva temporal de activación; no constituye una segunda cuenta ni una segunda ficha.
 
+**Exclusividad del proceso:** los reintentos reanudan el mismo proceso válido mediante un contexto protegido. No pueden coexistir procesos independientes vigentes para el mismo Paciente o código de Recepción, ni para el mismo CI cuando exista o correo propuesto normalizados. La reserva, los vencimientos y la confirmación atómica se precisan en §5.3; su mecanismo físico sigue pendiente.
+
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
 | PK | `id_registro_pendiente` | `BigInt` | No | — | — |
@@ -208,7 +214,7 @@ Reserva temporal de activación; no constituye una segunda cuenta ni una segunda
 
 ### 3.11. `VerificacionCorreo`
 
-Exactamente uno: registro pendiente para activación o usuario para cambio de correo.
+Exactamente uno, compatible con `proposito`: `ActivacionPaciente` exige `id_registro_pendiente` informado e `id_usuario` NULL; `CambioCorreo` exige `id_usuario` informado e `id_registro_pendiente` NULL. Rechazar ambos presentes, ambos ausentes o una combinación incompatible con el propósito. Esta exclusividad XOR no cambia la nulabilidad individual de las FK.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
@@ -277,6 +283,8 @@ Clave primaria compuesta; relación muchos a muchos.
 | PK/FK | `id_especialidad` | `BigInt` | No | `Especialidad` | — |
 
 **Claves:** PK compuesta (`id_medico`, `id_especialidad`). Eloquent no ofrece una PK compuesta nativa equivalente a una PK simple; conservar la PK compuesta en PostgreSQL y tratar la relación como pivote con operaciones compatibles. No introducir un ID sustituto sin aprobación.
+
+**Decisión pendiente — retiro de habilitación futura:** una asociación referida por citas debe conservarse para mantener la FK compuesta y el historial. El modelo actual no define cómo retirar la habilitación de ese par para nuevas reservas sin eliminar su referencia histórica. La política y su mecanismo requieren definición y aprobación antes de implementar esa operación; no se añaden `activo`, `estado`, `fecha_fin` ni estructuras de vigencia por esta aclaración. La existencia del par y la actividad del Médico y de la Especialidad no resuelven por sí solas ese retiro específico.
 
 ### 3.16. `HorarioAtencion`
 
@@ -470,7 +478,7 @@ Paciente y Médico solicitante se derivan de ConsultaMedica y Cita. Los dos punt
 
 ### 3.26. `VersionResultado`
 
-Cada asociación o sustitución crea una versión; la versión de origen conserva la trazabilidad, incluso entre solicitudes.
+En el circuito ordinario previo a publicación (§5.8), cada asociación o sustitución crea una versión; la versión de origen conserva la trazabilidad, incluso entre solicitudes.
 
 **Restricciones únicas declaradas:** `(id_solicitud, numero_version)`, `(id_solicitud, id_version_resultado)`.
 
@@ -602,7 +610,7 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - El Administrador asigna exclusivamente roles del personal compatibles. No convierte cuentas de Paciente en personal ni modifica su rol, contraseña, correo de acceso o vinculación.
 - Paciente conserva código y CI único cuando se proporciona, sin CI ficticios; se admiten los casos sin CI ya autorizados. Ficha administrativa, cuenta web y bloqueo temporal son condiciones independientes.
 - Usuario conserva exclusivamente el hash de la contraseña. password_hash solo admite NULL durante una invitación pendiente; una cuenta activa exige hash y correo verificado.
-- Pendiente, Activa y Desactivada son condiciones de la cuenta; el bloqueo temporal se registra aparte. No son estados de cita ni de laboratorio.
+- Pendiente, Activa y Desactivada son condiciones de la cuenta; el valor persistido Pendiente equivale funcionalmente a Pendiente de verificación (§3.2), sin crear otro estado. El bloqueo temporal se registra aparte. No son estados de cita ni de laboratorio.
 - Tres contraseñas incorrectas consecutivas bloquean diez minutos; los intentos durante el bloqueo no lo extienden. El éxito o vencimiento reinicia el contador.
 - Las contraseñas tienen al menos doce caracteres y se procesan con los mecanismos de hash de Laravel. La desactivación de cuenta impide también usar sesiones anteriores.
 - CU-03: Administrador solo desactiva/reactiva cuentas de Pacientes existentes y verificadas por CU-04; conserva identificador, rol, credenciales, vínculo y todos sus registros. No activa cuentas pendientes omitiendo verificaciones.
@@ -613,13 +621,17 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 
 - Paciente nuevo: un RegistroPacientePendiente de tipo Nuevo conserva los datos administrativos exigidos en datos_registro; no requiere código de Recepción.
 - Vinculación: RegistroPacientePendiente exige id_paciente e id_codigo_activacion del mismo paciente. Antes, Recepción verifica presencialmente la identidad.
+- La validación y reserva del código de Recepción deben ser atómicas: solo un proceso pendiente vigente puede reservarlo para ese Paciente. Mientras esté reservado, otro proceso independiente no puede utilizarlo. Reanudar exige el contexto protegido del mismo proceso, no solo conocer CI o correo.
+- Para Nuevo y Vinculacion, impedir procesos independientes vigentes que compitan por el mismo CI cuando exista o correo propuesto, con normalización uniforme; para Vinculacion, también por el mismo Paciente o código de Recepción. Un reintento reutiliza el proceso válido sin reiniciar su vigencia ni sus límites; no expone datos de otro proceso ni crea una ficha definitiva anticipada.
 - El código de Recepción tiene doce caracteres aleatorios criptográficos, vigencia de 24 horas, cinco errores y uso único. Solo se conserva su hash.
 - Emitir otro código invalida el anterior y el proceso pendiente que lo utilice. La reserva del proceso no prolonga el vencimiento del código original.
 - El registro nuevo pendiente vence a las 24 horas; la vinculación vence junto con el código de Recepción. Los datos temporales no se convierten en fichas duplicadas.
-- VerificacionCorreo referencia exactamente un registro pendiente para activación o un usuario para cambio de correo; las dos FK no se informan simultáneamente.
+- VerificacionCorreo aplica la exclusividad XOR de §3.11: ActivacionPaciente → id_registro_pendiente informado e id_usuario NULL; CambioCorreo → id_usuario informado e id_registro_pendiente NULL. Ambos presentes, ambos ausentes y propósito incompatible son inválidos.
 - El código de correo tiene seis dígitos, vigencia de diez minutos, cinco errores y uso único. Un reenvío invalida el anterior y no extiende las 24 horas del proceso.
 - Los reenvíos respetan al menos sesenta segundos y un máximo de cinco por hora, por proceso y correo, además del control por origen en ControlIntentos.
-- La activación comprueba vigencias y unicidades y crea o vincula la cuenta en una transacción; consume los códigos, sin vínculos parciales ni doble uso concurrente.
+- La activación revalida proceso, reserva, vigencias, intentos, unicidades y ausencia de cuenta vinculada dentro de la operación protegida; crea la cuenta y ficha nueva o vincula la ficha existente, marca el proceso completado y consume el código de correo y, en Vinculacion, también el de Recepción, en una misma transacción. Un fallo revierte esos cambios, sin vínculos parciales ni doble uso concurrente.
+- PostgreSQL debe respaldar las unicidades y la exclusividad concurrente con restricciones adecuadas, coordinadas con transacciones y bloqueos Laravel. No basta consultar antes de insertar ni comprobar solo las FK opcionales. El diseño físico debe resolver la vigencia y el vencimiento sin asumir que un índice temporal se actualiza por el mero paso del tiempo; la estrategia concreta y sus pruebas siguen pendientes, sin añadir atributos al modelo lógico.
+- Un fallo de envío no confirma una entrega inexistente ni habilita la cuenta; el proceso válido se conserva recuperable. Un reintento tras interrupción o respuesta incierta comprueba el estado persistido antes de repetir la confirmación y no crea otra cuenta ni consume otra vez los códigos. El correo externo se coordina tras confirmar la transacción correspondiente; no se trata como reversible mediante rollback SQL.
 - El hash temporal se elimina al completar o caducar el proceso conforme a la política técnica; nunca se copia como credencial dentro de Paciente.
 - Cambio de correo: exige sesión y contraseña actual; conserva el correo anterior hasta verificar el nuevo. Revalida unicidad al confirmar y no crea otra cuenta.
 - El cambio de correo invalida las recuperaciones pendientes emitidas para el correo anterior. Verificar el correo no acredita por sí solo identidad civil.
@@ -635,13 +647,14 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 ### 5.4. ORGANIZACIÓN MÉDICA Y CONFIGURACIÓN
 
 - MedicoEspecialidad tiene PK compuesta (id_medico, id_especialidad). Una especialidad puede relacionarse con varios médicos; cada Médico se registra con una o más especialidades.
+- Conservar las asociaciones referidas por citas históricas. El retiro de la habilitación futura de un par Médico–Especialidad sigue pendiente según §3.15; no se implementa borrando el par ni se supone resuelto por inactivar todo el Médico o toda la Especialidad.
 - Especialidad.nombre es único tras normalización; se incluyen inicialmente Pediatría, Medicina General y Geriatría. Su inactivación conserva las relaciones históricas.
 - Medico.id_consultorio admite NULL durante el alta por CU-10. CU-11 asigna un consultorio fijo válido antes de horarios reservables o nuevas citas. Varios Médicos pueden compartirlo solo con horarios compatibles.
 - HorarioAtencion admite varios intervalos por Médico; dia_semana utiliza 1=lunes a 7=domingo y hora_fin debe ser posterior a hora_inicio.
 - ConfiguracionClinica tiene una sola fila (id_configuracion=1), zona America/La_Paz y duración inicial de quince minutos, configurable y siempre positiva.
 - No se inventa una dirección física: direccion_sede es opcional hasta contar con información real. No existe un catálogo de sedes múltiples.
 - Un cambio de horario se rechaza íntegramente si perjudica citas futuras. No reprograma ni cancela citas automáticamente.
-- Cambiar consultorio fijo valida horarios compartidos y citas futuras. Solo actualiza ubicación de Programadas o Confirmadas sin atención iniciada, en una operación atómica.
+- Cambiar consultorio fijo valida horarios compartidos y citas futuras. Solo actualiza ubicación de Programadas o Confirmadas sin atención iniciada, en una operación atómica. Una ConsultaMedica que documenta atención real impide ese cambio aunque iniciada_en sea NULL; aplicar §5.7, sin inferir ausencia de atención del estado de Cita.
 - El cambio de ubicación conserva código, paciente, Médico, especialidad, fechas, duración y estado; registra CambioCita y actualiza el mismo recordatorio.
 - Las citas históricas y sus ubicaciones no cambian. Cualquier conflicto impide aplicar parcialmente la modificación de consultorio.
 
@@ -670,7 +683,7 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Después del fin no se confirma ese turno; si sigue Programada y no hubo atención, Recepción puede reprogramar la misma cita y confirmar el nuevo turno válido.
 - Recepción: Programada → Inasistencia solo tras finalizar el intervalo y comprobar ausencia. No se aplica desde Confirmada.
 - Médico responsable: Programada o Confirmada → Atendida tras realizar la atención. Es un permiso fijo; no requiere confirmación previa de Recepción.
-- Recepción puede cancelar Programada o Confirmada antes de la atención. Una cita con atención iniciada no se cancela ni reprograma por los procesos ordinarios.
+- Recepción puede cancelar Programada o Confirmada antes de la atención. Una cita con atención iniciada no se cancela ni reprograma por los procesos ordinarios. Si ConsultaMedica documenta atención real, la prohibición se mantiene aunque iniciada_en sea NULL y Cita aún figure Programada o Confirmada.
 - Reprogramar Programada mantiene Programada; reprogramar Confirmada la devuelve a Programada. Atendida, Cancelada e Inasistencia son finales en las operaciones ordinarias.
 - Consultar o completar una consulta y marcar Atendida son operaciones independientes; guardar el registro clínico no cambia automáticamente el estado de Cita.
 
@@ -689,28 +702,30 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Médico profesionalmente inactivo con cuenta activa puede completar atenciones y revisiones ya asignadas; una cuenta desactivada impide todo acceso protegido.
 - El Paciente consulta solo su información autorizada. Las preferencias de privacidad no conceden acceso a terceros ni modifican los permisos fijos.
 - Una consulta origina 0..* versiones de antecedentes y cada nueva versión tiene exactamente una consulta real. El alta o corrección se guarda íntegramente por CU-23, sin consultas ficticias, cambios de estado de Cita ni sobrescritura de versiones anteriores.
-- ConsultaMedica.creada_en es obligatoria; iniciada_en admite NULL si se desconoce el inicio real. No se copia automáticamente creada_en ni se inventan horas. NULL no prueba que no hubo atención ni habilita cancelar, reprogramar o cambiar ubicación de una atención iniciada.
+- ConsultaMedica.creada_en es obligatoria; iniciada_en admite NULL si se desconoce el inicio real. No se copia automáticamente creada_en ni se inventan horas. NULL no prueba que no hubo atención: una consulta que documenta atención real impide reprogramar, cancelar o cambiar ordinariamente su ubicación de forma incompatible, aunque Cita siga Programada o Confirmada. El servidor comprueba la atención documentada y las precondiciones bajo coordinación transaccional; no autoriza esas operaciones únicamente por iniciada_en IS NULL ni cambia automáticamente el estado de Cita.
 - La pertenencia Paciente–consulta–Cita y la autorización del autor se verifican transaccionalmente en el servidor; una FK aislada no las demuestra. No se prevén registros migrados sin origen: cualquier migración real exigirá una política explícita sin excepciones para nuevas versiones.
 
 ### 5.8. LABORATORIO, CORRECCIÓN Y PUBLICACIÓN
+
+**Límite del circuito ordinario (CU-25 y CU-26):** la carga inicial parte de Pendiente; la devolución, corrección de asociación y sustitución se realizan en En revisión, antes de publicar. Disponible no admite por estos CU retiro de publicación, devolución, sustitución, reasociación ni modificación del resultado ya publicado. Cualquier procedimiento posterior a la publicación requiere definición funcional y autorización adicionales; no se deduce de conservar versiones ni se incorpora una transición de retorno.
 
 - Una consulta puede originar cero o varias solicitudes; cada solicitud corresponde a un estudio y deriva paciente/Médico de la consulta y la cita.
 - Estados internos exclusivos: Pendiente, En revisión y Disponible. Autorizar/Devolver son decisiones de revisión y no agregan estados.
 - DocumentoLaboratorio contiene metadatos del archivo privado; VersionResultado conserva su asociación, número de versión, autor, fecha, origen y motivo de cambio.
 - Cada nueva asociación o sustitución agrega una versión inmutable. Los documentos anteriores permanecen protegidos; nunca se sobrescribe el archivo para ocultar el cambio.
 - FK compuesta propuesta: SolicitudLaboratorio(id_solicitud,id_version_actual) → VersionResultado(id_solicitud,id_version_resultado), con UQ del par referenciado. La versión actual pertenece necesariamente a la misma solicitud; admite NULL antes de la carga.
-- Una corrección de asociación conserva la versión de origen, crea la asociación corregida y actualiza las solicitudes afectadas en una transacción trazable.
+- Una corrección de asociación previa a publicación conserva la versión de origen, crea la asociación corregida y actualiza las solicitudes afectadas en una transacción trazable, revalidando que ninguna esté Disponible. No reasigna ni altera resultados publicados.
 - La solicitud devuelta permanece En revisión durante la corrección. El documento incorrecto no se publica ni queda disponible al Paciente.
-- RevisionResultado siempre refiere una versión exacta. Solo el Médico solicitante puede Autorizar o Devolver; Devolver exige motivo, autor y fecha.
+- RevisionResultado siempre refiere una versión exacta. Solo el Médico solicitante puede Autorizar o Devolver un resultado En revisión; Devolver exige motivo, autor y fecha y mantiene En revisión, sin retirar publicaciones existentes.
 - FK compuesta propuesta: SolicitudLaboratorio(id_revision_publicada,id_version_actual) → RevisionResultado(id_revision,id_version_resultado), con UQ del par. La revisión publicada corresponde a la versión actual y, por la otra FK, a la misma solicitud.
 - La publicación revalida simultáneamente versión, estado y autorización; si la versión cambió desde la revisión, se rechaza y exige revisar la nueva.
-- El Administrador carga, corrige asociaciones o sustituye documentos, pero no interpreta, modifica contenido clínico ni autoriza la publicación.
+- El Administrador carga inicialmente en Pendiente o corrige asociaciones o sustituye documentos devueltos en En revisión, pero no interpreta, modifica contenido clínico ni autoriza la publicación; CU-25 no le permite modificar un resultado Disponible.
 - La corrección de un documento devuelto no autoriza automáticamente su publicación. El Médico debe revisar nuevamente la versión corregida.
 - El Paciente ve Pendiente para los estados internos Pendiente y En revisión; solo ve Disponible y descarga la versión vigente con autorización de publicación válida.
 - Las versiones equivocadas o no publicadas nunca se sirven al Paciente. Toda consulta o descarga comprueba sesión, rol y relación; las rutas no son públicas.
 - La publicación exige además decisión Autorizar del Médico solicitante, versión vigente y revisión finalizada. Es una validación transaccional de autorización y estado; las FK o un CHECK de una fila no verifican por sí solos estas condiciones entre tablas.
 - Insertar primero la solicitud Pendiente con ambos punteros NULL; después documento y versión, y asignar versión actual en En revisión. Crear la revisión de esa versión; solo al autorizar se asigna revisión publicada y Disponible en una misma transacción.
-- Disponible exige ambos punteros no nulos; una revisión publicada exige versión actual. Pendiente y En revisión mantienen id_revision_publicada NULL. Sustituir o devolver retira la publicación y conserva las revisiones anteriores; la versión corregida exige una nueva revisión médica.
+- Disponible exige ambos punteros no nulos; una revisión publicada exige versión actual. Pendiente y En revisión mantienen id_revision_publicada NULL. Devolver y corregir antes de publicar conserva las revisiones anteriores y mantiene En revisión sin publicación; la versión corregida exige una nueva revisión médica. Esta regla no autoriza retirar una publicación ni regresar desde Disponible.
 
 ### 5.9. RECORDATORIOS, REPORTES Y BITÁCORA
 
@@ -764,12 +779,14 @@ En un repositorio existente, **inspeccionar primero las migraciones aplicadas** 
 ### 6.3. Restricciones compuestas y transacciones obligatorias
 
 - **Cita ↔ MédicoEspecialidad:** `FOREIGN KEY (id_medico, id_especialidad) REFERENCES MedicoEspecialidad(id_medico, id_especialidad)` (nombres físicos reales según convención acordada). Verificar además Médico y Especialidad activos en el momento de una nueva reserva.
+- **Retiro de asociación profesional:** preservar el par referenciado por citas; resolver la política pendiente de §3.15 antes de implementar el retiro de su habilitación futura. Esta revisión no añade columnas ni un mecanismo de vigencia.
 - **Solicitud ↔ versión actual:** `FOREIGN KEY (id_solicitud, id_version_actual) REFERENCES VersionResultado(id_solicitud, id_version_resultado)`, con `UNIQUE(id_solicitud, id_version_resultado)` en la tabla referida.
 - **Solicitud ↔ revisión publicada:** `FOREIGN KEY (id_revision_publicada, id_version_actual) REFERENCES RevisionResultado(id_revision, id_version_resultado)`, con `UNIQUE(id_revision, id_version_resultado)` en la tabla referida. La relación con la misma solicitud se obtiene conjuntamente con la FK de versión actual y la referencia de la revisión a esa versión.
-- **Ciclo de laboratorio:** insertar solicitud en `Pendiente` con ambos punteros NULL, cargar Documento, crear Versión y apuntar la versión actual, crear Revisión y, solo tras `Autorizar` por el Médico correspondiente, establecer `id_revision_publicada` y `Disponible` en una transacción. `Devolver` no agrega un estado: exige motivo y mantiene/revierte la disponibilidad conforme a las reglas de §5.
+- **Ciclo de laboratorio:** insertar solicitud en `Pendiente` con ambos punteros NULL, cargar Documento, crear Versión y apuntar la versión actual en `En revisión`, crear Revisión y, solo tras `Autorizar` por el Médico correspondiente, establecer `id_revision_publicada` y `Disponible` en una transacción. `Devolver` exige motivo y mantiene `En revisión` con `id_revision_publicada` NULL; la corrección exige nueva revisión. Revalidar estado y versión bajo protección concurrente para impedir que una devolución o sustitución compita con una publicación ya confirmada. CU-25 y CU-26 no autorizan retirar ni modificar un resultado `Disponible` (§5.8).
 - **Reservas simultáneas:** transacción más protección de PostgreSQL ante superposiciones del Médico **y** consultorio. Con rangos `[inicio_at, fin_at)` los turnos contiguos son compatibles. Examinar exclusión de rangos y estrategia para cambios de horario; omitir Cancelada de la ocupación. **No considerar resuelto RF07/RN13 solo por consultar disponibilidad antes de insertar.**
 - **Versiones clínicas:** controlar transaccionalmente `numero_version`, autor, Médico responsable y pertenencia a la Cita. Nunca sobrescribir versiones previas ni poner contenido clínico en `Bitacora`.
 - **Códigos y tokens:** hash seguro, expiración, consumo de un solo uso e invalidación ante reemisiones, con protección de carreras entre verificaciones concurrentes.
+- **Activaciones y XOR:** garantizar la reserva exclusiva y la confirmación atómica de §5.3 mediante restricciones PostgreSQL y coordinación transaccional Laravel; reutilizar el proceso válido ante reintentos. La condición de VerificacionCorreo debe comprobar tanto exactamente una FK presente como su correspondencia con proposito (§3.11), sin cambiar las nulabilidades del diccionario.
 - **Unicidad normalizada:** correos de acceso y nombres de especialidad únicos después de normalización consistente; CI único cuando exista; múltiples NULL permitidos donde el DER lo autoriza. La aplicación y PostgreSQL deben aplicar exactamente la misma normalización.
 
 ### 6.4. Integración con Laravel 13 y modelos Eloquent
@@ -814,15 +831,21 @@ Esta matriz sirve para revisar **migraciones**, **modelos**, **servicios** y **p
 | Cuenta y ficha | Desactivar/reactivar cuenta no cambia ficha, bloqueo temporal, rol, correo ni vínculo. |
 | Paciente duplicado | CI existente normalizado se rechaza; NULL permitido donde proceda. |
 | Única cuenta del paciente | Dos cuentas para una misma ficha se rechazan incluso con intentos simultáneos. |
+| Activación concurrente y reintentos | Dos procesos independientes vigentes no reservan el mismo Paciente, código, CI presente o correo normalizados; un reintento autorizado reanuda el proceso válido y una confirmación repetida no duplica cuenta, ficha ni consumo. Un fallo no deja vínculo parcial. |
+| Propósito de verificación | Solo se aceptan ActivacionPaciente con registro pendiente y sin usuario, o CambioCorreo con usuario y sin registro pendiente; rechazar ambos presentes, ambos ausentes y propósito incompatible. |
+| Cuenta pendiente | El valor persistido Pendiente representa Pendiente de verificación y no permite acceso protegido normal. |
 | Médico sin consultorio | Alta administrativa válida; no se generan turnos reservables sin consultorio asignado. |
 | Médico y especialidad | Una cita con par Médico–Especialidad no registrado falla por FK compuesta. |
+| Asociación profesional histórica | Se conserva el par referenciado por citas; el retiro de su habilitación futura requiere resolver §3.15 antes de implementarse. |
 | Horario y conflictos | No se aceptan solapamientos concurrentes para un Médico o Consultorio; bloques contiguos sí se aceptan. |
 | Estados | Una nueva cita es Programada; Confirmada solo por llegada verificada; Atendida solo por Médico responsable. |
 | Una consulta por cita | Segundo registro de ConsultaMedica para la misma Cita se rechaza. |
+| Atención real con inicio desconocido | Una consulta que documenta atención real impide reprogramar, cancelar o cambiar ubicación de forma incompatible aunque iniciada_en sea NULL y Cita siga Programada/Confirmada; guardar clínica no marca Atendida automáticamente. |
 | Versionado clínico | Dos actualizaciones conservan versiones previas, autor, fecha, relación con consulta y datos protegidos. |
 | Antecedente de otro paciente | Se rechaza versión cuyo Paciente no coincide con ConsultaMedica → Cita. |
 | Laboratorio ajeno | Una solicitud no puede apuntar a versión o revisión de otra solicitud o de otra versión. |
 | Laboratorio no publicado | El Paciente no accede a documentos pendientes o devueltos. |
+| Laboratorio publicado | CU-25 y CU-26 rechazan retiro, devolución, sustitución, reasociación o modificación de Disponible; una devolución previa mantiene En revisión sin publicación y una corrección exige nueva revisión médica. |
 | Recordatorio próximo | Generación automática con 24h o reserva guardada con menos anticipación; no espera a Confirmada. |
 | Aviso repetido | `UNIQUE(id_cita,version_programacion)` evita duplicación concurrente. |
 | Reprogramación | Aumenta versión de programación, invalida aviso desactualizado, preserva historial y valida disponibilidad. |

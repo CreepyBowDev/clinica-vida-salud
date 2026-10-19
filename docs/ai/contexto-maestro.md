@@ -265,7 +265,7 @@ La reprogramación de una Programada conserva el mismo estado. **Atendida, Cance
 
 ## 17. Estado real del proyecto y trabajo pendiente
 
-> **Importante:** este documento se creó a partir del examen, la documentación académica y las instrucciones de arquitectura. **No se ha auditado aquí un repositorio de código ejecutable ni se han ejecutado pruebas.** Por tanto, los módulos listados deben tratarse como **definidos documentalmente**, no como implementados o aprobados técnicamente.
+> **Importante:** este documento se creó a partir del examen, la documentación académica y las instrucciones de arquitectura. La tabla siguiente conserva el estado documental inicial. La preparación técnica comprobada posteriormente se registra en **17.2**. Los módulos funcionales siguen **definidos documentalmente**, sin considerarse implementados por instalar el framework.
 
 | Elemento | Estado comprobable al crear este archivo |
 | --- | --- |
@@ -293,6 +293,31 @@ Evidencia: archivos y pruebas ejecutadas (con resultados)
 Docs actualizados: analisis-clases.md; diagrama-clases.md si cierra módulo; DER si hay cambios
 Pendientes / limitaciones: ...
 ```
+
+### 17.2. Preparación local del backend — 2026-10-18
+
+**Alcance aprobado:** instalación y configuración, sin desarrollar ni marcar como implementado ningún CU-01 a CU-30. Laravel 13 confirmado por el usuario, backend `http://localhost:8000` y frontend futuro `http://localhost:5173`.
+
+| Elemento | Estado verificado |
+| --- | --- |
+| PHP existente | 8.5.11; `curl`, `fileinfo`, `mbstring`, `openssl`, `pdo_pgsql` y `zip` habilitados; zona `America/La_Paz` |
+| Composer | 2.10.3, instalado en el perfil del usuario; firma SHA-384 del instalador y acceso HTTPS comprobados |
+| Laravel / Sanctum | Framework 13.37.0 y Sanctum 4.3.3; 105 paquetes instalados mediante Composer, incluidos los de desarrollo |
+| PostgreSQL existente | 18.6, servicio en ejecución; base nueva `clinica_vida_salud` creada y conexión PDO/Laravel comprobada |
+| Rol técnico PostgreSQL | `clinica_vida_salud_app`, propietario de la base, sin privilegios elevados de clúster; secreto aleatorio únicamente en `.env` local |
+| Esquema | **Cero tablas de aplicación y cero migraciones ejecutadas**; otras bases conservadas |
+| Arquitectura | `Clinica\` → `src/`; `routes/api.php` carga el archivo de rutas de presentación; proveedor registra `src/data/database/migrations/` |
+| Infraestructura SPA | Sanctum stateful, CORS con origen exacto y credenciales, cookie CSRF y sesiones cifradas en archivo |
+| Servicios provisionales | Caché en archivo, cola síncrona y mailer en memoria; no requieren tablas ni envían correo |
+| Pruebas | PHPUnit 12.5.40: **4 pruebas, 23 aserciones correctas**; sintaxis PHP de 23 archivos y Pint sobre 22 fuentes correctos |
+| Comprobación HTTP real | `/up` → 200; `/sanctum/csrf-cookie` → 204; preflight CORS → 204; cookie de sesión HttpOnly y XSRF comprobadas |
+| Dependencias / Git | Composer diagnose, validate, check-platform-reqs y audit correctos; secretos y artefactos ignorados; 19 archivos originales conservados por SHA-256 |
+
+**Evidencia y comandos:** `backend/README.md`, `backend/composer.json`, `backend/composer.lock`, `backend/bootstrap/app.php`, `backend/app/Providers/AppServiceProvider.php`, `backend/config/`, `backend/.env.example`, `backend/phpunit.xml` y `backend/tests/Feature/InfrastructureTest.php`.
+
+**Límites y pendientes:** el modelo de Usuario, los guards/providers de autenticación, `AuthenticateSession`, login, registro, permisos y revocación efectiva de múltiples sesiones se implementarán junto a sus CU y el DER aprobado. Las sesiones en archivo son provisionales. No se copiaron modelos, migraciones ni frontend del esqueleto; no se ejecutaron migraciones ni se publicaron las de Sanctum. Brevo y React no están configurados. La base/rol aislados indicados para futuras pruebas de persistencia todavía no existen; las pruebas actuales no acceden a la base.
+
+**Documentación sincronizada:** este registro y `backend/README.md`. Se comprobaron presentes `requerimientos.md`, `reglas-negocio.md` y `casos-de-us.md`. `analisis-clases.md`, `diagrama-clases.md` y `diagrama-entidad-relacion.md` aún no existen en `docs/ai/`; no se elaboraron por esta preparación ni se declara cerrado un CU, módulo o diseño de persistencia.
 
 ## 18. Protocolo de implementación y cierre de tareas
 

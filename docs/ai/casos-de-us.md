@@ -1299,17 +1299,17 @@ Paciente para consultar; generación automática interna sin sesión.
 
 **Precondición**
 
-Existen Paciente y cita pertinente, con o sin cuenta web. Generar no requiere sesión; consultar exige cuenta activa vinculada y sesión válida. Se respetan preferencias internas.
+Existen Paciente y cita guardada exitosamente y aún vigente, con o sin cuenta web. Generar no requiere sesión ni intervención manual del Paciente o Recepción; consultar exige cuenta activa vinculada y sesión válida. Se respetan preferencias internas y no se generan avisos de próxima atención si el intervalo ya finalizó.
 
 **Flujo principal**
 
-1. El sistema calcula el aviso a 24 horas del inicio en la fecha y hora local de la clínica.
-2. Una reserva registrada con menos de 24 horas de anticipación genera el aviso inmediatamente después de que su registro se haya guardado y confirmado satisfactoriamente en la base de datos, o en la siguiente ejecución programada inmediata pertinente, antes del fin del turno. No depende de cambiar al estado Confirmada: una cita Programada puede generar su recordatorio. La reserva nueva permanece inicialmente Programada; guardarla no confirma automáticamente la llegada presencial, que corresponde exclusivamente a Recepción.
-3. Aplica preferencias y guarda un único aviso por Paciente, cita y programación: especialidad, Médico, fecha, hora, Presencial, Clínica Vida Salud y consultorio.
-4. Sin cuenta web, conserva la relación interna; al activarla muestra solo avisos propios todavía vigentes.
+1. El sistema calcula y genera automáticamente el aviso 24 horas antes de la fecha y hora programadas de la cita, según la zona horaria local de la clínica.
+2. Una reserva registrada exitosamente con menos de 24 horas de anticipación genera el aviso después de guardarse correctamente en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el recordatorio siga siendo válido conforme a las condiciones establecidas y el intervalo de atención no haya finalizado. La frecuencia específica del programador se definirá durante el diseño técnico. La generación no depende del estado Confirmada ni modifica la cita: una Programada puede generar su aviso y una Confirmada conservar los vigentes. La reserva nueva permanece inicialmente Programada; Confirmada significa exclusivamente llegada presencial verificada por Recepción mediante CU-17.
+3. Antes de generar, también en cada ejecución del programador, revalida reserva guardada, vigencia, estados y preferencias y guarda un único aviso en PostgreSQL por Paciente, cita y programación: especialidad, Médico, fecha, hora, Presencial, Clínica Vida Salud y consultorio.
+4. Sin cuenta web, conserva el aviso asociado al identificador del Paciente y de la cita; al activarla muestra solo avisos propios autorizados de citas futuras vigentes.
 5. Al consultar Notificaciones, el servidor valida sesión y titularidad.
-6. Reprogramar recalcula y actualiza o invalida el aviso anterior; cambiar una ubicación autorizada actualiza el existente.
-7. Cancelada, Atendida, Inasistencia o turno finalizado retiran los avisos próximos. Laravel y PostgreSQL generan y conservan los avisos sin depender del navegador.
+6. Reprogramar conserva la cita y su trazabilidad, recalcula el momento del aviso según la nueva fecha y hora y actualiza o invalida el anterior sin duplicarlo; cambiar una ubicación autorizada actualiza el consultorio del aviso.
+7. Cancelada, Atendida, Inasistencia o turno finalizado impiden nuevos recordatorios de próxima atención y retiran los avisos anteriores de próximos recordatorios, conservando el historial y los registros correspondientes según las reglas existentes. Laravel genera y PostgreSQL conserva los avisos sin depender del navegador.
 
 **Postcondición**
 
@@ -1317,7 +1317,7 @@ El Paciente consulta únicamente recordatorios internos propios, pertinentes y s
 
 **Excepciones**
 
-Sin cuenta: conservar la relación sin exponerla a terceros; no impide programar por Recepción. Preferencias deshabilitadas: no generar nuevos avisos. Al habilitarlas se aplican las reglas a citas aún pertinentes, sin duplicados. Sin avisos o cita no pertinente: mostrar la sección sin próximos recordatorios. Sesión inválida, aviso ajeno o fallo al guardar: denegar o informar sin confirmar éxito falso. No se usan Brevo, correo, SMS, WhatsApp ni push externo para citas.
+Reserva inexistente o cuyo registro falló: no generar un recordatorio como si se hubiera guardado correctamente. Sin cuenta: conservar la relación sin exponerla a terceros; no impide programar por Recepción. Preferencias deshabilitadas: no generar nuevos avisos. Al habilitarlas se aplican las reglas a citas aún pertinentes, sin duplicados. Sin avisos, cita finalizada o aviso que dejó de ser válido antes de la ejecución del programador: no generar nuevos avisos de próxima atención y mostrar la sección sin próximos recordatorios cuando corresponda. Sesión inválida al consultar, aviso ajeno o fallo al guardar: denegar o informar sin confirmar éxito falso. No se usan Brevo, correo, SMS, WhatsApp ni push externo para citas.
 
 
 ### 4.12. Consultas y reportes administrativos (`CU-29` a `CU-29`)

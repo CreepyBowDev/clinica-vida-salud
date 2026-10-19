@@ -680,12 +680,12 @@ La devolución o corrección permanece `En revisión`; no crea un cuarto estado.
 
 ## 23. Recordatorios internos (`CU-28`)
 
-- Los recordatorios son **persistidos en PostgreSQL** y se generan automáticamente, sin intervención manual del Paciente ni necesidad de que tenga sesión abierta.
-- Anticipación definida: **24 horas** antes del inicio de la cita. Si se registra con menos de 24 horas de anticipación, generar el aviso inmediatamente después de que el registro de la reserva se haya guardado y confirmado satisfactoriamente en la base de datos, o mediante la siguiente ejecución programada inmediata pertinente, evitando duplicados para la misma cita y evento de aviso.
-- **La generación no depende del estado `Confirmada`: una cita `Programada` puede generar su recordatorio.** La reserva nueva permanece inicialmente `Programada`; guardarla no realiza automáticamente la transición a `Confirmada`, que significa exclusivamente llegada presencial verificada por Recepción.
-- Relacionar aviso con el identificador del Paciente y la cita, incluso si todavía no tiene cuenta web; al activar la cuenta, mostrar avisos que aún sean pertinentes.
-- Reprogramación actualiza o sustituye avisos desactualizados. Cancelación, `Atendida`, `Inasistencia` o intervalo finalizado impiden nuevos avisos de próxima asistencia.
-- Utilizar scheduler, jobs o mecanismos de Laravel cuando sea apropiado; hacer las tareas idempotentes y resistentes a repeticiones.
+- Los recordatorios son **persistidos en PostgreSQL** y se generan automáticamente, sin intervención manual del Paciente o Recepción ni necesidad de una sesión activa del Paciente.
+- Anticipación definida: **24 horas antes de la fecha y hora programadas** de la cita. Si se registra exitosamente con menos de 24 horas de anticipación, generar el aviso después de guardar correctamente la reserva en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el recordatorio siga siendo válido conforme a las condiciones establecidas y el intervalo de atención no haya finalizado. No generar avisos de una reserva cuyo registro haya fallado; revalidar vigencia, estados y preferencias también al ejecutar el programador, evitando duplicados para la misma cita y programación.
+- **La generación no depende del estado `Confirmada` ni modifica el estado de la cita: una cita `Programada` puede generar su recordatorio y una `Confirmada` puede conservar sus avisos vigentes.** La reserva nueva permanece inicialmente `Programada`; guardarla no realiza automáticamente la transición a `Confirmada`, que significa exclusivamente llegada presencial verificada por Recepción.
+- Relacionar aviso con el identificador del Paciente y la cita, incluso si todavía no tiene cuenta web; al activar la cuenta, mostrar únicamente avisos propios que correspondan a citas futuras vigentes.
+- Reprogramación recalcula el momento del aviso según la nueva fecha y hora y actualiza o invalida avisos desactualizados, incluido el consultorio cuando corresponda. Cancelación, `Atendida`, `Inasistencia` o intervalo finalizado impiden nuevos avisos de próxima asistencia y retiran los anteriores de próximos recordatorios, conservando el historial según las reglas existentes.
+- El programador de tareas de Laravel puede generar los avisos; hacer las tareas idempotentes y resistentes a repeticiones. **La frecuencia específica del programador se definirá durante el diseño técnico**, sin fijarla arbitrariamente en estos documentos.
 - **No enviar recordatorios mediante correo, SMS, WhatsApp, Brevo ni push externo.**
 
 ---

@@ -629,8 +629,10 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 - Mostrar únicamente avisos propios del Paciente, procedentes de la API.
 - El backend genera recordatorios automáticamente, **aunque el Paciente no esté conectado**.
-- El proyecto establece un aviso 24 horas antes de la atención; para citas creadas con menos de 24 horas, el backend genera el aviso de forma inmediata o en la próxima ejecución aplicable.
-- Reprogramaciones actualizan fecha, hora y consultorio del aviso; cancelaciones e inasistencias lo invalidan como recordatorio de asistencia vigente.
+- El proyecto establece un aviso **24 horas antes de la fecha y hora programadas** de la cita. Para reservas registradas exitosamente con menos de 24 horas de anticipación, el backend lo genera después de guardar correctamente la reserva en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el aviso siga siendo válido y el intervalo no haya finalizado. La frecuencia del programador se definirá durante el diseño técnico; la interfaz no debe asumirla.
+- La generación es independiente del estado `Confirmada` y no modifica la cita: las nuevas reservas permanecen inicialmente `Programadas`; las `Confirmadas` pueden conservar avisos vigentes. `Confirmada` significa exclusivamente llegada presencial verificada por Recepción, no guardado exitoso de una reserva.
+- Los avisos son internos y persistidos en PostgreSQL, incluso sin cuenta web, asociados al Paciente y la cita. Tras activar su cuenta, el Paciente consulta solo avisos propios autorizados de citas futuras vigentes; la generación no requiere acciones manuales de Paciente o Recepción.
+- Reprogramaciones recalculan el momento del aviso y actualizan o invalidan fecha, hora y consultorio, evitando duplicados. Canceladas, Atendidas, Inasistencia o intervalo finalizado impiden nuevos avisos de próxima atención y retiran los anteriores de próximos recordatorios, según la respuesta del backend.
 - No crear recordatorios desde el navegador con `setTimeout` como fuente de verdad ni depender de la pestaña abierta.
 - No enviar recordatorios mediante Brevo, email, WhatsApp, SMS ni push externo. **Brevo solo se usa en correos transaccionales de seguridad**.
 - Mostrar estados vacíos o sin próximos avisos de forma comprensible, sin mensajes engañosos.

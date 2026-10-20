@@ -87,4 +87,12 @@ class ControlIntentosService
             ['credencial-temporal:'.$accion.':usuario:'.$id, (int) config('seguridad.credencial_temporal.solicitudes_por_usuario')],
         ], (int) config('seguridad.credencial_temporal.ventana_segundos'), $contexto, 'CREDENCIAL_TEMPORAL_LIMITADA');
     }
+
+    public function evaluarRegistroPaciente(string $accion, string $ambito, array $contexto): void
+    {
+        $this->evaluar([
+            ['registro-paciente:'.$accion.':ip:'.$contexto['ip'], (int) config('seguridad.registro_paciente.solicitudes_por_ip')],
+            ['registro-paciente:'.$accion.':ambito:'.$ambito, (int) config('seguridad.registro_paciente.solicitudes_por_ambito')],
+        ], 60, $contexto, 'REGISTRO_PACIENTE_LIMITADO');
+    }
 }

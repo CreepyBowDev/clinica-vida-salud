@@ -2,10 +2,1301 @@
 
 > **Ruta canónica:** `docs/ai/analisis-clases.md`  
 > **Módulo:** Usuarios y autenticación (`CU-01`–`CU-06`).  
-> **Avance:** fases 0–6 del backend — `CU-01`/`CU-02` ordinarios y restringidos, `CU-05`, `CU-06`, alta/invitación, administración de acceso/roles y restablecimiento temporal de `CU-03`, 2026-10-19.  
-> **Estado:** API implementada; evidencia en §§13–20. Backend primero según contexto §§17.17–17.23; CU-04 y cierre integrado backend del módulo siguen pendientes. React y AUT-21 corresponden a la etapa frontend. Brevo integrado por API HTTP con pruebas simuladas, sin entrega real comprobada.
+> **Avance:** fases 0–8 del backend, incluidas 7A/7B; análisis vigente por `CU-01`–`CU-06` y emisión parcial de `CU-07`, revisado el 2026-10-19.
+> **Estado:** backend de Usuarios y autenticación cerrado con revisión integrada de fase 8. `diagrama-clases.md` aplazado por solicitud expresa del usuario. React, AUT-21 y entrega real de Brevo siguen pendientes; correo simulado en pruebas.
+> **Presentación aprobada:** ACTOR → BOUNDARY → CONTROL → ENTITY; un bloque CONTROL por diagrama, métodos principales sin clase, parámetros ni retorno, y atributos seleccionados por procedimiento.
 
-## 1. Fuentes, alcance y trazabilidad
+## Guía de lectura y convenciones
+
+La lectura principal se organiza por caso de uso. Los procedimientos de un mismo CU conservan su identificador y se separan únicamente cuando requieren otro actor, interfaz o flujo. La explicación fuera del diagrama contiene la correspondencia con las clases reales, contratos, alternativas, seguridad y pruebas.
+
+**Fuentes:** los tres `AGENTS.md`; `casos-de-us.md` §4.1; `reglas-negocio.md` §4; `requerimientos.md` §§3–5; `contexto-maestro.md` §§17.17–17.26; diccionario y notas técnicas de `diagrama-entidad-relacion.md`; rutas, Controllers, FormRequests, Services, Validators, Repositories, modelos y pruebas existentes. CADEFAR se emplea como referencia metodológica descrita por el usuario; no se dispone de su documento original para un cotejo nuevo.
+
+- `<<actor>>`: solo los roles participantes; una caja con varios nombres agrupa roles oficiales, no crea otro rol.
+- `<<boundary>>`: interfaz conceptual con React pendiente. No contiene funciones inventadas ni afirma una pantalla implementada.
+- `<<control>>`: agrupación documental de operaciones; **no es una clase PHP nueva**. `[controller]`, `[service]`, `[validator]` y `[repository]` identifican responsabilidades reales. Los FormRequests se etiquetan como validadores de entrada, sin confundirlos con validadores de negocio.
+- Controller primero; después Services, Validators y Repositories. Es orden visual por responsabilidad, **no una secuencia literal**: Laravel valida el FormRequest antes de invocar el Controller y el Service intercala llamadas a repositorios.
+- Los paréntesis vacíos abrevian la firma; los parámetros y retornos reales permanecen en el software. Las etiquetas entre corchetes indican responsabilidad, no tipos de retorno, aunque Mermaid inserte visualmente `:` antes de ellas. Los métodos repetidos se desambiguan en la tabla contigua. `+` indica público, `#` protegido y `-` privado.
+- `<<entity>>`: modelos existentes; solo se muestran atributos usados o establecidos en ese procedimiento, con nombres y tipos contrastables con el DER y las migraciones. `?` significa nullable. Se usan alias legibles de tipo: `String` incluye los `VARCHAR(n)` del diccionario; `BigInt`/`TimestampTZ` corresponden también a `BIGINT`/`TIMESTAMPTZ`. Longitudes y restricciones exactas permanecen en el DER y el código. No se agregan métodos heredados de Eloquent ni se interpretan los atributos del diagrama como una respuesta pública de la API.
+- Las cardinalidades son estructurales; una relación opcional en persistencia puede ser obligatoria para un rol o acción por validación del Service. Las flechas CONTROL → ENTITY resumen acceso mediado por los Repositories incluidos en el bloque.
+- Middlewares, Resources, limitadores, correo, utilidades criptográficas y auditoría se explican fuera del diagrama. La sesión usa la tabla nativa `sessions`; no existe un modelo propio `Sesion`.
+
+**Origen de las decisiones:** RF01–RF13 y RN01–RN14 conservan su significado oficial. Políticas como correo como identificador, códigos, plazos, cuatro roles fijos y recuperación son concreciones aprobadas del proyecto. URL, nombres de clases, HMAC, bloqueos y parámetros técnicos no son nuevos RF/RN. El modelo de persistencia conserva **28 entidades, 239 atributos y 43 relaciones**.
+
+### Índice y estado real
+
+| Análisis | Alcance backend actual | Pendientes |
+| --- | --- | --- |
+| [CU-01 — Iniciar sesión](#analisis-cu-01) | Login normal/restringido y restauración mediante me. | React y recorrido real de navegador. |
+| [CU-02 — Cerrar sesión](#analisis-cu-02) | Cierre ordinario y restringido, invalidación y CSRF. | Interfaz e integración React. |
+| [CU-03 — Administrar cuentas de usuario y su acceso](#analisis-cu-03) | Alta/invitación, consulta, estado/roles y restablecimiento temporal; integración backend verificada. | React y entrega real de correo; límites aprobados de retiro Médico permanecen vigentes. |
+| [CU-04 — Registrar cuenta del Paciente y vincular su registro](#analisis-cu-04) | Escenarios A/B y emisión autorizada de CU-07; integración con acceso y credenciales verificada. | React y entrega real de correo. |
+| [CU-05 — Cambiar contraseña propia](#analisis-cu-05) | Cambio ordinario con renovación de sesión y revocación de anteriores. | Interfaz e integración React. |
+| [CU-06 — Recuperar contraseña mediante correo electrónico](#analisis-cu-06) | Solicitud genérica y restablecimiento de un solo uso. | Entrega real de correo e integración React. |
+
+El cierre backend se registra en [fase 8](#cierre-backend-usuarios). Por decisión expresa del usuario, `diagrama-clases.md` se elaborará en otro momento y no forma parte de esta entrega; los diagramas por CU no lo sustituyen. CU-07 tiene aquí únicamente la emisión necesaria para 7B; su gestión administrativa restante y CU-08–CU-30 conservan su desarrollo progresivo.
+
+## Soporte técnico compartido vigente
+
+**Arquitectura:** React previsto → Feature Service/Axios → Route/Middleware Laravel → Controller/FormRequest → Service → Repository → Eloquent → PostgreSQL. Las clases propias conservan `src/presentation/`, `src/business/`, `src/data/` y `src/shared/`, con autoload `Clinica\\`. Laravel 13.37.0/Sanctum 4.3.3 son la línea base inspeccionada. Rutas cargadas una vez por `routes/api.php`: `auth.php`, `personal.php`, `usuarios.php` y `pacientes.php` de presentación.
+
+**HTTP y sesión:** desarrollo con backend `http://localhost:8000` y React previsto `http://localhost:5173`; Sanctum stateful, CORS exacto con credenciales, origen validado por `ExigirOrigenSpa` y CSRF real en escrituras. `GET /sanctum/csrf-cookie` pertenece al framework. Cookie de sesión HttpOnly/host-only/SameSite=Lax, Secure=false solo para HTTP local; 120 minutos de inactividad configurables. Sesiones database cifradas, guard web y huella compatible con AuthenticateSession; sin JWT, remember token ni secretos en almacenamiento web. Producción/topología HTTPS aún requieren su configuración propia.
+
+**Transacciones y autorización:** Services revalidan cuenta/rol/vínculo y fila de sesión tras esperar el bloqueo de Usuario. Sesiones nuevas se guardan en la misma conexión/transacción antes del commit; un guardado tardío nativo no recrea una fila revocada. `SesionRepository::revocarUsuario()` exige transacción coordinada; limpieza de fallos incluye guards web y Sanctum. El middleware no sustituye la autorización transaccional sobre el recurso.
+
+**Validación y errores:** contraseñas nuevas de mínimo 12 caracteres, confirmación, máximo técnico 1024 y, con bcrypt, hasta 72 bytes sin NUL; se conservan espacios, caso y Unicode. Login no impone el mínimo de una contraseña nueva. `RespuestaError::render()` y `AppError` normalizan JSON: `success=false`, `error.code`, `error.message` y `error.details` cuando corresponda. Se distinguen 401, 403, 404, 409, 419, 422, 429/Retry-After y 500 seguro. Respuestas sensibles privadas/no-store; 204 sin cuerpo.
+
+**Límites y auditoría:** `ControlIntentosService`/`ControlIntentosRepository` mantienen ámbitos HMAC persistentes con ventanas no extensibles; son distintos del contador de errores de Usuario. Las pruebas y el expediente conservan sus valores por operación. `BitacoraRepository::autenticacion()` registra responsables/objetivos reales, operación, resultado y referencias seguras; nunca contraseñas, hashes, códigos, cookies, enlaces secretos o contenido clínico. Los éxitos reflejan commits; una denegación esperada confirma su contador/evento antes de producir el error HTTP. La consulta de bitácora continúa siendo CU-30.
+
+**Correo:** `CorreoSeguridadService` usa Mailables de invitación, recuperación y verificación de Paciente; Laravel registra `BrevoHttpTransport` mediante un puente en AppServiceProvider. POST HTTPS fijo, TLS, conexión 3 s/total 10 s, sin redirección/reintento automático. Solo 201 con `messageId` válido acredita aceptación, no entrega. Envío después del commit y auditoría posterior independiente; no hay cola/outbox persistida. Pruebas con Mail/HTTP simulados. Configuración privada habilitada por autorización; entrega real aplazada hasta React. Brevo es exclusivamente de seguridad, nunca avisos de citas o clínica.
+
+<a id="analisis-cu-01"></a>
+## CU-01 — Iniciar sesión
+
+### Actores, objetivo y trazabilidad
+
+**Actores:** Administrador, Recepcionista, Médico y Paciente. **Objetivo:** autenticar por correo y contraseña y establecer una sesión autorizada. **Trazabilidad:** RF01, RN12, PN01; RN14 transversal; VS-AUT-01–05/07/08/11. Backend ordinario y restringido implementado; React pendiente.
+
+**Precondición de éxito:** cuenta Activa, verificada, con credencial y vínculo apropiados y sin bloqueo vigente; no requiere sesión previa. **Postcondición:** sesión normal o exclusivamente restringida según la cuenta, sin cambiar identidad/rol. La inactividad de ficha Paciente o profesional Médico no equivale a desactivar su cuenta.
+
+### Boundary y clases participantes
+
+**Boundary:** interfaz de acceso conceptual, pendiente de React; captura credenciales y muestra resultado/validaciones.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `login()` [controller] | `AutenticacionController` | Entrada validada/contexto → Service → Resource. |
+| `iniciar()` [service] | `AutenticacionService` | Credenciales, bloqueo, habilitación y coordinación de sesión/auditoría. |
+| `prepareForValidation()`, `rules()` [validator] | `LoginRequest` | Normalización de correo y validación estructural. |
+| `porCorreoBloqueado()`, `guardar()` [repository] | `UsuarioRepository` | Consulta FOR UPDATE y persistencia de contador/bloqueo. |
+| `iniciar()` [repository] | `SesionRepository` | Guard web, regeneración y persistencia efectiva de sesión. |
+
+### Diagrama de análisis — flujo principal
+
+```mermaid
+classDiagram
+    direction LR
+    class Actores["Administrador · Recepcionista · Médico · Paciente"] {
+        <<actor>>
+    }
+    class InterfazAcceso["Interfaz de acceso — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlCU01["CONTROL — Iniciar sesión"] {
+        <<control>>
+        +login() [controller]
+        +iniciar() [service]
+        #prepareForValidation() [validator]
+        +rules() [validator]
+        +porCorreoBloqueado() [repository]
+        +guardar() [repository]
+        +iniciar() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String correo_acceso
+        String? password_hash
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
+        Integer intentos_fallidos
+        TimestampTZ? bloqueado_hasta
+        String? nombres_personal
+        String? apellidos_personal
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        String nombres
+        String apellidos
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        String nombres
+        String apellidos
+    }
+    Actores --> InterfazAcceso : introduce credenciales
+    InterfazAcceso ..> ControlCU01 : solicita inicio de sesion
+    ControlCU01 ..> Usuario : consulta y actualiza
+    Usuario "0..*" -- "1" Rol : tiene asignado
+    Usuario "0..1" -- "0..1" Paciente : ficha vinculada
+    Usuario "0..1" -- "0..1" Medico : identidad profesional
+    style Actores fill:#fff7ed,stroke:#9a3412
+    style InterfazAcceso fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCU01 fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Medico fill:#dcfce7,stroke:#15803d
+```
+
+### Colaboración, alternativas y contrato
+
+1. Origen/CSRF y `LimitarLogin` preceden negocio; `LoginRequest` normaliza correo con minúsculas/recorte U+0020 exterior, sin transformar contraseña.
+2. `login()` delega; `iniciar()` bloquea Usuario y obtiene el instante actual después de esperar. Usa Hash real o ficticio y comprueba habilitación mediante `habilitado()`.
+3. Error de clave incrementa contador; al tercero bloquea diez minutos. Bloqueo vigente no se amplía; expiración o éxito reinician contador. Denegación genérica confirma contador/evento y luego produce 401.
+4. Éxito guarda sesión, contexto mínimo de rol/vínculo y auditoría en el mismo commit. `UsuarioAutenticadoResource::toArray()` proyecta solo ID string, correo, nombre visible y rol.
+
+**Alternativas fuera del dibujo:** si hay sesión previa, `validarSesion()`/`exigirSesionNormal()` rechazan intercambio de identidad: 409 normal vigente, 403 restringida vigente, 401 incompatible. En temporal, `TokenAccesoRepository::ultimoTemporal()` y `CredencialTemporalValidator::vigente()`/`personalHabilitado()` verifican cuenta, propósito, fechas y HMAC; revocan el dispositivo anterior y establecen solo sesión restringida. Reingreso no amplía plazo ni consume aún el temporal. El hash anterior permanece inhabilitado. Detalle en CU-03, procedimiento de completado, y expediente §20.
+
+| Operación | Entrada | Resultado |
+| --- | --- | --- |
+| POST `/api/auth/login` | `correo_acceso`, `password`; sin selector de rol/identidad. | 200 usuario público o exclusivamente `data.acceso=cambio_clave` y `cambio_clave_obligatorio=true`. |
+| GET `/api/auth/me` | Cookie, sin ID seleccionable. | 200 mismo Resource normal/restringido, previa revalidación; 401 si sesión inválida. |
+
+Correo máximo 254 y password máximo técnico 1024. Credenciales/cuenta inexistente, pendiente, desactivada o bloqueada comparten 401 `AUTH_CREDENCIALES_INVALIDAS`; campos inválidos 422; origen 403; CSRF 419; límite 429; fallo operativo 500 seguro. El 429 técnico no revela el bloqueo de cuenta. Parámetros iniciales: 20 solicitudes/minuto/IP y cinco/minuto/correo+IP, confirmados independientemente del login.
+
+`me()` es soporte de restauración: `VerificarCuentaHabilitada` llama `validarSesion()`, comprueba estado/huella/rol/vínculo y proyecta el actor actual. Desde fase 6 permite restaurar el estado mínimo restringido; operaciones normales aplican `ExigirSesionNormal`. La marca del Administrador de instalación no demuestra control de buzón y no se vuelve a verificar por Brevo al hacer login.
+
+### Pruebas, evidencia y pendientes
+
+`AutenticacionTest` comprueba cuatro roles, entradas, bloqueo 3/10, límites, sesión/CSRF reales, vínculos, errores, auditoría y rollback. `CredencialTemporalTest` verifica el camino restringido. `AutenticacionConcurrenteTest` prueba contador concurrente, serialización, desactivación y guardados tardíos sin resurrección. Evidencia histórica completa: [expediente §13](#expediente-13) y [§20](#expediente-20); matriz AUT-01–21 en [§11](#expediente-11). API y cierre integrado backend verificados en fase 8; AUT-21/React pendientes para la etapa de interfaz.
+
+<a id="analisis-cu-02"></a>
+## CU-02 — Cerrar sesión
+
+### Actores, objetivo y trazabilidad
+
+**Actores:** Administrador, Recepcionista, Médico y Paciente. **Objetivo:** invalidar la sesión en servidor y exigir autenticación posterior. **Trazabilidad:** RF01, RN12, PN01; VS-AUT-05/08. **Precondición funcional:** sesión normal o restringida; el endpoint permite limpiar una sesión ya finalizada o cuya cuenta perdió habilitación. **Postcondición:** la sesión anterior no autoriza; cuenta, credencial e historial se conservan.
+
+### Boundary y clases participantes
+
+**Boundary:** opción de cierre y retorno al acceso, conceptual/React pendiente.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `logout()` [controller] | `AutenticacionController` | Delegar y responder 204. |
+| `cerrar()` [service] | `AutenticacionService` | Identificar actor, coordinar invalidación y auditoría; alternativa restringida. |
+| `porId()` [repository] | `UsuarioRepository` | Recuperar/bloquear la cuenta de la sesión. |
+| `cerrar()` [repository] | `SesionRepository` | Destruir ID previo, limpiar guards y renovar CSRF. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Registrar el cierre con responsable real. |
+
+### Diagrama de análisis
+
+```mermaid
+classDiagram
+    direction LR
+    class Actores["Administrador · Recepcionista · Médico · Paciente"] {
+        <<actor>>
+    }
+    class InterfazCierre["Opción Cerrar sesión — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlCU02["CONTROL — Cerrar sesión"] {
+        <<control>>
+        +logout() [controller]
+        +cerrar() [service]
+        +porId() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        Boolean cambio_clave_obligatorio
+    }
+    class Bitacora {
+        <<entity>>
+        BigInt id_evento
+        BigInt? id_usuario_responsable
+        String tipo_evento
+        String resultado
+        TimestampTZ ocurrido_en
+    }
+    Actores --> InterfazCierre : solicita salir
+    InterfazCierre ..> ControlCU02 : solicita cierre
+    ControlCU02 ..> Usuario : identifica cuenta
+    ControlCU02 ..> Bitacora : registra cierre confirmado
+    Usuario "0..1" -- "0..*" Bitacora : responsable
+    style Actores fill:#fff7ed,stroke:#9a3412
+    style InterfazCierre fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCU02 fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Bitacora fill:#dcfce7,stroke:#15803d
+```
+
+### Colaboración, alternativas y contrato
+
+POST `/api/auth/logout`, sin ID/cuerpo de negocio, exige origen/CSRF y devuelve **204 sin JSON**. No requiere `ExigirSesionNormal` ni cuenta habilitada para poder salir. Service bloquea Usuario si existe, cierra la sesión nativa y confirma auditoría en transacción. No revoca por defecto otros dispositivos ordinarios; puede quedar una sesión anónima nueva, nunca reutilizarse el ID autenticado.
+
+En sesión restringida todavía vigente/persistida, `CredencialTemporalValidator::vigente()`, `TokenAccesoRepository::temporalPorId()`/`invalidarTemporales()` y `SesionRepository::revocarUsuario()` invalidan también la credencial y sus sesiones, manteniendo cambio obligatorio. Un dispositivo ya revocado no invalida una credencial posterior por conocer su cookie antigua. Cerrar pestaña no equivale a logout.
+
+Logout repetido con origen/CSRF válidos sigue siendo 204 sin duplicar evento de usuario. CSRF inválido produce 419; fallo necesario revierte, limpia memoria y no anuncia cierre confirmado. Un error de red deja resultado incierto hasta consultar el servidor; volver atrás no concede autorización.
+
+### Pruebas, evidencia y pendientes
+
+`AutenticacionTest`, `CredencialTemporalTest` y carreras de `AutenticacionConcurrenteTest`: invalidación, otros dispositivos, repetición, tokens restringidos, rollback y guardado tardío. Evidencia en expediente [§13](#expediente-13)/[§20](#expediente-20). Backend implementado; integración de interfaz/caché/navegador pendiente.
+
+<a id="analisis-cu-03"></a>
+## CU-03 — Administrar cuentas de usuario y su acceso
+
+### Actores, objetivo y trazabilidad
+
+**Actor iniciador:** Administrador. En aceptación y cambio obligatorio participa el titular Administrador/Recepcionista/Médico; no se introduce un rol Trabajador. Paciente puede ser cuenta objetivo de acceso, **no actor administrador**. **Objetivo:** administrar personal y acceso mínimo de cuentas Paciente verificadas, conservando identidad y permisos fijos. **Trazabilidad:** RF01, RN12/RN14, PN02; VS-AUT-02/04–08/11/12/23–27 y §4.4 de reglas.
+
+**Precondiciones:** Administrador normal con permiso actual; registro profesional compatible cuando corresponda; cuentas Paciente ya verificadas/vinculadas. Aceptación requiere invitación inicial válida y ausencia de sesión autenticada; cambio definitivo requiere sesión restringida vigente. **Postcondiciones:** solo se confirma la operación autorizada, con historia preservada, revocaciones correspondientes y al menos un Administrador normal habilitado.
+
+### Procedimiento: alta y reenvío de invitación del personal
+
+**Boundary:** formulario administrativo de personal/reenvío, conceptual/React pendiente. Actor exclusivo Administrador.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `store()`, `reenviar()` [controller] | `PersonalController` | Alta 201 o reenvío 200, con proyección administrativa. |
+| `crear()`, `reenviar()` [service] | `InvitacionPersonalService` | Autorizar, crear pendiente o reemitir sobre la misma cuenta. |
+| `rules()` [validator] | `CrearPersonalRequest`, `ReenviarInvitacionRequest` | Validar campos por rol o BIGINT de ruta; una operación resumida en el dibujo para sus respectivas solicitudes. |
+| `crearPersonal()` [repository] | `UsuarioRepository` | Insertar la cuenta con valores fijados por servidor. |
+| `emitir()` [repository] | `TokenAccesoRepository` | Persistir invitación inicial. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazAlta["Alta y reenvío de personal — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlAlta["CONTROL — Alta e invitación"] {
+        <<control>>
+        +store() [controller]
+        +reenviar() [controller]
+        +crear() [service]
+        +reenviar() [service]
+        +rules() [validator]
+        +crearPersonal() [repository]
+        +emitir() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String correo_acceso
+        String estado_cuenta
+        String? nombres_personal
+        String? apellidos_personal
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        String token_hash
+        TimestampTZ expira_en
+    }
+    Administrador --> InterfazAlta : registra o reenvia
+    InterfazAlta ..> ControlAlta : solicita operacion
+    ControlAlta ..> Usuario : crea o recupera pendiente
+    Usuario "0..1" -- "0..1" Medico : vinculo compatible
+    Usuario "1" -- "0..*" TokenAcceso : invitaciones
+    style Administrador fill:#fff7ed,stroke:#9a3412
+    style InterfazAlta fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAlta fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Medico fill:#dcfce7,stroke:#15803d
+    style TokenAcceso fill:#dcfce7,stroke:#15803d
+```
+
+El Service revalida al Administrador bajo bloqueo, obtiene el rol fijo y bloquea Médico libre si aplica con `MedicoRepository::porIdBloqueado()`/`vincular()`. Crea Usuario Pendiente con hash/verificación nulos; su método privado `emitir()` invalida invitaciones anteriores, genera secreto/HMAC y registra envío `afterCommit` mediante `CorreoSeguridadService::enviarInvitacion()`. Vigencia 24 horas/uso único. Reenvío sobre la misma cuenta: espera técnica de 60 segundos y cinco emisiones/hora, con solicitudes 20/minuto/IP y cinco/minuto/ámbito. Fallo SQL revierte; fallo de transporte posterior conserva cuenta/token y permite reemisión controlada. Correo único y bloqueo de Médico protegen concurrencia.
+
+### Procedimiento: aceptar invitación y establecer primera contraseña
+
+**Boundary:** aceptación de invitación, conceptual/React pendiente. Participan únicamente los tres roles del personal como titulares invitados.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `aceptar()` [controller] | `InvitacionPersonalController` | Recibir token/clave validados y responder 204. |
+| `aceptar()` [service] | `InvitacionPersonalService` | Revalidar pendiente/token, activar y coordinar consumo. |
+| `rules()` [validator] | `AceptarInvitacionRequest` | Token y reglas compartidas de `ClaveRequest`. |
+| `porHash()`, `consumir()` [repository] | `TokenAccesoRepository` | Consultar invitación por propósito y consumirla. |
+| `guardar()` [repository] | `UsuarioRepository` | Persistir hash, correo verificado y estado Activa. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Personal["Administrador · Recepcionista · Médico"] {
+        <<actor>>
+    }
+    class InterfazInvitacion["Aceptar invitación — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlInvitacion["CONTROL — Aceptar invitación"] {
+        <<control>>
+        +aceptar() [controller]
+        +aceptar() [service]
+        +rules() [validator]
+        +porHash() [repository]
+        +consumir() [repository]
+        +guardar() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String? password_hash
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_usuario
+        String token_hash
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    Personal --> InterfazInvitacion : establece primera clave
+    InterfazInvitacion ..> ControlInvitacion : presenta token y clave
+    ControlInvitacion ..> Usuario : activa cuenta
+    Usuario "1" -- "0..*" TokenAcceso : invitaciones
+    style Personal fill:#fff7ed,stroke:#9a3412
+    style InterfazInvitacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlInvitacion fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style TokenAcceso fill:#dcfce7,stroke:#15803d
+```
+
+No exige contraseña anterior inexistente. Orden Usuario→Token, nueva comprobación de `[emitido_en, expira_en)`, estado y vínculo; guarda hash/verificación/Activa, consume e invalida invitaciones hermanas, revoca sesiones y cierra contexto, con auditoría en la misma transacción. **204 y nuevo login**, sin autenticación automática. Token inválido produce 422 genérico tras confirmar denegación; aceptación concurrente solo confirma una vez. Enlace previsto `/activar-personal#token=...`; secreto solo en correo/memoria, no en respuesta administrativa ni logs.
+
+### Procedimiento: listado y consulta administrativa
+
+**Boundary:** listado/detalle administrativo, conceptual/React pendiente. Actor Administrador; el Paciente listado es recurso, no actor.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `index()`, `show()` [controller] | `CuentaController` | Listado o detalle mediante Resource. |
+| `listar()`, `consultar()` [service] | `AdministracionCuentaService` | Revalidar al Administrador y limitar el objetivo accesible. |
+| `rules()` [validator] | `ListarCuentasRequest`, `CuentaRequest` | Filtros/paginación o ID de ruta. |
+| `listadoAdministrativo()`, `porId()` [repository] | `UsuarioRepository` | Consultas administrativas; paginación y vínculos. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazCuentas["Listado y detalle — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlConsulta["CONTROL — Consultar cuentas"] {
+        <<control>>
+        +index() [controller]
+        +show() [controller]
+        +listar() [service]
+        +consultar() [service]
+        +rules() [validator]
+        +listadoAdministrativo() [repository]
+        +porId() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String correo_acceso
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    Administrador --> InterfazCuentas : consulta
+    InterfazCuentas ..> ControlConsulta : solicita listado o detalle
+    ControlConsulta ..> Usuario : recupera datos permitidos
+    Usuario "0..*" -- "1" Rol : filtra por rol fijo
+    style Administrador fill:#fff7ed,stroke:#9a3412
+    style InterfazCuentas fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlConsulta fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+```
+
+El Service revalida sesión normal/Admin dentro de transacción; `CuentaAdministrativaResource` proyecta lista permitida. Pacientes no verificados/sin vínculo se excluyen y su detalle devuelve 404. Filtros rol/estado/correo exacto normalizado, page/per_page; ID descendente fijo, 20 por defecto/100 máximo. Para Paciente solo ID de Usuario, correo, rol, estado y verificación; personal agrega identidad administrativa/profesional autorizada, sin contenido clínico.
+
+### Procedimiento: estado de acceso y rol
+
+**Boundary:** administración de acceso/rol, conceptual/React pendiente. Actor Administrador.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `estado()`, `rol()` [controller] | `CuentaController` | Mutación administrativa y Resource. |
+| `cambiarEstado()`, `cambiarRol()` [service] | `AdministracionCuentaService` | Transición autorizada, identidad y efectos de revocación. |
+| `coordinar()`, `verificar()` [service] | `ContinuidadAdministrativaService` | Exclusión global y último Administrador resultante. |
+| `rules()` [validator] | `CambiarEstadoCuentaRequest`, `CambiarRolCuentaRequest` | Campos permitidos, estado/rol y declaración de identidad. |
+| `guardar()` [repository] | `UsuarioRepository` | Persistir cambios de cuenta. |
+| `revocarUsuario()` [repository] | `SesionRepository` | Invalidar dispositivos de la cuenta. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazAccesoRol["Estado y rol de cuentas — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlAccesoRol["CONTROL — Modificar acceso o rol"] {
+        <<control>>
+        +estado() [controller]
+        +rol() [controller]
+        +cambiarEstado() [service]
+        +cambiarRol() [service]
+        +coordinar() [service]
+        +verificar() [service]
+        +rules() [validator]
+        +guardar() [repository]
+        +revocarUsuario() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    Administrador --> InterfazAccesoRol : solicita cambio
+    InterfazAccesoRol ..> ControlAccesoRol : presenta datos permitidos
+    ControlAccesoRol ..> Usuario : revalida y modifica
+    Usuario "0..*" -- "1" Rol : asignacion fija
+    Usuario "0..1" -- "0..1" Medico : conserva identidad
+    style Administrador fill:#fff7ed,stroke:#9a3412
+    style InterfazAccesoRol fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAccesoRol fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Medico fill:#dcfce7,stroke:#15803d
+```
+
+`AdministracionCuentaService::modificar()` comparte transacción: global `(736201,1)` → actor → objetivo → tokens; guarda, invalida recuperaciones/temporales, comprueba continuidad, revoca sesiones y registra cambios seguros. Cambio propio cierra contexto. Denegación revierte y registra referencias seguras aparte; fallo necesario revierte también vínculo tentativo y revocación.
+
+- Estado: Activa↔Desactivada con verificación/hash/vínculo legítimos; no habilita Pendiente. Conserva correo, contraseña, identidad, bloqueos, ficha e historia. Reactivación exige login y no activa ficha.
+- Paciente: solo acceso de cuenta previamente verificada/vinculada; nunca contraseña/correo/rol/vinculación ni restablecimiento administrativo.
+- Rol: Administrador↔Recepcionista; entrada inicial a Médico exige registro libre compatible, `identidad_verificada=true` y nombres normalizados compatibles, sin tomar coincidencia como prueba civil. Vínculo histórico solo mismo Médico.
+- Retiro Médico: inactividad profesional expresa y ausencia comprobable de obligaciones; `MedicoRepository::tieneAtencionesSinCierreComprobable()` rechaza citas Programada/Confirmada/Atendida o cualquier consulta. Atendida, consulta o `iniciada_en=NULL` no acreditan cierre documental. No traslada/cancela ni inventa cierres, estados o transiciones pendientes.
+- Continuidad: conserva al menos un Administrador Activa/verificado/con hash/sin cambio obligatorio/identidad utilizable. Un bloqueo temporal no lo excluye del cómputo. El advisory precede a los bloqueos de cuentas y se comparte con emisión temporal.
+
+### Procedimiento: emitir credencial temporal excepcional
+
+**Boundary:** restablecimiento administrativo con comprobación presencial, conceptual/React pendiente. Actor Administrador; objetivo exclusivamente personal Activo/verificado.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `emitir()` [controller] | `CredencialTemporalController` | Responder 201 con entrega única autorizada. |
+| `emitir()` [service] | `CredencialTemporalService` | Elegibilidad, plazo/cupo, restricción y revocación atómicas. |
+| `verificar()` [service] | `ContinuidadAdministrativaService` | Proteger último Administrador resultante, tras `coordinar()`. |
+| `rules()` [validator] | `EmitirCredencialTemporalRequest` | ID de ruta y comprobación expresa de identidad. |
+| `personalHabilitado()` [validator] | `CredencialTemporalValidator` | Validación de negocio de personal elegible. |
+| `emitirTemporal()` [repository] | `TokenAccesoRepository` | Persistir HMAC/propósito y fechas del temporal. |
+| `revocarUsuario()` [repository] | `SesionRepository` | Retirar sesiones anteriores. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazTemporal["Restablecimiento presencial — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlEmision["CONTROL — Emitir temporal"] {
+        <<control>>
+        +emitir() [controller]
+        +emitir() [service]
+        +verificar() [service]
+        +rules() [validator]
+        +personalHabilitado() [validator]
+        +emitirTemporal() [repository]
+        +revocarUsuario() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String estado_cuenta
+        String? password_hash
+        TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_usuario
+        String proposito
+        String token_hash
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+    }
+    Administrador --> InterfazTemporal : verifica identidad
+    InterfazTemporal ..> ControlEmision : solicita emision
+    ControlEmision ..> Usuario : restringe acceso
+    Usuario "1" -- "0..*" TokenAcceso : temporales
+    style Administrador fill:#fff7ed,stroke:#9a3412
+    style InterfazTemporal fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlEmision fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style TokenAcceso fill:#dcfce7,stroke:#15803d
+```
+
+Credencial aleatoria de **20 caracteres**, visible una sola vez al Administrador para entrega presencial; solo HMAC persistido, sin Brevo. **30 minutos** desde emisión para ingresar/completar, sin extensión. Emisión conserva pero inhabilita hash anterior, marca cambio obligatorio, invalida temporales/recuperaciones y revoca sesiones; preserva bloqueo/intentos. Reemisión: 60 segundos/cinco por hora/cuenta compartidos entre Admin/IP; cada nueva emisión invalida la anterior. Usa protocolo global→actor→objetivo→tokens y continuidad antes de entregar; una restricción propia cierra sesión del Administrador.
+
+### Procedimiento: completar cambio obligatorio del personal
+
+**Boundary:** formulario exclusivo de contraseña definitiva, conceptual/React pendiente. Actores titulares Administrador/Recepcionista/Médico con sesión restringida obtenida por CU-01.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `completar()` [controller] | `CredencialTemporalController` | Responder 204 sin convertir la sesión en normal. |
+| `completar()` [service] | `CredencialTemporalService` | Actualizar hash, consumir y cerrar atómicamente. |
+| `exigirSesionRestringida()` [service] | `AutenticacionService` | Revalidar actor/token/sesión persistida bajo bloqueo. |
+| `rules()` [validator] | `ClaveRequest` | Política heredada por `CompletarClaveTemporalRequest`, que no declara métodos propios. |
+| `vigente()` [validator] | `CredencialTemporalValidator` | Revalidación del temporal también después del hash. |
+| `guardar()` [repository] | `UsuarioRepository` | Definitiva y eliminación de cambio obligatorio. |
+| `consumir()` [repository] | `TokenAccesoRepository` | Uso definitivo del temporal. |
+| `revocarUsuario()` [repository] | `SesionRepository` | Retirar todas las sesiones, incluida la restringida. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Personal["Administrador · Recepcionista · Médico"] {
+        <<actor>>
+    }
+    class InterfazDefinitiva["Contraseña definitiva — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlDefinitiva["CONTROL — Completar cambio obligatorio"] {
+        <<control>>
+        +completar() [controller]
+        +completar() [service]
+        +exigirSesionRestringida() [service]
+        +rules() [validator]
+        +vigente() [validator]
+        +guardar() [repository]
+        +consumir() [repository]
+        +revocarUsuario() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String? password_hash
+        Boolean cambio_clave_obligatorio
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    Personal --> InterfazDefinitiva : establece y confirma
+    InterfazDefinitiva ..> ControlDefinitiva : solicita cambio definitivo
+    ControlDefinitiva ..> Usuario : actualiza credencial
+    Usuario "1" -- "0..*" TokenAcceso : consumo unico
+    style Personal fill:#fff7ed,stroke:#9a3412
+    style InterfazDefinitiva fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlDefinitiva fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style TokenAcceso fill:#dcfce7,stroke:#15803d
+```
+
+Login/reingreso mantiene regla 3/10 y solo un dispositivo restringido vigente. Al completar: Usuario→Token, revalidación después de hash, guardar definitiva/quitar marca, consumir e invalidar temporales/recuperaciones, revocar/cerrar y auditar; **nuevo login obligatorio**. Vencer o logout expreso sin completar exige reemisión y no restaura clave anterior. CU-06 no emite ni consume recuperaciones durante cambio obligatorio. Estado/rol/reemisión invalidan temporales y sesiones; reactivar no los resucita. La sesión restringida devuelve solo estado mínimo en login/me; funciones normales responden 403 `AUTH_CAMBIO_CLAVE_OBLIGATORIO`.
+
+### Contratos HTTP y errores de CU-03
+
+| Operación | Entrada principal | Resultado |
+| --- | --- | --- |
+| POST `/api/personal` | Rol del personal, correo, nombres administrativos o ID de Médico. | 201, cuenta Pendiente y meta de invitación. |
+| POST `/api/personal/{id}/invitacion` | ID de ruta. | 200, misma cuenta y meta de nueva invitación. |
+| POST `/api/auth/invitaciones/aceptar` | Token hexadecimal de 64 caracteres, password/confirmación. | 204; login posterior. |
+| GET `/api/usuarios` y `/api/usuarios/{id}` | Filtros/paginación o BIGINT de ruta. | 200 Resource administrativo limitado. |
+| PATCH `/api/usuarios/{id}/estado` | `estado_cuenta` Activa/Desactivada. | 200, acceso actualizado y sesiones revocadas. |
+| PATCH `/api/usuarios/{id}/rol` | Rol del personal; Médico requiere `id_medico` y declaración cuando corresponde. | 200, identidad preservada; nuevo login. |
+| POST `/api/usuarios/{id}/credencial-temporal` | ID de ruta, `identidad_verificada=true`. | 201, ID string, temporal de entrega única y vencimiento. |
+| PUT `/api/auth/password/temporal` | Password/confirmación; titular de sesión restringida. | 204, consumo/cierre y nuevo login. |
+
+Mutaciones administrativas requieren Admin normal; aceptación es pública con origen/CSRF; completado restringido exige su contexto. ID objetivo siempre de ruta o sesión, no de selectores alternativos. 401/403 de acceso, 419 CSRF, 422 de campos o `INVITACION_INVALIDA`, 404 de objetivo no accesible, 409 por transiciones/vínculo/correo/último Admin/temporal no permitido, 429 por límites, 500 seguro con rollback. Meta de invitación distingue simulado/aceptado/fallido/pendiente: aceptación del transporte no acredita buzón. Reemisión fallida a nivel SQL no invalida irrevocablemente el enlace previo; envío externo ya confirmado no se revierte.
+
+**Excepción de instalación:** `AdministradorInicialSeeder` prepara únicamente el primer Administrador Activo, idempotente/local/controlado, con credenciales privadas; no es formulario ni alta general. Su verificación administrativa no demuestra control de buzón. Evidencia previa en contexto §17.12; no se incorpora como actor ni operación de la interfaz ordinaria.
+
+### Pruebas, evidencia y pendientes
+
+`InvitacionPersonalTest`, `AdministracionCuentaTest`, `CredencialTemporalTest` y `AutenticacionConcurrenteTest` cubren permisos, verificación/uso único, identidad, último Admin, revocación, privacidad, rollback y carreras PostgreSQL. `BrevoHttpTransportTest` prueba transporte real con HTTP simulado. Evidencia íntegra en expediente [§15](#expediente-15), [§16](#expediente-16), [§19](#expediente-19) y [§20](#expediente-20). Último cierre previo de fase 6: **538 pruebas/5234 aserciones**; no es una ejecución nueva de esta reorganización. Bloques backend implementados; integración final/React y retiro Médico con cierre clínico no comprobable siguen limitados.
+
+<a id="analisis-cu-04"></a>
+## CU-04 — Registrar cuenta del Paciente y vincular su registro
+
+### Actores, objetivo y trazabilidad
+
+**Actor:** Paciente sin sesión autenticada. Recepcionista interviene previamente en escenario B mediante CU-07, no en el alta nueva. **Objetivo:** crear/vincular cuenta propia con CI y única ficha, sin apropiarse de una ficha histórica ni perder su identificador. **Trazabilidad:** RF01/RF02, RN01/RN12/RN14, PN03; VS-AUT-13–22. **Estado:** escenarios A/7A y B/7B implementados en backend, incluida emisión autorizada de Recepción; integración final y React pendientes.
+
+**Precondiciones A:** CI y datos de registro válidos, contraseña aprobada y correo al que accede el solicitante; backend revalida reservas/unicidad. **Postcondición A:** únicamente tras verificar se crean Usuario Activa/rol Paciente y ficha activa vinculada en una transacción; sin login automático. CI obligatorio es decisión del proyecto; CU-07 conserva documento nullable para ficha administrativa excepcional.
+
+### Escenario A — inicio y reenvío
+
+**Boundary:** registro de Paciente nuevo y solicitud de reenvío, conceptual/React pendiente.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `iniciar()`, `reenviar()` [controller] | `RegistroPacienteController` | Contexto protegido/cookie y 202 genérico. |
+| `iniciar()`, `reenviar()` [service] | `RegistroPacienteService` | Reserva/reanudación y emisión diferida controlada. |
+| `rules()` [validator] | `RegistrarPacienteRequest` | CI/datos/clave y campos permitidos. Reenvío usa cookie, no otro formulario de identidad. |
+| `crear()`, `emitirCodigo()` [repository] | `RegistroPacienteRepository` | Crear pendiente y código de correo, sin ficha definitiva. |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorPaciente["Paciente"] {
+        <<actor>>
+    }
+    class InterfazRegistro["Registro nuevo y reenvío — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlRegistro["CONTROL — Iniciar o reenviar"] {
+        <<control>>
+        +iniciar() [controller]
+        +reenviar() [controller]
+        +iniciar() [service]
+        +reenviar() [service]
+        +rules() [validator]
+        +crear() [repository]
+        +emitirCodigo() [repository]
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt id_registro_pendiente
+        String tipo_registro
+        String? documento_identidad
+        String correo_propuesto
+        String? password_hash_temporal
+        JSONB? datos_registro
+        TimestampTZ iniciado_en
+        TimestampTZ expira_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_registro_pendiente
+        String codigo_hash
+        TimestampTZ enviado_en
+        TimestampTZ expira_en
+    }
+    ActorPaciente --> InterfazRegistro : solicita cuenta propia
+    InterfazRegistro ..> ControlRegistro : envia datos o pide reenvio
+    ControlRegistro ..> RegistroPacientePendiente : reserva o reanuda
+    RegistroPacientePendiente "0..1" -- "0..*" VerificacionCorreo : codigos por proceso
+    style ActorPaciente fill:#fff7ed,stroke:#9a3412
+    style InterfazRegistro fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlRegistro fill:#dbeafe,stroke:#1d4ed8
+    style RegistroPacientePendiente fill:#dcfce7,stroke:#15803d
+    style VerificacionCorreo fill:#dcfce7,stroke:#15803d
+```
+
+La cardinalidad 0..1 de VerificacionCorreo→proceso conserva la FK nullable del modelo compartido con CambioCorreo; para `ActivacionPaciente` el CHECK exige exactamente un proceso y ningún Usuario. No se crea otro tipo de verificación.
+
+Inicio genera/reutiliza secreto de contexto aleatorio de 256 bits en cookie cifrada/HttpOnly/host-only `clinica_registro_paciente`, independiente de la sesión de 120 minutos; solo HMAC en `datos_registro._contexto_hash`. Tras hash uniforme, `defer` ejecuta reserva bajo coordinación `(736202,1)`; proceso Nuevo de **24 horas**, sin Usuario/Paciente definitivos. Reintento propio conserva datos/clave/plazo; CI/correo no permiten tomar otro proceso ni transferirlo sin cookie.
+
+`RegistroPacienteService::emitir()` genera código distinto de todos los anteriores del proceso, invalida previos y guarda HMAC ligado al ID mediante `RegistroPacienteContexto::codigo()`. Código de seis dígitos, hasta diez minutos o fin principal si anterior, cinco errores. Reenvío espera 60 segundos y máximo cinco emisiones/hora por proceso **y correo**, incluso entre contextos/IP y fallos de envío; no amplía 24 horas. `CorreoSeguridadService::enviarActivacionPaciente()` actúa después del commit, sin sostener locks durante correo.
+
+### Escenario A — verificación y creación definitiva
+
+**Boundary:** introducción del código de correo del mismo contexto, conceptual/React pendiente.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `verificar()` [controller] | `RegistroPacienteController` | Código validado/cookie → Service; 204 y eliminación de cookie. |
+| `verificar()` [service] | `RegistroPacienteService` | Vigencia, intentos, unicidad y creación/consumo atómicos. |
+| `rules()` [validator] | `VerificarRegistroPacienteRequest` | Exigir código de seis dígitos como texto. |
+| `porContexto()`, `ultimoCodigo()` [repository] | `RegistroPacienteRepository` | Recuperar y bloquear proceso/código propios. |
+| Primer `crearPaciente()` [repository] | `UsuarioRepository` | Insertar cuenta Activa/verificada con rol fijado por servidor. |
+| Segundo `crearPaciente()` [repository] | `RegistroPacienteRepository` | Insertar ficha enlazada con datos administrativos validados. |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorPaciente["Paciente"] {
+        <<actor>>
+    }
+    class InterfazVerificacion["Verificación de correo — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlVerificacion["CONTROL — Verificar registro nuevo"] {
+        <<control>>
+        +verificar() [controller]
+        +verificar() [service]
+        +rules() [validator]
+        +porContexto() [repository]
+        +ultimoCodigo() [repository]
+        +crearPaciente() [repository]
+        +crearPaciente() [repository]
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt id_registro_pendiente
+        TimestampTZ expira_en
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_registro_pendiente
+        String codigo_hash
+        Integer intentos_fallidos
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String correo_acceso
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String? documento_identidad
+        Boolean activo
+    }
+    ActorPaciente --> InterfazVerificacion : introduce codigo
+    InterfazVerificacion ..> ControlVerificacion : solicita verificacion
+    ControlVerificacion ..> RegistroPacientePendiente : revalida y completa
+    RegistroPacientePendiente "0..1" -- "0..*" VerificacionCorreo : verifica codigo propio
+    ControlVerificacion ..> Usuario : crea cuenta autorizada
+    Usuario "0..1" -- "0..1" Paciente : vincula ficha nueva
+    style ActorPaciente fill:#fff7ed,stroke:#9a3412
+    style InterfazVerificacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlVerificacion fill:#dbeafe,stroke:#1d4ed8
+    style RegistroPacientePendiente fill:#dcfce7,stroke:#15803d
+    style VerificacionCorreo fill:#dcfce7,stroke:#15803d
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+```
+
+Orden global→proceso→código; error incrementa contador y al quinto invalida, confirmando esos efectos antes del 422. Acierto revalida ausencia de ficha/cuenta, obtiene rol Paciente, crea Usuario y ficha con código `PAC-`+UUID, completa/limpia pendiente, consume/invalida código, audita y cierra contexto. Todo confirma junto; sin preferencias ni antecedentes ficticios. UQ finales de CI/correo/cuenta revierten colisiones externas 23505 sin dejar una cuenta/ficha parcial; 422 seguro y pendiente recuperable para revalidación. Conflicto encontrado antes de crear invalida/limpia el proceso sin vincular historia ajena.
+
+### Contratos y seguridad comunes
+
+| Operación | Entrada | Resultado |
+| --- | --- | --- |
+| POST `/api/auth/registro` | CI, nombres/apellidos, nacimiento, teléfono, correo, password/confirmación; sexo/correo_contacto/dirección opcionales. | 202 genérico y cookie de 24 h. |
+| POST `/api/auth/registro/vincular` | CI, `codigo_activacion` de Recepción, correo, password/confirmación; sin ID/ficha/datos demográficos. | Mismo 202 genérico y contexto protegido. |
+| POST `/api/auth/registro/reenviar` | Contexto exclusivamente de cookie, sin selector de cuenta/proceso. | Mismo 202 genérico. |
+| POST `/api/auth/registro/verificar` | `codigo` y contexto de cookie. | 204 tras crear ficha/cuenta nueva o vincular ficha existente y consumir ambos códigos; nuevo login. |
+
+CI: string hasta 50 sin controles Unicode; recorta solo U+0020 exteriores, conserva caso/signos/ceros/espacios interiores. No se inventa patrón civil. Correo de contacto es independiente del de acceso. `RegistrarPacienteRequest::withValidator()` rechaza campos privilegiados/ajenos. Origen/CSRF obligatorios; autenticado 409, campos 422, verificación 422 `REGISTRO_VERIFICACION_INVALIDA`, límite técnico independiente 429. Hash uniforme y `Content-Length`/`defer` evitan confirmar públicamente reserva/emisión/entrega; el 202 no acredita ninguna de ellas. No hay cola/outbox persistida ni garantía de entrega.
+
+<a id="analisis-cu07-emision"></a>
+### CU-07 — emisión de código de Recepción (alcance parcial necesario para 7B)
+
+**Actor:** Recepcionista con sesión normal y cuenta habilitada. **Objetivo:** autorizar presencialmente la vinculación de una ficha existente sin crear la cuenta. **Trazabilidad:** RF02, RN01/RN11/RN12/RN14, PN04; VS-AUT-15/18/19/22. **Precondiciones:** ficha existente con CI válido y sin cuenta, identidad/CI comprobados presencialmente y declaración expresa de Recepción. **Resultado:** código seguro para entrega presencial y evento con responsable, sin datos clínicos. Una ficha inactiva también puede vincular acceso propio; conserva su estado y no obtiene permiso de nuevas reservas.
+
+**Boundary:** formulario de emisión/reemplazo y entrega presencial, conceptual/React pendiente. El CRUD de fichas, incorporación de CI y consulta administrativa de citas de CU-07 siguen fuera de este bloque.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `emitir()` [controller] | `CodigoActivacionController` | ID de ruta/declaración → Service → 201 y entrega única. |
+| `emitir()` [service] | `CodigoActivacionService` | Revalidar Recepción/ficha, sustituir autorización y auditar en transacción. |
+| `exigirSesionNormal()` [service] | `AutenticacionService` | Revalidar cuenta/sesión después de esperar el bloqueo global. |
+| `rules()` [validator] | `EmitirCodigoActivacionRequest` | BIGINT de ruta y comprobación presencial expresa; hereda rechazo de campos ajenos de `CuentaRequest`. |
+| `documentoValido()` [validator] | `CodigoActivacionValidator` | CI presente, no vacío, máximo 50 y sin controles Unicode. |
+| `crear()` [repository] | `CodigoActivacionRepository` | Persistir exclusivamente HMAC, emisor, ficha y vigencias. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Recepcionista {
+        <<actor>>
+    }
+    class InterfazCodigo["Código presencial — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlCodigo["CONTROL — Emitir código de Recepción"] {
+        <<control>>
+        +emitir() [controller]
+        +emitir() [service]
+        +exigirSesionNormal() [service]
+        +rules() [validator]
+        +documentoValido() [validator]
+        +crear() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String? documento_identidad
+    }
+    class CodigoActivacionPaciente {
+        <<entity>>
+        BigInt id_codigo_activacion
+        BigInt id_recepcionista
+        String codigo_hash
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? invalidado_en
+    }
+    Recepcionista --> InterfazCodigo : comprueba identidad y CI
+    InterfazCodigo ..> ControlCodigo : solicita emision o reemplazo
+    ControlCodigo ..> Paciente : revalida ficha sin cuenta
+    Paciente "1" -- "0..*" CodigoActivacionPaciente : autorizaciones presenciales
+    style Recepcionista fill:#fff7ed,stroke:#9a3412
+    style InterfazCodigo fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCodigo fill:#dbeafe,stroke:#1d4ed8
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style CodigoActivacionPaciente fill:#dcfce7,stroke:#15803d
+```
+
+POST `/api/pacientes/{id}/codigo-activacion` recibe solo `identidad_verificada=true`; 201 con `data.id_paciente` string, `codigo_activacion` y `expira_en`. La declaración representa una comprobación humana, no una identificación automática por CI. `ExigirRol:Recepcionista`, cuenta/sesión normal, origen/CSRF y `LimitarCodigoActivacion` preceden al Service. La autorización también se revalida bajo bloqueo transaccional. Administrador no hereda esta facultad.
+
+Protocolo `(736202,1)` → actor → ficha/códigos/reservas. Sustitución invalida autorizaciones anteriores y los procesos pendientes de esa ficha, limpia hash/datos y sus códigos de correo, luego genera **12 caracteres aleatorios entre 62 símbolos**, HMAC-SHA256 separado por propósito y ligado a ID de Paciente, **24 horas** y cinco errores. Se entrega una vez para uso presencial; ni correo ni Bitácora contienen el secreto. Fallo de auditoría/escritura revierte también las invalidaciones, conservando el proceso previo. Datos de ficha, cuenta y clínica no se modifican por emitir.
+
+Errores: 401 de sesión, 403 de rol/restricción/origen, 404 ficha inexistente, 409 `ACTIVACION_NO_PERMITIDA` si no reúne CI/ausencia de cuenta/identidad, 419 CSRF, 422 campos, 429 límite técnico o 500 seguro. Límite técnico reutilizado: 20 solicitudes/minuto/IP y cinco/minuto/Recepcionista, compartido entre dispositivos; no es un nuevo plazo funcional de reemisión. El resto de CU-07 continúa pendiente y no se declara cerrado su módulo.
+
+### Escenario B — reservar la vinculación histórica
+
+**Precondiciones:** código presencial vigente/correspondiente, CI obligatorio, ficha sin cuenta y correo disponible; cookie anónima del solicitante. **Boundary:** formulario «Ya tengo código de activación», conceptual/React pendiente, sin editar identidad ni ficha.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `vincular()` [controller] | `RegistroPacienteController` | Datos validados y cookie → Service; 202 uniforme. |
+| `vincular()` [service] | `RegistroPacienteService` | Comprobar código/CI y reservar proceso exclusivo sin consumo definitivo. |
+| `rules()` [validator] | `VincularPacienteRequest` | CI/correo/código alfanumérico y política compartida de clave; hereda normalización/rechazo de campos ajenos. |
+| `vigente()` [validator] | `CodigoActivacionValidator` | Comprobar fechas, contador, invalidación y consumo del código presencial. |
+| `pacientePorDocumento()`, `ultimo()` [repository] | `CodigoActivacionRepository` | Bloquear ficha localizada por CI y su autorización más reciente. |
+| `crear()` [repository] | `RegistroPacienteRepository` | Guardar reserva Vinculacion, hash temporal y HMAC de contexto. |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorPaciente["Paciente"] {
+        <<actor>>
+    }
+    class InterfazVincular["Vinculación histórica — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlVincular["CONTROL — Reservar vinculación"] {
+        <<control>>
+        +vincular() [controller]
+        +vincular() [service]
+        +rules() [validator]
+        +vigente() [validator]
+        +pacientePorDocumento() [repository]
+        +ultimo() [repository]
+        +crear() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String? documento_identidad
+    }
+    class CodigoActivacionPaciente {
+        <<entity>>
+        BigInt id_codigo_activacion
+        String codigo_hash
+        Integer intentos_fallidos
+        TimestampTZ expira_en
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt? id_paciente
+        BigInt? id_codigo_activacion
+        String tipo_registro
+        String correo_propuesto
+        TimestampTZ expira_en
+    }
+    ActorPaciente --> InterfazVincular : presenta CI y autorizacion
+    InterfazVincular ..> ControlVincular : solicita vinculo propio
+    ControlVincular ..> Paciente : comprueba ficha original
+    Paciente "1" -- "0..*" CodigoActivacionPaciente : autoriza inicio
+    CodigoActivacionPaciente "0..1" -- "0..*" RegistroPacientePendiente : reserva exclusiva vigente
+    style ActorPaciente fill:#fff7ed,stroke:#9a3412
+    style InterfazVincular fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlVincular fill:#dbeafe,stroke:#1d4ed8
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style CodigoActivacionPaciente fill:#dcfce7,stroke:#15803d
+    style RegistroPacientePendiente fill:#dcfce7,stroke:#15803d
+```
+
+La multiplicidad permite intentos históricos; las UQ parciales limitan a **un proceso abierto** por ficha/código/CI/correo. Vinculacion exige ambas FK informadas. `datos_registro` almacena únicamente `_contexto_hash`, sin copiar datos demográficos. El plazo del proceso es **el vencimiento original del código de Recepción**, no otras 24 horas desde el inicio. El hash de contraseña y contexto se limpian al finalizar/invalidar.
+
+Tras hash uniforme, el mismo 202 delimitado difiere las consultas/transacción. Reserva de otra cookie rechaza sin transferir el código y sin permitir agotar sus intentos reservados; un reintento propio exige CI/correo y código correctos, conserva hash/datos/plazo y solo intenta reenvío controlado. Error de primer código suma al contador persistido; al quinto lo invalida y retira sus pendientes. Código futuro/vencido/usado/agotado/invalidado no reserva; errores de existencia/correo/autorización mantienen respuesta pública idéntica. No se obtiene historia por CI/correo.
+
+### Escenario B — confirmar correo y vincular atómicamente
+
+**Boundary:** código de correo del contexto reservado, conceptual/React pendiente. **Postcondición:** Usuario Activa/verificada de rol Paciente vinculado a la misma ficha, ambos códigos consumidos; sin login automático ni activación de una ficha inactiva.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `verificar()` [controller] | `RegistroPacienteController` | Mismo endpoint de 7A y eliminación de cookie tras 204. |
+| `verificar()` [service] | `RegistroPacienteService` | Revalidar contexto/ficha/ambos códigos, crear cuenta y coordinar consumo. |
+| `rules()` [validator] | `VerificarRegistroPacienteRequest` | Código numérico de seis dígitos. |
+| `vigente()` [validator] | `CodigoActivacionValidator` | Revalidar autorización de Recepción antes del vínculo definitivo. |
+| `crearPaciente()` [repository] | `UsuarioRepository` | Crear exclusivamente la cuenta Activa de rol Paciente. |
+| `vincular()`, `guardar()` [repository] | `CodigoActivacionRepository` | Asignar id_usuario en ficha y guardar consumo presencial. |
+| `guardarCodigo()` [repository] | `RegistroPacienteRepository` | Consumir el código de correo dentro de la misma transacción. |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorPaciente["Paciente"] {
+        <<actor>>
+    }
+    class InterfazConfirmar["Confirmar vinculación — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlConfirmar["CONTROL — Confirmar vínculo histórico"] {
+        <<control>>
+        +verificar() [controller]
+        +verificar() [service]
+        +rules() [validator]
+        +vigente() [validator]
+        +crearPaciente() [repository]
+        +vincular() [repository]
+        +guardar() [repository]
+        +guardarCodigo() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        Boolean activo
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String correo_acceso
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+    }
+    class CodigoActivacionPaciente {
+        <<entity>>
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+    }
+    ActorPaciente --> InterfazConfirmar : confirma el buzon propio
+    InterfazConfirmar ..> ControlConfirmar : presenta segundo codigo
+    ControlConfirmar ..> Paciente : conserva ficha e historia
+    Paciente "0..1" -- "0..1" Usuario : vincula cuenta unica
+    ControlConfirmar ..> CodigoActivacionPaciente : consume autorizacion
+    ControlConfirmar ..> VerificacionCorreo : consume verificacion
+    style ActorPaciente fill:#fff7ed,stroke:#9a3412
+    style InterfazConfirmar fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlConfirmar fill:#dbeafe,stroke:#1d4ed8
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style CodigoActivacionPaciente fill:#dcfce7,stroke:#15803d
+    style VerificacionCorreo fill:#dcfce7,stroke:#15803d
+```
+
+Cada operación toma global antes de proceso/ficha/códigos; solo emisión añade previamente su actor dentro de ese protocolo. `vigente()` privado del Service comprueba paciente sin cuenta, CI original, FK correcta y autorización vigente. Reenvío comparte 60 segundos/cinco por hora por proceso y correo, con código anterior invalidado y sin ampliar el plazo principal. Agotar el correo permite reenvío dentro de plazo; agotar/vencer el código presencial exige nueva comprobación en Recepción.
+
+Confirmación revalida unicidad de correo, crea la cuenta y vuelve a comprobar **ambas vigencias después de posibles esperas de escritura**; solo entonces asigna id_usuario en la misma ficha, consume ambos códigos, completa/limpia pendiente, audita y cierra el contexto. No modifica nombres, documento, actividad, citas, antecedentes, consultas, solicitudes ni archivos. UQ finales y transacción revierten cuenta/vínculo/consumos ante 23505 o auditoría fallida. Reemplazo y confirmación concurrentes solo permiten un orden íntegro: vínculo confirmado impide reemitir; reemisión previa impide confirmar la versión sustituida.
+
+### Pruebas, evidencia y pendientes
+
+`RegistroPacienteTest`: **31 pruebas/323 aserciones** de 7A, con seis carreras originales y evidencia íntegra en [expediente §21](#expediente-21). Fase 7B añade **31 pruebas** en `VinculacionPacienteTest` y **ocho carreras** a `AutenticacionConcurrenteTest`: permisos/CSRF, privacidad, preservación de ficha inactiva e historia real ficticia (citas, versiones, solicitudes y documentos), reserva exclusiva, intentos/vigencias, reenvíos, reemplazo, revocación de Recepción, UQ externas y rollback. Todas las redes se simulan; PostgreSQL usa base/rol/esquemas aislados. Suite completa de 7B: **614 pruebas/6193 aserciones**, 207,87 s; evidencia en contexto §17.25 y README. Ambos escenarios cuentan además con recorrido integrado de fase 8. CRUD restante de CU-07 y React/entrega real permanecen pendientes.
+
+<a id="analisis-cu-05"></a>
+## CU-05 — Cambiar contraseña propia
+
+### Actores, objetivo y trazabilidad
+
+**Actores:** Administrador, Recepcionista, Médico y Paciente. **Objetivo:** cambiar la propia contraseña sin modificar identidad/permisos. **Trazabilidad:** desarrollo de RF01, RN12/RN14; VS-AUT-02/05/09. La ficha no asigna un PN adicional; se conserva la política de seguridad de cuentas.
+
+**Precondiciones:** cuenta habilitada, sesión **normal** vigente y contraseña actual conocida. **Postcondiciones:** hash nuevo, sesiones anteriores revocadas, actual renovada; identidad/rol/vínculo/bloqueo preservados. No es invitación, recuperación ni cambio obligatorio de CU-03.
+
+### Boundary y clases participantes
+
+**Boundary:** formulario de cambio propio, conceptual/React pendiente.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `update()` [controller] | `ClaveController` | Delegar datos y responder 204. |
+| `cambiar()` [service] | `ClaveService` | Verificar actual y coordinar hash/revocación/renovación. |
+| `exigirSesionNormal()` [service] | `AutenticacionService` | Revalidar cuenta y sesión persistida después del bloqueo. |
+| `rules()` [validator] | `CambiarClaveRequest` | Añadir actual a la política heredada de `ClaveRequest`. |
+| `guardar()` [repository] | `UsuarioRepository` | Persistir hash. |
+| `revocarUsuario()`, `iniciar()` [repository] | `SesionRepository` | Revocar IDs anteriores y persistir sesión renovada. |
+
+### Diagrama de análisis
+
+```mermaid
+classDiagram
+    direction LR
+    class Actores["Administrador · Recepcionista · Médico · Paciente"] {
+        <<actor>>
+    }
+    class InterfazClave["Cambio de contraseña propia — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlCU05["CONTROL — Cambiar contraseña propia"] {
+        <<control>>
+        +update() [controller]
+        +cambiar() [service]
+        +exigirSesionNormal() [service]
+        +rules() [validator]
+        +guardar() [repository]
+        +revocarUsuario() [repository]
+        +iniciar() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String? password_hash
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    Actores --> InterfazClave : introduce actual y nueva
+    InterfazClave ..> ControlCU05 : solicita cambio propio
+    ControlCU05 ..> Usuario : verifica y actualiza credencial
+    style Actores fill:#fff7ed,stroke:#9a3412
+    style InterfazClave fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCU05 fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+```
+
+### Colaboración, alternativas y contrato
+
+PUT `/api/auth/password` recibe `current_password`, `password`, `password_confirmation`; no selecciona otra cuenta por ID. Origen/CSRF, sesión normal y `LimitarCambioClave` preceden negocio. Service bloquea Usuario y revalida sesión/huella/rol/vínculo y fila persistida; comprueba actual con Hash, guarda hash nuevo, invalida recuperaciones mediante `TokenAccesoRepository::invalidarRecuperaciones()`, revoca todos los IDs anteriores y persiste sesión renovada antes del commit de auditoría. Devuelve **204**, sin cuerpo, con cookies renovadas.
+
+Actual incorrecta: 422 `AUTH_CLAVE_ACTUAL_INVALIDA`, evento DENEGADO confirmado sin tocar hash/sesiones/intentos de login. Nueva inválida: 422 de campos. Sesión ausente 401, restringida 403, CSRF 419, límite 429, fallo necesario 500/rollback y limpieza de guards. Dos cambios con sesiones originales no confirman ambos: el segundo revalida tras esperar. Revocación entre middleware y Service no puede renovarse como sesión válida. Límites técnicos separados de login: 20/minuto/IP y cinco/minuto/Usuario, compartidos entre dispositivos.
+
+### Pruebas, evidencia y pendientes
+
+`CambioClaveTest`: cuatro roles, contraseña actual, política Unicode/espacios/bcrypt, cuenta ajena, sesiones, bloqueo preservado, errores/auditoría y rollback. `AutenticacionConcurrenteTest`: doble cambio, revocación intermedia y guardados tardíos. [Expediente §14](#expediente-14) conserva evidencia de fase 2 y limitaciones históricas; invalidación de recuperaciones añadida en fase 5 se refleja en el análisis vigente. Backend implementado; UI/React pendiente.
+
+<a id="analisis-cu-06"></a>
+## CU-06 — Recuperar contraseña mediante correo electrónico
+
+### Actores, objetivo y trazabilidad
+
+**Actores:** Administrador, Recepcionista, Médico y Paciente, sin requerir sesión. **Objetivo:** recuperar contraseña olvidada sin revelar existencia de cuenta. **Trazabilidad:** desarrollo de RF01, RN12/RN14; VS-AUT-02/05/10–12. La ficha no asigna un PN adicional.
+
+**Precondición para emitir/consumir:** cuenta Activa/verificada, hash e identidad compatibles, sin cambio obligatorio; límites vigentes y acceso al correo. **Postcondición:** nueva clave, token consumido, sesiones anteriores revocadas y nuevo login, sin cambiar identidad/permisos/estado/bloqueo. No exige contraseña anterior.
+
+### Procedimiento: solicitar enlace
+
+**Boundary:** solicitud de recuperación, conceptual/React pendiente.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `solicitar()` [controller] | `RecuperacionClaveController` | 202 genérico delimitado, sin confirmar cuenta/envío. |
+| `solicitar()` [service] | `RecuperacionClaveService` | Diferir elegibilidad/emisión y coordinar correo post-commit. |
+| `rules()` [validator] | `SolicitarRecuperacionRequest` | Correo válido con normalización uniforme. |
+| `porCorreoBloqueado()` [repository] | `UsuarioRepository` | Recuperar y bloquear cuenta durante trabajo diferido. |
+| `emitirRecuperacion()` [repository] | `TokenAccesoRepository` | Emitir exclusivamente propósito RecuperacionClave. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Actores["Administrador · Recepcionista · Médico · Paciente"] {
+        <<actor>>
+    }
+    class InterfazSolicitud["Solicitar recuperación — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlSolicitud["CONTROL — Solicitar enlace"] {
+        <<control>>
+        +solicitar() [controller]
+        +solicitar() [service]
+        +rules() [validator]
+        +porCorreoBloqueado() [repository]
+        +emitirRecuperacion() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String correo_acceso
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_usuario
+        String proposito
+        String token_hash
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+    }
+    Actores --> InterfazSolicitud : informa correo
+    InterfazSolicitud ..> ControlSolicitud : solicita enlace
+    ControlSolicitud ..> Usuario : evalua elegibilidad
+    Usuario "1" -- "0..*" TokenAcceso : recuperaciones
+    style Actores fill:#fff7ed,stroke:#9a3412
+    style InterfazSolicitud fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlSolicitud fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style TokenAcceso fill:#dcfce7,stroke:#15803d
+```
+
+POST `/api/auth/password/forgot` recibe `correo_acceso` y devuelve **202** con mensaje genérico/Content-Length, independientemente de la existencia/elegibilidad. `defer` consulta después de responder; `elegible()` exige cuenta y vínculo compatibles, excluyendo cambio obligatorio. Secreto de 256 bits, HMAC y **60 minutos**, invalidando recuperaciones anteriores. `CorreoSeguridadService::enviarRecuperacion()` despacha después del commit mediante enlace previsto `/recuperar-clave#token=...`; únicamente al correo registrado, sin secreto en respuesta/logs. Fallo o interrupción diferida no cambia el 202 ni confirma entrega; se permite solicitar nuevamente dentro de límites.
+
+### Procedimiento: restablecer mediante el enlace
+
+**Boundary:** nueva contraseña desde enlace seguro, conceptual/React pendiente.
+
+| Método del diagrama | Clase real | Responsabilidad |
+| --- | --- | --- |
+| `restablecer()` [controller] | `RecuperacionClaveController` | Token/clave validados → Service → 204. |
+| `restablecer()` [service] | `RecuperacionClaveService` | Revalidar y coordinar cambio/consumo/revocación. |
+| `rules()` [validator] | `RestablecerClaveRequest` | Token hexadecimal y política compartida de clave. |
+| `recuperacionPorHash()`, `consumir()` [repository] | `TokenAccesoRepository` | Consultar propósito correcto y consumir enlace. |
+| `guardar()` [repository] | `UsuarioRepository` | Persistir nueva credencial. |
+| `revocarUsuario()` [repository] | `SesionRepository` | Revocar dispositivos del titular. |
+
+```mermaid
+classDiagram
+    direction LR
+    class Actores["Administrador · Recepcionista · Médico · Paciente"] {
+        <<actor>>
+    }
+    class InterfazRecuperacion["Nueva contraseña por enlace — React pendiente"] {
+        <<boundary>>
+    }
+    class ControlRecuperacion["CONTROL — Restablecer contraseña"] {
+        <<control>>
+        +restablecer() [controller]
+        +restablecer() [service]
+        +rules() [validator]
+        +recuperacionPorHash() [repository]
+        +consumir() [repository]
+        +guardar() [repository]
+        +revocarUsuario() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        String? password_hash
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_usuario
+        String token_hash
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    Actores --> InterfazRecuperacion : confirma nueva clave
+    InterfazRecuperacion ..> ControlRecuperacion : presenta enlace y clave
+    ControlRecuperacion ..> Usuario : actualiza credencial propia
+    Usuario "1" -- "0..*" TokenAcceso : enlace de un solo uso
+    style Actores fill:#fff7ed,stroke:#9a3412
+    style InterfazRecuperacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlRecuperacion fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style TokenAcceso fill:#dcfce7,stroke:#15803d
+```
+
+POST `/api/auth/password/reset` recibe token hexadecimal de 64 caracteres, password/confirmación; responde **204**, sin login automático. Referencia inicial localiza al titular; la transacción bloquea Usuario→Token y vuelve a comprobar elegibilidad, propósito, uso y fechas `[emitido_en, expira_en)`. Guarda hash, consume, invalida recuperaciones hermanas y revoca sesiones con auditoría atómica. Cierra el contexto del titular o anónimo; si el navegador tenía sesión de otra cuenta, no sustituye ni autentica ese actor como el recuperado.
+
+### Alternativas, seguridad, pruebas y estado
+
+Enlace inválido/vencido/usado/invalidado, otro propósito o cuenta no elegible: **422 `RECUPERACION_INVALIDA`** uniforme. Campos inválidos 422; origen 403; CSRF 419; límites 429. No reactiva Desactivada, no elimina bloqueo 3/10 ni marca obligatoria. Fallo necesario revierte hash/token/sesiones y limpia guards. Emisión/consumo/CU-05/estado/rol se serializan por Usuario; dos consumos no confirman ambos. No adquiere global del último Administrador porque conserva su habilitación. El personal sin correo utiliza CU-03 cuando proceda; la alternativa del Paciente sin acceso al correo sigue sin definición funcional.
+
+Límites técnicos: 20/minuto/IP por acción, cinco/minuto/correo o token y cinco solicitudes/hora/correo entre IP, computados igual para inexistentes. `RecuperacionClaveTest` y `AutenticacionConcurrenteTest` cubren cuatro roles, uso/fechas/propósito, respuesta no enumerativa, sesión propia/ajena, exclusión temporal, carreras y rollback; `BrevoHttpTransportTest` mantiene red simulada. [Expediente §18](#expediente-18)/[§19](#expediente-19) conserva pruebas y resultados, incluida prueba HTTP real de lectura del 202 mientras transporte está bloqueado. Backend implementado; correo a buzón real, buffering productivo y React pendientes.
+
+<a id="cierre-backend-usuarios"></a>
+## Fase 8 — cierre integrado del backend de Usuarios y autenticación
+
+**Fecha:** 2026-10-19. **Alcance:** CU-01–CU-06 completos en backend y emisión parcial de CU-07 necesaria para CU-04. **Decisión expresa:** elaborar `diagrama-clases.md` en otro momento; no se crea ni se declara actualizado en este cierre. React, navegador real/AUT-21 y entrega real de Brevo se conservan como etapa posterior.
+
+### Revisión por caso y colaboraciones
+
+| Caso | Colaboración implementada revisada | Evidencia automatizada |
+| --- | --- | --- |
+| CU-01/CU-02 | `AutenticacionController` → `AutenticacionService` → `UsuarioRepository`/`SesionRepository`/`TokenAccesoRepository`/Bitácora; Resource normal o mínimo restringido. | `AutenticacionTest`, `CredencialTemporalTest`, `AutenticacionConcurrenteTest`; restauración/revocación/cierre en los nuevos recorridos integrados. |
+| CU-03 | `PersonalController`/`InvitacionPersonalController` → `InvitacionPersonalService`; `CuentaController` → `AdministracionCuentaService`; `CredencialTemporalController` → `CredencialTemporalService`; continuidad administrativa, validadores y repositorios compartidos. | `InvitacionPersonalTest`, `AdministracionCuentaTest`, `CredencialTemporalTest` y carreras; invitación → temporal → rol → recuperación en integración. |
+| CU-04 A/B y emisión CU-07 | `RegistroPacienteController` → `RegistroPacienteService`; `CodigoActivacionController` → `CodigoActivacionService`; repositorios de registro, autorización y Usuario. | `RegistroPacienteTest`, `VinculacionPacienteTest` y carreras; ambos escenarios → CU-01/05/06/03/02 en integración. |
+| CU-05 | `ClaveController` → `ClaveService` → Usuario/tokens/sesión/Bitácora. | `CambioClaveTest`, carreras y recorrido que confirma renovación actual, rechazo de otras cookies e invalidación de recuperación previa. |
+| CU-06 | `RecuperacionClaveController` → `RecuperacionClaveService` → Usuario/tokens/sesión/Bitácora; correo afterCommit. | `RecuperacionClaveTest`, `BrevoHttpTransportTest`, carreras y recuperación integrada con cuenta creada/vinculada o personal que cambió de rol. |
+
+**Componentes añadidos en esta fase:** únicamente `tests/Feature/UsuariosAutenticacionIntegracionTest.php`; no se necesitan nuevas clases productivas ni cambios de persistencia. Sus tres recorridos utilizan `AutenticacionFixtures` para peticiones reales al Kernel, con cookies/guard/Store restaurados en cada petición, CSRF real, sesiones database cifradas y esquema PostgreSQL aislado. Mail/HTTP se simulan; los límites técnicos se conservan, avanzando el tiempo entre etapas cuando corresponde.
+
+1. **Paciente nuevo** y **Paciente histórico con ficha inactiva** (dos ejecuciones): iniciar pendiente, impedir recuperación prematura, verificar sin login automático, abrir dos sesiones, renovar solo la actual por CU-05 e invalidar la recuperación anterior; recuperar por CU-06 y revocar todas; desactivar/reactivar desde CU-03 sin restaurar cookies ni modificar ficha; nuevo login y logout CU-02. Se conserva el mismo Usuario/Paciente y la ficha histórica íntegra salvo vínculo/timestamp.
+2. **Personal** (una ejecución): invitación pendiente no sirve como recuperación; aceptación y login Recepcionista; emitir temporal invalida recuperación y sesión anteriores; sesión restringida no administra ni recupera; completar exige nuevo login; cambio autorizado a Médico revoca sesión y mantiene vínculo/actividad profesional; recuperación posterior conserva el nuevo rol. Un token de recuperación no sirve como invitación y la sesión del Administrador responsable continúa separada.
+
+Estas pruebas comprueban las transiciones **entre** flujos y complementan las pruebas específicas de campos, plazos, reenvíos, bloqueo 3/10, permisos, rollback y concurrencia existentes. Comprobación focalizada: **3 pruebas/190 aserciones correctas**, 1,68 s. Regresión completa final: **617 pruebas/6383 aserciones correctas**, 229,82 s; Composer/plataforma/autoload estrictos, Pint sobre 192 PHP y sintaxis de 193 archivos correctos. Los 16 diagramas pasan nuevamente parser/renderizado, métodos/atributos, 29 anclas/enlaces y conservación íntegra del expediente. UTF-8/cercas/JSON e inventario README/rutas contrastados; git diff --check correcto. Cierre detallado en contexto §17.26 y README, sin correo real ni cambios de persistencia.
+
+### Contratos y límites del cierre
+
+Inventario contrastado con `route:list`: **20 rutas API**, más `/sanctum/csrf-cookie` y `/up`; **22 declaraciones/27 combinaciones método-dominio-URI sin duplicados**. Registro único de `auth.php`, `personal.php`, `usuarios.php` y `pacientes.php`. API sin consultas de negocio en rutas/Controllers; FormRequests y Resources conservan entrada/proyección explícita, Services coordinan autorización/transacciones y Repositories encapsulan Eloquent. Los contratos consolidados para React están en la sección de fase 8 de README.
+
+Revisados origen/CORS stateful exacto con credenciales, CSRF, sesión database cifrada, huella/contexto de rol/vínculo, revocaciones, límites HMAC, errores HTTP/JSON y no-store. La red de Brevo permanece limitada a seguridad mediante transporte HTTPS; la aceptación simulada no prueba llegada a un buzón. Registro y recuperación conservan 202 genérico sin prometer envío; verificaciones/consumos son atómicos, sin login automático. No se declara producción configurada ni despliegue realizado.
+
+**DER revisado:** mismos modelos/migraciones, **28 entidades/239 atributos/43 relaciones**; fase 8 no agrega tablas, atributos, relaciones o restricciones. Se conservan los límites aprobados para retirar Médico con obligaciones sin cierre comprobable; no se inventan indicadores clínicos para habilitar esa transición.
+
+**Resultado funcional del cierre:** backend de CU-01–CU-06 implementado e integrado. Pendientes separados: `diagrama-clases.md` aplazado por decisión del usuario; React/AUT-21; envío/entrega real de Brevo y configuración/finalización HTTP en producción. CRUD restante de CU-07, alternativa del Paciente sin correo y demás módulos no forman parte de este cierre ni se presentan como implementados.
+
+## Evidencias, referencias anteriores y mantenimiento
+
+Los resultados del expediente son **ejecuciones históricas**. Se conserva la línea base, matriz AUT, contratos detallados y cierres originales para mantener su trazabilidad. La reorganización documental fue anterior a 7B y al cierre backend de fase 8; la evidencia vigente se registra en el análisis anterior y contexto §§17.25–17.26. El diagrama global está aplazado expresamente; el cierre del frontend es posterior.
+
+### Equivalencia de las secciones anteriores
+
+Las referencias externas a `analisis-clases.md §N` siguen localizándose en el expediente de abajo, que conserva la numeración **original 1–21**. Los enlaces explícitos `expediente-N` evitan depender del título automático. Dentro del expediente, `§N` sigue aludiendo a esa numeración histórica; el análisis vigente anterior resuelve las menciones de funcionalidades entonces pendientes.
+
+| Sección anterior conservada | Lectura vigente / finalidad |
+| --- | --- |
+| [§1](#expediente-1), [§2](#expediente-2) | Fuentes y línea base; guía/estado actuales al inicio. |
+| [§3](#expediente-3), [§8](#expediente-8), [§9](#expediente-9), [§10](#expediente-10) | Soporte compartido de SPA, concurrencia, auditoría y React previsto. |
+| [§4](#expediente-4), [§5](#expediente-5) | Contratos y colaboradores iniciales; CU-01/CU-02 actualizan camino restringido. |
+| [§6](#expediente-6), [§7](#expediente-7), [§13](#expediente-13) | CU-01/CU-02 y evidencia ordinaria. |
+| [§11](#expediente-11), [§12](#expediente-12) | Matriz AUT y cierre de diseño originales. |
+| [§14](#expediente-14) | CU-05; vigente incluye invalidación de recuperaciones añadida después. |
+| [§15](#expediente-15), [§16](#expediente-16), [§20](#expediente-20) | Procedimientos de CU-03 y evidencia de fases 3/4/6. |
+| [§17](#expediente-17) | Evidencia de reorganización modular de rutas, no un CU adicional. |
+| [§18](#expediente-18), [§19](#expediente-19) | CU-06 y adaptación compartida de Brevo HTTP. |
+| [§21](#expediente-21) | CU-04 escenario A y pruebas de fase 7A. |
+
+### Verificación de esta reorganización — 2026-10-19
+
+- Se comprobaron los seis análisis y los trece diagramas, cada uno con un CONTROL y Controller primero; métodos resumidos y correspondencia de las tablas con clases/métodos declarados en el código.
+- Se contrastaron 136 apariciones de atributos con el diccionario del DER, incluidos tipo y nulabilidad, usando los alias documentados. Las referencias `Clase::metodo()` del análisis vigente existen en el software.
+- Mermaid 10.9.5 analizó y renderizó los trece diagramas en Chrome headless con DOM real. Se revisaron sus capturas: flujo horizontal, texto visible y nodos sin superposición. El ancho natural requiere ampliación o desplazamiento horizontal en visores estrechos.
+- Se validaron 27 anclas explícitas, enlaces internos, cercas Markdown y diferencias Git sin errores de espacios. Una comparación normalizada confirmó que las secciones históricas 1–21 conservan íntegro el contenido previo; solo cambian su nivel de encabezado y las anclas añadidas.
+- Esta comprobación es documental. Los resultados automatizados de Laravel citados conservan sus fechas/fases originales; la suite backend no se volvió a ejecutar como parte de esta edición.
+
+**Mantenimiento:** cada CU futuro conservará Boundary conceptual hasta existir React, un CONTROL resumido por diagrama y correspondencia de métodos/clases fuera de él. Al incorporar implementación se revisarán escenarios, métodos, atributos, permisos, contratos, pruebas y estado. El diagrama global se actualiza al cerrar módulo y el DER solo ante cambios de persistencia; esta reorganización no implementa CU ni cambia requisitos.
+
+## Expediente técnico e histórico — secciones originales 1–21
+
+> **Lectura histórica:** se preserva el contenido técnico previo con sus pruebas y decisiones de cada fase. Afirmaciones como «CU-06 pendiente», «me solo normal», «Brevo sin configurar» o «temporal pendiente de parámetros» describen ese momento y están superadas por el análisis vigente y fases posteriores. No son pendientes nuevos ni instrucciones para revertir código. La estructura previa se conserva aquí para evidencias y referencias, no como un segundo análisis vigente.
+
+<a id="expediente-1"></a>
+
+### 1. Fuentes, alcance y trazabilidad
 
 Fuentes consultadas: AGENTS de raíz/backend/frontend; `requerimientos.md` (RF01, RN12 y ampliaciones de autenticación); `reglas-negocio.md` (§4); `casos-de-us.md` (CU-01/CU-02); `contexto-maestro.md` (§§8, 17.2 y 17.12–17.14); DER (§§3.2–3.5, 5.2–5.3 y 6.15); configuración, modelos, migraciones y código del framework instalado.
 
@@ -16,12 +1307,14 @@ Fuentes consultadas: AGENTS de raíz/backend/frontend; `requerimientos.md` (RF01
 | CU-05 — Cambiar contraseña propia | Mismo módulo y cuatro actores | Cambiar credencial propia con contraseña actual y sesión normal, revocar anteriores y renovar la actual. RF01, RN12, RN14; VS-AUT-02/05/09. Análisis efectivo en §14. |
 | CU-03 — Administrar cuentas de usuario y su acceso | Usuarios/autenticación; Administrador, trabajador invitado o en cambio obligatorio | Alta/invitación y verificación/primera contraseña (§15); consulta administrativa, acceso, roles y último Administrador (§16); restablecimiento temporal (§20). RF01, RN12, RN14; VS-AUT-02/04/05/06/07/08/11/12/23–27 y §4.4 de reglas. Backend implementado, con límites médicos documentados y React pendiente. |
 | CU-06 — Recuperar contraseña mediante correo electrónico | Usuarios/autenticación; Administrador, Recepcionista, Médico y Paciente, sin exigir sesión | Restablecer mediante correo verificado/enlace de 60 minutos, sin enumeración ni clave anterior, con revocación y nuevo login. Desarrollo de RF01/RN12/RN14 por decisión del proyecto; VS-AUT-02/05/10/11/12. Análisis efectivo en §18. |
+| CU-04 — Registrar cuenta del Paciente y vincular su registro (parcial) | Usuarios/autenticación; solicitante Paciente sin sesión | Escenario A nuevo: proceso protegido, código y creación atómica de cuenta/ficha. RF01/RF02, RN01/RN12/RN14; VS-AUT-13/14/17/18/20–22. §21; escenario B pendiente de 7B/CU-07. |
 
 **Origen de decisiones:** acceso y cierre seguro pertenecen al examen. Correo como identificador, cuatro roles fijos, tres errores/diez minutos, estados de cuenta, excepción del Administrador inicial y cambio obligatorio son decisiones aprobadas del proyecto. Nombres de clases, URL, contratos JSON, valores del limitador por origen y coordinación técnica de sesiones son diseño de esta fase, no nuevos RF/RN.
 
 El bloque inicial implementó autenticación ordinaria y sus protecciones. Desde fase 6 (§20), `cambio_clave_obligatorio = true` admite únicamente sesión restringida con credencial temporal vigente; nunca permite usar la contraseña anterior o una sesión normal. Las referencias a flujo temporal pendiente de las fases anteriores se conservan como historia y quedan superadas por §20. El resto de CU se analiza progresivamente; CU-04 y cierre integrado del módulo aún están pendientes.
 
-## 2. Línea base inspeccionada en fase 0
+<a id="expediente-2"></a>
+### 2. Línea base inspeccionada en fase 0
 
 Esta tabla conserva el punto de partida previo a programar CU-01/CU-02. La implementación posterior de fase 1 se describe en §§4–9 y 13; sus rutas/middlewares ya no están pendientes.
 
@@ -40,9 +1333,10 @@ Esta tabla conserva el punto de partida previo a programar CU-01/CU-02. La imple
 
 Los originales PDF/Draw.io no están disponibles para un cotejo nuevo. La trazabilidad se basa en los documentos vigentes del repositorio y las decisiones aprobadas.
 
-## 3. Topología SPA y transporte
+<a id="expediente-3"></a>
+### 3. Topología SPA y transporte
 
-### 3.1. Desarrollo confirmado
+#### 3.1. Desarrollo confirmado
 
 | Concepto | Configuración efectiva inspeccionada |
 | --- | --- |
@@ -56,7 +1350,7 @@ Los originales PDF/Draw.io no están disponibles para un cotejo nuevo. La trazab
 
 Usar `localhost` coherentemente; `127.0.0.1` no es un origen intercambiable. Los puertos distinguen orígenes, pero las cookies no se aíslan por puerto. La producción requiere concretar dominio/topología, HTTPS y Secure=true antes de desplegar; no se da por configurada.
 
-### 3.2. Peticiones y comprobación de origen
+#### 3.2. Peticiones y comprobación de origen
 
 1. React obtiene CSRF con `GET http://localhost:8000/sanctum/csrf-cookie`.
 2. Axios utiliza una sola instancia con credenciales, `withXSRFToken`, `Accept: application/json` y la base de API acordada. La URL de CSRF se resuelve contra la raíz del backend, **no** como `/api/sanctum/csrf-cookie`.
@@ -67,7 +1361,8 @@ Usar `localhost` coherentemente; `127.0.0.1` no es un origen intercambiable. Los
 
 No se emiten bearer tokens, JWT ni cookies de autenticación accesibles a JavaScript. No hay opción «recordarme» en este bloque. El cierre y la expiración se resuelven en el servidor, no mediante almacenamiento del navegador.
 
-## 4. Contrato HTTP para la fase 1
+<a id="expediente-4"></a>
+### 4. Contrato HTTP para la fase 1
 
 **Estado de las rutas `/api/auth/*` siguientes: implementadas en fase 1.** El endpoint CSRF pertenece al framework. No son pantallas React.
 
@@ -78,7 +1373,7 @@ No se emiten bearer tokens, JWT ni cookies de autenticación accesibles a JavaSc
 | GET `/api/auth/me` | Sin cuerpo ni ID de usuario | 200, el mismo usuario público | Sesión normal, cuenta habilitada y contexto SPA permitido. |
 | POST `/api/auth/logout` | Sin cuerpo ni ID de usuario | 204 sin JSON, sesión invalidada y CSRF renovado | SPA permitida y CSRF; debe poder cerrar incluso una sesión restringida o de cuenta que perdió habilitación. |
 
-### 4.1. Entrada de login
+#### 4.1. Entrada de login
 
 ```json
 {
@@ -92,7 +1387,7 @@ No se emiten bearer tokens, JWT ni cookies de autenticación accesibles a JavaSc
 - `validated()` suministra exclusivamente esos dos campos. Ningún rol, estado, identificador o «recordarme» recibido modifica la cuenta o sesión.
 - Correo/clave ausentes o formato inválido producen 422 sin consultar públicamente si existe la cuenta. No incluir valores enviados en mensajes, trazas o contexto de logs.
 
-### 4.2. Usuario público uniforme
+#### 4.2. Usuario público uniforme
 
 Login y me devolverán el mismo Resource, con envoltura `data`:
 
@@ -111,7 +1406,7 @@ El ejemplo es ficticio y no identifica una cuenta instalada. El ID se representa
 
 El Resource proyecta estos campos expresamente: no serializa el modelo completo, hash, contadores, bloqueo, tokens, sesiones, CI, antecedentes o relaciones clínicas. Los IDs de recursos operativos se derivarán y autorizarán en sus propios CU.
 
-### 4.3. Errores y precedencia
+#### 4.3. Errores y precedencia
 
 ```json
 {
@@ -141,11 +1436,12 @@ Origen y CSRF se comprueban antes de operar sobre credenciales. Una sesión expi
 
 Los errores propios usarán `AppError` con código estable y mensaje seguro; `bootstrap/app.php` mapeará centralmente códigos a HTTP y normalizará excepciones de validación, autenticación, autorización, CSRF y errores inesperados. No usar try/catch genérico por Controller. Una respuesta 204 nunca contiene JSON.
 
-## 5. Clases y responsabilidades implementadas
+<a id="expediente-5"></a>
+### 5. Clases y responsabilidades implementadas
 
 Las clases PHP de §§5.1–5.2 existen en fase 1. Se conserva PSR-4 y minúsculas exactas de las carpetas. La frontera React de §10 sigue prevista para la etapa frontend posterior al backend; las adiciones de CU-05 están en §14.
 
-### 5.1. Presentación y controles transversales
+#### 5.1. Presentación y controles transversales
 
 | Ubicación / clase | Responsabilidad |
 | --- | --- |
@@ -162,7 +1458,7 @@ Las clases PHP de §§5.1–5.2 existen en fase 1. Se conserva PSR-4 y minúscul
 
 El middleware `auth:sanctum` es la barrera de autenticación de me. Se integró el `AuthenticateSession` oficial de Sanctum para detectar cambios de contraseña. No se crean endpoints de administración/diagnóstico solo para probar roles: las pruebas registran rutas temporales exclusivas de testing. ExigirOrigenSpa se antepone al pipeline stateful de API y produce contexto seguro de IP/procedencia/correlación; también establece no-store en respuestas. Los errores se normalizan mediante RespuestaError y el bootstrap.
 
-### 5.2. Negocio, persistencia y errores
+#### 5.2. Negocio, persistencia y errores
 
 | Ubicación / clase | Responsabilidad |
 | --- | --- |
@@ -176,7 +1472,7 @@ El middleware `auth:sanctum` es la barrera de autenticación de me. Se integró 
 
 SesionRepository utiliza AuthManager/SessionManager nativos y resuelve el guard `web` y Store actual en cada operación. Son dependencias de infraestructura, no Request/Response dentro del Service. No se añade una interfaz vacía por Repository ni un BaseRepository. La composición concreta se resuelve por el contenedor sin bindings propios adicionales.
 
-### 5.3. Entidades y clases del framework existentes
+#### 5.3. Entidades y clases del framework existentes
 
 - **Usuario → Rol:** cada Usuario tiene un rol; Rol admite muchos usuarios. Usuario contiene estado, verificación, hash y bloqueo independientes.
 - **Usuario → Paciente/Medico:** vínculos opcionales únicos; el Service exige ficha propia cuando el rol actual es Paciente/Médico. La inactividad de la ficha no impide por sí sola login ni lectura autorizada. Administrador/Recepcionista pueden conservar vínculo médico histórico.
@@ -185,7 +1481,8 @@ SesionRepository utiliza AuthManager/SessionManager nativos y resuelve el guard 
 - **Bitacora:** referencias opcionales al Usuario responsable/objetivo, con semánticas distintas. Identificar el objetivo no acredita que sea el actor autenticado.
 - **Laravel/Sanctum:** SessionGuard, Store, DatabaseSessionHandler, middleware stateful/CSRF/AuthenticateSession y Hash se reutilizan como infraestructura. Las entidades son Models Eloquent; Controllers/Services/Repositories son clases de aplicación.
 
-## 6. Colaboración de CU-01
+<a id="expediente-6"></a>
+### 6. Colaboración de CU-01
 
 1. Presentación valida origen/contexto SPA y CSRF. El limitador técnico registra/evalúa la solicitud independientemente de la existencia de la cuenta; LoginRequest valida la entrada. No registrar contraseñas en logs de validación.
 2. El Controller entrega correo/password validados y contexto seguro (IP, procedencia y correlación) al AutenticacionService. Una sesión normal ya válida produce 409 sin intercambiar identidades.
@@ -198,7 +1495,7 @@ SesionRepository utiliza AuthManager/SessionManager nativos y resuelve el guard 
 9. En una denegación esperada devuelve un resultado interno de fallo desde la transacción para confirmar contador/bloqueo y evento reales. **No lanzar dentro de la transacción una excepción que revierta precisamente el tercer error o su auditoría.** Después del commit traduce el resultado a AppError/401.
 10. El Controller devuelve el Resource público 200 únicamente tras el éxito confirmado. Los errores inesperados se traducen centralmente a 500 seguro; nunca a credenciales inválidas para ocultar un fallo operativo.
 
-### 6.1. Límites técnicos iniciales para fase 1
+#### 6.1. Límites técnicos iniciales para fase 1
 
 Diseño técnico configurable, no límites del examen: **20 solicitudes/minuto por IP** y **5 solicitudes/minuto por correo normalizado + IP**, con ventana fija de 60 segundos. Aplicar las mismas reglas a correos existentes e inexistentes, independientemente de contraseña correcta/incorrecta. El exceso devuelve 429 y Retry-After del ámbito, sin alargar la ventana por nuevos intentos ni modificar el bloqueo de Usuario. El éxito no borra el consumo del limitador por origen.
 
@@ -206,15 +1503,16 @@ Usar ControlIntentos persistente, con claves HMAC-SHA-256 separadas por propósi
 
 Estos valores deben verificarse con pruebas de frontera y pueden ajustarse como configuración técnica; no cambian tres errores/diez minutos ni los límites aprobados de códigos futuros. No garantizan impedir por completo un bloqueo malicioso de cuenta desde orígenes distribuidos. La política de limpieza de ámbitos antiguos se concreta con su operación, sin inventar una retención exigida por el examen.
 
-## 7. Consulta de sesión y colaboración de CU-02
+<a id="expediente-7"></a>
+### 7. Consulta de sesión y colaboración de CU-02
 
-### 7.1. Me y peticiones protegidas
+#### 7.1. Me y peticiones protegidas
 
 La sesión se restaura en servidor. AuthenticateSession comprueba la huella de credenciales; el Service obtiene otra vez Usuario/rol/vínculo desde Repository, no desde datos enviados por React. Estado/rol/identidad o contexto ya incompatibles invalidan la sesión y producen 401. Una sesión vigente sin permiso para una acción produce 403.
 
 El bloqueo temporal es una condición del intento de autenticación: no convertirlo silenciosamente en desactivación ni en revocación de todas las sesiones normales ya establecidas. Desactivación, cambio de rol y cambios/recuperaciones de contraseña sí tienen sus efectos de revocación aprobados. La inactividad de Paciente/Medico no elimina el acceso histórico autorizado.
 
-### 7.2. Logout
+#### 7.2. Logout
 
 1. La petición SPA supera origen y CSRF; no requiere sesión normal ni estado de cuenta habilitado para poder salir.
 2. AutenticacionService identifica el contexto de sesión desde infraestructura confiable. Si hay actor, coordina destrucción de la sesión actual y evento seguro; no elimina por defecto sesiones de otros dispositivos.
@@ -222,7 +1520,8 @@ El bloqueo temporal es una condición del intento de autenticación: no converti
 4. Confirma la invalidación y auditoría coordinadas antes del 204. Si la operación no se confirma, no responder éxito ni restaurar la autenticación en memoria. La sesión anterior nunca se reutiliza como una nueva sesión autenticada.
 5. Si la sesión ya no tiene actor, la operación es idempotente con CSRF válido; no duplica un evento de logout de usuario. Fallo de red implica resultado incierto: React debe consultar estado o permitir un nuevo intento consciente, no afirmar rollback.
 
-## 8. Revocación, persistencia y concurrencia de sesiones
+<a id="expediente-8"></a>
+### 8. Revocación, persistencia y concurrencia de sesiones
 
 **Mecanismo implementado:** tabla nativa database + cifrado + AuthenticateSession + comprobación actual de cuenta/rol/vínculo + primitiva de borrado por user_id para operaciones que revocan varios dispositivos. Los endpoints administrativos/contraseñas que la consumirán pertenecen a fases posteriores. No confiar en que `Auth::logout()` elimine otras sesiones.
 
@@ -236,7 +1535,8 @@ El bloqueo temporal es una condición del intento de autenticación: no converti
 - CU-05 revocará sesiones anteriores preservando/renovando solo la actual según su regla; CU-06 revocará todas y exigirá login; CU-03 temporal finalizará su contexto restringido. Son consumidores futuros del mecanismo, no endpoints implementados en este bloque.
 - Una petición clínica ya iniciada requiere además la autorización y coordinación transaccional de su Service; el middleware de sesión no sustituye esa validación de recurso. No prometer cancelar retroactivamente una operación que ya fue confirmada.
 
-## 9. Auditoría y fallos
+<a id="expediente-9"></a>
+### 9. Auditoría y fallos
 
 Eventos iniciales previstos: `AUTENTICACION_LOGIN` (EXITO/FALLO/DENEGADO), `AUTENTICACION_LOGOUT` (EXITO) y `AUTENTICACION_LIMITADA` (DENEGADO). Módulo `AUTENTICACION`, operación y causa estables dentro de las longitudes del esquema. No auditar cada me como nuevo login.
 
@@ -245,7 +1545,8 @@ Eventos iniciales previstos: `AUTENTICACION_LOGIN` (EXITO/FALLO/DENEGADO), `AUTE
 - Fallos de login esperados confirman sus cambios permitidos y evento antes de producir la excepción HTTP. Los éxitos se registran en la transacción que efectivamente conserva la sesión/cuenta. Si no puede guardarse un evento necesario, no anunciar la operación como completada.
 - El log técnico de un fallo inesperado usa contexto mínimo/correlación y mensaje público genérico. No copiar bindings SQL o cuerpos sensibles a la respuesta. La consulta de Bitácora sigue siendo CU-30, solo Administrador.
 
-## 10. Frontera React prevista para la etapa frontend posterior
+<a id="expediente-10"></a>
+### 10. Frontera React prevista para la etapa frontend posterior
 
 React seguirá Page → Feature Service → Axios. `features/auth/` contendrá la página de login, servicio HTTP y contexto; `src/hooks/useAuth.js` expondrá el estado público. `src/app/router.jsx`, ProtectedRoute, RoleRoute y los layouts coordinarán navegación y carga. Son componentes funcionales de interfaz, **no clases de dominio PHP**.
 
@@ -255,7 +1556,8 @@ React seguirá Page → Feature Service → Axios. `features/auth/` contendrá l
 - Login genérico no muestra si el correo existe ni un temporizador específico de bloqueo de cuenta. El limitador independiente sí puede informar su espera segura.
 - Probar teclado, etiquetas, foco, mensajes y responsive al construir la interfaz. Los paneles iniciales muestran identidad/navegación autorizada sin simular módulos clínicos terminados.
 
-## 11. Matriz de aceptación prevista
+<a id="expediente-11"></a>
+### 11. Matriz de aceptación prevista
 
 **Estado de esta matriz:** AUT-01–AUT-20 cuentan con pruebas de backend en fase 1, incluidos Kernel HTTP/cookies, PostgreSQL y procesos independientes; cobertura concreta en §13. AUT-21 sigue pendiente de React/navegador en la etapa frontend. CU-05 tiene pruebas propias en §14; CU-03/CU-04/CU-06 siguen pendientes.
 
@@ -285,7 +1587,8 @@ React seguirá Page → Feature Service → Axios. `features/auth/` contendrá l
 
 Las pruebas PHP usarán `tests/TestCase.php` y la base/rol aislados `clinica_vida_salud_test`. Las de concurrencia necesitan PostgreSQL real y datos ficticios. Las pruebas de CSRF deben ejercitar el middleware real: Laravel lo omite por defecto en testing; reutilizar el patrón ya comprobado por InfrastructureTest sin abandonar la conexión de pruebas. No usar actingAs como única evidencia de login o revocación.
 
-## 12. Cierre de fase 0 y siguiente entrega
+<a id="expediente-12"></a>
+### 12. Cierre de fase 0 y siguiente entrega
 
 **Entregable de diseño:** contratos HTTP/JSON, topología, colaboradores por capas, flujo de bloqueo/auditoría, revocación coordinada y matriz de aceptación. La fase 1 implementó/verificó ese diseño. El plan inicial incluía React en fase 2; contexto §17.17 sustituye ese orden por backend primero y CU-05 en fase 2.
 
@@ -295,9 +1598,10 @@ No se modifica persistencia por esta fase; el DER vigente sigue siendo la refere
 
 Pendientes posteriores: parámetros de credencial temporal (fase 6 vigente), topología de producción, integración/credenciales privadas de Brevo (fase 3) y emisión de códigos de Recepción requerida por CU-04/07 (fase 7B). Brevo conserva exclusivamente invitación, verificación y recuperación de seguridad; no recordatorios ni documentos clínicos. Estas dependencias se concretan en sus fases sin inventar flujos alternativos.
 
-## 13. Fase 1 — implementación del backend ordinario de CU-01/CU-02
+<a id="expediente-13"></a>
+### 13. Fase 1 — implementación del backend ordinario de CU-01/CU-02
 
-### 13.1. Colaboración efectiva
+#### 13.1. Colaboración efectiva
 
 - `AutenticacionController` recibe LoginRequest y delega en AutenticacionService; me proyecta el actor que verificó el middleware y logout devuelve 204. `UsuarioAutenticadoResource` mantiene los cuatro campos de §4.2 con ID decimal string y rol fijo.
 - AutenticacionService coordina UsuarioRepository, SesionRepository y BitacoraRepository. Comprobar Hash y reglas pertenece al Service; el Repository bloquea, consulta y escribe. Un fallo esperado de login sale de la transacción como resultado nulo y solo entonces se convierte en AppError, conservando contador/bloqueo/evento.
@@ -309,7 +1613,7 @@ Pendientes posteriores: parámetros de credencial temporal (fase 6 vigente), top
 
 No se agregan tablas, columnas, FK, modelos duplicados ni migraciones. El DER físico conserva su estructura. Los parámetros temporales, invitaciones/recuperación y autorización de recursos de otros módulos siguen en sus fases.
 
-### 13.2. Pruebas efectivas y alcance
+#### 13.2. Pruebas efectivas y alcance
 
 `AutenticacionTest` utiliza sesiones database cifradas y el middleware CSRF real sobre la base aislada. Su navegador de prueba conserva cookies, pero reconstruye guard, binding auth.driver y Store entre peticiones para evitar un falso positivo por autenticación en memoria. El reloj de pruebas controla también la expiración de cookies del simulador.
 
@@ -321,9 +1625,10 @@ Las pruebas concurrentes crean únicamente esquemas efímeros de la base aislada
 
 **Cierre:** API ordinaria implementada y comprobada; resultados numéricos y comandos finales en contexto §17.16 y README. AUT-21, frontend y recorrido en navegador real siguen pendientes de la etapa frontend posterior. El módulo backend de Usuarios/autenticación continúa en desarrollo; diagrama global acumulativo al cierre backend del módulo, según contexto §17.17.
 
-## 14. Fase 2 backend — CU-05 Cambiar contraseña propia
+<a id="expediente-14"></a>
+### 14. Fase 2 backend — CU-05 Cambiar contraseña propia
 
-### 14.1. Objetivo, actores y contrato
+#### 14.1. Objetivo, actores y contrato
 
 Fuentes: CU-05, requerimientos §5.1, reglas VS-AUT-02/05/09, plan vigente en contexto §17.17 y configuración Laravel/Hash/sesiones. Aplica a Administrador, Recepcionista, Médico y Paciente con cuenta habilitada y sesión normal válida. No es primera contraseña por invitación, recuperación ni cambio obligatorio temporal. Preserva identidad y permisos. Las reglas funcionales proceden del proyecto; URL, nombres de campos, límite compatible con bcrypt y parámetros del limitador son decisiones técnicas.
 
@@ -331,7 +1636,7 @@ Fuentes: CU-05, requerimientos §5.1, reglas VS-AUT-02/05/09, plan vigente en co
 
 Se mantienen espacios y mayúsculas de los tres campos mediante las exclusiones nativas de TrimStrings. Nueva contraseña de mínimo 12 caracteres, confirmación exacta y máximo técnico de 1024 caracteres; con bcrypt instalado, máximo adicional de **72 bytes sin NUL** para no truncar silenciosamente ni fallar al hashear. Unicode válido dentro del límite. No se cambia el algoritmo ni se modifica la contraseña del Administrador mediante seeders.
 
-### 14.2. Clases, colaboraciones y transacción
+#### 14.2. Clases, colaboraciones y transacción
 
 | Clase real | Responsabilidad y colaboración |
 | --- | --- |
@@ -354,7 +1659,7 @@ Si la contraseña actual falla, el Service confirma DENEGADO antes de lanzar el 
 
 Límite inicial de diseño en `config/seguridad.php`: **20 solicitudes/minuto/IP y 5/minuto/Usuario**, compartido entre dispositivos/IP del mismo usuario, mediante ámbitos HMAC separados de login. No prolonga ventana ni modifica bloqueo de cuenta; 429 no elimina la sesión normal. No son nuevos RF/RN. No se invalida ni implementa emisión/consumo de TokenAcceso en esta fase; la coordinación con invitaciones, recuperación y temporales se desarrolla al implementar esos CU.
 
-### 14.3. Verificación y cierre backend del CU
+#### 14.3. Verificación y cierre backend del CU
 
 `tests/Feature/CambioClaveTest.php` usa cookies/CSRF reales, reconstrucción por petición y PostgreSQL aislado. Cubre cuatro roles, fichas inactivas con cuenta activa, preservación de identidad/rol/bloqueo, renovación de ID/CSRF/huella, revocación de varios dispositivos e IDs previos, login con clave nueva y rechazo de anterior, entradas inválidas y límites ASCII/Unicode/bcrypt, cuenta ajena ignorada, estados/sesiones no permitidos, CSRF/origen, límites compartidos con reloj controlado, eventos sin secretos y fallos de hash/sesión/auditoría con rollback.
 
@@ -362,15 +1667,16 @@ Límite inicial de diseño en `config/seguridad.php`: **20 solicitudes/minuto/IP
 
 **Estado:** backend de CU-05 implementado; resultados finales en contexto §17.17/README. API CU-01/CU-02 conservada. CU-03/CU-04/CU-06 y cierre completo del módulo siguen pendientes. DER sin cambios de persistencia; diagrama global se incorporará en fase 8 al cerrar backend. La interfaz y pruebas React pertenecen a la etapa frontend posterior.
 
-## 15. Fase 3 backend — CU-03 parcial: alta e invitación del personal
+<a id="expediente-15"></a>
+### 15. Fase 3 backend — CU-03 parcial: alta e invitación del personal
 
-### 15.1. Objetivo, actores y límites
+#### 15.1. Objetivo, actores y límites
 
 Se implementan pasos 3–5 de CU-03 y su excepción de reenvío, con autorización/bitácora pertinentes: el Administrador prepara una cuenta Pendiente con rol Administrador/Recepcionista/Médico; el titular prueba control del correo por invitación de 24 horas y uso único y establece su primera contraseña. No requiere una contraseña anterior inexistente ni concede login automático. Reutiliza TokenAcceso/Usuario/Rol/Medico/Bitacora existentes. No implementa todavía listado/edición/estados/roles/último Administrador ni restablecimiento temporal de las fases 4/6. No aplica a Pacientes ni sustituye CU-04/CU-06. La excepción de instalación no se ejecuta ni modifica.
 
 Fuentes: CU-03, requerimientos §5.1, reglas §4 (VS-AUT-02/05/06/07/11/12), DER de cuentas/tokens y plan backend de contexto §§17.17–17.18. Entrega de correo real, secretos/remitente Brevo y frontend de aceptación siguen sin comprobar; pruebas exclusivamente simuladas. Crear/invitar/aceptar solo agrega habilitaciones y no deshabilita administradores existentes; no anticipa el restablecimiento que sí necesitará el control del último Administrador.
 
-### 15.2. Contratos HTTP implementados
+#### 15.2. Contratos HTTP implementados
 
 | Método/URL | Entrada validada | Acceso/resultado |
 | --- | --- | --- |
@@ -384,7 +1690,7 @@ El token se entrega solo por correo, no por API ni logs. El enlace usa FRONTEND_
 
 Errores: 401/403 para sesión/rol; 419 CSRF; 422 de campos o INVITACION_INVALIDA genérica para inexistente/futura/vencida/usada/invalidada/estado o vínculo incompatible; 409 por correo/vínculo o cuenta que no admite invitación, y por aceptación con sesión autenticada; 404 para objetivo inexistente de reenvío autorizado; 429/Retry-After para límites; 500 seguro ante fallo necesario. Ningún error público confirma correo/identidad de la invitación.
 
-### 15.3. Clases efectivas y colaboraciones
+#### 15.3. Clases efectivas y colaboraciones
 
 | Clase/archivo real | Responsabilidad |
 | --- | --- |
@@ -407,7 +1713,7 @@ Errores: 401/403 para sesión/rol; 419 CSRF; 422 de campos o INVITACION_INVALIDA
 | `resources/views/emails/invitacion-personal.blade.php` | Plantilla escapada de correo; no es frontend funcional. |
 | `config/mail.php`, `config/seguridad.php`, `.env.example` | Transporte y parámetros técnicos; variables privadas solo declaradas sin valores secretos. |
 
-### 15.4. Flujos y concurrencia
+#### 15.4. Flujos y concurrencia
 
 **Alta:** route/admin middlewares → CrearPersonalRequest → PersonalController → Service/transacción → revalidar y bloquear Admin/sesión → catálogo → bloquear Médico libre si corresponde → crear Usuario Pendiente con hash/verificación nulos → vincular sin cambiar identidad/actividad → evento PERSONAL_CREADO → invalidar invitaciones anteriores/emitir HMAC de secreto de 256 bits con 24 horas → evento INVITACION_EMITIDA → registrar callback afterCommit → COMMIT exterior → enviar y registrar INVITACION_ENVIO en transacción independiente → respuesta administrativa sin secreto.
 
@@ -419,7 +1725,7 @@ El índice de correo soporta altas concurrentes; el bloqueo de Médico evita dos
 
 Parámetros técnicos iniciales, no RF/RN: espera 60 segundos, cinco emisiones por hora/cuenta (iniciales y fallidas incluidas), solicitudes por acción de 20/minuto/IP y cinco/minuto/ámbito (Admin o token) mediante HMAC; configurar en seguridad.invitaciones. La ventana no se prolonga por un rechazo. Son independientes de credencial temporal y de los códigos del Paciente.
 
-### 15.5. Correo y pruebas
+#### 15.5. Correo y pruebas
 
 Integración actual: mailer Laravel brevo con BrevoHttpTransport (§19), API key en services.brevo.key, POST HTTPS fijo, conexión 3 s/total 10 s y remitente MAIL_FROM_ADDRESS autorizado. Sustituye al SMTP de la fase 3 histórica. SEGURIDAD_MAILER=array predeterminado solo en local/testing; brevo habilita transporte real configurado. No se admiten log/failover de seguridad ni array en producción. El origen del enlace viene solo de configuración; en producción exige HTTPS. No se cambiaron `.env`, credenciales existentes, migraciones o datos de desarrollo. Entrega real a buzón y configuración privada siguen sin verificar.
 
@@ -429,9 +1735,10 @@ Integración actual: mailer Laravel brevo con BrevoHttpTransport (§19), API key
 
 **Cierre:** bloque backend de alta/invitación de CU-03 implementado; CU-03 completo sigue pendiente de fases 4/6, CU-04/CU-06 pendientes y frontend posterior. El DER estructural sigue vigente, sin nuevas entidades/columnas/FK; diagrama global acumulativo en fase 8 al completar el backend del módulo.
 
-## 16. Fase 4 backend — CU-03 parcial: acceso, roles y último Administrador
+<a id="expediente-16"></a>
+### 16. Fase 4 backend — CU-03 parcial: acceso, roles y último Administrador
 
-### 16.1. Objetivo y contratos
+#### 16.1. Objetivo y contratos
 
 El Administrador con sesión normal consulta/lista datos administrativos y administra acceso de cuentas verificadas del personal y de Pacientes; cambia roles del personal conservando identidad y vínculos y mantiene al menos un Administrador habilitado. Fuentes: CU-03 pasos 1/2/6/8 y alternativa Paciente; RF01, RN12/RN14; requerimientos §5.1, VS-AUT-04/05/23–27 y DER Usuario/Sesión/Médico/Bitácora. Completa fase 4, no todo CU-03: el flujo temporal de fase 6 sigue sin parámetros aprobados; CU-06/CU-04 pendientes. Las decisiones funcionales se conservan; URL, validación/Resource y bloqueo advisory son diseño técnico.
 
@@ -446,7 +1753,7 @@ Todas requieren Admin normal, origen permitido, sesión persistida revalidada y 
 
 401/403 de acceso; 419 CSRF; 422 de validación/rangos/roles externos/campos ajenos; 404 de objetivo ausente/no accesible; 409 CUENTA_TRANSICION_INVALIDA, CUENTA_ROL_NO_PERMITIDO, PERSONAL_VINCULO_INVALIDO, PERSONAL_IDENTIDAD_INCOMPATIBLE, MEDICO_OBLIGACIONES_NO_RESUELTAS o ULTIMO_ADMINISTRADOR según causa. 500 seguro ante fallo necesario, con rollback. Respuesta no-cache mediante middleware existente.
 
-### 16.2. Clases participantes
+#### 16.2. Clases participantes
 
 | Clase/archivo | Responsabilidad y colaboración |
 | --- | --- |
@@ -467,7 +1774,7 @@ Todas requieren Admin normal, origen permitido, sesión persistida revalidada y 
 
 Se reutilizan modelos/migraciones, sin entidades/columnas/FK nuevas. La coordinación es un bloqueo transaccional, no una tabla ni permiso editable.
 
-### 16.3. Colaboraciones y flujo transaccional
+#### 16.3. Colaboraciones y flujo transaccional
 
 **Lectura:** route/admin middlewares → Request → Controller → Service/transacción → bloquear/revalidar actor Admin y sesión persistida → Repository/filtros u objetivo → Resource mínimo. Paciente no verificado/sin vínculo se excluye del listado y devuelve 404 en detalle.
 
@@ -477,7 +1784,7 @@ Se reutilizan modelos/migraciones, sin entidades/columnas/FK nuevas. La coordina
 
 **Estado:** Activa→Desactivada o Desactivada→Activa, sin estado nuevo y con hash/verificación/relación legítimos. Conserva credenciales/identidad/correo/ficha/bloqueo/intentos/historial. No habilita Pendiente ni sustituye verificación/recuperación. Ambas transiciones revocan sesiones; reactivar exige login. Cambios propios no conservan permisos por memoria de web/Sanctum. Estado de ficha/Médico independiente.
 
-### 16.4. Roles, identidad y límite clínico
+#### 16.4. Roles, identidad y límite clínico
 
 - Administrador↔Recepcionista conserva ID, identidad y credenciales; revoca sesiones/nuevo login.
 - Entrada inicial a Médico: registro existente/libre/bloqueado y compatible; el Administrador comprueba identidad y lo declara con identidad_verificada=true. Como barrera adicional se comparan nombres/apellidos tras normalizar espacios/caso, sin corregir/fusionar diferencias automáticamente. Los nombres por sí solos no prueban identidad civil; no se crea un registro profesional ni identidad nueva.
@@ -486,7 +1793,7 @@ Se reutilizan modelos/migraciones, sin entidades/columnas/FK nuevas. La coordina
 - El bloqueo de Médico debe compartirse con futuros flujos de actividad/reservas/atenciones, todavía pendientes. No se afirma comprobada una integración inexistente. No cambia actividad, horario, consultorio, especialidad o disponibilidad por asignar/retirar rol.
 - Paciente↔personal y reasignación de identidad excluidos. Reactivar no modifica vínculo ni concede permisos adicionales.
 
-### 16.5. Evidencia y cierre
+#### 16.5. Evidencia y cierre
 
 `tests/Feature/AdministracionCuentaTest.php`: HTTP/cookies/CSRF real en esquema efímero PostgreSQL aislado. Cuatro roles, múltiples sesiones y bloqueo preservado, último Admin propio/otros pendientes/desactivados/restringidos, rol del responsable al mutarse, consulta mínima, validación/filtros/paginación, identidad profesional/vínculo histórico y rechazo por atenciones/consulta/laboratorio sin cierre comprobable. Fallos de auditoría o DELETE de sesiones revierten rol/estado/vínculo y revocación. Prueba adicional último Admin→Médico verifica rollback de vínculo tentativo y conservación de sesión.
 
@@ -494,7 +1801,8 @@ Se reutilizan modelos/migraciones, sin entidades/columnas/FK nuevas. La coordina
 
 Regresión focalizada conjunta: **157 pruebas y 2053 aserciones correctas**, más prueba adicional vínculo/último Admin (**1 prueba/9 aserciones**). **Suite completa: 438 pruebas y 3834 aserciones correctas** (135,66 s). Verificaciones finales en contexto §17.19/README. Sin cambios estructurales del DER: 28 entidades, 239 atributos, 43 relaciones. Contexto/análisis/README sincronizados; diagrama global pendiente de fase 8, módulo backend incompleto. CU-03 requiere fase 6; siguiente entrega fase 5, CU-06.
 
-## 17. Organización modular de rutas — refactorización estructural
+<a id="expediente-17"></a>
+### 17. Organización modular de rutas — refactorización estructural
 
 La carga central `routes/api.php` incluye, en el mismo orden de registro previo, los archivos siguientes:
 
@@ -510,9 +1818,10 @@ Capturas antes/después idénticas del registro completo: 13 declaraciones, sin 
 
 Regresión de las cinco clases de pruebas existentes de autenticación, cambio de clave, invitación, cuentas y concurrencia: **158 pruebas y 2062 aserciones correctas** (50,39 s), sin modificar esas pruebas ni la lógica funcional.
 
-## 18. Fase 5 backend — CU-06 Recuperar contraseña mediante correo electrónico
+<a id="expediente-18"></a>
+### 18. Fase 5 backend — CU-06 Recuperar contraseña mediante correo electrónico
 
-### 18.1. Objetivo, actores y contrato
+#### 18.1. Objetivo, actores y contrato
 
 Cuatro roles; recuperar el acceso sin conocer la contraseña anterior ni revelar si un correo tiene cuenta. Fuentes: ficha CU-06, VS-AUT-02/05/10/11/12, requerimientos §5.1 y contexto §§8/17.14/17.17. El enlace seguro y sus 60 minutos/uso único son decisión aprobada del proyecto; rutas/clases/HMAC/límites concretos son diseño técnico.
 
@@ -523,7 +1832,7 @@ Cuatro roles; recuperar el acceso sin conocer la contraseña anterior ni revelar
 
 Ambas en auth.php; origen permitido y CSRF preceden negocio, sin exigir sesión. Formato/clave inválidos: 422 VALIDACION_ERROR. Enlace vencido/usado/invalidado/de otro propósito o cuenta no elegible: 422 RECUPERACION_INVALIDA con un solo mensaje. 403/419/429 y 500 conservan el contrato existente. Identidad procede del token, no de campos adicionales; no se permite modificar rol/estado/vínculos por recuperación.
 
-### 18.2. Clases participantes y relaciones
+#### 18.2. Clases participantes y relaciones
 
 | Capa / clase efectiva | Responsabilidad y colaboración |
 | --- | --- |
@@ -544,7 +1853,7 @@ Ambas en auth.php; origen permitido y CSRF preceden negocio, sin exigir sesión.
 
 Se reutilizan Usuario/Rol/Paciente/Médico para comprobar identidad, sin modificar sus relaciones o actividad. Laravel proporciona defer/terminación, DB::transaction/afterCommit, Hash, Mailable y sesiones; no se crean clases paralelas ni broker adicional.
 
-### 18.3. Colaboración de solicitud y respuesta no enumerativa
+#### 18.3. Colaboración de solicitud y respuesta no enumerativa
 
 1. Origen/CSRF y límites por IP/correo operan igual para correos existentes/inexistentes. El Request valida y Controller registra el trabajo con Service; no consulta Usuario antes del 202.
 2. defer ejecuta consulta/bloqueo de Usuario en terminación de respuesta. Solo cuenta Activa, verificada, con hash/vínculo compatible puede recibir enlace. Actividad clínica/profesional y bloqueo temporal no impiden recuperar ni se alteran. Cambio obligatorio permanece excluido mientras se define coordinación de fase 6: no se elimina ni se consume CredencialTemporal por este flujo.
@@ -553,7 +1862,7 @@ Se reutilizan Usuario/Rol/Paciente/Médico para comprobar identidad, sin modific
 
 Content-Length permite terminar de leer el cuerpo sin esperar al cierre de conexión. Prueba de kernel verifica ausencia de consultas a Usuario/token/correo antes de terminar; prueba HTTP real con servidor loopback y barrera de transporte verifica cliente completado mientras envío sigue bloqueado. Producción deberá verificar su buffering/proxy/finalización, no se afirma un análisis temporal universal de una topología aún no desplegada.
 
-### 18.4. Consumo, sesiones y concurrencia
+#### 18.4. Consumo, sesiones y concurrencia
 
 La lectura inicial del hash localiza el Usuario; dentro de la transacción se bloquea primero Usuario, después token y se revalida todo, incluidas fechas [emitido_en, expira_en), uso/invalidación/propósito. Se guarda nuevo hash, consume enlace, invalida otras recuperaciones y revoca todas las sesiones en el mismo commit del evento EXITO. No se cambia identidad, estado, rol, vínculos ni contador/bloqueo; al recuperar durante bloqueo el login sigue denegado hasta expirar. La contraseña nueva mantiene la política compartida de CU-05 (mínimo 12, confirmación, máximo bcrypt de 72 bytes y sin NUL).
 
@@ -563,7 +1872,7 @@ Mismo bloqueo Usuario serializa emisión, consumo, CU-05 y cambios administrativ
 
 Límites técnicos configurables: 20/minuto/IP por acción, cinco/minuto/correo o token y cinco solicitudes/hora/correo entre IP; igualdad de cómputo para correos inexistentes. Sin secretos legibles en ControlIntentos; Retry-After decreciente, sin extender bloqueo o ventana ni afectar intentos de login. No fija límites de futura credencial temporal.
 
-### 18.5. Evidencia y estado del CU
+#### 18.5. Evidencia y estado del CU
 
 RecuperacionClaveTest cubre cuatro roles y múltiples dispositivos, normalización/privacidad, vínculos/fichas inactivas, bloqueo preservado, vigencia/uso/propósito/reemisión, validación/CSRF/origen, límites, fallos SMTP/auditoría con rollback y reintento, CU-05/estado/rol, sesión propia/ajena y plantilla/Brevo simulado. AutenticacionConcurrenteTest usa procesos PHP/PostgreSQL independientes y barreras/pg_stat_activity; fixtures de HTTP y workers verifican identidad de base/rol aislados, sin correos reales.
 
@@ -573,7 +1882,8 @@ Regresión funcional inicial de CU-06 más autenticación/cambio/invitación/cue
 
 CU-06 implementado en backend ordinario con correo simulado; entrega real e integración React pendientes. No se completa módulo ni flujo temporal de CU-03. Contexto/análisis/README sincronizados; DER revisado sin cambio estructural (28 entidades, 239 atributos, 43 relaciones), y diagrama global pendiente del cierre backend de fase 8.
 
-## 19. Adaptación del transporte de seguridad a Brevo HTTP (CU-03/CU-06)
+<a id="expediente-19"></a>
+### 19. Adaptación del transporte de seguridad a Brevo HTTP (CU-03/CU-06)
 
 **Decisión aprobada posterior a fase 5:** utilizar la API HTTP con BREVO_API_KEY en lugar de SMTP. Conserva reglas/contratos de los CU, envío posterior al commit y respuesta de recuperación no enumerativa. No implementa nuevos CU ni modifica el orden del plan backend.
 
@@ -596,15 +1906,16 @@ README y contexto §17.22 sincronizados. Sin dependencias, esquema/modelos/migra
 
 **Cierre de la adaptación:** suite completa **501 pruebas y 4575 aserciones correctas** (145,67 s), incluidas 19 pruebas del transporte y dos nuevas de rechazo/reemisión en los CU. Composer validate/autoload PSR-4 estrictos, sintaxis/Pint de 14 PHP, formato/JSON documentales y git diff --check correctos. Desarrollo mantiene array/API key sin configurar y sus cuentas/eventos/tokens/migraciones previos; entrega externa no verificada.
 
-## 20. CU-03 — restablecimiento administrativo temporal del personal (fase 6 backend)
+<a id="expediente-20"></a>
+### 20. CU-03 — restablecimiento administrativo temporal del personal (fase 6 backend)
 
-### 20.1. Alcance aprobado y actores
+#### 20.1. Alcance aprobado y actores
 
 Completa el bloque backend de restablecimiento de CU-03 / PN02, con integración en CU-01/CU-02 y coordinación con CU-05/CU-06. Actores: Administrador con sesión normal válida y trabajador Administrador/Recepcionista/Médico con cuenta Activa, verificada y vínculo legítimo, incluso con ficha profesional inactiva. Fuentes: RF01, RN12/RN14, requerimientos §5.1, reglas VS-AUT-02–05/08–11/27 y §4.4, CU-03 y aprobación expresa de los parámetros de fase 6. No se aplica a Pacientes ni se usa para primera contraseña o verificación pendiente.
 
 Política aprobada: 20 caracteres aleatorios, entrega presencial por Administrador con visualización única; 30 minutos desde emisión para ingresar/completar; tres errores/diez minutos y bloqueo vigente respetados; un cambio definitivo, reingreso dentro del plazo con una sola sesión restringida vigente; reemisión tras 60 segundos y máximo cinco/hora/cuenta. Se conserva pero inhabilita la clave anterior. Vencimiento o logout expreso sin completar mantiene cambio obligatorio y exige reemisión; CU-06 no lo elimina. Los nombres de endpoints/clases, HMAC con separación de propósito, payload de sesión y limitadores técnicos son decisiones de implementación, no nuevos RF/RN.
 
-### 20.2. Contratos HTTP efectivos
+#### 20.2. Contratos HTTP efectivos
 
 | Operación | Entrada / acceso | Resultado |
 | --- | --- | --- |
@@ -616,7 +1927,7 @@ Política aprobada: 20 caracteres aleatorios, entrega presencial por Administrad
 
 Cambiar contraseña por CU-05, administrar cuentas y acceder a las demás funciones normales requiere ExigirSesionNormal: una sesión restringida vigente recibe **403 AUTH_CAMBIO_CLAVE_OBLIGATORIO** sin convertirse en normal. Las cuentas/tokens inexistentes, vencidos, consumidos o incompatibles mantienen denegación genérica de login; validación de campos 422, objetivo inexistente 404, cuenta no elegible 409 CREDENCIAL_TEMPORAL_NO_PERMITIDA, último Admin 409 ULTIMO_ADMINISTRADOR, origen 403, CSRF 419 y límites 429/Retry-After. Una cookie cuya sesión fue eliminada puede recibir 419 antes de la autenticación en escrituras; restaurar CSRF no restaura acceso. Me devuelve 401 para esa cookie.
 
-### 20.3. Clases reales y responsabilidades
+#### 20.3. Clases reales y responsabilidades
 
 | Capa / clase | Responsabilidad / colaboración |
 | --- | --- |
@@ -638,7 +1949,7 @@ Cambiar contraseña por CU-05, administrar cuentas y acceder a las demás funcio
 
 Modelos reutilizados: Usuario, Rol, Medico, TokenAcceso, ControlIntentos y Bitacora; relación Paciente solo para rechazar incompatibilidad, sin alterar fichas. No se crean clases de entidad, tabla o columna para el contexto restringido; sesiones nativas contienen el estado técnico.
 
-### 20.4. Flujos y garantías transaccionales
+#### 20.4. Flujos y garantías transaccionales
 
 **Emisión:** rutas/middlewares → FormRequest → Controller → Service → transacción → coordinación global `(736201, 1)` → revalidar/bloquear Administrador y sesión persistida → bloquear objetivo → validar personal/identidad y límites de cuenta → marcar cambio obligatorio conservando hash → verificar último Administrador → invalidar anteriores temporales/recuperaciones → emitir HMAC con 30 minutos → revocar sesiones → cerrar propia sesión si corresponde → evento CREDENCIAL_TEMPORAL_EMITIDA/EXITO → COMMIT → devolver secreto solo al Administrador. Si falla continuidad o una escritura/auditoría necesaria, rollback sin entrega ni token parcial. Denegaciones de negocio se registran después de rollback mediante metadatos seguros del actor/objetivo.
 
@@ -650,7 +1961,7 @@ Emisión comparte orden **global → actor → objetivo → tokens** con estado/
 
 No hay correo para este procedimiento; no interviene Brevo, cola o proceso externo. La entrega presencial es responsabilidad del Administrador que declaró la comprobación. El secreto no se persiste legible ni aparece en Bitácora, respuestas ordinarias o logs. El payload cifrado almacena referencia de token, no el secreto.
 
-### 20.5. Evidencia y cierre del bloque
+#### 20.5. Evidencia y cierre del bloque
 
 `CredencialTemporalTest` ejercita cookies, PostgreSQL, CSRF/origen, tres roles del personal, exclusión de Paciente/otros actores/pendientes/desactivadas, identidad/ID de ruta, entrega única, hash anterior inhabilitado, login/me mínimos, cambio único y nuevo login, expiración no ampliada, reemisión/espera/cupo compartido entre Admin/IP y frontera horaria, sesión única/reingreso/logout, bloqueo 3/10 y bloqueo previo preservados, CU-06 excluido, invalidación por estado/rol, rollback por auditoría, límites técnicos y ausencia de secretos en auditoría.
 
@@ -661,3 +1972,63 @@ Comprobación focalizada: **67 pruebas y 1042 aserciones correctas**, 36,42 s (2
 **Estado privado de Brevo posterior a §19:** por autorización del usuario ya se configuraron API key/remitente/nombre en `.env` ignorado y se habilitó el mailer brevo; no se reproducen secretos. Se comprobó carga de configuración, no entrega ni verificación externa del remitente. El usuario aplazó esa comprobación al recorrido integrado con React. Todas las pruebas de este bloque usan correo simulado y bloquean peticiones externas.
 
 **Cierre verificado:** suite completa **538 pruebas/5234 aserciones correctas** (161,61 s); Composer validate y autoload optimizado PSR-4 estrictos, Pint/sintaxis de 21 PHP y 17 rutas/22 combinaciones método/dominio/URI sin duplicados. Formato/JSON/referencias documentales y git diff --check revisados al finalizar; fase 6 completada con los límites e integración posterior indicados.
+
+<a id="expediente-21"></a>
+### 21. CU-04 — registro y verificación de Paciente nuevo (fase 7A backend)
+
+#### 21.1. Alcance y trazabilidad
+
+Implementa exclusivamente el escenario A de CU-04 / PN03, con solicitante sin sesión autenticada. Fuentes: RF01/RF02, RN01/RN12/RN14, requerimientos §5.2, VS-AUT-13/14/17/18/20–22, CU-04 y modelo de RegistroPacientePendiente/VerificacionCorreo/Paciente/Usuario. CI obligatorio en web es decisión del proyecto; la nulabilidad administrativa de CU-07 se conserva. No equivale a validar identidad civil ni autoriza vincular una ficha histórica mediante CI/correo. Escenario B y emisión de código de Recepción siguen pendientes de 7B.
+
+#### 21.2. Contratos HTTP y entrada
+
+| Endpoint | Entrada / resultado |
+| --- | --- |
+| POST `/api/auth/registro` | CI documento_identidad, nombres, apellidos, fecha_nacimiento YYYY-MM-DD no futura, telefono, correo_acceso, password/password_confirmation; sexo, correo_contacto y direccion opcionales según nulabilidad existente. 202 genérico con cookie de contexto cifrada/HttpOnly de 24 h. Campos adicionales, como rol/estado/id/datos_registro, se rechazan. |
+| POST `/api/auth/registro/reenviar` | Contexto exclusivamente de cookie; no acepta un ID/correo para tomar otro proceso. 202 con idéntico mensaje genérico; no confirma emisión ni entrega. |
+| POST `/api/auth/registro/verificar` | codigo como texto de seis dígitos y contexto de cookie. 204 sin cuerpo al crear cuenta/ficha; sin login automático y con cierre del contexto anónimo/borrado de cookie. Identificadores y privilegios enviados no se usan. |
+
+Todos exigen origen SPA autorizado y CSRF; sesiones autenticadas reciben 409 AUTH_SESION_EXISTENTE. Falta/formato de entrada: 422 VALIDACION_ERROR. Verificación ausente, ajena, vencida, agotada, usada o conflictiva: 422 REGISTRO_VERIFICACION_INVALIDA genérico. 429/Retry-After pertenece al límite técnico independiente de que exista CI/correo; origen 403 y CSRF 419 conservan semántica.
+
+Inicio/reenvío devuelven el mismo texto seguro: solicitud recibida, posible código, ausencia de confirmación de envío y orientación a reenvío/Recepción/acceso/vinculación. No devuelven ID, datos de ficha, secreto de contexto, código ni estado de envío condicionado a existencia. Hash de contraseña uniforme antes de responder; consulta de unicidad/reserva/código/correo mediante defer en terminación. Content-Length delimita el cuerpo antes de terminar la conexión; se reutiliza el mecanismo de fase 5 y su limitación de buffering/productivo documentada. 202 no promete haber reservado, emitido o entregado; si el proceso se interrumpe, reintentar conserva el proceso válido. No hay cola/outbox persistida ni reintentos externos automáticos.
+
+CI: recortar solo espacios U+0020 exteriores, preservar caso, signos, espacios interiores y ceros; string hasta 50 sin controles Unicode. TrimStrings excluye documento_identidad para no transformarlo antes de esa normalización. No se inventa patrón civil ni catálogo de sexo/edad/país/teléfono. Límites técnicos existentes de nombres 120, teléfono 40, sexo 32 y correo 254; dirección HTTP hasta 2000. Comparte política de contraseña ClaveRequest, incluidos espacios/caso/Unicode y límites bcrypt.
+
+#### 21.3. Clases efectivas y colaboraciones
+
+| Clase / capa | Responsabilidad |
+| --- | --- |
+| `RegistrarPacienteRequest` → `ClaveRequest` | Normaliza CI/correo, valida datos administrativos/contraseña y rechaza campos no permitidos. No decide unicidad ni hace consultas. |
+| `VerificarRegistroPacienteRequest` | Valida exclusivamente formato del código; identidad del proceso no viene de campos HTTP. |
+| `RegistroPacienteController` | Obtiene/genera contexto opaco, delega al Service, adjunta cookie y adapta 202 genérico/204. Cookie host-only, ruta /, HttpOnly, cifrada por EncryptCookies de Sanctum, Secure/SameSite según configuración; 24 h independientes de los 120 minutos de sesión de login. |
+| `LimitarRegistroPaciente` / `ControlIntentosService` | Ámbitos HMAC por acción, 20/minuto/IP y cinco/minuto/correo en inicio o contexto en verificar/reenviar; ventanas no extensibles de 60 s y sin bloquear cuentas normales. |
+| `RegistroPacienteService` | Rechaza sesiones autenticadas; decide reservas/reanudación, vigencias/límites, código, verificación, creación atómica y coordinación de afterCommit/auditoría. No depende de HTTP. |
+| `RegistroPacienteRepository` | Eloquent de procesos/códigos y fichas: coordinación global, consultas con lock, reservas normalizadas, cuenta de emisiones, inserción/invalidación/consumo, limpieza y creación de Paciente. |
+| `UsuarioRepository` | Reutiliza consulta por correo/rol e incorpora crearPaciente con campos de cuenta fijados por servidor, sin confundirla con alta de personal. |
+| `RegistroPacienteContexto` | Nombre de cookie, formato opaco, HMAC con separación de propósito del contexto y del código ligado a id_registro_pendiente. Secreto de contexto de 256 bits, no derivado de CI/correo. |
+| `CorreoSeguridadService` / `VerificacionPacienteMail` | Envía código después de commit mediante transporte array/brevo ya validado y plantilla `emails.verificacion-paciente`. Solo seguridad; ningún dato clínico o CI. |
+| `BitacoraRepository` / `SesionRepository` | Eventos mínimos sin datos administrativos/secretos y cierre/limpieza de contexto al completar o ante rollback. |
+
+Modelos ya existentes: RegistroPacientePendiente → verificacionesCorreo (1:N), VerificacionCorreo → registroPendiente, Usuario → Paciente (máximo 1:1), Rol → Usuario (1:N), Bitacora y ControlIntentos. `datos_registro` mantiene datos demográficos validados y metadato técnico `_contexto_hash`; no es una nueva columna/entidad ni permiso de acceso. No se crea un Model Sesion ni un objeto/formulario por tabla.
+
+#### 21.4. Flujos, secretos y concurrencia
+
+**Inicio:** validación → Service/anonimato → hash seguro uniforme → defer → transacción → advisory global `(736202, 1)` → buscar contexto propio con lock → reanudar sin modificar identidad/clave/24 h, o comprobar reservas CI/correo y cerrar vencidas → rechazar genéricamente ficha/cuenta previa → crear solo pendiente Nuevo con hash temporal/datos/contexto HMAC/24 h → código/bitácora → COMMIT → afterCommit/envío/auditoría independiente. Una petición con CI/correo de otra reserva no la toma; el solicitante conserva únicamente el contexto que le corresponde. Un contexto válido no permite reemplazar sus datos iniciales; pérdida de cookie no se resuelve con CI/correo ni transfiriendo identidad a otro navegador.
+
+**Código/reenvío:** máximo cinco emisiones/hora por proceso **y correo** entre contextos/IP, incluyendo intentos de envío fallidos; espera 60 s desde última emisión. Nuevo código criptográfico de seis dígitos distinto de todos los anteriores del mismo proceso; solo HMAC-SHA256 ligado al ID. Invalida previos y vence en min(emisión+10 min, fin de las 24 h). Emisiones fuera de límites se auditan sin código/entrega y conservan 202 público. Reenviar no reinicia registro, espera, contador del código antiguo ni ventana horaria; solo el código nuevo tiene sus cinco errores. Se permite reenviar tras agotar o vencer el código dentro del plazo principal.
+
+**Verificar:** contexto/código → transacción → global → proceso con lock → vigencia/estado → último código con lock → HMAC/vigencia/intentos. Código incorrecto incrementa contador; al quinto invalida y confirma contador/evento antes de lanzar 422 fuera de la transacción. Código correcto revalida ausencia de ficha/cuenta, obtiene rol Paciente ya sembrado, inserta Usuario Activa/verificado con hash temporal y Paciente activo/código UUID generado sin MAX+1, completa pendiente y limpia hash/datos, consume código/invalida hermanos y registra activación → cierre anónimo → COMMIT/204 → login posterior. Correo de contacto permanece opcional e independiente del correo de acceso; no hay preferencias ni antecedentes ficticios.
+
+Conflicto descubierto al revalidar invalida proceso/códigos y limpia secretos, sin vincular ficha ajena. Las UQ PostgreSQL de CI/correo/cuenta son la última barrera frente a altas de otros módulos que todavía no usen la coordinación; una colisión 23505 revierte cuenta/ficha/consumo y devuelve 422 seguro, preservando el pendiente para revalidación posterior. Fallo necesario de auditoría/escritura revierte todo. El envío externo posterior al commit no se deshace con rollback y un timeout no prueba ausencia de aceptación; no se promete entrega. Logs solo clase/correlación, sin errores externos/SQL/formularios/códigos.
+
+Inicio/reenvío/completado comparten orden global→proceso→código; nunca mantienen locks durante el correo. El protocolo deberá reutilizarse al implementar 7B y altas administrativas que compitan por reservas, además de las restricciones existentes. TokenAcceso no se usa para este código: es VerificacionCorreo/ActivacionPaciente. El contexto opaco no es una sesión normal y no permite consultar perfil o información clínica. Los datos/hash temporales se limpian al completar/invalidar/vencer al acceder; no se borran registros históricos.
+
+#### 21.5. Evidencia y pendientes
+
+`RegistroPacienteTest`: **31 pruebas y 323 aserciones correctas**. Cubre estado pendiente sin Usuario/Paciente definitivos, normalización/validación y campos privilegiados, cookie cifrada/HttpOnly/24 h, código/fechas/HMAC, activación única y nuevo login, equivalencia pública de CI/correo ocupado, proceso ajeno y reintento propio inmutable, diez minutos/24 h y frontera exacta de 60 s, cinco errores, cupos por proceso/correo incluso con contexto nuevo, reemplazo y recorte de vigencia del código, sesión anónima expirada, CSRF/origen/autenticado, conflictos posteriores, rollback de creación/activación por auditoría, ausencia de ejecución previa a terminación y rechazo Brevo HTTP simulado.
+
+`AutenticacionConcurrenteTest` agrega **seis pruebas** con procesos/conexiones PostgreSQL independientes y barreras observadas: doble reserva, doble consumo, cinco errores simultáneos, reenvío contra verificación, CI con alta administrativa no confirmada y correo con alta de personal no confirmada. Prueba que las UQ bloquean y revierten escrituras parciales cuando la otra transacción confirma. Se ejecutaron con las 46 carreras previas; ejecución focalizada inicial conjunta: **80 pruebas/993 aserciones correctas**, antes de las tres últimas pruebas de fronteras/rollback incluidas en las 31 específicas. Todos los correos son simulados y workers bloquean tráfico externo.
+
+Resultado de suite completa y comprobaciones finales en contexto §17.24/README. Contexto, análisis, README y nota funcional del DER sincronizados; corrección de la referencia documental antigua a parámetros temporales ya resueltos, sin modificar RF/RN. Sin esquema/modelos/migraciones nuevos: 28 entidades/239 atributos/43 relaciones. Diagrama global pendiente de fase 8. CU-04 sigue parcial hasta 7B; React y entrega real Brevo permanecen para la integración posterior acordada.
+
+**Cierre de fase 7A verificado:** suite completa **575 pruebas y 5648 aserciones correctas** (178,35 s), con PostgreSQL aislado y correo simulado. Composer validate/autoload optimizado PSR-4 estrictos, Pint de 18 PHP y sintaxis de 19 PHP/Blade correctos; 20 rutas/25 combinaciones método/dominio/URI sin duplicados. UTF-8/cercas Markdown/JSON/referencias y git diff --check comprobados; `.env` sigue ignorado. Sin migraciones/seeders de desarrollo ni envíos reales.

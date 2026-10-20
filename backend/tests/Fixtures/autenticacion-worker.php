@@ -28,7 +28,7 @@ try {
     }
     DB::select('SELECT set_config(?, ?, false)', ['search_path', $data['schema'].', public, pg_temp']);
     config(['session.driver' => 'database', 'session.lottery' => [0, 100], 'hashing.bcrypt.rounds' => 4]);
-    if (str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'recuperacion-') || $data['mode'] === 'invitacion-aceptar') {
+    if (str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'registro-') || $data['mode'] === 'invitacion-aceptar') {
         config(['seguridad.correo.mailer' => 'array']);
         Mail::fake();
     }
@@ -48,7 +48,7 @@ try {
         throw new RuntimeException('Falta barrera de inicio.');
     }
     $cookies = $data['cookies'] ?? [];
-    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || $data['mode'] === 'invitacion-aceptar') {
+    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || $data['mode'] === 'invitacion-aceptar') {
         // Ya se validó la identidad PostgreSQL aislada; ejercitar ahora CSRF real.
         $app['env'] = 'local';
     }
@@ -72,6 +72,11 @@ try {
         return $response;
     };
     $response = match (true) {
+        $data['mode'] === 'registro-vincular' => $send('POST', '/api/auth/registro/vincular', $data['payload']),
+        $data['mode'] === 'registro-emitir' => $send('POST', '/api/pacientes/'.$data['id_objetivo'].'/codigo-activacion', ['identidad_verificada' => true]),
+        $data['mode'] === 'registro-iniciar' => $send('POST', '/api/auth/registro', $data['payload']),
+        $data['mode'] === 'registro-reenviar' => $send('POST', '/api/auth/registro/reenviar'),
+        $data['mode'] === 'registro-verificar' => $send('POST', '/api/auth/registro/verificar', ['codigo' => $data['codigo']]),
         $data['mode'] === 'temporal-emitir' => $send('POST', '/api/usuarios/'.$data['id_objetivo'].'/credencial-temporal', ['identidad_verificada' => true]),
         str_starts_with($data['mode'], 'temporal-completar') => $send('PUT', '/api/auth/password/temporal', ['password' => $data['password'], 'password_confirmation' => $data['password']]),
         str_starts_with($data['mode'], 'password') => $send('PUT', '/api/auth/password', ['current_password' => $data['password'], 'password' => $data['nueva'], 'password_confirmation' => $data['nueva']]),

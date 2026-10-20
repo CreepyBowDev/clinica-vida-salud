@@ -2,6 +2,7 @@
 
 namespace Clinica\data\repositories;
 
+use Carbon\CarbonImmutable;
 use Clinica\data\models\Rol;
 use Clinica\data\models\Usuario;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -43,6 +44,15 @@ class UsuarioRepository
         $usuario->forceFill($datos)->saveOrFail();
 
         return $usuario->load(['rol', 'paciente', 'medico']);
+    }
+
+    public function crearPaciente(int|string $rol, string $correo, string $hash, CarbonImmutable $ahora): Usuario
+    {
+        $usuario = new Usuario;
+        $usuario->forceFill(['id_rol' => $rol, 'correo_acceso' => $correo, 'password_hash' => $hash,
+            'estado_cuenta' => 'Activa', 'correo_verificado_en' => $ahora])->saveOrFail();
+
+        return $usuario->load('rol');
     }
 
     public function coordinarAdministracion(): void

@@ -4,6 +4,7 @@ namespace Clinica\business\services;
 
 use Clinica\shared\utils\InvitacionPersonalMail;
 use Clinica\shared\utils\RecuperacionClaveMail;
+use Clinica\shared\utils\VerificacionPacienteMail;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
@@ -18,6 +19,11 @@ class CorreoSeguridadService
     public function enviarRecuperacion(string $correo, #[\SensitiveParameter] string $token): string
     {
         return $this->enviar($correo, new RecuperacionClaveMail($this->frontend().'/recuperar-clave#token='.$token));
+    }
+
+    public function enviarActivacionPaciente(string $correo, #[\SensitiveParameter] string $codigo): string
+    {
+        return $this->enviar($correo, new VerificacionPacienteMail($codigo));
     }
 
     private function enviar(string $correo, Mailable $mensaje): string

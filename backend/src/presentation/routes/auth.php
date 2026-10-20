@@ -4,16 +4,22 @@ use Clinica\presentation\controllers\AutenticacionController;
 use Clinica\presentation\controllers\ClaveController;
 use Clinica\presentation\controllers\CredencialTemporalController;
 use Clinica\presentation\controllers\RecuperacionClaveController;
+use Clinica\presentation\controllers\RegistroPacienteController;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\ExigirSesionRestringida;
 use Clinica\presentation\middlewares\LimitarCambioClave;
 use Clinica\presentation\middlewares\LimitarCredencialTemporal;
 use Clinica\presentation\middlewares\LimitarLogin;
 use Clinica\presentation\middlewares\LimitarRecuperacion;
+use Clinica\presentation\middlewares\LimitarRegistroPaciente;
 use Clinica\presentation\middlewares\VerificarCuentaHabilitada;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
+    Route::post('registro', [RegistroPacienteController::class, 'iniciar'])->middleware(LimitarRegistroPaciente::class.':iniciar');
+    Route::post('registro/vincular', [RegistroPacienteController::class, 'vincular'])->middleware(LimitarRegistroPaciente::class.':vincular');
+    Route::post('registro/reenviar', [RegistroPacienteController::class, 'reenviar'])->middleware(LimitarRegistroPaciente::class.':reenviar');
+    Route::post('registro/verificar', [RegistroPacienteController::class, 'verificar'])->middleware(LimitarRegistroPaciente::class.':verificar');
     Route::post('login', [AutenticacionController::class, 'login'])->middleware(LimitarLogin::class);
     Route::get('me', [AutenticacionController::class, 'me'])
         ->middleware(['auth:sanctum', VerificarCuentaHabilitada::class]);

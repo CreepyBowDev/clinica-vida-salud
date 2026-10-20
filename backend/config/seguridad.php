@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'registro_paciente' => [
+        'solicitudes_por_ip' => 20,
+        'solicitudes_por_ambito' => 5,
+    ],
     'credencial_temporal' => [
         'vigencia_minutos' => 30,
         'espera_reemision_segundos' => 60,

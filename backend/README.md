@@ -2,7 +2,7 @@
 
 ## Estado de esta fase
 
-**Usuarios y autenticación — backend primero, fase 6:** API ordinaria y restringida de CU-01/CU-02, CU-05, recuperación por correo CU-06, alta/invitación, administración de acceso/roles y restablecimiento temporal del personal con último Administrador (CU-03) implementados. Contratos/análisis en [`../docs/ai/analisis-clases.md`](../docs/ai/analisis-clases.md) §20; progreso y plan vigente en contexto §§17.16–17.23 y detalle operativo al final de este README. Siguiente fase: 7A, registro de Paciente nuevo; CU-04 y cierre integrado backend siguen pendientes. Brevo integrado mediante **API HTTP**, con pruebas simuladas y configuración privada habilitada; entrega real pendiente de la integración React posterior.
+**Usuarios y autenticación — fase 8, backend cerrado:** CU-01–CU-06 implementados y revisados de forma integrada, incluidos acceso normal/restringido, administración de cuentas, ambos escenarios de registro/vinculación y credenciales. La emisión de Recepción cubre la parte de CU-07 requerida por CU-04. Análisis vigente en [`../docs/ai/analisis-clases.md`](../docs/ai/analisis-clases.md) y cierre en contexto §17.26/último apartado de este README. **`diagrama-clases.md` aplazado expresamente por el usuario.** React/AUT-21, entrega real de Brevo y CRUD administrativo restante de CU-07 siguen pendientes. Brevo HTTP está integrado y configurado privadamente; sus pruebas usan red simulada.
 
 La población posterior mediante seeders está aplicada en desarrollo: catálogos/consultorios, conjunto ficticio de demostración y Administrador inicial activo por excepción de instalación. Su estado y comandos se describen en el último apartado; los estados anteriores son registros históricos.
 
@@ -65,7 +65,7 @@ La contraseña del rol técnico se generó aleatoriamente y quedó únicamente e
 
 - `composer.json` registra `Clinica\` → `src/`, con las cuatro capas en minúsculas y exige `ext-pdo`/`ext-pdo_pgsql`.
 - `bootstrap/app.php` registra las entradas HTTP de Laravel y habilita `statefulApi()`.
-- `routes/api.php` carga explícitamente `src/presentation/routes/auth.php`, `personal.php` y `usuarios.php`, donde se declaran las rutas funcionales. Laravel aplica el prefijo `/api` y el grupo `api` desde el registro de `bootstrap/app.php`.
+- `routes/api.php` carga explícitamente `src/presentation/routes/auth.php`, `personal.php`, `usuarios.php` y `pacientes.php`, donde se declaran las rutas funcionales. Laravel aplica el prefijo `/api` y el grupo `api` desde el registro de `bootstrap/app.php`.
 - `app/Providers/AppServiceProvider.php` registra `src/data/database/migrations/` mediante `loadMigrationsFrom`.
 - Se conservaron los 19 archivos originales de `backend/`, incluidos `AGENTS.md`, `prueba.php` y los archivos de `src/`; se compararon sus hashes SHA-256.
 
@@ -75,18 +75,19 @@ Los archivos de `app/`, `bootstrap/`, `config/` y `routes/` son infraestructura 
 
 ```text
 routes/
-├── api.php                       # Carga central: auth → personal → usuarios
+├── api.php                       # Carga central: auth → personal → usuarios → pacientes
 ├── web.php
 └── console.php
 src/presentation/routes/
-├── auth.php                      # Login, me, logout, cambio y recuperación de contraseña
+├── auth.php                      # Acceso, contraseñas, registro y vinculación de Paciente
 ├── personal.php                  # Alta, reenvío y aceptación de invitaciones
-└── usuarios.php                  # Consulta administrativa, estado y rol
+├── usuarios.php                  # Consulta administrativa, estado, rol y temporal
+└── pacientes.php                 # Emisión de código presencial; resto de CU-07 posterior
 ```
 
-`routes/api.php` incluye cada archivo una sola vez, sin añadir otro prefijo `/api` ni repetir el grupo de middleware `api`. Cada archivo funcional conserva sus grupos, middlewares y restricciones originales. La aceptación pública de invitaciones está en `personal.php`, con la misma URL `/api/auth/invitaciones/aceptar`, fuera del grupo exclusivo del Administrador. El antiguo `src/presentation/routes/api.php` fue sustituido por esos tres archivos; no hay otros módulos con rutas de negocio definidas en este momento.
+`routes/api.php` incluye cada archivo una sola vez, sin añadir otro prefijo `/api` ni repetir el grupo de middleware `api`. Cada archivo funcional conserva sus grupos, middlewares y restricciones. La aceptación pública de invitaciones está en `personal.php`, con la misma URL `/api/auth/invitaciones/aceptar`, fuera del grupo exclusivo del Administrador. El antiguo `src/presentation/routes/api.php` fue sustituido inicialmente por tres archivos; fase 7B agrega `pacientes.php` exclusivamente para la emisión autorizada de código de Recepción.
 
-La comparación histórica antes/después del traslado verificó 13 declaraciones sin duplicados: cuatro en auth, tres en personal, cuatro en usuarios y dos de infraestructura (`/up` y `/sanctum/csrf-cookie`). Se preservaron métodos (incluido HEAD), URL, nombres, dominios, prefijos, acciones, orden de registro, middleware declarado/resuelto, parámetros, restricciones y valores predeterminados. También se comprobaron hashes idénticos de 106 archivos de lógica/infraestructura ajenos al traslado. Evidencia de regresión en contexto §17.20. La fase 5 añade dos rutas de recuperación a auth.php; el registro actual tiene 15 declaraciones.
+La comparación histórica antes/después del traslado verificó 13 declaraciones sin duplicados: cuatro en auth, tres en personal, cuatro en usuarios y dos de infraestructura (`/up` y `/sanctum/csrf-cookie`). Se preservaron métodos (incluido HEAD), URL, nombres, dominios, prefijos, acciones, orden de registro, middleware declarado/resuelto, parámetros, restricciones y valores predeterminados. También se comprobaron hashes idénticos de 106 archivos de lógica/infraestructura ajenos al traslado. Evidencia de regresión en contexto §17.20. La fase 5 añadió dos rutas de recuperación a auth.php, alcanzando entonces 15 declaraciones; el registro posterior se documenta en los cierres de cada fase.
 
 Regresión posterior a la reorganización: **158 pruebas y 2062 aserciones correctas** (50,39 s) de autenticación, cambio de contraseña, invitaciones, cuentas y concurrencia; PostgreSQL aislado y correo simulado. Cambio exclusivamente estructural, sin clases, dependencias o funcionalidades nuevas.
 
@@ -178,7 +179,9 @@ Las pruebas de `tests/Feature/InfrastructureTest.php` cubren salud, cookies, COR
 
 En la preparación inicial, `phpunit.xml` reservó el nombre `clinica_vida_salud_test`, pero todavía no existían su base ni su rol; las cuatro pruebas iniciales no accedían a PostgreSQL. **La fase 0 descrita a continuación completa ese entorno y agrega pruebas reales de conexión y DDL.**
 
-## Próximos pasos pendientes
+## Próximos pasos pendientes — registro de la preparación inicial
+
+Este apartado conserva los pendientes de aquella preparación; el estado vigente de Usuarios/autenticación es el cierre de fase 8 al final del README.
 
 - Administrador de instalación creado y comprobado por excepción aprobada; implementar las invitaciones/verificación ordinarias para las cuentas posteriores del personal.
 - Iniciar los flujos funcionales sobre la persistencia preparada, priorizando usuarios y autenticación.
@@ -563,8 +566,8 @@ Las fases siguientes sustituyen la antigua fase 2 de React. Son independientes d
 | 4 | Administración de acceso/roles CU-03 y protección del último Administrador; implementada. |
 | 5 | Recuperación por correo CU-06 para los cuatro roles; implementada con correo simulado. |
 | 6 | Restablecimiento administrativo temporal del personal CU-03 implementado; política aprobada y contratos al final de este README/contexto §17.23. |
-| 7A / 7B | Registro de Paciente nuevo / vinculación existente CU-04; 7B integra emisión autorizada de código por CU-07. |
-| 8 | Integración/pruebas y cierre backend del módulo; diagrama global acumulativo. |
+| 7A / 7B | Ambos escenarios de CU-04 implementados; 7B incluye emisión autorizada de código por CU-07. |
+| 8 | Integración/pruebas y cierre backend completados; diagrama global aplazado por solicitud expresa del usuario. |
 
 La protección del último Administrador se aplica en cada operación que lo requiera, incluidos restablecimientos. Se mantienen los rechazos aprobados al abandonar Médico con obligaciones incompatibles/no verificables. La documentación se actualiza por CU/fase; el cierre backend se distingue del recorrido completo posterior con React. AUT-21 se conserva pendiente para esa etapa frontend.
 
@@ -888,3 +891,175 @@ No se requiere migración nueva: reutiliza propósito ya aplicado, **28 entidade
 **Configuración privada posterior a la adaptación HTTP:** por autorización expresa ya se guardaron API key/remitente/nombre en `.env` ignorado, se habilitó `SEGURIDAD_MAILER=brevo` y se comprobó carga efectiva tras config:clear, sin reproducir secretos. No se ha verificado externamente remitente/entrega ni enviado correo real. El usuario aplazó esa prueba al recorrido integrado con React; las pruebas automatizadas siguen simuladas. Esta fase no envía correo ni modifica `.env`.
 
 **Cierre verificado de fase 6:** suite completa **538 pruebas y 5234 aserciones correctas** (161,61 s). Composer validate/autoload optimizado PSR-4 estrictos, Pint y sintaxis de 21 PHP correctos. Registro efectivo de 17 rutas/22 combinaciones método/dominio/URI sin duplicados (15 API y dos de infraestructura); `.env` ignorado. Formato/JSON/referencias documentales y git diff --check revisados al finalizar. Sin migraciones/seeders de desarrollo ni envío real; fase 6 backend completada y siguiente entrega 7A.
+
+## Fase 7A backend — registro de Paciente nuevo, escenario A de CU-04
+
+Implementa el registro nuevo y verificación de correo, conservando CI obligatorio, proceso de 24 h y activación atómica. Esta entrega no vinculaba fichas históricas automáticamente; escenario B/código de Recepción se incorporan en fase 7B, descrita a continuación. Evidencia histórica del análisis §21, reglas §4.1, CU-04 y contexto §17.24.
+
+### Contratos
+
+| Endpoint | Entrada / resultado |
+| --- | --- |
+| POST `/api/auth/registro` | Datos de registro y contraseña/confirmación. 202 genérico; cookie de contexto cifrada/HttpOnly. |
+| POST `/api/auth/registro/reenviar` | Contexto de cookie, sin ID/correo para tomar un proceso ajeno. 202 idéntico, sin confirmar emisión/entrega. |
+| POST `/api/auth/registro/verificar` | codigo como string de seis dígitos y cookie protegida. 204 al crear cuenta/ficha y consumir código; exige login posterior. |
+
+Inicio acepta:
+
+```json
+{
+  "documento_identidad": "000123-A lp",
+  "nombres": "Paciente",
+  "apellidos": "Ficticio",
+  "fecha_nacimiento": "1990-01-01",
+  "telefono": "70000000",
+  "sexo": null,
+  "correo_acceso": "paciente@example.test",
+  "password": "Frase ficticia larga 123",
+  "password_confirmation": "Frase ficticia larga 123"
+}
+```
+
+CI, nombres, apellidos, nacimiento no futuro, teléfono y correo/contraseña son obligatorios. Sexo, dirección y correo de contacto son opcionales; contacto no se copia automáticamente desde correo de acceso. No se admiten rol/estado/IDs/datos_registro u otros campos adicionales en inicio. Política de contraseña compartida con ClaveRequest. CI conserva caso, signos, espacios interiores y ceros; solo se recortan espacios ASCII exteriores, string máximo 50 sin caracteres de control. No se inventa un patrón civil ni catálogo de sexo/edad/país.
+
+Todos requieren origen SPA permitido y CSRF. Sesión autenticada: 409 AUTH_SESION_EXISTENTE. La cookie `clinica_registro_paciente` es HttpOnly, cifrada por Sanctum/EncryptCookies, host-only y de 24 h; Secure/SameSite según configuración. Contiene secreto opaco de 256 bits; la base conserva solo HMAC como metadato de datos_registro. No es sesión normal ni permite consultar perfil/historia. Conservar cookies en Axios; no extraer ni guardar secretos en localStorage. La sesión CSRF puede renovarse sin perder ese contexto de registro.
+
+### Reintentos, códigos y activación
+
+- Inicio y reenvío siempre responden solicitud recibida y posible código, aclarando que **no confirman envío** y orientando a reenvío/Recepción/acceso/vinculación. No revelan si CI/correo pertenecen a ficha/cuenta, ni devuelven ID de proceso o código. Hash de contraseña uniforme; consultas/reserva/código/correo mediante defer después de responder y Content-Length para delimitar cuerpo.
+- Antes de verificar solo existe RegistroPacientePendiente/Nuevo. Un reintento con el mismo contexto conserva datos/clave/24 h originales; CI/correo no permiten reanudar otro proceso. Si se pierde la cookie, no se transfiere identidad a otro navegador basándose en esos datos.
+- Código de **seis dígitos**, **diez minutos** como máximo, recortado al fin de las 24 h; HMAC ligado al proceso, cinco errores y un solo consumo. Al quinto error invalida ese código, sin crear cuenta.
+- Reenvío: **60 segundos** y **cinco emisiones/hora por proceso y correo**, incluso entre contextos/IP o ante envío fallido. Nuevo código distinto de anteriores/invalida previos; no extiende registro. Los cupos se aplican internamente sin cambiar el 202 según existencia.
+- Verificar con código correcto revalida unicidad, crea una cuenta Activa de rol Paciente con hash seguro y una ficha activa vinculada, consume código, limpia hash/datos temporales y audita en una transacción. Devuelve **204**, cierra contexto anónimo/borra cookie y exige **nuevo login**, sin autenticación automática.
+- Vencimiento/incompatibilidad cierra proceso y limpia secretos al acceder; un nuevo inicio puede crear otro pendiente tras cerrar reservas vencidas. No borra fichas ni historia ni crea antecedentes/preferencias ficticios.
+
+Errores: 422 VALIDACION_ERROR por campos; 422 REGISTRO_VERIFICACION_INVALIDA por código/contexto/conflicto no válido, sin enumeración; 403 origen, 419 CSRF y 429/Retry-After por limitador técnico (20/minuto/IP y cinco/minuto/correo o contexto por acción). No se crea otro rol ni se habilita cuenta del personal.
+
+### Capas, concurrencia y correo
+
+RegistrarPacienteRequest/VerificarRegistroPacienteRequest → RegistroPacienteController → RegistroPacienteService → RegistroPacienteRepository/UsuarioRepository → modelos existentes. La utilidad RegistroPacienteContexto concentra HMAC y VerificacionPacienteMail renderiza la plantilla de seguridad; el transporte HTTP Brevo se reutiliza sin dependencias nuevas.
+
+Las transacciones comparten global PostgreSQL `(736202, 1)` antes de proceso/código; el correo sale solo afterCommit y fuera del bloqueo. Futura vinculación/altas administrativas que compitan por reservas deberán reutilizar el protocolo. Las UQ de CI/correo/cuenta siguen siendo barrera final para escritores externos: colisión 23505 revierte cuenta/ficha/consumo y devuelve 422 seguro. Fallo necesario de auditoría/escritura hace rollback íntegro; envío fallido conserva pendiente reintentable, se audita y nunca se anuncia entregado. Sin cola/outbox ni reintentos HTTP automáticos; comprobar buffering/proxy/finalización en despliegue para defer.
+
+`RegistroPacienteTest`: **31 pruebas/323 aserciones correctas**. Se verificaron también seis carreras nuevas en `AutenticacionConcurrenteTest` junto con las previas, incluyendo conflictos reales de índices con altas administrativas/personal aún no confirmadas. Cubren código/proceso/contexto, normalización/roles, fronteras/límites, reanudación, sesión expirada, consumo único, cinco errores concurrentes, reenvío, rollback de auditoría y Brevo HTTP rechazado simulado. Ningún correo real se envió.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/RegistroPacienteTest.php tests/Feature/AutenticacionConcurrenteTest.php
+```
+
+Documentación sincronizada en contexto/análisis/nota funcional del DER y corrección de referencia antigua de fase 6 en requerimientos. Sin nueva migración ni cambio de inventario: **28 entidades/239 atributos/43 relaciones**. Diagrama global pendiente de fase 8, CU-04 todavía parcial y entrega real Brevo/React posteriores conforme a lo acordado.
+
+**Cierre verificado de fase 7A:** suite completa **575 pruebas y 5648 aserciones correctas** (178,35 s). Composer validate/autoload optimizado PSR-4 estrictos, Pint de 18 PHP, sintaxis de 19 PHP/Blade y 20 rutas/25 combinaciones método/dominio/URI sin duplicados. Formato/JSON/referencias documentales y git diff --check correctos; `.env` ignorado, sin migraciones/seeders de desarrollo ni correos reales. Siguiente entrega 7B.
+
+## Fase 7B backend — vinculación histórica de CU-04 y emisión parcial de CU-07
+
+La vinculación conserva la ficha y su historial: Recepción comprueba presencialmente identidad/CI y entrega una autorización; el Paciente confirma después su propio correo antes de crear la cuenta. Ficha inactiva puede vincularse sin activarse ni habilitar nuevas reservas. El CRUD administrativo restante de CU-07 se desarrollará posteriormente.
+
+### Contratos para la integración React posterior
+
+| Endpoint | Entrada | Resultado |
+| --- | --- | --- |
+| POST `/api/pacientes/{id}/codigo-activacion` | Solo `identidad_verificada: true`; ID de ficha de la ruta. Sesión normal de Recepcionista. | 201 con `data.id_paciente` como string, `codigo_activacion` y `expira_en` ISO-8601. Secreto visible una vez para entrega presencial; no-store. |
+| POST `/api/auth/registro/vincular` | `documento_identidad`, `codigo_activacion`, `correo_acceso`, `password`, `password_confirmation`. Solicitante sin login. | 202 idéntico al registro Nuevo, sin confirmar existencia ni envío; cookie protegida de contexto. |
+| POST `/api/auth/registro/reenviar` | Cookie de contexto, sin selector de proceso/cuenta. | Mismo 202 genérico para A/B. |
+| POST `/api/auth/registro/verificar` | `codigo` de correo de seis dígitos y cookie. | 204 al confirmar el vínculo y consumir ambos códigos atómicamente. Cierra contexto/elimina cookie; exige nuevo login. |
+
+Los endpoints usan origen SPA permitido y CSRF; Axios debe conservar cookies. No guardar códigos ni contexto en localStorage/sessionStorage. La declaración de identidad verificada representa la comprobación presencial de Recepción, no una validación automática de identidad por el documento. Emisión no admite cuentas ya vinculadas o fichas sin CI; Administrador/Médico/Paciente no pueden emitir. El acceso público exige CI/código/correo/clave y rechaza IDs, rol/estado, datos de perfil y otros campos ajenos. CI mantiene caso/signos/interiores/ceros y solo recorta espacios ASCII exteriores; también localiza fichas históricas con esa normalización sin reescribirlas.
+
+### Autorizaciones, reserva y conservación
+
+- Código presencial: **12 caracteres criptográficos alfanuméricos**, **24 horas**, **cinco errores**, **un solo uso**. Solo se persiste HMAC ligado a la ficha/separado por propósito. Reemplazarlo invalida anteriores y sus reservas/verificaciones de correo, limpiando secretos temporales en transacción.
+- Inicio vincula el pendiente a la ficha/código originales y reserva exclusivamente para la cookie cifrada/HttpOnly/host-only de 7A. No consume aún el código presencial ni crea cuenta. El proceso vence en el plazo original de Recepción. Otra cookie no toma la reserva; la pérdida del contexto requiere asistencia/reemplazo presencial, sin transferencia por CI/correo.
+- Reintento propio conserva correo, hash de contraseña y plazo; requiere autorización correcta y solo intenta reenvío controlado. El quinto error presencial invalida la autorización. Agotar o vencer el principal exige nueva comprobación presencial.
+- Código del correo: **seis dígitos**, hasta **diez minutos** recortados al plazo principal, **cinco errores**. Reenvío **60 segundos/cinco emisiones por hora por proceso y correo**, compartido entre escenarios A/B y aun tras sustituciones o envíos fallidos. Sustituye el código anterior; no amplía las 24 horas principales. Agotar el correo permite reenvío mientras el principal siga válido.
+- Confirmación comprueba ficha sin cuenta, CI original, ambos códigos y unicidad de correo; crea Usuario Activa/verificada de rol Paciente y revalida vigencias tras posibles esperas de escritura. Solo cambia el vínculo id_usuario y timestamp de la ficha; consume ambos códigos, limpia proceso y registra metadatos seguros. Conserva identificador, código, datos administrativos, estado activo/inactivo y todas las relaciones clínicas/administrativas.
+
+### Capas, errores y concurrencia
+
+Emisión: `EmitirCodigoActivacionRequest` → `CodigoActivacionController` → `CodigoActivacionService` → `CodigoActivacionRepository`/`RegistroPacienteRepository`; el Service revalida sesión/rol con `AutenticacionService` y audita. Vinculación: `VincularPacienteRequest` → `RegistroPacienteController` → `RegistroPacienteService`, compartiendo reenvío/verificación con 7A. `CodigoActivacionValidator` conserva las comprobaciones de documento/vigencia; `RegistroPacienteContexto` agrega HMAC con propósito de Recepción. Rutas en `pacientes.php` y `auth.php`, registradas una sola vez.
+
+El global PostgreSQL `(736202,1)` precede ficha/proceso/códigos; emisión también revalida actor bajo bloqueo después de esperar. UQ parciales de ficha/código/CI/correo y finales de cuenta evitan reservas/vínculos duplicados. Emisión simultánea deja una sola autorización vigente; reemplazo y confirmación se serializan: si se vincula primero, no se reemite; si se sustituye primero, no se consume la autorización antigua. Error de escritura/UQ/auditoría hace rollback de cuenta/vínculo/consumos e invalidaciones. Correo solo afterCommit/fuera de locks; fallo mantiene proceso reintentable. No hay envíos reales durante pruebas.
+
+Inicio/reenvío públicos mantienen el 202 sin distinguir CI/correo/código elegibles y sin confirmar entrega. Verificación: 422 `REGISTRO_VERIFICACION_INVALIDA` genérico. Emisión: 401 sesión, 403 rol/origen/restricción, 404 ficha inexistente, 409 `ACTIVACION_NO_PERMITIDA`, 419 CSRF, 422 campos y 429 límite técnico con Retry-After. Límites técnicos reutilizados: 20/minuto/IP y cinco/minuto por CI en vincular, por contexto en reenvío/verificar o por Recepcionista en emitir; no son un nuevo plazo funcional de reemisión. Bitácora registra emisión, inicio, intentos y vínculo con referencias seguras, sin códigos, hashes, claves, CI o información clínica.
+
+### Verificación y cierre de fase
+
+`VinculacionPacienteTest` comprueba permisos, identidad/CI, privacidad, sesión/CSRF/origen, reserva ajena, intentos/vencimientos/reenvíos, reanudación, reemplazo y fallos de correo/auditoría. Comprueba ficha inactiva y conservación exacta de filas de citas, consultas, antecedentes/versiones, solicitudes/documentos/resultados ficticios. Incluye normalización de CI histórico y rollback si el correo vence durante la escritura de cuenta. Ocho carreras nuevas en `AutenticacionConcurrenteTest` verifican reserva/consumo únicos, errores concurrentes, reemplazo, correo compartido con Nuevo, revocación de Recepción, colisión externa y emisión paralela.
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/VinculacionPacienteTest.php tests/Feature/RegistroPacienteTest.php tests/Feature/AutenticacionConcurrenteTest.php
+```
+
+Documentación sincronizada: `docs/ai/analisis-clases.md`, `contexto-maestro.md` y nota funcional de `diagrama-entidad-relacion.md`. Tres diagramas añadidos y **16 diagramas Mermaid** contrastados con métodos/atributos reales y renderizados. Sin migraciones ni cambios de inventario: **28 entidades/239 atributos/43 relaciones**. Ambos escenarios de CU-04 implementados en backend; el cierre integrado y diagrama global `docs/ai/diagrama-clases.md` corresponden a **fase 8**. React, entrega real de Brevo y CRUD restante de CU-07 siguen pendientes.
+
+**Cierre verificado de fase 7B:** suite completa final **614 pruebas y 6193 aserciones correctas** (207,87 s): 31 pruebas nuevas de vinculación y ocho carreras sobre las 575 previas. Composer validate/autoload optimizado PSR-4 y ambigüedad estrictos, Pint y sintaxis de 19 PHP correctos. **22 rutas/27 combinaciones método-dominio-URI sin duplicados** (20 API y dos de infraestructura). Mermaid 10.9.5/Chrome headless validan los 16 diagramas sin solapamiento de nodos; tres nuevos revisados visualmente y expediente anterior conservado. UTF-8/cercas/JSON documental y git diff --check correctos. Secretos ignorados, sin migraciones/seeders de desarrollo ni correo real. Siguiente entrega: **fase 8 de integración/cierre backend**.
+
+## Fase 8 — cierre integrado del backend de Usuarios y autenticación (2026-10-19)
+
+**Estado:** backend de CU-01–CU-06 implementado e integrado, incluida la emisión de código de Recepción necesaria para CU-04 B. Por decisión expresa del usuario, **`docs/ai/diagrama-clases.md` se elaborará en otro momento**; no se crea ni se declara actualizado. El cierre de React y navegador real es posterior.
+
+### Inventario consolidado para consumir la API
+
+Todas las rutas `/api/*` exigen origen stateful permitido; sus escrituras requieren CSRF. Acceso «público» significa sin login requerido, no sin estas protecciones. Los IDs se proyectan como strings. Contratos de entrada/campos completos, límites y alternativas se conservan en las fases anteriores y en el análisis vigente por CU.
+
+| Método / ruta | Acceso | Resultado de éxito |
+| --- | --- | --- |
+| POST `/api/auth/login` | Sin sesión previa; correo/contraseña | 200 `data` con usuario público o únicamente estado restringido de cambio obligatorio. |
+| GET `/api/auth/me` | Sesión habilitada normal o restringida | 200 misma proyección normal/restringida; restaura estado sin habilitar funciones de otro rol. |
+| POST `/api/auth/logout` | Contexto actual, también para limpiar sesión finalizada | 204 y revocación efectiva; cierre restringido invalida su temporal. |
+| PUT `/api/auth/password` | Cualquiera de los cuatro roles con sesión normal | 204; renueva sesión actual y revoca anteriores, sin cambiar identidad/rol. |
+| POST `/api/auth/password/forgot` | Público | 202 genérico; no confirma existencia/envío; procesamiento diferido. |
+| POST `/api/auth/password/reset` | Token de recuperación válido | 204; consume enlace, revoca sesiones y exige nuevo login. |
+| PUT `/api/auth/password/temporal` | Solo sesión restringida del personal | 204; consume temporal, cierra contexto y exige nuevo login normal. |
+| POST `/api/auth/invitaciones/aceptar` | Público, invitación del personal | 204; establece primera clave/verifica correo/activa, sin login automático. |
+| POST `/api/auth/registro` | Anónimo, Paciente nuevo | 202 genérico y cookie de contexto; sin cuenta/ficha definitiva hasta verificar. |
+| POST `/api/auth/registro/vincular` | Anónimo, autorización presencial válida | 202 idéntico y reserva exclusiva; conserva ficha original. |
+| POST `/api/auth/registro/reenviar` | Anónimo, contexto de cookie | 202 genérico, con límites internos compartidos por proceso/correo. |
+| POST `/api/auth/registro/verificar` | Anónimo, contexto y código de correo | 204; crea cuenta/ficha nueva o vincula ficha histórica, exige login. |
+| POST `/api/personal` | Administrador normal | 201 `data` y `meta.invitacion`; cuenta Pendiente y envío `aceptado`/`simulado`/`fallido` según resultado real, sin promesa de entrega. |
+| POST `/api/personal/{id}/invitacion` | Administrador normal | 200 sobre la misma cuenta pendiente; nueva emisión invalida anterior. |
+| GET `/api/usuarios` | Administrador normal | 200 `data/links/meta`; filtros permitidos y paginación limitada. |
+| GET `/api/usuarios/{id}` | Administrador normal | 200 proyección administrativa mínima; sin credenciales ni clínica. |
+| PATCH `/api/usuarios/{id}/estado` | Administrador normal | 200 nuevo estado; revoca sesiones y conserva vínculo/bloqueo/ficha. |
+| PATCH `/api/usuarios/{id}/rol` | Administrador normal; solo transiciones del personal | 200 nuevo rol; revoca sesiones y conserva identidad/vínculos. |
+| POST `/api/usuarios/{id}/credencial-temporal` | Administrador normal, identidad comprobada del personal | 201 secreto de entrega presencial única y vencimiento; nunca para Paciente. |
+| POST `/api/pacientes/{id}/codigo-activacion` | Recepcionista normal, identidad/CI comprobados | 201 código presencial único y vencimiento; no crea cuenta. |
+| GET `/sanctum/csrf-cookie` | Infraestructura de Sanctum | 204 y cookies para las peticiones stateful. |
+| GET `/up` | Infraestructura de salud | 200; no representa una operación del dominio. |
+
+`route:list` confirma **22 declaraciones/27 combinaciones método-dominio-URI sin duplicados**; GET incluye HEAD. Los cuatro archivos funcionales se registran una sola vez. Los 20 endpoints API corresponden al alcance anterior; no existe CRUD completo de pacientes ni endpoints clínicos implementados por este cierre.
+
+### Resultado de la revisión y pruebas integradas
+
+Se contrastaron CU/reglas, rutas, Controllers/FormRequests/Resources, Services, Repositories y modelos. Se mantienen permisos fijos, estado de cuenta separado de ficha/profesional, bloqueo 3/10, renovación/revocación de sesiones, protección del último Administrador, propósitos/vigencias de tokens, vinculación única y auditoría sin secretos. Se revisaron CORS con credenciales/origen exacto, CSRF, sesiones database cifradas y respuesta JSON segura con no-store; 204 sin cuerpo y 202 sin promesa de envío. El rechazo aprobado de retiro Médico con obligaciones no comprobables permanece vigente.
+
+`tests/Feature/UsuariosAutenticacionIntegracionTest.php` añade **tres recorridos HTTP integrados**, **190 aserciones**, ejecutados correctamente en 1,68 s:
+
+- Paciente nuevo → verificación → dos sesiones → CU-05 con renovación/revocación e invalidación de recuperación anterior → CU-06 → desactivación/reactivación administrativa → nuevo login/logout.
+- Mismo recorrido para una ficha histórica **inactiva**, conservando la ficha original y su estado.
+- Invitación de Recepcionista → temporal y exclusión de recuperación → cambio obligatorio/login → cambio autorizado a Médico con revocación → recuperación conservando identidad/rol/vínculo. Invitación y recuperación no intercambian propósitos; el Administrador mantiene su sesión propia.
+
+Usan el Kernel y las cookies/CSRF reales, guard/Store restaurados por petición y sesiones database cifradas en PostgreSQL aislado. Se conserva la limitación técnica de solicitudes, avanzando el reloj entre etapas; Mail/HTTP están simulados. Complementan las pruebas específicas y carreras existentes, incluidas integridad histórica y rollback. No se detectó necesidad de cambiar lógica productiva, contratos o esquema. **28 entidades/239 atributos/43 relaciones**, con DER revisado sin cambios de persistencia.
+
+Comandos de comprobación reproducibles:
+
+```powershell
+php artisan test --compact --no-ansi tests/Feature/UsuariosAutenticacionIntegracionTest.php
+php artisan test --compact --no-ansi
+php vendor/bin/pint --test app bootstrap/app.php bootstrap/providers.php config routes src tests
+composer validate --strict
+composer dump-autoload --optimize --strict-psr --strict-ambiguous
+php artisan route:list
+```
+
+**Cierre verificado de fase 8:** suite completa **617 pruebas y 6383 aserciones correctas**, **229,82 s** (margen de ejecución 300 s). Pint comprueba **192 PHP fuente**; sintaxis correcta en **193 archivos** incluyendo artisan. Las cachés PHP generadas por Composer/Laravel se excluyen de la comprobación de estilo de fuentes. Composer validate, requisitos de plataforma y autoload PSR-4/ambigüedad estrictos correctos. Los 16 diagramas existentes pasan Mermaid 10.9.5/Chrome headless, correspondencia de métodos/atributos, 29 anclas/enlaces y conservación del expediente histórico. UTF-8/cercas/JSON documental, inventario README/rutas y git diff --check correctos. Sin cambios productivos/dependencias/persistencia, migraciones/seeders de desarrollo ni envíos reales; secretos privados preservados. **Backend cerrado y diagrama global aplazado según la decisión del usuario.**
+
+### Pendientes posteriores al cierre backend
+
+- **Diagrama global:** aplazado por decisión expresa; los 16 diagramas de análisis por procedimiento siguen disponibles, sin sustituirlo.
+- **React/AUT-21:** pantallas, Axios/contexto de sesión, navegación por rol y prueba completa en navegador real, incluidos cookies, recarga, expiración y errores.
+- **Correo real:** confirmar aceptación y llegada a buzón de invitación, verificación y recuperación. Brevo HTTP integrado/configurado privadamente, sin envío real durante estas pruebas.
+- **Producción:** configuración HTTPS/dominios/CORS/cookies y comprobación de buffering/finalización de respuestas diferidas en la topología real; no hay despliegue verificado.
+- **Otros alcances:** CRUD restante de CU-07, módulos siguientes y alternativa del Paciente sin acceso al correo no se incluyen ni se inventan en este cierre.
+
+Documentación actualizada en `docs/ai/contexto-maestro.md` §17.26 y `docs/ai/analisis-clases.md` (cierre integrado y estado por CU). Requisitos/reglas/CU y DER estructural conservados; `diagrama-clases.md` no elaborado. **El backend queda cerrado; el módulo completo de cara al usuario exige la etapa frontend pendiente.**

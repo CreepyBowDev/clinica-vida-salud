@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use Clinica\data\repositories\RegistroPacienteRepository;
 use Clinica\data\repositories\SesionRepository;
 use Clinica\data\repositories\UsuarioRepository;
 use Clinica\shared\utils\CredencialTemporal;
+use Clinica\shared\utils\VerificacionPacienteMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
@@ -30,7 +33,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->previousPath = DB::selectOne('SHOW search_path')->search_path;
         DB::statement('CREATE SCHEMA "'.$this->schema.'"');
         DB::select('SELECT set_config(?, ?, false)', ['search_path', $this->schema.', public, pg_temp']);
-        foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000016_create_medicos'] as $name) {
+        foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000013_create_codigos_activacion_paciente', '000014_create_registros_paciente_pendientes', '000015_create_verificaciones_correo', '000016_create_medicos'] as $name) {
             $migration = require base_path('src/data/database/migrations/2026_10_19_'.$name.'_table.php');
             $migration->up();
         }
@@ -992,5 +995,346 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertSame(1, DB::table('sessions')->where('user_id', $usuario->getKey())->count());
         $this->navegador($cookies, 'PUT', '/api/auth/password/temporal', ['password' => 'Clave definitiva nueva 123',
             'password_confirmation' => 'Clave definitiva nueva 123'])->assertNoContent();
+    }
+
+    private function datosRegistro(): array
+    {
+        return ['documento_identidad' => 'CI-FICTICIO-001', 'correo_acceso' => 'paciente@example.test',
+            'nombres' => 'Paciente', 'apellidos' => 'Ficticio', 'fecha_nacimiento' => '1990-01-01', 'telefono' => '70000000',
+            'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD];
+    }
+
+    private function registroPendiente(): array
+    {
+        DB::table('roles')->insert(['nombre' => 'Paciente']);
+        Mail::fake();
+        config(['seguridad.correo.mailer' => 'array']);
+        $cookies = $this->csrfAuth();
+        $this->navegador($cookies, 'POST', '/api/auth/registro', $this->datosRegistro())->assertStatus(202);
+        $codigo = Mail::sent(VerificacionPacienteMail::class)->last()->codigo;
+
+        return [$cookies, $codigo];
+    }
+
+    public function test_parallel_new_patient_registrations_cannot_reserve_the_same_document_or_email_twice(): void
+    {
+        $workers = [];
+        for ($i = 0; $i < 2; $i++) {
+            $cookies = $this->csrfAuth();
+            $workers[] = $this->worker('', '', mode: 'registro-iniciar', extra: ['cookies' => $cookies, 'payload' => $this->datosRegistro()]);
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        foreach ($workers as $worker) {
+            $this->assertSame(202, json_decode($this->line($worker), true)['status']);
+        }
+        $this->assertSame(1, DB::table('registros_paciente_pendientes')->count());
+        $this->assertSame(1, DB::table('verificaciones_correo')->count());
+        $this->assertSame(0, DB::table('usuarios')->count());
+        $this->assertSame(0, DB::table('pacientes')->count());
+    }
+
+    public function test_parallel_patient_verifications_create_only_one_linked_account_and_one_patient(): void
+    {
+        [$cookies, $codigo] = $this->registroPendiente();
+        $workers = [];
+        for ($i = 0; $i < 2; $i++) {
+            $workers[] = $this->worker('', '', mode: 'registro-verificar', extra: compact('cookies', 'codigo'));
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        $statuses = array_map(fn ($worker) => json_decode($this->line($worker), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([204, 422], $statuses);
+        $usuario = DB::table('usuarios')->sole();
+        $this->assertSame($usuario->id_usuario, DB::table('pacientes')->sole()->id_usuario);
+        $this->assertSame(1, DB::table('verificaciones_correo')->whereNotNull('consumido_en')->count());
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'REGISTRO_PACIENTE_ACTIVADO')->count());
+        $this->assertSame(0, DB::table('sessions')->whereNotNull('user_id')->count());
+    }
+
+    public function test_parallel_wrong_email_codes_preserve_all_five_errors_without_exceeding_the_limit(): void
+    {
+        [$cookies, $correcto] = $this->registroPendiente();
+        $codigo = $correcto === '000000' ? '111111' : '000000';
+        $workers = [];
+        for ($i = 0; $i < 5; $i++) {
+            $workers[] = $this->worker('', '', ip: '192.0.2.'.(100 + $i), mode: 'registro-verificar', extra: compact('cookies', 'codigo'));
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+        }
+        $this->blocked($workers[0]);
+        DB::commit();
+        foreach ($workers as $worker) {
+            $this->assertSame(422, json_decode($this->line($worker), true)['status']);
+        }
+        $this->assertSame(5, DB::table('verificaciones_correo')->sole()->intentos_fallidos);
+        $this->assertNotNull(DB::table('verificaciones_correo')->sole()->invalidado_en);
+        $this->assertSame(0, DB::table('usuarios')->count());
+    }
+
+    public function test_patient_resend_and_confirmation_serialize_code_replacement_and_activation(): void
+    {
+        [$cookies, $codigo] = $this->registroPendiente();
+        DB::table('verificaciones_correo')->update(['enviado_en' => now('UTC')->subMinutes(2)]);
+        $verificar = $this->worker('', '', mode: 'registro-verificar', extra: compact('cookies', 'codigo'));
+        $reenviar = $this->worker('', '', mode: 'registro-reenviar', extra: compact('cookies'));
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ([$verificar, $reenviar] as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        $status = json_decode($this->line($verificar), true)['status'];
+        $this->assertContains($status, [204, 422]);
+        $this->assertSame(202, json_decode($this->line($reenviar), true)['status']);
+        $this->assertSame($status === 204 ? 1 : 0, DB::table('pacientes')->count());
+        $this->assertSame($status === 204 ? 1 : 0, DB::table('usuarios')->count());
+        $this->assertSame($status === 204 ? 1 : 2, DB::table('verificaciones_correo')->count());
+        $this->assertSame(0, DB::table('sessions')->whereNotNull('user_id')->count());
+    }
+
+    public function test_unique_document_constraint_rolls_back_account_when_reception_commits_a_competing_patient(): void
+    {
+        [$cookies, $codigo] = $this->registroPendiente();
+        $worker = $this->worker('', '', mode: 'registro-verificar', extra: compact('cookies', 'codigo'));
+        DB::beginTransaction();
+        $id = DB::table('pacientes')->insertGetId(['codigo_paciente' => 'PAC-RECEPCION-FICTICIO', 'documento_identidad' => 'CI-FICTICIO-001',
+            'nombres' => 'Paciente', 'apellidos' => 'Ficticio', 'fecha_nacimiento' => '1990-01-01', 'telefono' => '70000000'], 'id_paciente');
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        DB::commit();
+        $this->assertSame(422, json_decode($this->line($worker), true)['status']);
+        $this->assertSame(0, DB::table('usuarios')->count());
+        $this->assertSame($id, DB::table('pacientes')->sole()->id_paciente);
+        $this->assertNull(DB::table('pacientes')->sole()->id_usuario);
+        $this->assertNull(DB::table('registros_paciente_pendientes')->sole()->completado_en);
+        $this->assertNull(DB::table('verificaciones_correo')->sole()->consumido_en);
+    }
+
+    private function vinculacionPreparada(bool $iniciar = true): array
+    {
+        DB::table('roles')->insert(['nombre' => 'Paciente']);
+        Mail::fake();
+        config(['seguridad.correo.mailer' => 'array']);
+        $recepcion = $this->csrfAuth();
+        $actor = $this->usuarioAuth('Recepcionista');
+        $this->loginAuth($recepcion, $actor)->assertOk();
+        $id = DB::table('pacientes')->insertGetId(['codigo_paciente' => 'PAC-HISTORICO', 'documento_identidad' => 'CI-HISTORICO',
+            'nombres' => 'Paciente', 'apellidos' => 'Ficticio', 'fecha_nacimiento' => '1990-01-01', 'telefono' => '70000000', 'activo' => false], 'id_paciente');
+        $principal = $this->navegador($recepcion, 'POST', '/api/pacientes/'.$id.'/codigo-activacion', ['identidad_verificada' => true])
+            ->assertCreated()->json('data.codigo_activacion');
+        $cookies = $this->csrfAuth();
+        $payload = ['documento_identidad' => 'CI-HISTORICO', 'codigo_activacion' => $principal, 'correo_acceso' => 'historico@example.test',
+            'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD];
+        $codigo = null;
+        if ($iniciar) {
+            $this->navegador($cookies, 'POST', '/api/auth/registro/vincular', $payload)->assertStatus(202);
+            $codigo = Mail::sent(VerificacionPacienteMail::class)->last()->codigo;
+        }
+
+        return compact('id', 'actor', 'recepcion', 'principal', 'cookies', 'payload', 'codigo');
+    }
+
+    public function test_parallel_historical_reservations_cannot_take_the_same_principal_with_different_contexts(): void
+    {
+        $datos = $this->vinculacionPreparada(false);
+        $workers = [];
+        for ($i = 0; $i < 2; $i++) {
+            $workers[] = $this->worker('', '', mode: 'registro-vincular', extra: ['cookies' => $this->csrfAuth(),
+                'payload' => [...$datos['payload'], 'correo_acceso' => 'historico'.$i.'@example.test']]);
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        foreach ($workers as $worker) {
+            $this->assertSame(202, json_decode($this->line($worker), true)['status']);
+        }
+        $this->assertSame(1, DB::table('registros_paciente_pendientes')->count());
+        $this->assertSame(1, DB::table('verificaciones_correo')->count());
+        $this->assertNull(DB::table('pacientes')->sole()->id_usuario);
+        $this->assertNull(DB::table('codigos_activacion_paciente')->sole()->consumido_en);
+    }
+
+    public function test_parallel_historical_confirmation_consumes_both_codes_once_without_new_patient(): void
+    {
+        $datos = $this->vinculacionPreparada();
+        $workers = [];
+        for ($i = 0; $i < 2; $i++) {
+            $workers[] = $this->worker('', '', mode: 'registro-verificar', extra: $datos);
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        $statuses = array_map(fn ($worker) => json_decode($this->line($worker), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([204, 422], $statuses);
+        $this->assertSame(1, DB::table('pacientes')->count());
+        $this->assertSame(2, DB::table('usuarios')->count());
+        $this->assertFalse(DB::table('pacientes')->sole()->activo);
+        $this->assertNotNull(DB::table('codigos_activacion_paciente')->sole()->consumido_en);
+        $this->assertNotNull(DB::table('verificaciones_correo')->sole()->consumido_en);
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'PACIENTE_CUENTA_VINCULADA')->count());
+    }
+
+    public function test_reception_reissue_and_historical_confirmation_are_atomic_in_either_order(): void
+    {
+        $datos = $this->vinculacionPreparada();
+        $confirmar = $this->worker('', '', mode: 'registro-verificar', extra: $datos);
+        $emitir = $this->worker('', '', mode: 'registro-emitir', extra: ['cookies' => $datos['recepcion'], 'id_objetivo' => $datos['id']]);
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ([$confirmar, $emitir] as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        $status = json_decode($this->line($confirmar), true)['status'];
+        $otro = json_decode($this->line($emitir), true)['status'];
+        $this->assertContains([$status, $otro], [[204, 409], [422, 201]]);
+        $this->assertSame($status === 204 ? 2 : 1, DB::table('usuarios')->count());
+        $this->assertSame($status === 204 ? 1 : 0, DB::table('codigos_activacion_paciente')->whereNotNull('consumido_en')->count());
+        $this->assertSame(1, DB::table('pacientes')->count());
+    }
+
+    public function test_parallel_reception_code_errors_do_not_lose_increments_or_exceed_five(): void
+    {
+        $datos = $this->vinculacionPreparada(false);
+        $payload = [...$datos['payload'], 'codigo_activacion' => $datos['principal'] === str_repeat('0', 12) ? str_repeat('1', 12) : str_repeat('0', 12)];
+        $workers = [];
+        for ($i = 0; $i < 5; $i++) {
+            $workers[] = $this->worker('', '', ip: '192.0.2.'.(120 + $i), mode: 'registro-vincular', extra: ['cookies' => $this->csrfAuth(), 'payload' => $payload]);
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+        }
+        $this->blocked($workers[0]);
+        DB::commit();
+        foreach ($workers as $worker) {
+            $this->assertSame(202, json_decode($this->line($worker), true)['status']);
+        }
+        $this->assertSame(5, DB::table('codigos_activacion_paciente')->sole()->intentos_fallidos);
+        $this->assertNotNull(DB::table('codigos_activacion_paciente')->sole()->invalidado_en);
+        $this->assertSame(0, DB::table('registros_paciente_pendientes')->count());
+    }
+
+    public function test_new_and_historical_requests_serialize_reservation_of_the_same_email(): void
+    {
+        $datos = $this->vinculacionPreparada(false);
+        $nuevo = $this->worker('', '', mode: 'registro-iniciar', extra: ['cookies' => $this->csrfAuth(),
+            'payload' => [...$this->datosRegistro(), 'correo_acceso' => 'historico@example.test']]);
+        $historico = $this->worker('', '', mode: 'registro-vincular', extra: $datos);
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ([$nuevo, $historico] as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        foreach ([$nuevo, $historico] as $worker) {
+            $this->assertSame(202, json_decode($this->line($worker), true)['status']);
+        }
+        $this->assertSame(1, DB::table('registros_paciente_pendientes')->count());
+        $this->assertSame(1, DB::table('verificaciones_correo')->count());
+        $this->assertSame(1, DB::table('pacientes')->count());
+    }
+
+    public function test_code_issuance_revalidates_reception_after_waiting_for_revocation(): void
+    {
+        $datos = $this->vinculacionPreparada(false);
+        $worker = $this->worker('', '', mode: 'registro-emitir', extra: ['cookies' => $datos['recepcion'], 'id_objetivo' => $datos['id']]);
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        DB::table('usuarios')->where('id_usuario', $datos['actor']->getKey())->update(['estado_cuenta' => 'Desactivada']);
+        $this->app->make(SesionRepository::class)->revocarUsuario($datos['actor']->getKey());
+        DB::commit();
+        $this->assertSame(401, json_decode($this->line($worker), true)['status']);
+        $this->assertSame(1, DB::table('codigos_activacion_paciente')->count());
+        $this->assertNull(DB::table('codigos_activacion_paciente')->sole()->invalidado_en);
+    }
+
+    public function test_historical_link_rolls_back_both_codes_when_external_email_insert_wins_unique_constraint(): void
+    {
+        $datos = $this->vinculacionPreparada();
+        $worker = $this->worker('', '', mode: 'registro-verificar', extra: $datos);
+        DB::beginTransaction();
+        DB::table('usuarios')->insert(['id_rol' => $datos['actor']->id_rol, 'correo_acceso' => 'historico@example.test',
+            'nombres_personal' => 'Personal', 'apellidos_personal' => 'Ficticio']);
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        DB::commit();
+        $this->assertSame(422, json_decode($this->line($worker), true)['status']);
+        $this->assertNull(DB::table('pacientes')->sole()->id_usuario);
+        $this->assertNull(DB::table('codigos_activacion_paciente')->sole()->consumido_en);
+        $this->assertNull(DB::table('verificaciones_correo')->sole()->consumido_en);
+        $this->assertNull(DB::table('registros_paciente_pendientes')->sole()->completado_en);
+        $this->assertSame(2, DB::table('usuarios')->count());
+    }
+
+    public function test_parallel_reception_emissions_leave_only_latest_principal_usable(): void
+    {
+        $datos = $this->vinculacionPreparada(false);
+        $workers = [];
+        for ($i = 0; $i < 2; $i++) {
+            $workers[] = $this->worker('', '', mode: 'registro-emitir', extra: ['cookies' => $datos['recepcion'], 'id_objetivo' => $datos['id']]);
+        }
+        DB::beginTransaction();
+        $this->app->make(RegistroPacienteRepository::class)->coordinar();
+        foreach ($workers as $worker) {
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+        }
+        DB::commit();
+        foreach ($workers as $worker) {
+            $this->assertSame(201, json_decode($this->line($worker), true)['status']);
+        }
+        $this->assertSame(3, DB::table('codigos_activacion_paciente')->count());
+        $this->assertSame(1, DB::table('codigos_activacion_paciente')->whereNull('consumido_en')->whereNull('invalidado_en')->count());
+        $this->assertNull(DB::table('codigos_activacion_paciente')->orderByDesc('id_codigo_activacion')->first()->invalidado_en);
+    }
+
+    public function test_unique_email_constraint_preserves_competing_staff_account_and_rolls_back_patient(): void
+    {
+        [$cookies, $codigo] = $this->registroPendiente();
+        $rol = DB::table('roles')->insertGetId(['nombre' => 'Recepcionista'], 'id_rol');
+        $worker = $this->worker('', '', mode: 'registro-verificar', extra: compact('cookies', 'codigo'));
+        DB::beginTransaction();
+        $id = DB::table('usuarios')->insertGetId(['id_rol' => $rol, 'correo_acceso' => 'paciente@example.test',
+            'estado_cuenta' => 'Pendiente', 'nombres_personal' => 'Personal', 'apellidos_personal' => 'Ficticio'], 'id_usuario');
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        DB::commit();
+        $this->assertSame(422, json_decode($this->line($worker), true)['status']);
+        $this->assertSame($id, DB::table('usuarios')->sole()->id_usuario);
+        $this->assertSame('Pendiente', DB::table('usuarios')->sole()->estado_cuenta);
+        $this->assertSame(0, DB::table('pacientes')->count());
+        $this->assertNull(DB::table('registros_paciente_pendientes')->sole()->completado_en);
+        $this->assertNull(DB::table('verificaciones_correo')->sole()->consumido_en);
     }
 }

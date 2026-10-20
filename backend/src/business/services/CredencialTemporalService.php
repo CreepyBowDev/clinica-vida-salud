@@ -5,6 +5,7 @@ namespace Clinica\business\services;
 use Carbon\CarbonImmutable;
 use Clinica\business\validators\CredencialTemporalValidator;
 use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\CambioCorreoRepository;
 use Clinica\data\repositories\SesionRepository;
 use Clinica\data\repositories\TokenAccesoRepository;
 use Clinica\data\repositories\UsuarioRepository;
@@ -24,6 +25,7 @@ class CredencialTemporalService
         private TokenAccesoRepository $tokens,
         private SesionRepository $sesiones,
         private BitacoraRepository $bitacora,
+        private CambioCorreoRepository $cambiosCorreo,
     ) {}
 
     public function emitir(int|string $id, bool $identidadVerificada, array $contexto): array
@@ -57,6 +59,7 @@ class CredencialTemporalService
                 }
                 $objetivo->cambio_clave_obligatorio = true;
                 $this->usuarios->guardar($objetivo);
+                $this->cambiosCorreo->invalidar($objetivo->getKey(), $ahora);
                 $this->continuidad->verificar();
                 $this->tokens->invalidarTemporales($id, $ahora);
                 $this->tokens->invalidarRecuperaciones($id, $ahora);
@@ -102,6 +105,7 @@ class CredencialTemporalService
                 $usuario->password_hash = $hash;
                 $usuario->cambio_clave_obligatorio = false;
                 $this->usuarios->guardar($usuario);
+                $this->cambiosCorreo->invalidar($usuario->getKey(), $ahora);
                 $this->tokens->consumir($token, $ahora);
                 $this->tokens->invalidarTemporales($usuario->getKey(), $ahora);
                 $this->tokens->invalidarRecuperaciones($usuario->getKey(), $ahora);

@@ -39,7 +39,8 @@ class CredencialTemporalTest extends TestCase
             DB::statement('DROP SCHEMA "'.$schema.'" CASCADE');
         });
         foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000006_create_usuarios',
-            '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000016_create_medicos'] as $nombre) {
+            '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes',
+            '000013_create_codigos_activacion_paciente', '000014_create_registros_paciente_pendientes', '000015_create_verificaciones_correo', '000016_create_medicos'] as $nombre) {
             (require base_path('src/data/database/migrations/2026_10_19_'.$nombre.'_table.php'))->up();
         }
         (require base_path('src/data/database/migrations/2026_10_19_000029_allow_temporary_credentials_in_tokens_acceso.php'))->up();

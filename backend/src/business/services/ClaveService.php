@@ -4,6 +4,7 @@ namespace Clinica\business\services;
 
 use Carbon\CarbonImmutable;
 use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\CambioCorreoRepository;
 use Clinica\data\repositories\SesionRepository;
 use Clinica\data\repositories\TokenAccesoRepository;
 use Clinica\data\repositories\UsuarioRepository;
@@ -20,6 +21,7 @@ class ClaveService
         private SesionRepository $sesiones,
         private BitacoraRepository $bitacora,
         private TokenAccesoRepository $tokens,
+        private CambioCorreoRepository $cambiosCorreo,
     ) {}
 
     public function cambiar(string $actual, string $nueva, array $contexto): void
@@ -35,6 +37,7 @@ class ClaveService
                 }
                 $usuario->password_hash = Hash::make($nueva);
                 $this->usuarios->guardar($usuario);
+                $this->cambiosCorreo->invalidar($usuario->getKey(), CarbonImmutable::now('UTC'));
                 $this->tokens->invalidarRecuperaciones($usuario->getKey(), CarbonImmutable::now('UTC'));
                 $this->sesiones->revocarUsuario($usuario->getKey());
                 // El guard regenera ID/CSRF y huella; persistir antes del COMMIT.

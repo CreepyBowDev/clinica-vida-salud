@@ -2,6 +2,7 @@
 
 namespace Clinica\business\services;
 
+use Clinica\shared\utils\CambioCorreoMail;
 use Clinica\shared\utils\InvitacionPersonalMail;
 use Clinica\shared\utils\RecuperacionClaveMail;
 use Clinica\shared\utils\VerificacionPacienteMail;
@@ -11,6 +12,11 @@ use RuntimeException;
 
 class CorreoSeguridadService
 {
+    public function enviarCambioCorreo(string $correo, #[\SensitiveParameter] string $codigo): string
+    {
+        return $this->enviar($correo, new CambioCorreoMail($codigo));
+    }
+
     public function enviarInvitacion(string $correo, #[\SensitiveParameter] string $token): string
     {
         return $this->enviar($correo, new InvitacionPersonalMail($this->frontend().'/activar-personal#token='.$token));

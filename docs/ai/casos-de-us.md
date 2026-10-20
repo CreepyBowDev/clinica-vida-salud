@@ -420,6 +420,26 @@ INCORPORAR CI A UNA FICHA REGISTRADA SIN DOCUMENTO
 
 La ficha mantiene su identidad e historia, también sin CI, y permite las citas presenciales autorizadas conforme a sus reglas y estado. Un CI proporcionado es único. El código autoriza iniciar CU-04 solo cuando se cumplen sus condiciones, incluido CI, pero no crea por sí mismo una cuenta ni publica información clínica.
 
+**Precisiones aprobadas de Clínica Vida Salud — CU-07/CU-08 (fase 1 del módulo):** la siguiente distribución es una decisión propia del proyecto; no se presenta como restricción textual adicional de RF02. Las operaciones se autorizan en servidor y conservan siempre ID, código e identidad vinculada.
+
+| Campos u operación | Recepción — CU-07 | Paciente — CU-08 |
+| --- | --- | --- |
+| CI, nombres, apellidos, nacimiento y sexo | Registrar; incorporar/corregir con comprobación presencial de identidad. Corrección de identidad con motivo. | Consultar los propios; solicitar corrección en Recepción. No editar. |
+| Teléfono, dirección y correo de contacto | Registrar/actualizar. | Consultar/actualizar los propios. |
+| Contacto de emergencia: nombre, parentesco y teléfono | Registrar/actualizar. | Consultar/actualizar el propio. |
+| Recordatorios internos habilitados | Consultar en el detalle si resulta necesario; no modificar la elección del titular. | Consultar/modificar su preferencia. No genera avisos desde CU-08. |
+| Estado de ficha | Desactivar/reactivar con confirmación y motivo obligatorio. | Consultar; no modificar. |
+| ID, código de Paciente y vínculo con Usuario | Consultar referencias administrativas necesarias; no reasignar ni editar. | No editar; referencia propia únicamente. |
+| Correo de acceso | No modificar por CU-07. La emisión de código no crea cuenta. | Gestionar solo por el flujo verificado de CU-08. |
+| Contraseña y estado de cuenta | Sin gestión por CU-07. | Contraseña por CU-05/CU-06; no modificar estado de cuenta. |
+| Antecedentes, diagnósticos, consultas, resultados y documentos | No consultar ni editar por CU-07. | No editar; consulta autorizada por CU-22/CU-27, sin cargarla automáticamente en Mi perfil. |
+
+**Corrección de CI existente:** además de incorporar un CI antes ausente, Recepción puede corregir uno incorrecto, incluso con cuenta vinculada, previa comprobación presencial y motivo. Nunca se permite retirar un CI ya informado mediante este flujo. Se valida formato/unicidad; si pertenece a otra ficha, se rechaza sin fusionar ni trasladar vínculos. Un cambio efectivo invalida en la misma operación los códigos de Recepción y procesos de vinculación pendientes de la ficha; conserva la cuenta ya vinculada y sus credenciales. La operación concurrente con CU-04 debe preservar una sola identidad y evitar consumos parciales.
+
+**Estado administrativo:** desactivar impide nuevas reservas pero no cancela citas existentes, no cierra la cuenta ni invalida por sí mismo los derechos históricos. Reactivar restablece únicamente la elegibilidad administrativa para nuevas reservas; no reactiva cuentas, elimina bloqueos ni restaura citas. Ambas acciones exigen motivo y trazabilidad sin información clínica.
+
+**Edición concurrente:** una escritura basada en datos administrativos desactualizados se rechaza como conflicto, sin sobrescribir modificaciones de Recepción o del Paciente. Se reconsulta y revisa antes de un nuevo envío. El mecanismo técnico se resuelve primero con el modelo existente; no exige atributos nuevos de versionado. La consulta de citas anteriores depende de CU-21 y no queda implementada por completar solamente las operaciones de ficha.
+
 **Excepciones**
 
 Paciente inexistente, identidad no comprobada, CI ausente para vinculación web, cuenta ya vinculada o petición sin permiso: no emitir código. CI duplicado o datos inválidos: rechazar cambios y permitir revisar el registro existente. La ausencia de CI no impide el alta administrativa excepcional. Revisar posibles duplicados reduce errores, pero conocer nombres, nacimiento o teléfono no prueba identidad; no fusionar fichas por semejanza. La resolución de identidades dudosas queda pendiente del diseño administrativo. Código vencido o agotado: solo Recepción puede emitir otro tras verificar nuevamente la identidad y las condiciones de vinculación. Recepción no establece contraseñas del Paciente, no accede a ellas ni modifica antecedentes, diagnósticos u otros contenidos clínicos. La desactivación no elimina fichas, citas ni cuentas relacionadas.
@@ -444,12 +464,12 @@ Paciente
 
 **Precondición**
 
-Cuenta activa, sesión válida y vinculación con la ficha personal. No se permite editar directamente antecedentes médicos, alergias registradas clínicamente, enfermedades crónicas, medicamentos/tratamientos, diagnósticos ni resultados de laboratorio.
+Cuenta activa, sesión normal válida y vinculación con la ficha personal. Una ficha inactiva permite consultar el perfil, actualizar contacto/emergencia/preferencias y gestionar credenciales por sus flujos autorizados; no habilita reservas nuevas. No se permite editar directamente antecedentes médicos, alergias registradas clínicamente, enfermedades crónicas, medicamentos/tratamientos, diagnósticos ni resultados de laboratorio.
 
 **Flujo principal**
 
-1. El Paciente abre Mi perfil; el servidor recupera sus datos personales, contacto de emergencia e información de salud autorizada.
-2. Modifica datos personales, de contacto o emergencia y las preferencias internas permitidas; la información clínica autorizada se presenta solo para consulta.
+1. El Paciente abre Mi perfil; el servidor recupera sus datos administrativos propios, contacto de emergencia y preferencia de recordatorios. La información clínica se consulta mediante CU-22/CU-27 con autorización propia, no se carga automáticamente desde el perfil.
+2. Modifica exclusivamente teléfono, dirección, correo de contacto, contacto de emergencia y preferencia de recordatorios, conforme a la matriz explícita de CU-07/CU-08. Consulta CI, nombres, apellidos, nacimiento y sexo; solicita sus correcciones en Recepción.
 3. El servidor verifica titularidad, campos y unicidad, sin cambiar el identificador ni la vinculación.
 4. Guarda los cambios y registra las modificaciones administrativas relevantes en la bitácora.
 5. El correo de contacto se conserva separado del de acceso; el cambio de contraseña se realiza exclusivamente por CU-05.
@@ -458,12 +478,14 @@ Cuenta activa, sesión válida y vinculación con la ficha personal. No se permi
 
 CAMBIO DEL CORREO DE ACCESO
 1. El Paciente autenticado confirma su contraseña actual e introduce el nuevo correo.
-2. El servidor comprueba unicidad y crea una solicitud protegida, sin sustituir el correo vigente.
+2. El servidor rechaza un correo igual al vigente conforme a la normalización existente, comprueba unicidad y crea una solicitud protegida, sin sustituir el correo vigente ni el de contacto. Solo hay una solicitud pendiente por cuenta; iniciar otra invalida la anterior sin eludir los límites de emisión.
 3. Brevo envía al nuevo correo un código según la política existente: seis dígitos, diez minutos, cinco errores y los límites de reenvío ya definidos.
 4. El Paciente introduce el código; el servidor valida su contexto, vigencia y uso.
 5. Antes de confirmar vuelve a comprobar la unicidad y la cuenta, para impedir cambios simultáneos incompatibles.
-6. Actualiza únicamente el correo de acceso y consume el código de forma íntegra; mantiene la cuenta y la ficha vinculada, e invalida solicitudes de recuperación asociadas al correo anterior.
-7. Registra el cambio sin códigos ni contraseñas. Hasta entonces solo el correo anterior permite iniciar sesión.
+6. Actualiza únicamente el correo de acceso y su verificación, consume el código de forma íntegra, mantiene cuenta/ficha y contraseña e invalida las recuperaciones pendientes. Revoca todas las sesiones de la cuenta y exige nuevo login con el nuevo correo; no inicia sesión automáticamente.
+7. Registra el cambio sin códigos ni contraseñas. Hasta entonces solo el correo anterior permite iniciar sesión. Cambio/recuperación de contraseña, desactivación de cuenta y cambio administrativo de rol invalidan las solicitudes pendientes de cambio de correo. Logout ordinario no las cancela por sí solo: continuar exige autenticarse como la misma cuenta y una solicitud aún válida.
+
+El código pertenece exclusivamente al propósito CambioCorreo, al usuario y al correo propuesto; no se intercambia con activación, invitación o recuperación. Cada reenvío invalida el código anterior. Fallar el envío no modifica el correo vigente ni permite confirmar con un código cuya entrega no fue aceptada por el transporte; aceptación no acredita llegada al buzón. Un reenvío permite reintentar de forma controlada, sin fabricar éxito ni ampliar la vigencia del código anterior.
 
 **Postcondición**
 

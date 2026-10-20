@@ -8,6 +8,8 @@ use Clinica\data\models\Paciente;
 
 class CodigoActivacionRepository
 {
+    public function __construct(private PacienteRepository $pacientes) {}
+
     public function pacientePorId(int|string $id): ?Paciente
     {
         return Paciente::query()->whereKey($id)->lockForUpdate()->first();
@@ -51,6 +53,6 @@ class CodigoActivacionRepository
     public function vincular(Paciente $paciente, int|string $usuario): void
     {
         $paciente->id_usuario = $usuario;
-        $paciente->saveOrFail();
+        $this->pacientes->guardar($paciente);
     }
 }

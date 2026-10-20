@@ -5,6 +5,7 @@ namespace Clinica\business\services;
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Usuario;
 use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\CambioCorreoRepository;
 use Clinica\data\repositories\MedicoRepository;
 use Clinica\data\repositories\SesionRepository;
 use Clinica\data\repositories\TokenAccesoRepository;
@@ -26,6 +27,7 @@ class InvitacionPersonalService
         private SesionRepository $sesiones,
         private BitacoraRepository $bitacora,
         private CorreoSeguridadService $correo,
+        private CambioCorreoRepository $cambiosCorreo,
     ) {}
 
     private function administrador(): Usuario
@@ -165,6 +167,7 @@ class InvitacionPersonalService
                 $usuario->correo_verificado_en = $ahora;
                 $usuario->estado_cuenta = 'Activa';
                 $this->usuarios->guardar($usuario);
+                $this->cambiosCorreo->invalidar($usuario->getKey(), CarbonImmutable::now('UTC'));
                 $this->tokens->consumir($token, $ahora);
                 $this->tokens->invalidarInvitaciones($usuario->getKey(), $ahora);
                 $this->sesiones->revocarUsuario($usuario->getKey());

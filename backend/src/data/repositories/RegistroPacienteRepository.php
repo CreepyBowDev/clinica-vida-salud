@@ -44,6 +44,18 @@ class RegistroPacienteRepository
         return Paciente::query()->whereRaw('btrim(documento_identidad) = ?', [$ci])->exists();
     }
 
+    public function reservasPorDocumento(string $ci): iterable
+    {
+        return RegistroPacientePendiente::query()->whereRaw('btrim(documento_identidad) = ?', [$ci])
+            ->whereNull('completado_en')->whereNull('invalidado_en')->lockForUpdate()->get();
+    }
+
+    public function correoReservado(string $correo, CarbonImmutable $ahora): bool
+    {
+        return RegistroPacientePendiente::query()->whereRaw('lower(btrim(correo_propuesto)) = ?', [$correo])
+            ->whereNull('completado_en')->whereNull('invalidado_en')->where('expira_en', '>', $ahora)->exists();
+    }
+
     public function crear(array $datos): RegistroPacientePendiente
     {
         $registro = new RegistroPacientePendiente;

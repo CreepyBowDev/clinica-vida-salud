@@ -30,7 +30,15 @@ class UsuarioRepository
 
     public function guardar(Usuario $usuario): void
     {
+        $ahora = CarbonImmutable::now('UTC');
+        $usuario->actualizado_en = $ahora->greaterThan($usuario->actualizado_en)
+            ? $ahora : $usuario->actualizado_en->addMicrosecond();
         $usuario->saveOrFail();
+    }
+
+    public function existeCorreo(string $correo): bool
+    {
+        return Usuario::query()->whereRaw('lower(btrim(correo_acceso)) = ?', [$correo])->exists();
     }
 
     public function rolPorNombre(string $nombre): ?Rol

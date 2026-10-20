@@ -1,6 +1,8 @@
 <?php
 
 // Proceso auxiliar exclusivo de pruebas; nunca se registra como ruta o comando de la aplicación.
+use Carbon\CarbonImmutable;
+use Clinica\business\services\CorreoSeguridadService;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Events\RouteMatched;
@@ -27,10 +29,32 @@ try {
         throw new RuntimeException('Esquema de prueba no permitido.');
     }
     DB::select('SELECT set_config(?, ?, false)', ['search_path', $data['schema'].', public, pg_temp']);
+    if (isset($data['ahora'])) {
+        Carbon\Carbon::setTestNow($data['ahora']);
+        CarbonImmutable::setTestNow($data['ahora']);
+    }
     config(['session.driver' => 'database', 'session.lottery' => [0, 100], 'hashing.bcrypt.rounds' => 4]);
-    if (str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'registro-') || $data['mode'] === 'invitacion-aceptar') {
+    if (str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-correo') || $data['mode'] === 'invitacion-aceptar') {
         config(['seguridad.correo.mailer' => 'array']);
         Mail::fake();
+    }
+    if ($data['mode'] === 'paciente-correo-pausa') {
+        $app->instance(CorreoSeguridadService::class, new class extends CorreoSeguridadService
+        {
+            public function enviarCambioCorreo(string $correo, #[SensitiveParameter] string $codigo): string
+            {
+                if (DB::transactionLevel() !== 0) {
+                    throw new RuntimeException('El transporte no debe mantener una transacción.');
+                }
+                echo "TRANSPORTE\n";
+                fflush(STDOUT);
+                if (trim(fgets(STDIN)) !== 'CONTINUAR') {
+                    throw new RuntimeException('Falta barrera de transporte.');
+                }
+
+                return 'simulado';
+            }
+        });
     }
     if (in_array($data['mode'], ['login-pause', 'password-pause'], true)) {
         $app['router']->pushMiddlewareToGroup('api', PausarRespuestaAutenticacion::class);
@@ -48,7 +72,7 @@ try {
         throw new RuntimeException('Falta barrera de inicio.');
     }
     $cookies = $data['cookies'] ?? [];
-    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || $data['mode'] === 'invitacion-aceptar') {
+    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-') || $data['mode'] === 'invitacion-aceptar') {
         // Ya se validó la identidad PostgreSQL aislada; ejercitar ahora CSRF real.
         $app['env'] = 'local';
     }
@@ -72,6 +96,12 @@ try {
         return $response;
     };
     $response = match (true) {
+        in_array($data['mode'], ['paciente-correo', 'paciente-correo-pausa'], true) => $send('POST', '/api/mi-perfil/correo', $data['payload']),
+        $data['mode'] === 'paciente-correo-verificar' => $send('POST', '/api/mi-perfil/correo/verificar', ['codigo' => $data['codigo']]),
+        $data['mode'] === 'paciente-crear' => $send('POST', '/api/pacientes', $data['payload']),
+        $data['mode'] === 'paciente-editar' => $send('PATCH', '/api/pacientes/'.$data['id_objetivo'], $data['payload']),
+        $data['mode'] === 'paciente-estado' => $send('PATCH', '/api/pacientes/'.$data['id_objetivo'].'/estado', $data['payload']),
+        $data['mode'] === 'paciente-perfil' => $send('PATCH', '/api/mi-perfil', $data['payload']),
         $data['mode'] === 'registro-vincular' => $send('POST', '/api/auth/registro/vincular', $data['payload']),
         $data['mode'] === 'registro-emitir' => $send('POST', '/api/pacientes/'.$data['id_objetivo'].'/codigo-activacion', ['identidad_verificada' => true]),
         $data['mode'] === 'registro-iniciar' => $send('POST', '/api/auth/registro', $data['payload']),
@@ -89,6 +119,9 @@ try {
         default => $send('POST', '/api/auth/login', ['correo_acceso' => $data['correo'], 'password' => $data['password']]),
     };
     $result = ['status' => $response->getStatusCode()];
+    if (str_starts_with($data['mode'], 'paciente-correo')) {
+        $result['envio'] = json_decode($response->getContent(), true)['data']['envio'] ?? null;
+    }
     if (in_array($data['mode'], ['login-pause', 'password-pause'], true)) {
         $result['me_status'] = $send('GET', '/api/auth/me')->getStatusCode();
     }

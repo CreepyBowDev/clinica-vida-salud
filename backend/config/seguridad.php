@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'cambio_correo' => [
+        'solicitudes_por_ip' => 20,
+        'solicitudes_por_usuario' => 5,
+    ],
     'registro_paciente' => [
         'solicitudes_por_ip' => 20,
         'solicitudes_por_ambito' => 5,

@@ -5,6 +5,7 @@ namespace Clinica\business\services;
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Usuario;
 use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\CambioCorreoRepository;
 use Clinica\data\repositories\MedicoRepository;
 use Clinica\data\repositories\SesionRepository;
 use Clinica\data\repositories\TokenAccesoRepository;
@@ -25,6 +26,7 @@ class AdministracionCuentaService
         private SesionRepository $sesiones,
         private BitacoraRepository $bitacora,
         private TokenAccesoRepository $tokens,
+        private CambioCorreoRepository $cambiosCorreo,
     ) {}
 
     private function administrador(): Usuario
@@ -78,6 +80,7 @@ class AdministracionCuentaService
                 $antes = $this->valoresAdministrativos($objetivo);
                 $cambio($objetivo);
                 $this->usuarios->guardar($objetivo);
+                $this->cambiosCorreo->invalidar($objetivo->getKey(), CarbonImmutable::now('UTC'));
                 $this->tokens->invalidarRecuperaciones($objetivo->getKey(), CarbonImmutable::now('UTC'));
                 $this->tokens->invalidarTemporales($objetivo->getKey(), CarbonImmutable::now('UTC'));
                 $this->continuidad->verificar();

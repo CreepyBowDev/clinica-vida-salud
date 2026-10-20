@@ -5,6 +5,7 @@ namespace Clinica\business\services;
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Usuario;
 use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\CambioCorreoRepository;
 use Clinica\data\repositories\SesionRepository;
 use Clinica\data\repositories\TokenAccesoRepository;
 use Clinica\data\repositories\UsuarioRepository;
@@ -24,6 +25,7 @@ class RecuperacionClaveService
         private SesionRepository $sesiones,
         private BitacoraRepository $bitacora,
         private CorreoSeguridadService $correo,
+        private CambioCorreoRepository $cambiosCorreo,
     ) {}
 
     private function elegible(?Usuario $usuario): bool
@@ -98,6 +100,7 @@ class RecuperacionClaveService
                 }
                 $usuario->password_hash = Hash::make($password);
                 $this->usuarios->guardar($usuario);
+                $this->cambiosCorreo->invalidar($usuario->getKey(), $ahora);
                 $this->tokens->consumir($token, $ahora);
                 $this->tokens->invalidarRecuperaciones($usuario->getKey(), $ahora);
                 $this->sesiones->revocarUsuario($usuario->getKey());

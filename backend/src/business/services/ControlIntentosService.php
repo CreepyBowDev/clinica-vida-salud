@@ -95,4 +95,12 @@ class ControlIntentosService
             ['registro-paciente:'.$accion.':ambito:'.$ambito, (int) config('seguridad.registro_paciente.solicitudes_por_ambito')],
         ], 60, $contexto, 'REGISTRO_PACIENTE_LIMITADO');
     }
+
+    public function evaluarCambioCorreo(string $accion, int|string $id, array $contexto): void
+    {
+        $this->evaluar([
+            ['cambio-correo:'.$accion.':ip:'.$contexto['ip'], (int) config('seguridad.cambio_correo.solicitudes_por_ip')],
+            ['cambio-correo:'.$accion.':usuario:'.$id, (int) config('seguridad.cambio_correo.solicitudes_por_usuario')],
+        ], 60, $contexto, 'CAMBIO_CORREO_LIMITADO');
+    }
 }

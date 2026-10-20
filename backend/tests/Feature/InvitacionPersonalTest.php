@@ -41,7 +41,7 @@ class InvitacionPersonalTest extends TestCase
             DB::select('SELECT set_config(?, ?, false)', ['search_path', $this->previousPath]);
             DB::statement('DROP SCHEMA "'.$this->schema.'" CASCADE');
         });
-        foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000016_create_medicos'] as $name) {
+        foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000013_create_codigos_activacion_paciente', '000014_create_registros_paciente_pendientes', '000015_create_verificaciones_correo', '000016_create_medicos'] as $name) {
             (require base_path('src/data/database/migrations/2026_10_19_'.$name.'_table.php'))->up();
         }
         DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$this->schema.'", public, pg_temp');

@@ -32,7 +32,8 @@ class AdministracionCuentaTest extends TestCase
             DB::statement('DROP SCHEMA "'.$schema.'" CASCADE');
         });
         foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000004_create_especialidades',
-            '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000016_create_medicos',
+            '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes',
+            '000013_create_codigos_activacion_paciente', '000014_create_registros_paciente_pendientes', '000015_create_verificaciones_correo', '000016_create_medicos',
             '000017_create_medico_especialidad', '000019_create_citas', '000022_create_consultas_medicas', '000025_create_solicitudes_laboratorio'] as $name) {
             (require base_path('src/data/database/migrations/2026_10_19_'.$name.'_table.php'))->up();
         }

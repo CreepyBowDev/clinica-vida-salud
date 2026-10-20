@@ -1,0 +1,4 @@
+.registration-switch { display: inline-block; margin-top: 20px; font-weight: 600; color: var(--color-primary-hover); }
+.registration-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.registration-grid .field { min-width: 0; }
+@media (max-width: 600px) { .registration-grid { grid-template-columns: minmax(0, 1fr); gap: 0; } }

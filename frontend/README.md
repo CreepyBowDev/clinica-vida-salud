@@ -1,5 +1,47 @@
 # Frontend — Clínica Vida Salud
 
+## Médicos y especialidades — fase 5: cierre administrativo local (2026-10-21)
+
+Detalle ofrece «Crear cuenta para este médico» solo sin vínculo. CU-03 recibe `id_medico` como cadena, valida parámetro único/reconsulta y fija rol Médico/registro; vínculo existente impide alta. No infiere ID/estado de cuenta desde el booleano. Correo de acceso se introduce expresamente, separado del contacto; Laravel valida vinculación al guardar. Resultados inciertos bloquean repetición hasta revisar vínculo vigente.
+
+**Integración real:** Chrome headless → React/Axios → Laravel → PostgreSQL, base/rol de pruebas aislados y esquema aleatorio con todas las migraciones (incluidas 000030–000032); solo correo sustituido por captura local. **17 comprobaciones**: catálogo/paginación/duplicado/edición/estado, alta de Médico con catálogo inactivo, 409 obsoleto/adopción, retiro/rehabilitación con historia, rechazo por cita futura/rollback, cuenta/invitación/aceptación/login/restauración y separación actividad/acceso. SQL final confirma un Médico nuevo, cita conservada, tres pares históricos y 25 eventos sin contraseña/token de prueba. Respuestas reales 200/201/204/401/403/409/419; negativas de permisos/CSRF también mediante fetch autenticado.
+
+**Responsive/accesibilidad:** diez vistas a 320/1440 px, tres en límites 700/701, 960/961, 1100/1101 y 1920, confirmaciones móviles, texto al 200 % y espaciado ampliado. **52 comprobaciones sin overflow global/controles fuera de ancho y 23 auditorías axe sin infracciones automáticas**; selección por teclado, menú/Escape/retorno de foco, salto al contenido y semántica de tabla móvil comprobados. Capturas revisadas; sin excepciones JS ni Web Storage. Se corrigen corte de códigos largos, selección apilable y separación de enlaces de retorno. No equivale a certificación integral.
+
+**Cierre:** `pnpm test` **521 pruebas/30 archivos**, 12 nuevas; build correcto, aviso conocido del bundle 556,88 kB. PHPUnit focalizado MedicosEspecialidadesIntegracionTest: **2 pruebas/140 aserciones**. Plan administrativo frontend CU-09/CU-10 completado localmente. README/análisis/casos/contexto §17.65 sincronizados; DER sin cambios nuevos, diagrama global expresamente aplazado. Auxiliares/evidencias `med5*` fuera de Git; esquema/secretos de prueba retirados y servidores temporales detenidos al finalizar. Consultorios/horarios/agenda y aceptación Railway/Brevo real conservan sus alcances posteriores; actualización PHP sigue aplazada.
+
+## Médicos — fase 4 frontend (2026-10-21)
+
+Detalle incorpora activación/inactivación profesional con confirmación y explicación de independencia de cuenta, rol, catálogo y sesiones. Se consume PATCH `/medicos/:id/estado` con versión exacta; vínculo incompatible dirige a gestión de cuentas y requiere revisar estado actual. No se alteran automáticamente citas ni obligaciones anteriores.
+
+Nueva ruta de Administrador `/administracion/medicos/:id/especialidades`: consulta el conjunto habilitado, permite agregar/rehabilitar o retirar mediante catálogo paginado existente y mantiene como mínimo una habilitación, incluso con Médico/catálogo inactivos. Antes de guardar muestra adiciones y retiros; PUT `/medicos/:id/especialidades` envía el conjunto completo y `actualizado_en_original`. Rechazo 409 por citas futuras conserva selección y muestra que no se guardó ningún cambio. La comprobación de citas y la integridad histórica corresponden al backend. Versión obsoleta/resultado incierto exigen consulta y adopción explícita; nueva adopción reinicia confirmación. Éxito reconsulta detalle.
+
+**Verificación:** `pnpm test`: **509 pruebas correctas/29 archivos**, 34 nuevas respecto de fase 3 (11 servicios y 23 pantallas). `pnpm build` y `git diff --check` correctos; aviso conocido del bundle principal (553,88 kB). Recorridos con servicios/Axios reales y transporte ficticio; no acreditan carreras PostgreSQL, consulta real de citas ni integración Laravel. Fase 5 pendiente: vínculo con creación de cuenta existente, integración real y revisión visual/responsive/accesible. Diagrama global aplazado expresamente.
+
+## Médicos — fase 3 frontend (2026-10-21)
+
+Alta (`/administracion/medicos/nuevo`), detalle (`/administracion/medicos/:id`) y edición de datos (`/administracion/medicos/:id/editar`) para Administrador. Formularios de registro profesional, nombres, apellidos, teléfono y correo de contacto; selección de una o varias especialidades iniciales con búsqueda/paginación, incluidas inactivas, selección persistente entre páginas y retirada individual antes del alta. Código generado por servidor, sin creación automática de cuenta, consultorio u horarios. Edición de datos mantiene independientes actividad, habilitaciones y cuenta; correo de contacto no cambia acceso, ni se exige unicidad no acordada de correo/registro profesional. Detalle muestra asociaciones habilitadas e históricas y estado del catálogo por separado.
+
+Servicios `consultarMedico`, `crearMedico` y `actualizarMedico` sobre Axios/CSRF existentes, IDs BIGINT como cadenas, versión exacta y payloads explícitos. Borradores conservados ante errores; versión obsoleta exige consulta/adopción explícita. Resultados inciertos bloquean reenvío hasta revisar el registro; alta orienta al listado. Sin reintentos automáticos y con reconsulta de detalle después de éxito.
+
+**Verificación:** `pnpm test`: **475 pruebas correctas/28 archivos**, incluidas 32 nuevas (12 de servicios, 20 de pantallas). `pnpm build` y `git diff --check` correctos. Aviso conocido de bundle principal: 545,88 kB. Se usan servicios/Axios reales con transporte ficticio; integración Laravel y revisión visual en navegador pendientes del cierre integrado. Siguiente fase 4: actividad profesional/habilitaciones; fase 5: vínculo con cuentas e integración. Diagrama global continúa aplazado expresamente.
+
+## Especialidades — fase 2 frontend (2026-10-21)
+
+Gestión de catálogo CU-09 para Administrador: alta en `/administracion/especialidades/nueva`, detalle en `/administracion/especialidades/:id` y edición en `/administracion/especialidades/:id/editar`. El listado enlaza a detalle y alta. Nombre obligatorio hasta 120 caracteres y descripción opcional hasta 2000, sin caracteres de control conforme al contrato actual (incluidos saltos de línea). Alta no permite imponer estado; detalle permite activación/inactivación con confirmación explícita y explica preservación de asociaciones/citas/historial.
+
+`especialidad.service.js` incorpora consulta, creación, edición y estado con CSRF, listas explícitas de campos, IDs de texto y versión UTC de seis decimales conservada exactamente. Duplicado 409 permite corregir el nombre manteniendo borrador; edición obsoleta bloquea envío y consulta la versión vigente para comparación/adopción explícita. Los resultados inciertos de alta bloquean duplicación y orientan al catálogo; en edición/estado requieren revisar versión actual. Sin reintentos automáticos de escritura. Después de éxito se consulta nuevamente el detalle, con aviso de la operación confirmada.
+
+**Verificación:** `pnpm test`: **443 pruebas correctas/26 archivos**, 34 nuevas respecto de fase 1; `pnpm build` y `git diff --check` correctos. Bundle principal 532,15 kB, con aviso conocido de tamaño. Pruebas de recorrido con Router/AuthContext/servicios/Axios reales y adaptador HTTP ficticio; no equivalen a integración Laravel ni revisión visual en navegador, pendientes del cierre integrado. Diagrama global aplazado; próximas fases: datos/alta de Médicos, actividad/habilitaciones y vínculo con creación de cuentas.
+
+## Médicos y especialidades — fase 1 frontend (2026-10-21)
+
+Listados exclusivos del Administrador en `/administracion/medicos` y `/administracion/especialidades`, con enlaces del menú, títulos y destino seguro tras login. Servicios de feature consumen GET `/medicos` y `/especialidades` mediante Axios central y `sessionBound`, con cancelación y descarte de respuestas obsoletas.
+
+Especialidades permite buscar nombre y estado del catálogo; Médicos, nombre/apellidos, actividad profesional y especialidad habilitada. El selector consulta todo el catálogo mediante búsqueda y paginación, representa inactivas y conserva la selección al cambiar de página. La paginación utiliza `meta`, sin seguir URLs recibidas. Se mantienen IDs BIGINT como texto y versiones sin conversión. Estados de carga, vacío, errores seguros, validación y espera `Retry-After` con reconsulta manual. Tablas adaptables a tarjetas bajo 700 px, etiquetas visibles y foco en resultados al paginar.
+
+**Verificación:** `pnpm test`: **409 pruebas correctas/25 archivos**, incluidas 30 nuevas de servicios y pantallas; `pnpm build` y `git diff --check` correctos. El build conserva el aviso del bundle principal mayor de 500 kB (519,80 kB). Esta fase se verifica con servicios simulados y adaptador Axios de prueba; integración Laravel y revisión visual en navegador de las nuevas pantallas siguen pendientes. Altas, detalles, ediciones, actividad/habilitaciones y enlace con creación de cuenta se implementarán en fases posteriores. Avance parcial CU-09/CU-10; diagrama global aplazado por decisión expresa.
+
 ## Mejora visual y responsive — fase 4 completada (2026-10-21)
 
 **Plan visual de cuatro fases completado para las pantallas existentes.** Se conserva la identidad clínica acordada y se revisa el conjunto después de las mejoras de acceso, cuentas y Pacientes. Las secciones inferiores mantienen la cronología de cada fase.

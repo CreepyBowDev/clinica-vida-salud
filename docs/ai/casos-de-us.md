@@ -501,6 +501,8 @@ Contraseña actual incorrecta, correo ocupado, código inválido, vencido o agot
 <a id="cu-09"></a>
 #### CU-09 — Gestionar especialidades médicas
 
+**Avance frontend — fases 1/2 (2026-10-21):** listado/filtros/paginación, alta, detalle, edición y estado implementados para Administrador. Confirma activación/inactivación, conserva asociaciones/citas/historial y separa actividad de catálogo, profesional y cuenta. Duplicados permiten corrección; obsolescencia conserva borrador y exige revisión/adopción de versión actual, sin reenvíos automáticos. Contratos y recorridos verificados mediante transporte HTTP ficticio; integración Laravel y revisión visual en navegador pendientes del cierre integrado. Contexto §17.62, análisis incremental y README frontend contienen la evidencia (443 pruebas/26 archivos en suite completa). Diagrama global continúa aplazado expresamente.
+
 **Trazabilidad de la ficha:** Alcance: 1.4.3. Proceso: PN06. Correspondencia: RF04. RN12, RN14. Ciclo: 1.  
 **Estado documental:** Especificado · **Ciclo:** 1 · **Fuente:** PDF, página 79.
 
@@ -543,6 +545,12 @@ El catálogo queda actualizado sin eliminar relaciones ni citas anteriores. La d
 
 <a id="cu-10"></a>
 #### CU-10 — Gestionar médicos y sus especialidades
+
+**Cierre frontend administrativo CU-09/CU-10 — fase 5 (2026-10-21):** detalle sin cuenta enlaza a CU-03; reconsulta profesional, fija rol Médico/ID y solicita correo de acceso independiente. Vínculo existente/parámetro inválido impiden alta; servidor valida concurrencia y errores inciertos bloquean repetición hasta revisión. Recorrido real React/Laravel/PostgreSQL aislado completa catálogo → Médico → habilitaciones → cuenta/invitación → aceptación/login, con 409 obsoleto/adopción y cita futura/rollback; conserva cita/pares y separación de actividad/acceso. Correo capturado localmente. Suite **521 pruebas/30 archivos**, build correcto; PHPUnit focalizado **2/140 aserciones**. Revisión visual/teclado: 52 comprobaciones de disposición y 23 auditorías axe sin infracciones automáticas. Contexto §17.65/análisis/README sincronizados; DER sin cambios nuevos y diagrama global aplazado expresamente. Consultorios/horarios/agenda y aceptación de producción/Brevo real permanecen posteriores.
+
+**Avance frontend — fase 4 (2026-10-21):** actividad profesional con confirmación en detalle y gestión del conjunto habilitado en ruta exclusiva de Administrador. Resumen previo de adiciones/retiros, mínimo una habilitación y versiones exactas. Rechazo de retiro por citas futuras conserva borrador sin modificar citas; reactivación con vínculo incompatible orienta a gestión de cuentas sin cambiar rol/acceso. Obsolescencia/incertidumbre requieren revisar/adoptar datos vigentes y confirmar nuevamente. Suite completa 509 pruebas/29 archivos con transporte ficticio, build correcto; cierre integrado Laravel/navegador y vínculo con creación de cuentas pendientes de fase 5. Contexto §17.64/análisis/README frontend; diagrama global aplazado.
+
+**Avance frontend — fase 3 (2026-10-21):** listado/detalle/alta/edición de datos disponibles para Administrador. Alta exige al menos una especialidad, con búsqueda/paginación y selección conservada entre páginas; permite catálogo inactivo sin activarlo ni generar disponibilidad. Código generado por servidor; alta no crea cuenta/consultorio/horarios. Edición de datos no cambia actividad, habilitaciones ni cuenta; usa versión original y preserva borrador ante conflictos. Detalle muestra habilitaciones y relaciones históricas sin inferir estado de cuenta desde el vínculo booleano. Suite completa 475 pruebas/28 archivos con transporte ficticio, build correcto. Actividad/habilitaciones, vínculo con creación de cuenta, integración Laravel y revisión en navegador siguen posteriores. Evidencia en contexto §17.63/análisis/README frontend; diagrama global aplazado expresamente.
 
 **Trazabilidad de la ficha:** Alcance: 1.4.3. Proceso: PN07. Correspondencia: RF03, RF04. RN02, RN04, RN11, RN12, RN14. Ciclo: 1.  
 **Estado documental:** Especificado · **Ciclo:** 1 · **Fuente:** PDF, página 80.

@@ -1,7 +1,7 @@
 # Análisis de clases — Clínica Vida Salud
 
 > **Ruta canónica:** `docs/ai/analisis-clases.md`  
-> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo fases 1–5 implementado; frontend/agenda posteriores y diagrama global aplazado).
+> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo y frontend fases 1–5 implementados con integración local; consultorios/horarios/agenda posteriores, diagrama global aplazado).
 > **Avance:** Usuarios backend fases 0–8, incluidas 7A/7B; Pacientes backend/frontend fases 1–6 revisados el 2026-10-20. Plan frontend de gestión administrativa, perfil y correo completado con integración real local. Consulta histórica de citas conserva dependencia de CU-21; no se acredita RF02 íntegro ni producción/Brevo real.
 > **Estado:** backend de Usuarios y autenticación cerrado con revisión integrada de fase 8. React fases 1–6 implementadas, revisión del cliente con 213 pruebas y AUT-21 local aprobada en Chrome/Laravel/PostgreSQL reales (§17.34 del contexto). Incluye sesión, contraseñas, cuentas y registro/vinculación con emisión presencial de Recepción. Correo capturado localmente: aceptación/entrega real Brevo y comprobación de producción pendientes. `diagrama-clases.md` aplazado por solicitud expresa del usuario.
 > **Presentación aprobada:** ACTOR → BOUNDARY → CONTROL → ENTITY; un bloque CONTROL por diagrama, métodos principales sin clase, parámetros ni retorno, y atributos seleccionados por procedimiento.
@@ -18,6 +18,98 @@ Decisión aprobada posterior al cierre de CU-09/CU-10: Controllers, DTO, Service
 | `repositories/bitacora/` | BitacoraRepository registra eventos de todos los módulos; no acredita CU-30 completo. |
 
 Las clases compartidas se importan desde su módulo propietario; no hay copias ni alias antiguos. Se actualizan referencias entre capas, bootstrap/rutas/middlewares y tests/fixtures. Modelos, validadores, rutas, middlewares y migraciones conservan ubicación. DER sin cambios; diagrama global aplazado expresamente. Evidencias de regresión en contexto §17.60 y README.
+
+## CU-09/CU-10 — fase 5 frontend: vínculo CU-03 y cierre integrado (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador completa gestión administrativa de catálogo/profesionales y accede a creación de cuenta CU-03; RF01/RF03/RF04 y decisiones VS-MED vigentes. Autorización y unicidad del vínculo siguen en Laravel; consultorios/horarios/agenda son posteriores.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `DoctorActivity` | Enlaza a CU-03 solo sin cuenta vinculada; no interpreta el booleano como ID/estado de acceso. |
+| `NewStaffPage` / `SelectedDoctor` internos | Validan parámetro único BIGINT; consultan por `consultarMedico`/`useCatalogQuery`, descartan respuestas anteriores y bloquean alta con vínculo existente. Son funciones UI, no clases de dominio. |
+| `StaffForm` interno | Fija rol/ID consultados y solicita correo de acceso independiente; reutiliza envío, errores e invitación CU-03. Incertidumbre bloquea repetir hasta revisar vínculo. |
+| `crearPersonal` / Axios | Conservan POST `/personal`, cookies/CSRF/sessionBound y campos explícitos; sin endpoints nuevos ni reintentos automáticos. |
+| `PersonalController` / `InvitacionPersonalService` / repositorios existentes | Validan Administrador y vínculo bajo transacción/locks; crean cuenta pendiente e invitación. Aceptación/login reutilizan clases de Usuarios ya analizadas. |
+
+**Flujo/alternativos:** detalle → reconsulta → formulario fijado → servicio CU-03 → cuenta pendiente/invitación → aceptación → nuevo login Médico. Parámetro inválido/duplicado no consulta; vínculo concurrente 409 no anuncia éxito; incertidumbre bloquea duplicación. Cambiar de Médico descarta consulta previa. Contacto, actividad, cuenta, catálogo y pares históricos siguen independientes.
+
+**Evidencia:** suite React **521 pruebas/30 archivos**, 12 nuevas; build correcto con aviso conocido 556,88 kB. PHPUnit focalizado **2 pruebas/140 aserciones**. Chrome/Laravel/PostgreSQL reales en base/rol/esquema aislados y migraciones completas: 17 comprobaciones funcionales, incluido 409 obsoleto/adopción, retiro/rehabilitación, cita futura/rollback, cuenta/invitación/login, independencia, permisos y CSRF. SQL final: cita/tres pares/25 eventos sin secretos; solo correo capturado localmente. Diez vistas y breakpoints/texto/espaciado: 52 comprobaciones de disposición y 23 auditorías axe sin infracciones; teclado/semántica/capturas revisados. CSS corrige códigos largos y selección móvil; sin excepciones JS/Web Storage. Auxiliares fuera de Git; limpieza de esquema/secretos y servidores al finalizar.
+
+**Estado:** plan administrativo frontend CU-09/CU-10 completado localmente. README/casos/contexto §17.65 sincronizados; DER sin cambios nuevos y diagrama global expresamente aplazado. Producción/Brevo real y módulos posteriores conservan sus pendientes.
+
+## CU-10 — incremento frontend fase 4: actividad y habilitaciones (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador gestiona actividad profesional y habilitaciones conservando asociaciones históricas, conforme RF03/RF04, VS-MED-01/04/05/06/07. Se consume el backend existente; React no calcula obligaciones futuras ni decide permisos de atención. Sin nuevos actos clínicos o de cancelación/reprogramación.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `DoctorActivity` / `DoctorDetailPage` | Presentan registro y coordinan confirmación de actividad; envían estado deseado/versionado por servicio y reconsultan tras éxito. Explican independencia de cuenta/rol/catálogo/sesiones. |
+| `DoctorSpecialtiesPage` / `SpecialtyEditor` interno | Consultan base, inicializan pares habilitados, coordinan selección y resumen de adiciones/retiros; validan mínimo una habilitación y envían conjunto completo después de confirmación. El componente interno es UI, no clase PHP. |
+| `InitialSpecialties` | Reutilizado con `managing`: presenta catálogo paginado y selección fuera de página; permite opciones inactivas sin reactivarlas ni inferir turnos. |
+| `DoctorVersionReview` | Reutilizado para comparar antes de adoptar base vigente. Actividad reinicia confirmación; habilitaciones reemplazan borrador únicamente por acción explícita. |
+| `useDoctorSubmission` / `DoctorFailure` | Traducen códigos de citas futuras, conjunto vacío y vínculo incompatible además de obsolescencia/incertidumbre. Conservan borrador, esperan 429, excluyen doble envío y retiran éxito ficticio. |
+| `cambiarEstadoMedico` / `cambiarEspecialidadesMedico` | Agregados al servicio existente; validan ID, preparan CSRF y envían respectivamente PATCH estado o PUT conjunto con versión exacta, sin campos de cuenta/datos ni reintentos. |
+
+**Flujo:** guard de Administrador → detalle/gestión → confirmación → Feature Service/Axios → backend de Médicos ya analizado. Laravel comprueba versión, rol/vínculo y obligaciones bajo locks; React representa respuesta. Rehabilitar reutiliza relación histórica por servidor; tras éxito reconsulta detalle que muestra habilitadas/retiradas. Catálogo/profesional/cuenta siguen independientes.
+
+**Alternativos:** 409 por citas futuras conserva selección corregible y comunica que no hubo cambios; nunca cancela o reprograma. Obsolescencia/red incierta bloquean reenvío hasta consultar/adoptar versión. Vínculo incompatible dirige a CU-03 sin asignar roles ni activar cuentas. Mínimo una habilitación/no-op tienen validación visual, además del backend. 419/422/429/403/401 conservan semántica HTTP y no generan reintentos automáticos.
+
+**Evidencia:** 34 pruebas nuevas, suite completa 509 pruebas/29 archivos, build/diff correctos. Transporte HTTP ficticio con servicios/Axios reales: no acredita integridad real PostgreSQL ni carreras de reserva. Cierre integrado/navegador en fase 5; DER sin cambios y diagrama global aplazado expresamente. Contexto §17.64 y README frontend registran alcance.
+
+## CU-10 — incremento frontend fase 3: datos profesionales y alta (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador registra profesionales con una o varias especialidades y consulta/edita sus datos conforme RF03/RF04, VS-MED-01/06. Avance parcial de interfaz CU-10; actividad/habilitaciones y cierre integrado siguen posteriores. Los elementos React son fronteras/coordinación, no clases PHP de dominio.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `DoctorEditorPage` / `DoctorEditor` | Cargan base o inicializan alta; validan formato de cinco campos, coordinan borrador/selección/envío y versión original exacta. Edición no modifica relaciones, código, actividad ni cuenta. |
+| `InitialSpecialties` | Consulta catálogo por nombre/página, presenta inactivas, conserva selección como objetos etiquetados entre consultas y comunica conjunto de IDs como texto al alta. No inventa opciones ni disponibilidad. |
+| `DoctorDetailPage` / `DoctorData` | Reconsultan tras guardado y presentan datos administrativos, habilitaciones/historia y actividad del catálogo por separado; vínculo de cuenta booleano no acredita estado de acceso. |
+| `DoctorVersionReview` | Consulta versión actual por servicio/hook compartido y ofrece comparación/adopción explícita, sin reenviar borrador. |
+| `useDoctorSubmission` / `DoctorFailure` | Controlan envío único/lifecycle, errores por campos, 429 y foco; obsolescencia/resultado incierto bloquean nuevos envíos hasta revisión. Mensajes seguros sin cuerpos técnicos. |
+| `medico.service.js` | `consultarMedico`, `crearMedico`, `actualizarMedico`: ID validado, CSRF, `sessionBound`, payload permitido, correo normalizado y microsegundos intactos. `camposMedico` declara los cinco campos profesionales permitidos compartidos con formulario. |
+
+**Flujo:** guard Administrador → Page/Component → Feature Service → Axios/CSRF → capas backend de Médicos ya analizadas. Alta envía campos y especialidades existentes; backend genera código/estado y crea pares atómicamente. Edición envía datos profesionales/versiones sin habilitaciones. Éxito navega al detalle que vuelve a consultar. Correo de contacto no cambia acceso; registro profesional y contacto no se tratan como únicos.
+
+**Alternativos:** 422 conserva borrador/selección y agrega errores de índices al conjunto de especialidades; 409 obsoleto exige comparar y adoptar datos vigentes; red/5xx orientan a consultar antes de repetir. Alta incierta bloquea duplicación; 419 no reintenta, 429 respeta espera, 401 invalida sesión privada. Catálogo vacío/fallo no permite escribir IDs arbitrarios; búsqueda con Enter no envía el alta. No-op no escribe.
+
+**Evidencia:** 32 pruebas nuevas; suite completa 475 pruebas/28 archivos, build y diff correctos, con transporte HTTP ficticio y servicios reales. Integración Laravel y revisión visual/accesible pendientes del cierre integrado. Persistencia/DER sin cambios, diagrama global aplazado expresamente. Contexto §17.63 y README frontend registran avance.
+
+## CU-09 — incremento frontend fase 2: gestión del catálogo (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador normal crea, consulta, edita y cambia el estado del catálogo conforme RF04/VS-MED-02. Interfaz implementada sobre los cinco endpoints existentes de Especialidades; sin ampliar permisos ni cambiar reglas de reserva. Elementos React son frontera/coordinación, no entidades PHP.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `SpecialtyEditorPage` / `SpecialtyEditor` | Cargan detalle para edición o inicializan alta; coordinan base/borrador, validación de formato y envío explícito, preservando la versión exacta recibida. Navegan al detalle tras éxito. |
+| `SpecialtyDetailPage` / `SpecialtyState` | Consultan datos actuales, explican independencia del catálogo y coordinan confirmación de activación/inactivación; reconsultan después de éxito. |
+| `SpecialtyData` / `SpecialtyFailure` | Presentan datos públicos y fallos seguros, sin imprimir cuerpos HTTP técnicos. |
+| `SpecialtyVersionReview` | Consulta versión vigente por servicio/hook existente; permite comparar antes de adopción explícita, sin reenviar cambios. En edición descarta borrador solo tras acción del usuario; en estado reinicia confirmación. |
+| `useSpecialtySubmission` | Excluye doble envío con ref síncrona, controla ciclo de vida y 429, traduce códigos de duplicado/obsolescencia y detecta resultado incierto sin reintentos. Enfoca campo/alerta. |
+| `especialidad.service.js` | Agrega `consultarEspecialidad`, `crearEspecialidad`, `actualizarEspecialidad` y `cambiarEstadoEspecialidad`; verifica formato de ID, prepara CSRF y limita payload, conservando microsegundos y campos nullable. |
+
+**Flujo normal:** guards existentes → página/componente → Feature Service → Axios/CSRF → Controller/Request/Service/Repository de Especialidades ya analizados. Alta no impone activa; estado se envía por endpoint propio con versión y confirmación. Tras respuesta exitosa se consulta nuevamente el detalle. Describir inactivación no concede permisos de cancelación/reprogramación ni modifica citas desde React.
+
+**Alternativos:** 409 duplicado conserva borrador corregible; 409 obsoleto o escritura incierta bloquea envío y permite revisar versión vigente. Alta incierta orienta al catálogo sin repetir POST. 422 conserva datos/errores permitidos; 419 no reenvía automáticamente; 429 impide envío durante espera; 401 vigente limpia sesión por Axios existente. IDs inválidos no consultan HTTP. No-op del formulario no escribe; retirar descripción envía NULL.
+
+**Evidencia:** 34 pruebas nuevas (11 de servicios y 23 de gestión), suite completa 443 pruebas/26 archivos, build y diff correctos. Recorridos con servicios/Axios reales sobre transporte ficticio, no integración Laravel. Integración real y revisión visual/accesible pendientes de cierre integrado. Sin cambio del DER; diagrama global mantiene aplazamiento expreso. Contexto §17.62 y README frontend registran avance.
+
+## CU-09/CU-10 — incremento frontend fase 1: listados administrativos (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador con sesión normal consulta catálogo y profesionales según RF03/RF04 y VS-MED-01/06. Implementación parcial de interfaz; altas, detalles, ediciones, estados y habilitaciones siguen posteriores. Los elementos React siguientes son fronteras y coordinación de UI, no clases de dominio PHP.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `SpecialtiesPage` / `DoctorsPage` | Coordinan borradores/filtros aplicados, consulta y página; presentan descripción/estado del catálogo y actividad/especialidades habilitadas del profesional. |
+| `SpecialtyFilter` | Consulta catálogo por nombre y página, incluidas inactivas; conserva ID/etiqueta seleccionados fuera de página y comunica selección sin inferir disponibilidad. |
+| `useCatalogQuery` | Ejecuta el servicio recibido con AbortController, descarta respuestas antiguas, mantiene carga/error/revisión manual y espera de 429 sin reintentos automáticos. |
+| `CatalogResults` | Presenta carga, error seguro, vacío, total y paginación de servidor; callbacks calculan página desde `meta`, no navegan enlaces HTTP recibidos. |
+| `listarMedicos` / `listarEspecialidades` | En servicios de sus features, permiten únicamente filtros del contrato, conservan inactivos e IDs de texto y usan Axios central con `sessionBound`. |
+| Router / MainLayout / guards existentes | Restringen ambas vistas a Administrador, esperan restauración y proporcionan navegación, título y destino seguro. La autorización definitiva permanece en Laravel. |
+
+**Flujo:** ruta protegida → Page → hook → Feature Service → Axios → endpoints existentes → Controller/Service/Repository/Resources ya analizados. Cambiar filtro aplicado o página cancela consulta anterior; una respuesta tardía no sustituye resultados nuevos. Fallos 422 muestran campos permitidos; 403/419/429/500/red conservan filtros y permiten reconsulta manual, respetando espera cuando corresponde. Un 401 vigente de Axios invalida sesión y retira contenido privado. Fallo del selector no bloquea búsqueda por nombre/actividad.
+
+**Evidencia:** 30 pruebas nuevas de contratos/pantallas; suite completa 409 pruebas/25 archivos y build correctos. Incluye roles, restauración, navegación, selección paginada/BIGINT, respuestas obsoletas y errores. Integración real Laravel y revisión de las nuevas vistas en navegador pendientes. Sin cambios de persistencia; diagrama global conserva aplazamiento expreso. Detalle del avance en contexto §17.61 y README frontend.
 
 ## CU-09/CU-10 — fase 5: integración del módulo administrativo backend (2026-10-21)
 

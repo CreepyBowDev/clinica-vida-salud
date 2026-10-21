@@ -23,7 +23,7 @@ export default function HomePage({ area = false }) {
     </section>
     <section className="upcoming-section" aria-labelledby="upcoming-title"><div><h2 id="upcoming-title">{area ? 'Tu área de trabajo' : 'Construimos tu portal, paso a paso'}</h2>
       <p>La sesión y la navegación ya están disponibles. Estas funciones se incorporarán en las siguientes entregas, según el alcance de cada módulo.</p></div>
-      <ul>{current.tasks.map((task, index) => <li key={task}><span>{task}</span><span className="upcoming-label">{usuario.rol === ROLES.ADMINISTRADOR && index === 0 ? 'Gestión de acceso disponible' : usuario.rol === ROLES.RECEPCIONISTA && index === 0 ? 'Consulta disponible' : usuario.rol === ROLES.RECEPCIONISTA && index === 1 ? 'Emisión disponible' : 'Próximamente'}</span></li>)}</ul>
+      <ul>{current.tasks.map((task, index) => <li key={task}><span>{task}</span><span className="upcoming-label">{usuario.rol === ROLES.ADMINISTRADOR && index === 0 ? 'Gestión de acceso disponible' : usuario.rol === ROLES.ADMINISTRADOR && index === 1 ? 'Consulta de médicos y especialidades disponible' : usuario.rol === ROLES.RECEPCIONISTA && index === 0 ? 'Consulta disponible' : usuario.rol === ROLES.RECEPCIONISTA && index === 1 ? 'Emisión disponible' : 'Próximamente'}</span></li>)}</ul>
     </section>
   </div>;
 }

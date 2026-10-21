@@ -1,0 +1,81 @@
+.catalog-page .page-heading p { margin-top: 10px; color: var(--color-muted); font-size: 17px; max-width: 65ch; }
+.catalog-page a { color: var(--color-primary-hover); }
+.catalog-page a.button--primary { color: white; }
+.catalog-page a.button { text-decoration: none; }
+.catalog-page .page-heading > .button { margin-top: 20px; }
+.catalog-panel { max-width: 900px; padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
+.catalog-editor-fields { border: 0; padding: 0; margin: 0 0 24px; min-width: 0; }
+.catalog-editor-fields legend { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+.catalog-editor textarea { width: 100%; resize: vertical; }
+.catalog-data { margin: 0; }
+.catalog-data > div { padding-block: 16px; border-bottom: 1px solid var(--color-border); }
+.catalog-data dt { color: var(--color-muted); font-size: 14px; }
+.catalog-data dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.catalog-review, .catalog-confirm { padding-block: 24px; margin-block: 20px; border-block: 1px solid var(--color-border); }
+.catalog-review h2, .catalog-confirm h2 { font-size: 22px; margin-bottom: 12px; }
+.catalog-review .button { margin-top: 20px; }
+.catalog-panel .catalog-actions { margin-top: 24px; }
+.catalog-panel [role="alert"] { margin-bottom: 20px; }
+.doctor-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.doctor-form-grid .field { margin: 0; min-width: 0; }
+.doctor-initial-specialties { margin-top: 24px; }
+.doctor-specialties { margin-top: 24px; }
+.doctor-specialties h2 { font-size: 22px; }
+.doctor-specialties li { margin-block: 12px; overflow-wrap: anywhere; }
+.doctor-specialty-options { display: grid; gap: 12px; }
+.doctor-specialty-options label { display: flex; gap: 12px; align-items: start; overflow-wrap: anywhere; }
+.doctor-specialty-options input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--color-primary); margin-top: 2px; }
+.doctor-selected { margin-top: 24px; }
+.doctor-selected h3 { font-size: 18px; }
+.doctor-selected ul { padding: 0; list-style: none; }
+.doctor-selected li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--color-border); }
+.doctor-selected li span { flex: 1 1 140px; overflow-wrap: anywhere; min-width: 0; }
+.doctor-selected li > .button { flex: 0 0 auto; }
+.catalog-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 24px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-panel); margin-bottom: 24px; }
+.catalog-filters .field { margin: 0; min-width: 0; }
+.catalog-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; }
+.catalog-specialty-filter { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+.catalog-specialty-filter legend { padding-inline: 8px; font-size: 18px; font-weight: 600; }
+.catalog-specialty-filter > p { color: var(--color-muted); margin-bottom: 16px; }
+.catalog-specialty-search { display: flex; align-items: end; gap: 16px; margin-bottom: 20px; }
+.catalog-specialty-search .field { flex: 1; }
+.catalog-specialty-search .button { flex-shrink: 0; }
+.catalog-specialty-filter .catalog-pagination { font-size: 14px; }
+.catalog-specialty-filter .catalog-empty { margin-top: 16px; padding: 20px; }
+.catalog-table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); overflow: clip; }
+.catalog-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.catalog-table caption { padding: 18px 24px; text-align: left; color: var(--color-muted); font-size: 14px; border-bottom: 1px solid var(--color-border); }
+.catalog-table th { background: var(--color-background); font-size: 14px; font-weight: 600; }
+.catalog-table td, .catalog-table th { padding: 16px; border-bottom: 1px solid var(--color-border); vertical-align: top; overflow-wrap: anywhere; }
+.catalog-table tr:last-child td { border-bottom: 0; }
+.catalog-table tbody tr:hover { background: var(--color-background); }
+.catalog-specialties { margin: 0; padding-left: 18px; }
+.catalog-specialties li + li { margin-top: 8px; }
+.catalog-status { display: inline-block; padding: 4px 10px; border-radius: var(--radius-control); font-size: 14px; font-weight: 600; color: var(--color-success); background: var(--color-success-bg); }
+.catalog-status--inactive { color: var(--color-muted); background: var(--color-background); border: 1px solid var(--color-border); }
+.catalog-cell-label { display: none; }
+.catalog-pagination, .catalog-pagination > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.catalog-pagination { justify-content: space-between; margin-top: 20px; }
+.catalog-pagination p, .catalog-note { color: var(--color-muted); }
+.catalog-empty { padding: 40px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
+.catalog-empty h2 { font-size: 22px; margin-bottom: 12px; }
+.catalog-note { margin-top: 20px; max-width: 75ch; }
+.catalog-failure > .button { margin-top: 16px; }
+@media (max-width: 700px) {
+  .doctor-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .catalog-panel { padding: 20px; }
+  .catalog-filters { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .catalog-specialty-filter { padding: 16px; }
+  .catalog-specialty-search { flex-direction: column; align-items: stretch; }
+  .catalog-actions > .button { flex: 1 1 160px; }
+  .catalog-table, .catalog-table caption, .catalog-table tbody { display: block; width: 100%; }
+  .catalog-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .catalog-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px; border-bottom: 1px solid var(--color-border); }
+  .catalog-table tbody tr:last-child { border-bottom: 0; }
+  .catalog-table td { display: block; padding: 0; border: 0; min-width: 0; }
+  .catalog-table td:first-child { grid-column: 1 / -1; font-size: 18px; }
+  .catalog-cell-label { display: block; margin-bottom: 4px; color: var(--color-muted); font-size: 13px; }
+  .catalog-table caption { padding: 16px 20px; }
+  .catalog-pagination > div { width: 100%; }
+  .catalog-pagination .button { flex: 1; }
+}

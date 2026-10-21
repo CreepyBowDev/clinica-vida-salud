@@ -28,6 +28,13 @@ import EditPatientPage from '../features/pacientes/pages/EditPatientPage';
 import PatientActivationPage from '../features/pacientes/pages/PatientActivationPage';
 import MyProfilePage from '../features/pacientes/pages/MyProfilePage';
 import ChangeEmailPage from '../features/pacientes/pages/ChangeEmailPage';
+import SpecialtiesPage from '../features/especialidades/pages/SpecialtiesPage';
+import DoctorsPage from '../features/medicos/pages/DoctorsPage';
+import DoctorEditorPage from '../features/medicos/pages/DoctorEditorPage';
+import DoctorDetailPage from '../features/medicos/pages/DoctorDetailPage';
+import DoctorSpecialtiesPage from '../features/medicos/pages/DoctorSpecialtiesPage';
+import SpecialtyEditorPage from '../features/especialidades/pages/SpecialtyEditorPage';
+import SpecialtyDetailPage from '../features/especialidades/pages/SpecialtyDetailPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -60,6 +67,15 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
         { path: '/recepcion/pacientes/:id', element: <PatientDetailPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
+        { path: '/administracion/especialidades', element: <SpecialtiesPage /> },
+        { path: '/administracion/especialidades/nueva', element: <SpecialtyEditorPage creating /> },
+        { path: '/administracion/especialidades/:id/editar', element: <SpecialtyEditorPage /> },
+        { path: '/administracion/especialidades/:id', element: <SpecialtyDetailPage /> },
+        { path: '/administracion/medicos', element: <DoctorsPage /> },
+        { path: '/administracion/medicos/nuevo', element: <DoctorEditorPage creating /> },
+        { path: '/administracion/medicos/:id/editar', element: <DoctorEditorPage /> },
+        { path: '/administracion/medicos/:id/especialidades', element: <DoctorSpecialtiesPage /> },
+        { path: '/administracion/medicos/:id', element: <DoctorDetailPage /> },
         { path: '/administracion/cuentas', element: <AccountsPage /> },
         { path: '/administracion/cuentas/nueva', element: <NewStaffPage /> },
         { path: '/administracion/cuentas/:id', element: <AccountDetailPage /> },

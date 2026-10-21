@@ -30,6 +30,7 @@
 .accounts-panel { min-width: 0; padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); margin-bottom: 24px; }
 .accounts-panel.account-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
 .accounts-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 16px; font-weight: 600; }
+.accounts-backlinks { display: flex; flex-wrap: wrap; column-gap: 24px; }
 .account-detail-page, .staff-create-page { max-width: 1120px; }
 .account-actions-panel form { max-width: 760px; }
 .account-actions-panel form > .field { max-width: 520px; }

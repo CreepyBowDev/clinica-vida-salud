@@ -13,7 +13,11 @@ export const AREAS = Object.freeze({
 });
 
 export function destinoSeguro(pathname) {
-  return ['/inicio', '/mi-perfil', '/mi-perfil/correo', '/mi-cuenta/contrasena', '/administracion/cuentas', '/administracion/cuentas/nueva', '/recepcion/pacientes', '/recepcion/pacientes/nuevo', ...Object.values(AREAS).map((area) => area.path)].includes(pathname)
+  return ['/inicio', '/mi-perfil', '/mi-perfil/correo', '/mi-cuenta/contrasena', '/administracion/cuentas', '/administracion/cuentas/nueva', '/administracion/medicos', '/administracion/especialidades', '/recepcion/pacientes', '/recepcion/pacientes/nuevo', ...Object.values(AREAS).map((area) => area.path)].includes(pathname)
+    || pathname === '/administracion/especialidades/nueva'
+    || pathname === '/administracion/medicos/nuevo'
+    || /^\/administracion\/medicos\/[1-9][0-9]{0,18}(?:\/(?:editar|especialidades))?$/.test(pathname)
+    || /^\/administracion\/especialidades\/[1-9][0-9]{0,18}(?:\/editar)?$/.test(pathname)
     || /^\/administracion\/cuentas\/[1-9][0-9]{0,18}$/.test(pathname)
     || /^\/recepcion\/pacientes\/[1-9][0-9]{0,18}(?:\/(?:editar|activacion))?$/.test(pathname) ? pathname : '/inicio';
 }

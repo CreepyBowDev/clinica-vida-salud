@@ -1,5 +1,40 @@
 # Backend — Clínica Vida Salud
 
+## Cuentas de pruebas para la demostración (Railway o local)
+
+`CuentasPruebaSeeder` es una carga manual independiente: un Médico con cuenta/ficha por **cada especialidad activa existente**, dos Recepcionistas y diez Pacientes con cuenta vinculada. No crea Administradores ni modifica el existente. Requiere los catálogos ya cargados; no se incorpora a `DatabaseSeeder` ni a los despliegues automáticos.
+
+En las variables privadas del backend configurar:
+
+```dotenv
+CLINICA_CUENTAS_PRUEBA_HABILITADAS=true
+CLINICA_DEMO_PASSWORD=
+```
+
+Completar la segunda variable con la contraseña común elegida de **mínimo 12 caracteres**; el ejemplo la deja vacía deliberadamente. Aplicar el despliegue/configuración antes de ejecutar desde la terminal del backend:
+
+```bash
+php artisan db:seed --class='Clinica\data\database\seeders\CuentasPruebaSeeder' --force
+```
+
+Si aún faltan catálogos, ejecutar primero `php artisan db:seed --class='Clinica\data\database\seeders\DatabaseSeeder' --force`. No requiere borrar datos ni repetir las migraciones. Utilizar **CuentasPruebaSeeder**, no el antiguo `DemostracionSeeder`/`composer seed:demo`, que contiene otro conjunto local con Administrador y escenarios clínicos.
+
+Correos de acceso (el comando imprime la lista exacta con cada especialidad):
+
+| Rol | Correo |
+| --- | --- |
+| Médico | `prueba.medico.e<ID_ESPECIALIDAD>@example.test` |
+| Recepción | `prueba.recepcion01@example.test` y `prueba.recepcion02@example.test` |
+| Paciente | `prueba.paciente01@example.test` hasta `prueba.paciente10@example.test` |
+
+Todas las cuentas nuevas usan la contraseña común configurada, con un hash individual. Quedan Activas, sin cambio obligatorio de clave y con verificación **simulada solo para pruebas**: no se envían correos ni se acredita posesión de esos buzones ficticios. Los registros normales conservan las verificaciones de seguridad. El Administrador conserva su contraseña independiente.
+
+Reejecutar conserva cuentas, contraseñas, correos modificados, estados, bloqueos y fichas existentes; añade los médicos de nuevas especialidades activas. Cambiar `CLINICA_DEMO_PASSWORD` **no restablece** las cuentas ya creadas. Un correo ajeno o una ficha con vínculo incompatible detiene y revierte toda la carga. Cada cuenta nueva deja un evento SISTEMA `SEED_CUENTA_PRUEBA` sin contraseña/hash, con marca `SIMULADA_PRUEBAS`. Una transacción y el bloqueo compartido con los demás seeders protegen las reejecuciones simultáneas.
+
+No carga citas ni documentos clínicos. Los Médicos quedan sin consultorio/horarios asignados; su carga no acredita disponibilidad para reservar. Los datos ficticios aparecerán en los listados y futuros reportes del entorno. Después de la carga puede retirarse la contraseña del entorno y dejar `CLINICA_CUENTAS_PRUEBA_HABILITADAS=false`: las cuentas persisten. Utilizarlo únicamente en el entorno destinado a demostración.
+
+Verificación local 2026-10-21: `CuentasPruebaSeederTest` y regresión `PoblacionDatosTest`, **20 pruebas / 228 aserciones correctas** en PostgreSQL aislado con rollback; incluye cobertura dinámica de especialidades, preservación del Administrador, repetición, colisiones, contraseña común y ausencia de correo. No se ejecutó la carga en la base habitual ni en Railway.
+
 ## Requisito de PHP para despliegue
 
 El manifiesto y el lock requieren **PHP `^8.4.1`** (8.4.1 o superior dentro de PHP 8). Las dependencias Symfony bloqueadas necesitan al menos esa versión; PHP 8.3 no es compatible con el lock actual. Configurar el constructor de Railway para respetar este requisito y comprobar la versión seleccionada en el registro del nuevo build.

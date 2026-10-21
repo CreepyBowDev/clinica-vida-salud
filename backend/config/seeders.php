@@ -8,4 +8,5 @@ return [
         'password' => env('CLINICA_ADMIN_PASSWORD'),
     ],
     'demo_password' => env('CLINICA_DEMO_PASSWORD'),
+    'cuentas_prueba_habilitadas' => env('CLINICA_CUENTAS_PRUEBA_HABILITADAS', false),
 ];

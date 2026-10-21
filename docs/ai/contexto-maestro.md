@@ -1047,6 +1047,14 @@ Se contrastaron el servicio frontend de correo, sus mensajes y la coordinación 
 
 **Evidencia local:** build con URL relativa correcto (aviso conocido de bundle ~503 kB). Caddy 2.11.7 valida configuración y pruebas HTTP de rutas/cookies/cabeceras/cuerpo/query/status/Retry-After/POST único. Chrome con React estático/Caddy/Laravel/PostgreSQL reales en esquema aislado confirma login, restauración y logout de Recepción/Paciente, cabecera X-XSRF-TOKEN y perfil persistido sin 419; sin excepciones JS ni Web Storage. Auxiliares de prueba fuera del repositorio; servidores y fixture retirados. Docker no disponible localmente: imagen y HTTPS/cookies del despliegue Railway siguen pendientes. No cambia el cierre funcional anterior ni se acredita entrega real Brevo. Diagrama global continúa aplazado expresamente.
 
+### 17.49. Cuentas ficticias de prueba sin otro Administrador (2026-10-21)
+
+Por petición explícita se añadió `CuentasPruebaSeeder`, separado de `DatabaseSeeder` y del antiguo `DemostracionSeeder`: un Médico por especialidad activa existente, dos Recepcionistas y diez Pacientes vinculados a su ficha, sin crear/modificar Administradores. Correos distintos `prueba.*@example.test`, contraseña común privada `CLINICA_DEMO_PASSWORD` (mínimo 12 caracteres), hash individual, cuentas Activas y verificación simulada para pruebas, sin Brevo ni cambio obligatorio de clave. Esta excepción manual de demostración no altera los flujos normales de invitación/registro ni acredita control de buzones.
+
+Puede ejecutarse manualmente en Railway con `CLINICA_CUENTAS_PRUEBA_HABILITADAS=true`, tras cargar catálogos. La transacción y el bloqueo de seeders compartido garantizan atomicidad; referencias por cuenta en bitácora `SEED_CUENTA_PRUEBA` conservan identidad aun con cambio posterior de correo. Reejecuciones preservan credenciales/estados/bloqueos/fichas; colisiones con cuentas ajenas o vínculos incompatibles revierten la carga. Médicos sin consultorio/horarios asignados; sin escenarios de citas ni clínica. Configuración y comandos documentados en README backend y `.env.example`, sin secretos versionados.
+
+Verificación: cinco pruebas nuevas y regresión de población, **20 pruebas / 228 aserciones correctas**, sobre PostgreSQL de pruebas con rollback. No se pobló la base habitual ni Railway. No se cierra ningún CU/módulo adicional ni cambia API/esquema/DER; análisis funcional sin cambios y diagrama global conserva su aplazamiento expreso.
+
 ## 18. Protocolo de implementación y cierre de tareas
 
 1. Inspeccionar repositorio, `AGENTS.md` y documentación aplicable antes de escribir código.

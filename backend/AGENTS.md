@@ -161,7 +161,7 @@ Este árbol **combina la organización específica solicitada con los archivos q
 | Usuarios y autenticación (CU-01–CU-06) | `usuarios/` en las cuatro carpetas; incluye registro/vinculación web, invitaciones, contraseñas, sesiones y correo de acceso |
 | Pacientes y perfil (CU-07/CU-08) | `pacientes/` en las cuatro carpetas; incluye emisión presencial del código de activación |
 | Médicos y especialidades (CU-09/CU-10) | `medicos/` en las cuatro carpetas; incluye catálogo de especialidades |
-| Bitácora | `repositories/bitacora/BitacoraRepository.php`; no implica CU-30 completo ni crear carpetas vacías en otras capas |
+| Bitácora (CU-30 backend local) | `bitacora/` en las cuatro carpetas: BitacoraController/Service/Repository, ListarBitacoraRequest y Resources de listado/detalle. Escritura automática compartida y consulta administrativa verificadas; frontend/producción pendientes. No crear carpetas vacías. |
 
 Cada clase se define una sola vez en su módulo de responsabilidad principal, no según el número circunstancial de llamadas. Los consumidores de otros módulos importan su namespace real. `CuentaRequest`, `ClaveRequest` y `RespuestaError` pertenecen a `dtos/usuarios/` y siguen siendo reutilizables; RespuestaError conserva el renderizado central de toda la API desde `bootstrap/app.php`. No duplicar estas clases ni crear alias de compatibilidad para las ubicaciones anteriores. No extender automáticamente este reordenamiento a modelos, validadores, rutas, middlewares o migraciones.
 

@@ -9,6 +9,7 @@ use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\utils\CambioCorreoMail;
 use Clinica\shared\utils\CredencialTemporal;
 use Clinica\shared\utils\VerificacionPacienteMail;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -149,6 +150,88 @@ class AutenticacionConcurrenteTest extends TestCase
     public static function conflictosNombreEspecialidad(): array
     {
         return [['crear'], ['editar']];
+    }
+
+    public static function consultasBitacoraRevocadas(): array
+    {
+        $casos = [];
+        foreach (['listado', 'detalle'] as $consulta) {
+            foreach (['estado', 'rol', 'sesion'] as $cambio) {
+                foreach ([true, false] as $confirmar) {
+                    $casos[$consulta.'-'.$cambio.'-'.($confirmar ? 'commit' : 'rollback')] = [$consulta, $cambio, $confirmar];
+                }
+            }
+        }
+
+        return $casos;
+    }
+
+    #[DataProvider('consultasBitacoraRevocadas')]
+    public function test_audit_read_revalidates_access_after_middleware_and_waits_for_committed_account_changes(string $consulta, string $cambio, bool $confirmar): void
+    {
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $idEvento = DB::table('bitacora')->value('id_evento');
+        $ruta = $consulta === 'listado' ? '/api/bitacora' : '/api/bitacora/'.$idEvento;
+        DB::beginTransaction();
+        DB::table('usuarios')->where('id_usuario', $actor->getKey())->lockForUpdate()->first();
+        $w = $this->worker('', '', mode: 'bitacora-antes', extra: ['cookies' => $cookies, 'ruta' => $ruta]);
+        $this->signal($w, 'INICIAR');
+        $this->assertSame('VALIDADA', $this->line($w));
+        $this->signal($w, 'CONTINUAR');
+        $this->blocked($w);
+        if ($cambio === 'estado') {
+            DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']);
+        } elseif ($cambio === 'rol') {
+            $idRol = DB::table('roles')->insertGetId(['nombre' => 'Recepcionista'], 'id_rol');
+            DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['id_rol' => $idRol]);
+        } else {
+            $this->app->make(SesionRepository::class)->revocarUsuario($actor->getKey());
+        }
+        $confirmar ? DB::commit() : DB::rollBack();
+        $this->assertSame($confirmar ? 401 : 200, json_decode($this->line($w), true)['status']);
+        $this->assertSame(1, DB::table('bitacora')->count());
+    }
+
+    public static function consultasBitacora(): array
+    {
+        return [['listado'], ['detalle']];
+    }
+
+    #[DataProvider('consultasBitacora')]
+    public function test_audit_reader_locks_actor_but_not_events_and_serializes_later_revocation(string $consulta): void
+    {
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $idEvento = DB::table('bitacora')->value('id_evento');
+        $ruta = $consulta === 'listado' ? '/api/bitacora' : '/api/bitacora/'.$idEvento;
+        $w = $this->worker('', '', mode: 'bitacora-lectura', extra: ['cookies' => $cookies, 'ruta' => $ruta]);
+        $this->signal($w, 'INICIAR');
+        $this->assertSame('LEIDA', $this->line($w));
+        DB::beginTransaction();
+        DB::statement("SET LOCAL lock_timeout = '150ms'");
+        $this->assertNotNull(DB::table('bitacora')->where('id_evento', $idEvento)->lock('for update nowait')->first());
+        DB::commit();
+        DB::beginTransaction();
+        DB::statement("SET LOCAL lock_timeout = '150ms'");
+        try {
+            DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']);
+            $this->fail('La revocación debe esperar la lectura autorizada.');
+        } catch (QueryException $error) {
+            $this->assertSame('55P03', $error->errorInfo[0]);
+        } finally {
+            DB::rollBack();
+        }
+        $this->signal($w, 'CONTINUAR');
+        $this->assertSame(200, json_decode($this->line($w), true)['status']);
+        DB::transaction(function () use ($actor): void {
+            DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']);
+            $this->app->make(SesionRepository::class)->revocarUsuario($actor->getKey());
+        });
+        $this->navegador($cookies, 'GET', $ruta)->assertUnauthorized();
+        $this->assertSame(1, DB::table('bitacora')->count());
     }
 
     public function test_doctor_two_drafts_commit_only_one_edit_with_distinct_administrators(): void

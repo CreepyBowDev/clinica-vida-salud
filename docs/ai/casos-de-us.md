@@ -1447,7 +1447,7 @@ Cubrir todos los reportes mínimos de RF13. Consultas operativas de Recepción y
 #### CU-30 — Consultar bitácora del sistema
 
 **Trazabilidad de la ficha:** Módulo y alcance: 1.4.13 Bitácora del Sistema. Decisión del proyecto compatible con RN12 y RN14, sin crear nuevos R o RN oficiales. Registro automático transversal. Ciclo: 2.  
-**Estado documental:** Especificado · **Ciclo:** 2 · **Fuente:** PDF, página 100.
+**Estado documental:** Especificado; backend implementado y verificado localmente, frontend pendiente · **Ciclo:** 2 · **Fuente:** PDF, página 100; cierre backend 2026-10-21.
 
 **Propósito**
 
@@ -1486,6 +1486,8 @@ Sin coincidencias: mostrar lista vacía. Filtros inválidos: solicitar correcci�
 **Notas y verificaciones de la ficha**
 
 Comprobar acceso exclusivo del Administrador, filtros, paginación, ausencia de secretos y rechazo de cualquier edición o eliminación de eventos.
+
+**Cierre backend local (2026-10-21):** fases 1–5 completadas. `GET /api/bitacora` aplica filtros estrictos, recursos históricos, paginación y fechas locales/UTC; `GET /api/bitacora/{id}` devuelve cabecera y proyección por familia/versión sin secretos, texto libre ni expansión de relaciones. Verificados concurrencia ante revocación, inmutabilidad API/SQL/Eloquent y rendimiento local con 5000 eventos ficticios. Integración con productores reales de Médicos/Especialidades, cuentas/invitaciones, Recepción/Pacientes/vinculación y autenticación: 3 pruebas/206 aserciones. Regresión completa final **987 pruebas/10910 aserciones correctas** en PostgreSQL aislado. Contrato/evidencia en README backend y contexto §§17.67–17.71. Frontend, aceptación de producción y eventos de módulos futuros pendientes; diagrama global aplazado expresamente.
 
 
 ## 5. Reglas transversales que no se deben perder

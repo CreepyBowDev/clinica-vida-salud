@@ -1,5 +1,170 @@
 # Backend — Clínica Vida Salud
 
+## CU-30 — fase 1: contrato de consulta de Bitácora (2026-10-21)
+
+**Estado actual: backend de consulta CU-30 completado y verificado localmente en fases 1–5.** Listado/detalle implementados, seguridad/integridad/rendimiento revisados e integración comprobada con productores reales de los módulos existentes. Esta sección es la referencia del contrato HTTP para React. Concreta CU-30, VS-AUD-01–06 y DER §3.21; es una ampliación del proyecto compatible con RN12/RN14, sin nuevos RF/RN oficiales. Frontend de Bitácora y aceptación de producción pendientes; los módulos futuros instrumentarán sus propios eventos al implementarse.
+
+### Acceso y operaciones
+
+| Método y ruta implementados | Operación | Respuesta |
+| --- | --- | --- |
+| `GET /api/bitacora` | Listado filtrado y paginado | `200`, colección `data`, `links`, `meta` de Laravel |
+| `GET /api/bitacora/{id}` | Detalle de un evento | `200`, objeto bajo `data` |
+
+Se reutilizarán `auth:sanctum`, `VerificarCuentaHabilitada`, `ExigirSesionNormal` y `ExigirRol:Administrador`, con las clases reales del proyecto. El Service volverá a exigir sesión normal y rol dentro de una transacción, bloqueando la cuenta del actor según el patrón de EspecialidadService, para coordinar la lectura con revocaciones concurrentes. La autenticación/autorización precede a la consulta del evento; no se consultan relaciones clínicas.
+
+No se publican rutas de escritura, exportación, catálogos auxiliares ni consulta anónima. La lectura no genera un evento nuevo por cada acceso ni altera eventos históricos. Se mantienen los productores y las protecciones PostgreSQL existentes. Conservación técnica en esta entrega: preservar el historial, sin purga automática ni plazo de borrado nuevo; un plazo institucional de retención requiere decisión posterior.
+
+### Parámetros del listado
+
+Todos son opcionales y escalares; los presentes no admiten vacío/null/arrays. Parámetros desconocidos (incluidos `sort`, `order`, SQL o rutas JSON del cliente) producen `422`, como los Requests estrictos existentes. Filtros diferentes se combinan con **AND**. No hay búsqueda parcial ni comodines.
+
+| Parámetro | Validación y significado |
+| --- | --- |
+| `fecha_desde`, `fecha_hasta` | Fechas reales de calendario, años 0001–9999, formato exacto `YYYY-MM-DD`. Extremos opcionales independientes; si ambos existen, desde ≤ hasta. Filtran `ocurrido_en`, no `registrado_en`. |
+| `id_usuario_responsable` | Entero decimal positivo hasta `9223372036854775807`; coincidencia con la FK responsable. No confundir con la cuenta objetivo. |
+| `id_usuario_objetivo` | Mismo rango; coincidencia con la FK objetivo. |
+| `tipo_actor` | `USUARIO`, `SISTEMA` o `ANONIMO`. Permite buscar eventos sin responsable autenticado. |
+| `modulo` | Texto sin controles, longitud 1–40; igualdad exacta, sensible a mayúsculas. Preservar, por ejemplo, `AUTENTICACION` e `Instalacion` sin normalizarlos a un único valor. |
+| `operacion` | Texto sin controles, longitud 1–60; igualdad exacta sensible a mayúsculas. |
+| `tipo_evento` | Texto sin controles, longitud 1–80; igualdad exacta sensible a mayúsculas. |
+| `resultado` | `EXITO`, `FALLO`, `DENEGADO` o `ERROR`. |
+| `direccion_ip` | Una IPv4/IPv6 válida; igualdad de dirección PostgreSQL INET, no subred/CIDR ni búsqueda textual. |
+| `entidad_referida` | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `CuentaPrueba` o `ConjuntoDemostracion`. Lista inicial según productores existentes; ampliar explícitamente con módulos futuros. |
+| `registro_referido` | Requiere entidad. Para Usuario/Paciente/Medico/Especialidad, BIGINT positivo; para CuentaPrueba/ConjuntoDemostracion, identificador de 1–64 caracteres ASCII de `[A-Za-z0-9_-]`. Igualdad exacta. |
+| `page` | Entero 1–1000000; predeterminado 1. |
+| `per_page` | Entero 1–100; predeterminado 20. |
+
+Se admite entidad sin registro para buscar todos los eventos de ese tipo de recurso. No se comprueba existencia actual de cuentas/recursos para validar filtros: un ID válido sin coincidencias devuelve lista vacía. Valores de módulo/operación/tipo bien formados pero aún no existentes también devuelven vacío. Criterios textuales se recortan solo en extremos con espacios ASCII; no se cambia el caso. Los identificadores numéricos se comparan por su valor decimal y se serializan sin ceros iniciales.
+
+**Fechas:** `fecha_desde` incluye las 00:00:00 de ese día en `America/La_Paz`; `fecha_hasta` incluye el día completo mediante un límite exclusivo en las 00:00:00 del día siguiente. Convertir ambos límites locales a UTC antes de comparar: `ocurrido_en >= inicio_utc AND ocurrido_en < siguiente_dia_utc`. Un solo día se obtiene enviando ambas fechas iguales. No usar fin de día redondeado ni `whereDate` dependiente de la zona de la conexión.
+
+**Orden fijo:** `registrado_en DESC, id_evento DESC`, según el DER. `ocurrido_en` se muestra como fecha del hecho; puede diferir del orden de inserción. Paginación numerada con total del servidor; sin coincidencias o página posterior a la última: `data: []` conservando `meta` y filtros. Las lecturas sucesivas reflejan eventos confirmados disponibles en cada consulta; no prometen una instantánea entre páginas frente a nuevas inserciones. Los enlaces de paginación conservan únicamente filtros validados. No se aceptan columnas de orden del cliente.
+
+### Compatibilidad del filtro por recurso
+
+El Repository construirá un grupo **OR** entre ubicaciones fijas del backend y lo combinará con los otros filtros mediante AND. No se permite al cliente elegir una clave JSON. No se reescriben eventos ni se deduce un recurso por nombres, CI o correo.
+
+| Entidad | Ubicaciones existentes que se consultarán |
+| --- | --- |
+| `Usuario` | Pareja física `entidad_referida`/`registro_referido`; también `id_usuario_objetivo`. El responsable por sí solo no convierte al usuario en recurso afectado. |
+| `Paciente` | Pareja física; `referencias.id_paciente`; y `cambios_seguros.id_paciente` solo en `ACTIVACION_PACIENTE_EMITIDA`, `VINCULACION_PACIENTE_INICIADA`, `PACIENTE_CUENTA_VINCULADA`. |
+| `Medico` | Pareja física; `referencias.id_medico`. No se buscan los valores antes/después de un vínculo administrativo como si fueran su recurso principal. |
+| `Especialidad` | Pareja física; `referencias.id_especialidad`. No incluye IDs contenidos en listas de habilitaciones de un Médico. |
+| `CuentaPrueba`, `ConjuntoDemostracion` | Únicamente pareja física. |
+
+Cada rama exige entidad y, si se informó, su identificador en **la misma ubicación**. Las ramas JSON requieren identificadores decimales válidos (cadena o número entero representable), no arrays/objetos/bools. Con entidad sola se exige presencia válida, no solo existencia de una clave. Todas las comparaciones usan parámetros; claves y entidades proceden del mapa fijo. No se añade un join a fichas ni se comprueba acceso clínico por encontrar una referencia.
+
+### Respuestas y representación
+
+Listado: cada elemento incluye exclusivamente `id_evento`, `tipo_evento`, `tipo_actor`, `id_usuario_responsable`, `rol_responsable`, `id_usuario_objetivo`, `rol_objetivo`, `modulo`, `operacion`, `resultado`, `causa_codigo`, `ocurrido_en`, `registrado_en`, `direccion_ip`, `entidad_referida`, `registro_referido` y `referencias` proyectadas. No incluye blobs JSON de cambios/metadatos ni relaciones Eloquent. Responsable y objetivo se identifican por ID/rol histórico almacenado, sin anexar nombre, correo, CI, perfil ni rol actual.
+
+Detalle: los mismos campos más `procedencia_ip`, `correlacion`, `id_evento_relacionado`, `version_formato`, `cambios_seguros` y `metadatos_seguros` proyectados. Un evento relacionado se entrega solo como ID, sin expandir árboles ni relaciones. Campos físicos entidad/registro conservan su significado original; no se rellenan artificialmente con otra ubicación. `referencias` expresa referencias adicionales permitidas, no URLs navegables ni acceso implícito al recurso. Ambas respuestas llevan `Cache-Control: no-store, private`, coherente con datos administrativos protegidos y errores existentes.
+
+Reglas de tipos: todos los BIGINT (incluidos IDs dentro de JSON) se devuelven como cadenas decimales; ausencia como `null`. Roles históricos son uno de los cuatro roles fijos o null. Fechas ISO 8601 UTC con seis decimales y `Z`; React las presenta en `America/La_Paz`. IP como texto canónico o null; `version_formato` como entero. Objetos JSON vacíos se devuelven como `{}`, nunca `[]` ni el JSON bruto. `data: []`, `links` y `meta` siguen el formato paginado de JsonResource ya utilizado por el backend (`current_page`, `last_page`, `per_page`, `total`, `from`, `to` y enlaces estándar).
+
+Ejemplo **ilustrativo del contrato**, sin datos reales, de un elemento de listado (las fracciones de registrado_en dependen de la precisión física descrita en fase 2):
+
+```json
+{
+  "id_evento": "123",
+  "tipo_evento": "MEDICO_ESTADO_CAMBIADO",
+  "tipo_actor": "USUARIO",
+  "id_usuario_responsable": "1",
+  "rol_responsable": "Administrador",
+  "id_usuario_objetivo": null,
+  "rol_objetivo": null,
+  "modulo": "MEDICOS",
+  "operacion": "MEDICO_ESTADO_CAMBIADO",
+  "resultado": "EXITO",
+  "causa_codigo": null,
+  "ocurrido_en": "2026-10-21T14:00:00.000000Z",
+  "registrado_en": "2026-10-21T14:00:00.123456Z",
+  "direccion_ip": "192.0.2.10",
+  "entidad_referida": null,
+  "registro_referido": null,
+  "referencias": {"id_medico": "7"}
+}
+```
+
+### Proyección segura del detalle, formato 1
+
+La proyección usa listas permitidas por familia de evento y valida tipos/valores, no basta con que una clave se llame «segura». Cada entrada inválida o desconocida se omite; nunca se devuelve el contenido bruto como recuperación. No se recorren objetos arbitrarios recursivamente. Listas permitidas: máximo 100 elementos, sin duplicados, con validación individual; si el origen supera el límite se omite esa lista completa, sin presentarla como completa tras truncarla. Nuevas necesidades requerirán ampliar el contrato y sus pruebas.
+
+| Familia existente | Contenido permitido |
+| --- | --- |
+| `PACIENTE_CREADO` | `referencias.id_paciente`; `cambios_seguros.sin_documento` booleano. |
+| `PACIENTE_ACTUALIZADO`, `PACIENTE_ESTADO_CAMBIADO` | `referencias.id_paciente`; `cambios_seguros.campos`, solo nombres entre documento_identidad, nombres, apellidos, fecha_nacimiento, sexo, telefono, correo_contacto, direccion, activo, contacto_emergencia, recordatorios_habilitados. No sus valores anteriores/nuevos. |
+| `MEDICO_CREADO`, `MEDICO_ACTUALIZADO`, `MEDICO_ESTADO_CAMBIADO`, `MEDICO_ESPECIALIDADES_CAMBIADAS` | `referencias.id_medico`; `cambios_seguros.campos` entre registro_profesional, nombres, apellidos, telefono, correo_contacto, activo, especialidades. `habilitaciones.habilitadas` y `habilitaciones.retiradas` como listas de IDs de Especialidad. |
+| `ESPECIALIDAD_CREADA`, `ESPECIALIDAD_ACTUALIZADA`, `ESPECIALIDAD_ESTADO_CAMBIADO` | `referencias.id_especialidad`; `cambios_seguros.campos` entre nombre, descripcion, activa. |
+| `CUENTA_DESACTIVADA`, `CUENTA_REACTIVADA`, `CUENTA_ROL_CAMBIADO` | En cambios `antes`/`despues`, solo `rol` (cuatro roles), `estado_cuenta` (Activa/Desactivada/Pendiente, valores reales de PostgreSQL) e `id_medico` (ID o null). |
+| `ACTIVACION_PACIENTE_EMITIDA`, `VINCULACION_PACIENTE_INICIADA`, `PACIENTE_CUENTA_VINCULADA` | En cambios, `id_paciente` y, cuando exista, `id_codigo_activacion` como IDs positivos; el ID del registro no es el secreto del código. |
+| `INSTALACION_ADMIN_INICIAL` | En metadatos, `verificacion_correo: AUTORIZACION_INSTALACION`, `metodo: SEEDER`. |
+| `SEED_CUENTA_PRUEBA` | En metadatos, `verificacion_correo: SIMULADA_PRUEBAS`, `metodo: SEEDER`. |
+| Otros eventos de autenticación/seguridad y `SEED_DEMOSTRACION` | Objetos adicionales vacíos, salvo referencias físicas permitidas. Los datos escalares de auditoría siguen disponibles. |
+
+El texto libre `motivo_administrativo` se omite en esta API: podría contener datos personales o clínicos y no es necesario para identificar la operación. También se omiten claves desconocidas, valores de datos personales, contraseñas, hashes, códigos secretos, tokens, enlaces, diagnósticos, rutas de archivos y contenido clínico, aunque aparezcan dentro de un objeto permitido. Solo se publican parejas físicas de las entidades permitidas con identificadores válidos. Un formato distinto de 1 conserva la cabecera tipada y devuelve los tres objetos JSON vacíos hasta disponer de proyección específica.
+
+`causa_codigo` no se utiliza como texto libre: permitir códigos estables del dominio realmente emitidos y revisados; para una causa desconocida devolver null. Lista inicial: `CLAVE_ACTUAL_INVALIDA`, `ENVIO_SIMULADO`, `ENVIO_NO_VIGENTE`, `ENVIO_NO_CONFIRMADO`, `CODIGO_INVALIDO`, `REGISTRO_NO_APLICABLE`, `ACTIVACION_CODIGO_INVALIDO`, `REGISTRO_ENVIO_LIMITADO`, `REGISTRO_CODIGO_INVALIDO`, `INVITACION_INVALIDA`, `RECUPERACION_NO_APLICABLE`, `RECUPERACION_INVALIDA`, `AUTH_NO_AUTENTICADO`, `ACCESO_DENEGADO`, `PERSONAL_ROL_INVALIDO`, `PERSONAL_VINCULO_INVALIDO`, `PERSONAL_INVITACION_NO_PERMITIDA`, `CUENTA_TRANSICION_INVALIDA` y `CUENTA_ROL_NO_PERMITIDO`. La causa general se identifica mediante este código, sin concatenar excepciones ni mensajes internos.
+
+### Errores y criterios de aceptación de las fases siguientes
+
+Se conserva `RespuestaError`: `401` sesión ausente/inválida o cuenta revocada conforme al flujo existente; `403 ACCESO_DENEGADO` otro rol y `403 AUTH_CAMBIO_CLAVE_OBLIGATORIO` sesión restringida; `422 VALIDACION_ERROR` filtros/identificador inválidos; `404 RECURSO_NO_ENCONTRADO` evento inexistente tras autorizar; `500 ERROR_INTERNO` seguro para fallos inesperados. ID de ruta decimal positivo BIGINT; patrón `[1-9][0-9]{0,18}`: ruta que no coincide devuelve 404 y número fuera del rango produce 422. No se inventa un 419 en un GET; se conserva CSRF para las escrituras de sesión existentes. Métodos no registrados siguen el rechazo HTTP/JSON del framework; no realizan mutaciones.
+
+Verificaciones del plan: cuatro roles/sesión restringida/revocación, filtros solos y combinados, extremos de día en La Paz frente a UTC, orden con empate, BIGINT mayores que el entero seguro de JavaScript, vacío/página fuera de rango, IP v4/v6, todas las ubicaciones históricas del recurso, evento anónimo/sistema, formato/JSON desconocido o malicioso, claves/valores sensibles omitidos, detalle inexistente, rechazo de escrituras y regresión de productores/inmutabilidad. Evidencia acumulada en fases 2–5 a continuación, sobre PostgreSQL aislado y correo simulado; backend cerrado localmente, frontend/producción pendientes y diagrama global aplazado por decisión del usuario.
+
+## CU-30 — fase 2: listado, filtros y paginación (2026-10-21)
+
+**Implementado:** `GET /api/bitacora` registrado desde `routes/api.php` y `src/presentation/routes/bitacora.php`, con autenticación/cuenta habilitada/sesión normal/rol Administrador. BitacoraController recibe filtros de ListarBitacoraRequest, BitacoraService revalida actor con bloqueo transaccional y BitacoraRepository filtra/pagina desde PostgreSQL. BitacoraListadoResource proyecta únicamente la cabecera y referencias adicionales permitidas; no consulta nombres/perfiles ni entrega cambios/metadatos/correlación del detalle. El middleware transversal existente aplica `Cache-Control: no-store, private`.
+
+**Filtros:** coincidencia exacta y combinaciones AND; grupo OR interno por recurso físico, cuenta objetivo y referencias históricas, incluidos cambios de activación/vinculación de Paciente. ReferenciasBitacora centraliza las entidades permitidas, la validación de IDs y las referencias publicables por familia; el Repository utiliza expresiones SQL internas y parámetros, sin cast numérico del JSON ni rutas recibidas del cliente. Identificadores JSON inválidos o fuera de BIGINT no coinciden ni generan errores SQL. Paginación 20/100, enlaces con filtros validados, orden registrado_en/id_evento descendente y fecha semiabierta La Paz→UTC según contrato. Filtros desconocidos o inválidos responden `422 VALIDACION_ERROR`.
+
+**Precisión física verificada:** la migración 000009 existente declara `ocurrido_en` y `registrado_en` como TIMESTAMPTZ sin precisión explícita; Laravel genera precisión 0. PostgreSQL redondea al segundo al persistir. La API representa fielmente ese dato con seis decimales, no recupera fracciones históricas perdidas. Las pruebas de extremos utilizan el último segundo representable del día y contrastan serialización con el registro realmente almacenado. Sin modificación de tabla/migraciones/DER en esta fase.
+
+**Verificación focalizada:** `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never tests/Feature/BitacoraListadoTest.php`: **62 pruebas / 682 aserciones**, PostgreSQL y sesiones reales en base/rol aislados `clinica_vida_salud_test`. Incluye roles, sesión ausente/caducada/desactivada/revocada/restringida, permiso revalidado en Service, filtros solos/combinados, valores literales, límites de paginación, fechas con conexión en otra zona horaria, IPv4/IPv6, recursos físicos/JSON/objetivo, proyección desconocida/malformada, BIGINT, orden con empate, no mutación por lectura y fallo inesperado seguro. Pint (9 archivos), sintaxis PHP y diff-check correctos; route:list confirma GET/HEAD con middlewares. Regresión completa de fase 2: **914 pruebas / 9988 aserciones correctas** (resultado recibido al iniciar fase 3).
+
+**Estado al cierre de fase 2:** listado terminado y detalle pendiente entonces de fase 3, incorporado a continuación. No acredita CU-30 completo. Análisis parcial sincronizado; diagrama global expresamente aplazado.
+
+## CU-30 — fase 3: detalle seguro del evento (2026-10-21)
+
+**Implementado:** `GET /api/bitacora/{id}` bajo los mismos middlewares del listado. BitacoraController reutiliza `usuarios/CuentaRequest` para validar ID de ruta BIGINT y rechazar cualquier parámetro extra; no se permite sobreescribir el ID con query/body. BitacoraService comparte revalidación transaccional del Administrador entre listar/consultar, consulta mediante BitacoraRepository::porId y devuelve 404 seguro si el evento no existe. No se bloquea ni modifica el evento inmutable.
+
+**Respuesta:** BitacoraDetalleResource extiende BitacoraListadoResource para conservar exactamente la cabecera y añadir procedencia IP, correlación, ID del evento relacionado, versión y cambios/metadatos proyectados. No expande relaciones ni obtiene identidad actual o contenido clínico. Cambios administrativos admiten solo nombres de campos, booleano sin_documento, IDs de habilitaciones/activación y estados/roles antes/después expresamente permitidos. Los metadatos de instalación/prueba solo admiten valores constantes. Motivos libres, contraseñas, códigos secretos, tokens y rutas se excluyen incluso dentro de claves permitidas. El ID del código de activación es una referencia al registro, no el secreto entregado al Paciente.
+
+**Robustez de proyección:** comprueba estructura/tipos/valores por familia, convierte BIGINT a cadenas y elimina duplicados. Objetos donde se esperan listas, roles/estados inválidos, IDs fuera de rango y claves desconocidas se omiten; una lista mayor de 100 elementos se descarta completa. No hay fallback al JSON bruto. Una versión no reconocida devuelve referencias/cambios/metadatos como `{}` manteniendo la cabecera. Cada evento relacionado se representa solo por ID. Las lecturas no generan eventos ni modifican su contenido.
+
+**Verificación:** `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never tests/Feature/BitacoraDetalleTest.php tests/Feature/BitacoraListadoTest.php tests/Feature/UsuariosAuditoriaTest.php`: **139 pruebas / 1264 aserciones correctas** con PostgreSQL/sesiones reales y base/rol aislados. Incluye 36 casos nuevos de detalle: familias de cambios y metadatos, tipos incorrectos, listas excesivas, exclusión de secretos, BIGINT, roles históricos y origen anónimo/sistema, igualdad de cabecera con listado, evento relacionado sin expansión, no mutación, 404/422 por ruta/rango/extra, permisos antes de consultar, sesiones inválidas/restringidas y 500 central seguro. Pint de los 6 archivos afectados correcto. La regresión completa de 914/9988 corresponde al cierre de fase 2; no se presenta como ejecución de fase 3.
+
+**Comprobaciones finales/documentación de fase 3:** sintaxis PHP de los 6 archivos de fase 3 y `git diff --check` correctos; `artisan route:list --path=api/bitacora -v` confirma listado/detalle GET/HEAD con sus controles de acceso. README, caso, contexto y análisis parcial sincronizados. Persistencia y DER sin cambios; diagrama global expresamente aplazado. Seguridad/rendimiento se revisan en fase 4 a continuación; CU-30 aún no se declara terminado.
+
+## CU-30 — fase 4: seguridad, integridad y rendimiento (2026-10-21)
+
+**Acceso concurrente comprobado con PostgreSQL y procesos HTTP independientes:** se reutiliza AutenticacionConcurrenteTest y su worker de pruebas, ampliados con modos de consulta y barreras exclusivas de fixtures (sin rutas públicas auxiliares). Doce casos combinan listado/detalle, cambios de cuenta/rol/revocación de sesión y commit/rollback. Se pausa tras los middlewares y antes del Controller: el Service espera el bloqueo de Usuario y revalida contra el estado confirmado; commit de una revocación produce 401 y rollback conserva 200. Dos casos prueban el orden inverso: una lectura ya autorizada mantiene el bloqueo del actor mientras obtiene los datos, el cambio de acceso espera (SQLSTATE 55P03 con timeout controlado), y una consulta posterior a su confirmación se rechaza. El evento no está bloqueado por la lectura, comprobado desde otra conexión con `FOR UPDATE NOWAIT`. La garantía es el orden transaccional de autorización/lectura frente al cambio de acceso, no retirar una respuesta ya leída/autorizada.
+
+**Solo lectura/integridad:** BitacoraSeguridadTest rechaza POST/PUT/PATCH/DELETE con 405 en listado y detalle, conservando el evento; HEAD responde sin cuerpo y con Cache-Control privado/no-store. Rutas auxiliares de edición/eliminación/exportación no existen. UPDATE, DELETE y TRUNCATE directos y actualización Eloquent fallan por `bitacora_inmutable_ck` (23514); tras cada rechazo la API devuelve el evento original. Pruebas dentro de transacciones de la base aislada, sin ejecutar mutaciones sobre datos habituales. Filtros con arrays, columnas/rutas JSON del cliente, intentos SQL y comodines no permiten ampliar resultados ni escribir.
+
+**Rendimiento local medido:** fixture de 5000 eventos ficticios más un login, con JSON privado de 1 KiB por evento; `ANALYZE` y `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` de la consulta real de página. Listado de 100: 0,046 ms; listado de 1: 0,010 ms; día selectivo (24 resultados): 0,032 ms; recurso histórico (1 resultado): 6,233 ms. Son tiempos de página de esa ejecución local, excluyen count/HTTP y no constituyen SLA ni aceptación de producción. Dos consultas a Bitácora (total + página), 17 SELECT totales incluidas autenticación/sesión tanto para 1 como para 100 filas: sin N+1 dependiente de eventos. El listado excluye cambios/metadatos del SELECT y del cuerpo.
+
+**Índices:** los planes utilizan `bitacora_orden_idx` para el listado y `bitacora_fecha_idx` para el período selectivo. El filtro OR de recursos históricos conserva recorrido sobre las formas existentes; el volumen medido no justifica agregar índices/migraciones ni reescribir eventos. Reevaluar con volumen y planes reales si cambia la carga; no se promete coste constante para filtros JSON o páginas profundas. Se conserva la precisión física de segundos documentada en fase 2.
+
+**Evidencia de cierre de fase 4:** concurrencia focalizada **14 pruebas/130 aserciones**; seguridad focalizada inicial **20 pruebas/198 aserciones**, ampliada después para comparar SELECT totales en páginas de 1/100. Regresión completa final: `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never`, **984 pruebas/10704 aserciones correctas**, 5 min 23 s, PostgreSQL/base/rol aislados `clinica_vida_salud_test`. Incluye toda la auditoría, autenticación y los consumidores anteriores del worker. Pint de los 5 archivos de fase 4 correcto. No se encontró un fallo funcional que exigiera modificar código productivo ni índices en esta fase; se incorporaron pruebas y evidencia. README/caso/contexto/análisis parcial sincronizados; DER sin cambios, diagrama global aplazado. Fase 5 integración y cierre del backend pendientes.
+
+## CU-30 — fase 5: integración y cierre backend local (2026-10-21)
+
+**Alcance terminado:** consulta administrativa exclusiva de Administrador con listado/filtros/paginación y detalle seguro. Se reutiliza el almacenamiento/eventos de los módulos implementados, con inmutabilidad y controles transaccionales comprobados. El contrato de fase 1 ya puede consumirse desde el futuro frontend. Los eventos de módulos aún no desarrollados no se presentan como instrumentados.
+
+**Integración:** BitacoraIntegracionTest recorre el Kernel HTTP de Laravel con cookies, restauración de guard por solicitud, sesiones PostgreSQL y CSRF efectivos. Cada caso utiliza un esquema efímero de la base/rol aislados, todas las migraciones y los cuatro roles fijos; solo la entrega de correo se sustituye por Mail::fake. No se ejecutan servidores externos ni se verifica Railway/Brevo real.
+
+1. Alta de Especialidades/Médico, edición y rechazo de borrador obsoleto, retiro de especialidad y actividad profesional; creación de cuenta, invitación/aceptación/login/restauración, desactivación y rechazo de sesión anterior. El Administrador filtra por profesional/responsable/módulo y por cuenta objetivo, recorre páginas de dos eventos y consulta cada detalle; verifica campos/habilitaciones/estados históricos y exclusión de credenciales/contactos.
+2. Recepción registra y modifica un Paciente, emite código presencial; vinculación web con segundo código de correo, verificación y login conservan la misma ficha. Se consulta el historial por recurso Paciente atravesando referencias y cambios históricos, con responsables/origen anónimo correctos. Se verifican rechazo de otros roles, logout e intento fallido de login, así como exclusión de ambos códigos, hashes, CI, correo, nombres y motivo administrativo libre.
+3. Inyección controlada de fallo tras insertar una auditoría desde el productor real de Especialidades: respuesta 500 y rollback de catálogo/evento; luego alta correcta y conflicto por duplicado. La API devuelve exactamente los eventos exitosos persistidos, sin éxitos falsos ni alteraciones al consultar.
+
+**Verificación final:** integración focalizada **3 pruebas/206 aserciones**; suite completa `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never`: **987 pruebas/10910 aserciones correctas**, 5 min 58 s. Pint del alcance acumulado de CU-30 y fixtures compartidos: **17 archivos correctos**. Esquemas de integración retirados por el teardown; no se aplicaron migraciones/seeders sobre la base habitual ni se enviaron correos reales. Las métricas locales de fase 4 se reprodujeron en la suite, sin añadir índices ni cambiar precisión de fechas.
+
+**Extensión progresiva:** al incorporar eventos de otros módulos, el productor mantiene referencias/metadatos mínimos y la atomicidad con la operación real; ampliar explícitamente entidades/rutas históricas de filtro, proyección por familia/versión y sus pruebas cuando corresponda. Versiones y claves desconocidas conservan la salida restrictiva; no abrir el JSON completo por compatibilidad. La auditoría clínica general continúa limitada a metadatos.
+
+**Comprobaciones finales/cierre documental:** sintaxis de 17 PHP y `git diff --check` correctos; Artisan confirma las dos rutas GET/HEAD con controles de sesión/cuenta/rol. README, CU-30, análisis de clases, contexto §17.71 e inventario de backend/AGENTS sincronizados. Sin cambios de persistencia: DER vigente conservado. El diagrama global permanece aplazado por decisión expresa. Backend CU-30 terminado localmente; frontend, aceptación Railway/HTTPS/cookies/Brevo real e instrumentación de módulos futuros conservan su alcance posterior. Actualización PHP sigue aplazada; sin commit/push/despliegue.
+
 ## Organización interna por módulos (2026-10-21)
 
 Controllers, DTO, Services y Repositories se agrupan por módulo dentro de sus capas. Cada clase tiene una sola ubicación según su responsabilidad principal; otros módulos importan su namespace real. Las cuatro capas conservan el flujo Controller → Service → Repository → Model.
@@ -7,10 +172,10 @@ Controllers, DTO, Services y Repositories se agrupan por módulo dentro de sus c
 ```text
 src/
 ├── presentation/
-│   ├── controllers/ → usuarios/, pacientes/, medicos/
-│   └── dtos/        → usuarios/, pacientes/, medicos/
+│   ├── controllers/ → usuarios/, pacientes/, medicos/, bitacora/
+│   └── dtos/        → usuarios/, pacientes/, medicos/, bitacora/
 ├── business/
-│   └── services/    → usuarios/, pacientes/, medicos/
+│   └── services/    → usuarios/, pacientes/, medicos/, bitacora/
 └── data/
     └── repositories/ → usuarios/, pacientes/, medicos/, bitacora/
 ```
@@ -18,7 +183,7 @@ src/
 - **usuarios:** CU-01–CU-06, cuentas, autenticación, invitaciones, contraseñas, registro/vinculación web y correo de acceso. `CuentaRequest`, `ClaveRequest` y `RespuestaError` tienen aquí su única definición reutilizable; este último sigue normalizando errores de toda la API.
 - **pacientes:** CU-07/CU-08, ficha administrativa, perfil y emisión presencial del código de activación. RegistroPacienteService/Repository pertenecen a Usuarios por gestionar la activación de la cuenta web, aunque colaboren con fichas.
 - **medicos:** CU-09/CU-10, profesionales y catálogo de especialidades; MedicoRepository pertenece aquí aunque CU-03 también lo use.
-- **bitacora:** BitacoraRepository, reutilizado para registrar eventos de todos los módulos. Su ubicación no acredita la consulta administrativa CU-30.
+- **bitacora:** BitacoraRepository, compartido para escritura automática y consultas; BitacoraController/Service, ListarBitacoraRequest y Resources de listado/detalle implementan CU-30 backend, cerrado localmente en fase 5. Frontend pendiente.
 
 Ejemplo PSR-4: `src/business/services/medicos/MedicoService.php` → `Clinica\business\services\medicos\MedicoService`. Se actualizan consumidores en Controllers, servicios, rutas, middlewares, bootstrap y pruebas/fixtures; sin duplicados ni alias antiguos. Modelos, validadores, rutas, middlewares y migraciones conservan su organización. Las secciones inferiores documentan la cronología funcional; esta reorganización no cambia contratos HTTP ni persistencia.
 

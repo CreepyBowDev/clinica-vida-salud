@@ -8,9 +8,89 @@ use Clinica\data\models\Especialidad;
 use Clinica\data\models\Medico;
 use Clinica\data\models\Paciente;
 use Clinica\data\models\Usuario;
+use Clinica\shared\utils\ReferenciasBitacora;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class BitacoraRepository
 {
+    public function porId(int|string $id): ?Bitacora
+    {
+        // Los eventos son inmutables: solo se bloquea la cuenta del lector en el Service.
+        return Bitacora::query()->find($id);
+    }
+
+    public function listar(array $filtros): LengthAwarePaginator
+    {
+        $query = Bitacora::query();
+        foreach (['id_usuario_responsable', 'id_usuario_objetivo', 'tipo_actor', 'modulo', 'operacion', 'tipo_evento', 'resultado', 'direccion_ip'] as $campo) {
+            if (isset($filtros[$campo])) {
+                $query->where($campo, $filtros[$campo]);
+            }
+        }
+        if (isset($filtros['fecha_desde'])) {
+            $query->where('ocurrido_en', '>=', CarbonImmutable::createFromFormat('!Y-m-d', $filtros['fecha_desde'], 'America/La_Paz')->utc()->format('Y-m-d H:i:s.uP'));
+        }
+        if (isset($filtros['fecha_hasta'])) {
+            $query->where('ocurrido_en', '<', CarbonImmutable::createFromFormat('!Y-m-d', $filtros['fecha_hasta'], 'America/La_Paz')->addDay()->utc()->format('Y-m-d H:i:s.uP'));
+        }
+        if (isset($filtros['entidad_referida'])) {
+            $this->filtrarRecurso($query, $filtros['entidad_referida'], isset($filtros['registro_referido'])
+                ? ReferenciasBitacora::registro($filtros['entidad_referida'], $filtros['registro_referido']) : null);
+        }
+
+        return $query->orderByDesc('registrado_en')->orderByDesc('id_evento')->paginate($filtros['per_page'] ?? 20,
+            ['id_evento', 'tipo_evento', 'tipo_actor', 'id_usuario_responsable', 'rol_responsable', 'id_usuario_objetivo', 'rol_objetivo',
+                'modulo', 'operacion', 'resultado', 'causa_codigo', 'ocurrido_en', 'registrado_en', 'direccion_ip',
+                'entidad_referida', 'registro_referido', 'referencias', 'version_formato'], 'page', $filtros['page'] ?? 1);
+    }
+
+    private function filtrarRecurso(Builder $query, string $entidad, ?string $registro): void
+    {
+        $query->where(function (Builder $recursos) use ($entidad, $registro): void {
+            $recursos->where(function (Builder $fisico) use ($entidad, $registro): void {
+                $fisico->where('entidad_referida', $entidad);
+                $valor = in_array($entidad, ['CuentaPrueba', 'ConjuntoDemostracion'], true)
+                    ? "CASE WHEN registro_referido ~ '^[A-Za-z0-9_-]{1,64}$' THEN registro_referido END"
+                    : $this->idSql('registro_referido');
+                $this->compararReferencia($fisico, $valor, $registro);
+            });
+            if ($entidad === 'Usuario') {
+                $recursos->orWhere(function (Builder $objetivo) use ($registro): void {
+                    $registro === null ? $objetivo->whereNotNull('id_usuario_objetivo') : $objetivo->where('id_usuario_objetivo', $registro);
+                });
+            }
+            $clave = match ($entidad) {
+                'Paciente' => 'id_paciente', 'Medico' => 'id_medico', 'Especialidad' => 'id_especialidad', default => null,
+            };
+            if ($clave !== null) {
+                $recursos->orWhere(function (Builder $referencia) use ($clave, $registro): void {
+                    $this->compararReferencia($referencia, $this->idSql("referencias->>'$clave'"), $registro);
+                });
+            }
+            if ($entidad === 'Paciente') {
+                $recursos->orWhere(function (Builder $cambio) use ($registro): void {
+                    $cambio->whereIn('tipo_evento', ReferenciasBitacora::EVENTOS_PACIENTE);
+                    $this->compararReferencia($cambio, $this->idSql("cambios_seguros->>'id_paciente'"), $registro);
+                });
+            }
+        });
+    }
+
+    private function compararReferencia(Builder $query, string $valor, ?string $registro): void
+    {
+        $registro === null ? $query->whereRaw("($valor) IS NOT NULL") : $query->whereRaw("($valor) = ?", [$registro]);
+    }
+
+    private function idSql(string $expresion): string
+    {
+        // Expresiones exclusivamente internas. Sin casts numéricos que puedan fallar con JSON histórico inválido.
+        $id = "ltrim(($expresion), '0')";
+
+        return "CASE WHEN ($expresion) ~ '^[0-9]{1,19}$' AND $id <> ''
+            AND (length($id) < 19 OR $id COLLATE \"C\" <= '9223372036854775807') THEN $id END";
+    }
+
     public function medicoModificado(Medico $medico, Usuario $actor, array $contexto, string $tipo, array $campos, array $habilitaciones = []): void
     {
         $evento = new Bitacora;

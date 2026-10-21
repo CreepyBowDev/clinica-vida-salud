@@ -1,7 +1,7 @@
 # Análisis de clases — Clínica Vida Salud
 
 > **Ruta canónica:** `docs/ai/analisis-clases.md`  
-> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo y frontend fases 1–5 implementados con integración local; consultorios/horarios/agenda posteriores, diagrama global aplazado).
+> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo y frontend fases 1–5 implementados con integración local); Bitácora (`CU-30`, backend fases 1–5 completado/verificado localmente, frontend/producción pendientes). Consultorios/horarios/agenda posteriores y diagrama global aplazado.
 > **Avance:** Usuarios backend fases 0–8, incluidas 7A/7B; Pacientes backend/frontend fases 1–6 revisados el 2026-10-20. Plan frontend de gestión administrativa, perfil y correo completado con integración real local. Consulta histórica de citas conserva dependencia de CU-21; no se acredita RF02 íntegro ni producción/Brevo real.
 > **Estado:** backend de Usuarios y autenticación cerrado con revisión integrada de fase 8. React fases 1–6 implementadas, revisión del cliente con 213 pruebas y AUT-21 local aprobada en Chrome/Laravel/PostgreSQL reales (§17.34 del contexto). Incluye sesión, contraseñas, cuentas y registro/vinculación con emisión presencial de Recepción. Correo capturado localmente: aceptación/entrega real Brevo y comprobación de producción pendientes. `diagrama-clases.md` aplazado por solicitud expresa del usuario.
 > **Presentación aprobada:** ACTOR → BOUNDARY → CONTROL → ENTITY; un bloque CONTROL por diagrama, métodos principales sin clase, parámetros ni retorno, y atributos seleccionados por procedimiento.
@@ -15,9 +15,81 @@ Decisión aprobada posterior al cierre de CU-09/CU-10: Controllers, DTO, Service
 | `usuarios/` en las cuatro carpetas | CU-01–CU-06, cuentas, sesiones, credenciales, invitaciones, registro/activación web y correo de acceso. Incluye RegistroPacienteService/Repository y DTO de registro/vinculación. CuentaRequest/ClaveRequest/RespuestaError se reutilizan desde aquí; errores de toda la API continúan centralizados. |
 | `pacientes/` en las cuatro carpetas | CU-07/CU-08, fichas/perfil y emisión presencial del código: CodigoActivacionController/Service/Repository y EmitirCodigoActivacionRequest. |
 | `medicos/` en las cuatro carpetas | CU-09/CU-10, Médico y Especialidad. MedicoRepository es importado también por gestión de cuentas. |
-| `repositories/bitacora/` | BitacoraRepository registra eventos de todos los módulos; no acredita CU-30 completo. |
+| `bitacora/` en las cuatro carpetas | BitacoraRepository registra eventos y consulta listado/detalle; BitacoraController/Service, ListarBitacoraRequest y BitacoraListadoResource/BitacoraDetalleResource implementan CU-30 backend, cerrado localmente en fase 5. CuentaRequest se reutiliza desde usuarios; frontend pendiente. |
 
 Las clases compartidas se importan desde su módulo propietario; no hay copias ni alias antiguos. Se actualizan referencias entre capas, bootstrap/rutas/middlewares y tests/fixtures. Modelos, validadores, rutas, middlewares y migraciones conservan ubicación. DER sin cambios; diagrama global aplazado expresamente. Evidencias de regresión en contexto §17.60 y README.
+
+## CU-30 — fase 5: análisis de cierre del backend (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador con cuenta habilitada/sesión normal investiga eventos persistidos sin modificarlos ni obtener permisos clínicos. Ampliación propia CU-30 / VS-AUD-01–06 compatible con RN12/RN14; no crea RF/RN oficiales ni un proceso manual para registrar eventos. Backend completo localmente, frontend/producción pendientes. Las entradas siguientes conservan el análisis incremental de fases anteriores; el estado vigente es este cierre.
+
+| Participante implementado | Responsabilidad y colaboración de cierre |
+| --- | --- |
+| BitacoraController, ListarBitacoraRequest y CuentaRequest reutilizado | Frontera HTTP de listado/detalle, filtros e ID estrictos, delegación al control y entrega mediante Resources. Rutas con middlewares existentes de sesión/cuenta/rol. |
+| BitacoraService | Control del CU: sesión normal/Administrador revalidados con bloqueo de Usuario dentro de transacción; coordinación con AutenticacionService y repositorios de Usuarios/Sesiones para rechazo de acceso revocado; listado o recurso inexistente seguro. |
+| BitacoraRepository | Acceso Eloquent/SQL parametrizado para filtros exactos y recursos históricos, orden fijo, período local convertido a UTC y paginación; consulta de evento por ID. Conserva escritura automática de módulos existentes con atomicidad de sus Services. |
+| Bitacora | Entidad existente de evento inmutable, responsable/objetivo y roles históricos diferenciados, origen usuario/sistema/anónimo, fechas/resultado/referencias/JSON internos. Sin relaciones clínicas expandidas ni cambios de esquema. |
+| BitacoraListadoResource y BitacoraDetalleResource | Frontera de salida con cabecera explícita, BIGINT como cadenas, fechas UTC y cambios/metadatos limitados por familia/versión. JSON bruto, texto libre y secretos no se entregan; evento relacionado solo como ID. |
+| ReferenciasBitacora | Mapa compartido de entidades/ubicaciones históricas y validación de IDs/referencias públicas. No consulta perfiles ni decide permisos clínicos. |
+
+**Flujo principal integrado:** actor → frontera HTTP/Request → Service autorizado bajo bloqueo → Repository → Bitacora/PostgreSQL → Resource → listado paginado y detalle. Los productores de Médicos/Especialidades, cuentas y Pacientes/autenticación confirman operación/evento juntos cuando corresponde; intentos fallidos de seguridad conservan origen anónimo seguro. El filtro por recurso no convierte a un responsable en cuenta objetivo ni inventa una identidad de Paciente por CI/correo.
+
+**Alternativos/historia:** otros roles/sesión restringida 403; sesión ausente/revocada 401; validación 422; recurso inexistente 404; fallo inesperado 500 sin datos internos. Conflictos de negocio no generan éxitos falsos. Fallo inyectado tras guardar auditoría demuestra rollback conjunto de catálogo/evento. API y PostgreSQL rechazan escrituras/alteraciones; lecturas conservan todos los eventos y la cabecera entre listado/detalle. Los roles registrados no se sustituyen por valores actuales. Concurrencia e índices documentados en fase 4 y contrato README.
+
+**Evidencia de cierre:** BitacoraIntegracionTest 3 escenarios/206 aserciones con Kernel HTTP, cookies/CSRF/sesiones PostgreSQL y esquemas efímeros, sin suplantar el Repository ni los productores salvo la inyección de fallo del tercer caso; solo entrega de correo simulada. Incluye gestión de Médico/cuenta/invitación, Recepción/Paciente con ambos códigos y acceso, filtros/paginación/detalles y ausencia de secretos. Suite completa **987 pruebas/10910 aserciones correctas** y Pint de 17 PHP del alcance correcto. La integración no acredita navegador React, tráfico de red de producción o entrega real Brevo.
+
+**Límite del cierre:** CU-30 backend local terminado; frontend, aceptación productiva e instrumentación de módulos futuros pendientes. Análisis acumulativo sincronizado sin crear clases ficticias para módulos posteriores. Persistencia/DER sin cambios y diagrama global aplazado expresamente por el usuario.
+
+## CU-30 — fase 4 backend: revisión de colaboraciones y garantías (2026-10-21)
+
+**Estado parcial:** fases 1–4 completadas; integración/cierre del backend pendientes de fase 5. Se conservan clases/capas/contratos de fases 2–3 y persistencia existente; no se agregan entidades de dominio por las pruebas.
+
+**Colaboración verificada:** BitacoraService → AutenticacionService → UsuarioRepository (FOR UPDATE sobre actor) y SesionRepository (huella/contexto/vigencia) → BitacoraRepository (lectura sin bloqueo de eventos). Las barreras de pruebas demuestran que un cambio concurrente de estado/rol/sesión confirmado antes de la lectura impide el acceso; rollback conserva autorización. Si la lectura ya obtuvo el bloqueo del actor, el escritor de revocación espera; la consulta posterior al cambio se rechaza. Los fixtures PausarConsultaBitacora y PausarLecturaBitacoraRepository solo sincronizan procesos de tests; no son clases de negocio ni rutas de aplicación.
+
+**Integridad/solo lectura:** rutas admiten GET/HEAD, escrituras API se rechazan sin alterar eventos. Model/Repository conservan restricciones PostgreSQL existentes: UPDATE/DELETE/TRUNCATE y guardado Eloquent fallan por bitacora_inmutable_ck; después la API lee el evento original. No hay operaciones administrativas de corrección/eliminación. Los casos hostiles de filtros no eligen columnas SQL/rutas JSON del Repository.
+
+**Consultas:** count+página constantes y ausencia de N+1 al pasar de 1 a 100 eventos. Con 5000 eventos ficticios, planes reales utilizan índices de orden/fecha; filtro de recurso histórico recorre las ubicaciones existentes con coste local medido que no justifica otra migración. Ver README/contexto §17.70 para tiempos y límites de la evidencia. Se preservan proyecciones de Resources y la distinción entre JSON interno y salida autorizada.
+
+**Evidencia de fase 4:** 14 casos nuevos de concurrencia y 20 de seguridad; suite completa **984 pruebas/10704 aserciones correctas** con PostgreSQL/sesiones reales y Pint de archivos afectados correcto. No se modifican clases productivas, DER o diagrama global aplazado; no se declara CU-30 completo.
+
+## CU-30 — fase 3 backend: detalle seguro del evento (2026-10-21)
+
+**Estado parcial:** contrato/listado/detalle implementados; fases 4–5 y cierre pendientes. Actor Administrador con sesión normal. CU-30 y VS-AUD-02–06, ampliación compatible con RN12/RN14; contrato README backend y contexto §17.69.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `controllers/bitacora/BitacoraController::show` | Frontera HTTP: recibe ID validado, solicita evento al Service y devuelve BitacoraDetalleResource. |
+| `dtos/usuarios/CuentaRequest` existente | Valida ID de ruta BIGINT y rechaza query/body extra; el cliente no sustituye el ID de ruta. Se reutiliza sin duplicar DTO ni modificar Usuarios. |
+| `services/bitacora/BitacoraService::consultar` | Control: revalida sesión/rol con bloqueo del actor dentro de transacción, antes de consultar; devuelve error de recurso inexistente si el Repository retorna null. Listar y consultar comparten el mismo control privado. |
+| `repositories/bitacora/BitacoraRepository::porId` y `models/Bitacora` | Recuperan el evento inmutable por ID; no bloquean/modifican el evento ni expanden sus relaciones. |
+| `dtos/bitacora/BitacoraDetalleResource` | Extiende BitacoraListadoResource para conservar cabecera, IDs y roles históricos; agrega metadatos de cabecera y proyecciones estrictas por familia/versión. Valida estructuras/listas/valores, limita listas a 100, deduplica y omite secretos/texto libre. ReferenciasBitacora valida IDs y referencias compartidas. |
+
+**Flujo:** Administrador → GET /bitacora/{id}/middlewares → CuentaRequest → Controller → Service (transacción/actor bloqueado/rol) → Repository → Bitacora → Resource. IDs fuera de rango y parámetros extra 422; ruta que no coincide 404; evento inexistente 404 solo tras autorizar; otros roles/sesión restringida 403; sesión inválida/revocada 401; fallo inesperado 500 seguro. Responsable/objetivo conservan sus roles registrados; origen SISTEMA/ANONIMO no inventa identidad. Evento anterior solo se entrega por ID, sin árbol de relaciones.
+
+**Proyección:** nombres de campos administrativos, booleano sin_documento, listas de IDs de habilitaciones, IDs de Paciente/código de activación, rol/estado/vínculo antes/después y metadatos constantes de instalación/prueba. No se exponen valores personales/clínicos ni motivo administrativo libre. Listas excesivas se omiten completas; entradas desconocidas/estructuras inválidas se descartan sin error ni fallback al JSON bruto. Versiones desconocidas devuelven referencias/cambios/metadatos `{}` con cabecera preservada.
+
+**Evidencia:** 36 casos nuevos de detalle, ejecutados con listado y UsuariosAuditoriaTest: **139 pruebas/1264 aserciones** correctas en PostgreSQL/sesiones reales. Cubren familias, versiones, confidencialidad, IDs e historia, objetos/listas malformados, límites, no mutación/expansión y autorización/errores. Pint de los archivos afectados correcto. Regresión completa previa de fase 2: 914/9988. Sin cambios de persistencia/DER ni cierre CU-30; diagrama global aplazado.
+
+## CU-30 — fase 2 backend: consulta paginada de eventos (2026-10-21)
+
+**Estado al cierre de fase 2:** contrato y listado implementados; detalle pendiente entonces, incorporado en fase 3 descrita arriba. Revisión integral y cierre del CU pendientes. Actor Administrador con cuenta habilitada/sesión normal. Trazabilidad CU-30, VS-AUD-01–06 y compatibilidad RN12/RN14 como ampliación propia; contrato en README backend y avance en contexto §17.68.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `src/presentation/routes/bitacora.php` y middlewares existentes | Exponen únicamente GET de listado; autentican, revalidan cuenta y sesión normal y exigen rol Administrador antes de validar filtros/consultar eventos. |
+| `controllers/bitacora/BitacoraController` | Frontera HTTP: recibe ListarBitacoraRequest, delega listado y devuelve colección BitacoraListadoResource con enlaces limitados a criterios validados. |
+| `dtos/bitacora/ListarBitacoraRequest` | Valida criterios escalares, período, fechas reales, BIGINT, entidad/registro, IP y paginación; rechaza parámetros extra. No comprueba existencia actual de recursos ni decide permisos clínicos. |
+| `services/bitacora/BitacoraService` | Control: exige sesión normal con bloqueo de la cuenta y rol Administrador dentro de transacción; delega al Repository. Colabora con AutenticacionService existente para coordinar la lectura con cambios de acceso. |
+| `repositories/bitacora/BitacoraRepository` | Conserva productores de eventos y añade consulta filtrada/paginada. Orden fijo, límites UTC de fechas locales y grupo OR de ubicaciones históricas del recurso; acceso Eloquent/SQL parametrizado sin permitir al cliente elegir columnas o claves JSON. |
+| `models/Bitacora` | Entidad Eloquent existente con casts de fechas/JSON y metadatos persistidos; no se expanden sus relaciones de Usuario o eventos. Las restricciones PostgreSQL existentes preservan inmutabilidad. |
+| `shared/utils/ReferenciasBitacora` | Mapa compartido de entidades, eventos históricos con referencias de Paciente, validación/canonización de IDs y proyección de referencias adicionales por familia; no consulta fichas ni otorga permisos. |
+| `dtos/bitacora/BitacoraListadoResource` | Frontera de salida: cabecera permitida, IDs como cadenas, fechas UTC, roles históricos y referencias seguras. Omite relaciones, cambios/metadatos, causas desconocidas y recursos/JSON no permitidos. |
+
+**Flujo:** Administrador → ruta/middlewares → Request → Controller → Service (autenticación/bloqueo/rol) → Repository → Bitacora/PostgreSQL → Resource → colección con `data`, `links`, `meta`. Filtros diferentes AND; recurso OR entre ubicaciones fijas. Fechas filtran ocurrido_en; orden de inserción registrado_en/id_evento. La ausencia de coincidencias o página posterior a la última produce colección vacía, no 404. Filtros inválidos 422; sesión inválida/revocada 401; otro rol o sesión restringida 403; errores inesperados 500 seguros centralizados por RespuestaError.
+
+**Confidencialidad/historia:** cuenta responsable y objetivo se distinguen por IDs y roles capturados, sin nombres/correos/CI actuales ni relaciones clínicas. JSON inválido no provoca cast numérico SQL ni se serializa en bruto; versión desconocida da referencias `{}`. Lectura no inserta ni modifica eventos. La fecha serializada con seis decimales representa la precisión física de segundos de la migración existente, no fracciones recuperadas.
+
+**Evidencia parcial:** BitacoraListadoTest 62 pruebas/682 aserciones con PostgreSQL/sesiones reales; matriz de filtros, acceso, límites temporales, BIGINT, IP, recursos históricos/incorrectos, proyección y error inesperado seguro. Regresión/comprobaciones finales se registran en contexto/README. No cambia persistencia, DER ni el diagrama global expresamente aplazado. No se anticipan clases del detalle ni módulos futuros como implementados.
 
 ## CU-09/CU-10 — fase 5 frontend: vínculo CU-03 y cierre integrado (2026-10-21)
 

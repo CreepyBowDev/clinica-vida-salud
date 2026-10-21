@@ -3,6 +3,7 @@
 // Proceso auxiliar exclusivo de pruebas; nunca se registra como ruta o comando de la aplicación.
 use Carbon\CarbonImmutable;
 use Clinica\business\services\usuarios\CorreoSeguridadService;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\Fixtures\PausarCambioClave;
+use Tests\Fixtures\PausarConsultaBitacora;
+use Tests\Fixtures\PausarLecturaBitacoraRepository;
 use Tests\Fixtures\PausarRespuestaAutenticacion;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
@@ -67,6 +70,16 @@ try {
             }
         });
     }
+    if ($data['mode'] === 'bitacora-antes') {
+        $app['events']->listen(RouteMatched::class, function (RouteMatched $event): void {
+            if (str_starts_with($event->route->uri(), 'api/bitacora')) {
+                $event->route->middleware(PausarConsultaBitacora::class);
+            }
+        });
+    }
+    if ($data['mode'] === 'bitacora-lectura') {
+        $app->instance(BitacoraRepository::class, new PausarLecturaBitacoraRepository);
+    }
     echo json_encode(['ready' => DB::selectOne('SELECT pg_backend_pid() AS pid')->pid]), "\n";
     fflush(STDOUT);
     if (trim(fgets(STDIN)) !== 'INICIAR') {
@@ -113,6 +126,7 @@ try {
         });
     };
     $response = match (true) {
+        str_starts_with($data['mode'], 'bitacora-') => $send('GET', $data['ruta']),
         $data['mode'] === 'medico-reserva-protocolo' => $reservaMedico(),
         $data['mode'] === 'medico-crear' => $send('POST', '/api/medicos', $data['payload']),
         $data['mode'] === 'medico-editar' => $send('PATCH', '/api/medicos/'.$data['id_objetivo'], $data['payload']),

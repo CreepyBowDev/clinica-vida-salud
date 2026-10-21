@@ -24,7 +24,7 @@ function PatientDetail({ id }) {
     <Link className="patients-back" to="/recepcion/pacientes">Volver a pacientes</Link>
     <header className="page-heading"><h1>Ficha administrativa</h1><p>Identidad y datos de contacto del paciente.</p></header>
     {notice && <Alert variant="success"><p>{notice}</p></Alert>}
-    <div aria-busy={loading}>{loading ? <p className="patients-empty" role="status">Consultando ficha…</p> : failure ? <><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></> : <>
+    <div className={!loading && !failure ? 'patient-detail-sections' : undefined} aria-busy={loading}>{loading ? <p className="patients-empty" role="status">Consultando ficha…</p> : failure ? <><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></> : <>
       <section className="patients-panel" aria-labelledby="patient-identity"><h2 id="patient-identity">{patient.nombres} {patient.apellidos}</h2>
         <dl className="patients-data"><Datum label="Código de ficha">{patient.codigo_paciente}</Datum><Datum label="Identificador interno">{patient.id_paciente}</Datum>
           <Datum label="CI">{patient.documento_identidad || 'Sin CI registrado'}</Datum><Datum label="Estado de ficha">{patient.activo ? 'Activa' : 'Inactiva'}</Datum>

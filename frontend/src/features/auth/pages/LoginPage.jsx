@@ -92,6 +92,6 @@ export default function LoginPage() {
     {failure && (!failure.status || failure.status === 409) && <Button variant="secondary" className="full-width"
       loading={busy} onClick={() => run(refreshSession)}>Comprobar mi sesión</Button>}
     <div className="login-assistance"><Icon name="lock" /><p>Acceso personal para pacientes<br className="desktop-break" /> y equipo de la clínica.</p></div>
-    <p className="first-access">¿Es tu primer acceso?<br /><Link to="/registro">Crear cuenta de Paciente</Link><br /><Link to="/vincular-ficha">Ya tengo un código de activación</Link></p>
+    <div className="first-access"><p>¿Es tu primer acceso?</p><div className="first-access-options"><Link to="/registro">Crear cuenta de Paciente</Link><Link to="/vincular-ficha">Ya tengo un código de activación</Link></div></div>
   </div>;
 }

@@ -7,6 +7,7 @@ import { validarNuevaClave } from '../utils/passwordValidation';
 import PasswordField from '../../../components/PasswordField';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
+import Icon from '../../../components/Icon';
 import PasswordFailure from '../components/PasswordFailure';
 import LogoutButton from '../components/LogoutButton';
 
@@ -45,16 +46,17 @@ export default function AcceptInvitationPage({ enlace }) {
     });
   }
 
-  return <div className="login-panel">
+  return <div className="login-panel auth-task-panel">
+    <span className={`session-symbol${success ? ' session-symbol--success' : ''}`} aria-hidden="true"><Icon name={success ? 'check' : !token ? 'info' : 'mail'} width="28" height="28" /></span>
     <h1 ref={heading} tabIndex="-1">{success ? 'Tu acceso está listo' : !token ? 'Invitación no disponible' : 'Activa tu acceso al equipo'}</h1>
     {success ? <><p className="login-intro">Tu correo quedó verificado y tu contraseña fue establecida. Inicia sesión para ingresar al portal.</p>
       <Link className="button button--primary auth-back-link" to="/login">Iniciar sesión</Link></>
       : !token ? <><p className="login-intro">Abre la invitación más reciente de tu correo. Si venció, ya se usó o no está disponible, solicita otra a Administración.</p>
-        <Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></>
+        <div className="auth-links"><Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></div></>
         : hasSession ? <div className="recovery-guidance"><Alert variant="info">Hay una sesión activa en este navegador. Debes cerrarla antes de aceptar la invitación.</Alert>
-          <LogoutButton /><Link className="auth-back-link" to={status === 'restricted' ? '/clave-obligatoria' : '/inicio'}>Volver a mi sesión</Link></div>
+          <LogoutButton /><div className="auth-links"><Link className="auth-back-link" to={status === 'restricted' ? '/clave-obligatoria' : '/inicio'}>Volver a mi sesión</Link></div></div>
           : <><p className="login-intro">Establece tu primera contraseña para verificar el correo y activar tu cuenta del personal.</p>
-            <p className="recovery-note">La invitación es de un solo uso y tiene una vigencia de 24 horas.</p>
+            <p className="auth-guidance">La invitación es de un solo uso y tiene una vigencia de 24 horas.</p>
             <form ref={form} className="recovery-form" aria-label="Aceptar invitación del personal" aria-busy={busy} onSubmit={submit}>
               <PasswordFailure failure={failure} remaining={remaining} />
               <PasswordField label="Nueva contraseña" autoComplete="new-password" name="password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase."
@@ -62,6 +64,6 @@ export default function AcceptInvitationPage({ enlace }) {
               <PasswordField label="Confirmar nueva contraseña" autoComplete="new-password" name="password_confirmation" value={confirmation}
                 busy={busy} onChange={event => setConfirmation(event.target.value)} error={failure?.fields.password_confirmation} />
               <Button type="submit" className="full-width" loading={busy} disabled={remaining > 0}>{busy ? 'Activando acceso…' : remaining > 0 ? `Espera ${remaining} s` : 'Establecer contraseña y activar'}</Button>
-            </form><Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></>}
+            </form><div className="auth-links"><Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></div></>}
   </div>;
 }

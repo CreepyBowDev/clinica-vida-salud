@@ -44,7 +44,7 @@ describe('inicio de sesión', () => {
     await fill(user);
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
     expect(await screen.findByRole('heading', { name: 'Hola, Persona Ficticia' })).toBeInTheDocument();
-    expect(screen.getByRole('main')).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
     expect(screen.getAllByText(rol).length).toBeGreaterThan(0);
     expect(iniciarSesion).toHaveBeenCalledWith({ correo_acceso: normal.correo_acceso, password: '  Contraseña ficticia 123  ' });
     expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();

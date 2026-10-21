@@ -20,7 +20,7 @@ export default function NewStaffPage() {
   const medical = draft.rol === ROLES.MEDICO;
   const field = name => ({ name, value: draft[name], readOnly: busy, onChange: event => setDraft({ ...draft, [name]: event.target.value }), error: failure?.fields[name] });
 
-  return <section className="workspace-page accounts-page">
+  return <section className="workspace-page accounts-page staff-create-page">
     <Link className="accounts-back" to="/administracion/cuentas">Volver a cuentas</Link>
     <header className="page-heading"><h1 ref={heading} tabIndex="-1">{result ? 'Cuenta del personal creada' : 'Crear cuenta del personal'}</h1>
       <p>{result ? 'La cuenta permanece pendiente hasta que el trabajador acepte su invitación.' : 'El trabajador verificará su correo y elegirá su propia contraseña.'}</p></header>
@@ -39,7 +39,7 @@ export default function NewStaffPage() {
             {[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA, ROLES.MEDICO].map(rol => <option key={rol}>{rol}</option>)}</SelectField>
           <FormField label="Correo de acceso" type="email" autoComplete="off" required maxLength={254} {...field('correo_acceso')} />
           {medical ? <FormField label="Identificador del registro médico" type="text" inputMode="numeric" required maxLength={19} hint="Registro profesional ya existente, sin cuenta vinculada. No crea un nuevo Médico." {...field('id_medico')} />
-            : <><FormField label="Nombres" autoComplete="off" required maxLength={120} {...field('nombres_personal')} /><FormField label="Apellidos" autoComplete="off" required maxLength={120} {...field('apellidos_personal')} /></>}
+            : <div className="staff-name-fields"><FormField label="Nombres" autoComplete="off" required maxLength={120} {...field('nombres_personal')} /><FormField label="Apellidos" autoComplete="off" required maxLength={120} {...field('apellidos_personal')} /></div>}
           <Button type="submit" loading={busy} disabled={remaining > 0}>{busy ? 'Creando cuenta…' : remaining > 0 ? `Espera ${remaining} s` : 'Crear cuenta e invitar'}</Button>
         </form></div>}
   </section>;

@@ -54,7 +54,7 @@ export default function ChangeEmailPage() {
     if (result?.data) { setDelivery(result.data); requestAnimationFrame(() => heading.current?.focus()); }
     if (result?.failure?.uncertain) setUncertain(true);
   }
-  return <section ref={root} className="workspace-page patients-page">
+  return <section ref={root} className="workspace-page patients-page email-change-page">
     <Link className="patients-back" to="/mi-perfil">Volver a mi perfil</Link>
     <header className="page-heading"><h1>Cambiar correo de acceso</h1><p>Verifica tu nuevo correo antes de utilizarlo para iniciar sesión.</p></header>
     <div className="patients-panel"><dl className="patients-data"><div><dt>Correo de acceso vigente</dt><dd>{usuario.correo_acceso}</dd></div></dl>
@@ -66,7 +66,7 @@ export default function ChangeEmailPage() {
         if (result?.data) { setUncertain(false); setDelivery(null); setChecked(true); setCode(''); }
       }}>Comprobar mi sesión y perfil</Button></div>}
     </div>
-    <form className="patients-panel patient-form" aria-label="Solicitar cambio de correo" aria-busy={busy === 'request'} onSubmit={submitRequest}>
+    <div className="email-change-grid"><form className="patients-panel patient-form" aria-label="Solicitar cambio de correo" aria-busy={busy === 'request'} onSubmit={submitRequest}>
       <h2>Nueva solicitud</h2><p className="patients-note">Iniciar otra solicitud sustituye la anterior y su código, respetando los límites de envío.</p>
       <FormField name="correo_acceso" label="Nuevo correo de acceso" type="email" autoComplete="email" required maxLength={254} value={email} readOnly={disabled || confirm} error={failure?.fields.correo_acceso} onChange={event => setEmail(event.target.value)} />
       <FormField name="current_password" label="Contraseña actual" type="password" autoComplete="current-password" required maxLength={1024} value={password} readOnly={disabled || confirm} error={failure?.fields.current_password} onChange={event => setPassword(event.target.value)} />
@@ -78,7 +78,7 @@ export default function ChangeEmailPage() {
       {delivery && <Alert variant={delivery.envio === 'fallido' ? 'error' : 'info'}><p>{deliveryMessages[delivery.envio]}</p><p>Vencimiento del código emitido: <time dateTime={delivery.expira_en}>{new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(delivery.expira_en))} UTC</time>.</p></Alert>}
       <p className="patients-note">Si ya solicitaste un cambio, puedes continuar aquí aunque hayas vuelto a iniciar sesión. La verificación y el reenvío usan la última solicitud de tu cuenta; escribir otro correo arriba no cambia su destino. Solo sirve el código específico de este cambio, no uno de activación o recuperación.</p>
       <p className="patients-note">El código tiene seis dígitos, dura diez minutos y admite cinco errores. Reenvío: al menos 60 segundos entre emisiones y máximo cinco por hora. El servidor determina su vigencia y los límites.</p>
-      <form aria-label="Verificar cambio de correo" aria-busy={busy === 'verify'} onSubmit={async event => {
+      <form className="email-verification-form" aria-label="Verificar cambio de correo" aria-busy={busy === 'verify'} onSubmit={async event => {
         event.preventDefault(); if (disabled || remaining || confirm || delivery?.envio === 'fallido') return;
         if (!/^\d{6}$/.test(code)) { report({ message: 'Revisa el código.', fields: { codigo: 'Introduce exactamente seis dígitos, incluidos los ceros iniciales.' } }); return; }
         setChecked(false);
@@ -92,6 +92,6 @@ export default function ChangeEmailPage() {
             handleResult(await run('resend', () => reenviarCambioCorreo()));
           }}>{busy === 'resend' ? 'Solicitando otro código…' : sendRemaining ? `Reenvío en ${sendRemaining} s` : 'Solicitar otro código de cambio'}</Button></div>
       </form>
-    </section>
+    </section></div>
   </section>;
 }

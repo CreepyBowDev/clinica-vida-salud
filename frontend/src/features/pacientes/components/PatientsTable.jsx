@@ -1,15 +1,16 @@
 import { Link } from 'react-router-dom';
 
 export default function PatientsTable({ patients }) {
-  return <><p className="patients-scroll-hint">Desplaza la tabla horizontalmente para ver todos los datos y abrir la ficha.</p>
-    <div className="patients-table-scroll" role="region" aria-label="Pacientes, tabla desplazable" tabIndex="0">
-      <table className="patients-table"><caption>Fichas administrativas · más recientes primero</caption>
-        <thead><tr><th scope="col">Paciente</th><th scope="col">Código de ficha</th><th scope="col">CI</th><th scope="col">Estado de ficha</th><th scope="col">Consulta</th></tr></thead>
-        <tbody>{patients.map(patient => <tr key={patient.id_paciente}>
-          <td><strong>{patient.nombres} {patient.apellidos}</strong></td><td>{patient.codigo_paciente}</td>
-          <td>{patient.documento_identidad || 'Sin CI registrado'}</td><td><span className="role-badge">{patient.activo ? 'Activa' : 'Inactiva'}</span></td>
-          <td><Link to={`/recepcion/pacientes/${patient.id_paciente}`} aria-label={`Ver ficha de ${patient.nombres} ${patient.apellidos}`}>Ver ficha</Link></td>
+  return <div className="patients-table-scroll">
+      <table className="patients-table" role="table"><caption>Fichas administrativas · más recientes primero</caption>
+        <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Paciente</th><th scope="col" role="columnheader">Código de ficha</th><th scope="col" role="columnheader">CI</th><th scope="col" role="columnheader">Estado de ficha</th><th scope="col" role="columnheader">Consulta</th></tr></thead>
+        <tbody role="rowgroup">{patients.map(patient => <tr key={patient.id_paciente} role="row">
+          <td role="cell"><strong>{patient.nombres} {patient.apellidos}</strong></td>
+          <td role="cell"><span className="patient-cell-label" aria-hidden="true">Código de ficha</span>{patient.codigo_paciente}</td>
+          <td role="cell"><span className="patient-cell-label" aria-hidden="true">CI</span>{patient.documento_identidad || 'Sin CI registrado'}</td>
+          <td role="cell"><span className="patient-cell-label" aria-hidden="true">Estado de ficha</span><span className={`role-badge patient-status${patient.activo ? '' : ' patient-status--inactive'}`}>{patient.activo ? 'Activa' : 'Inactiva'}</span></td>
+          <td role="cell"><Link to={`/recepcion/pacientes/${patient.id_paciente}`} aria-label={`Ver ficha de ${patient.nombres} ${patient.apellidos}`}>Ver ficha</Link></td>
         </tr>)}</tbody>
       </table>
-    </div></>;
+    </div>;
 }

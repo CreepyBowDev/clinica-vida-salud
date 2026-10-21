@@ -1,18 +1,27 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Brand from '../components/Brand';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
+import '../features/auth/styles/access.css';
 
 export default function AuthLayout() {
   const [help, setHelp] = useState(false);
-  return <div className="auth-shell">
+  const { pathname } = useLocation();
+  const main = useRef(null);
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    document.documentElement.scrollTop = 0;
+    if (previousPath.current !== pathname) main.current?.focus({ preventScroll: true });
+    previousPath.current = pathname;
+  }, [pathname]);
+  return <div className={`auth-shell${pathname === '/login' ? '' : ' auth-shell--flow'}`}>
     <a className="skip-link" href="#contenido">Saltar al contenido</a>
     <header className="auth-header"><Brand /><Button variant="quiet" onClick={() => setHelp(true)}>
       <Icon name="help" /><span>Ayuda para ingresar</span>
     </Button></header>
-    <main id="contenido" className="auth-main">
+    <main ref={main} id="contenido" className="auth-main" tabIndex="-1">
       <section className="auth-story" aria-labelledby="story-title">
         <div className="story-copy"><h2 id="story-title">Cerca de ti.<br /> En cada paso.</h2>
           <p>Un mismo espacio para pacientes y equipo médico. Una atención más conectada.</p>

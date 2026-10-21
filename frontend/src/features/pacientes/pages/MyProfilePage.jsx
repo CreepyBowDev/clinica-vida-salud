@@ -14,7 +14,7 @@ import '../styles/patients.css';
 export default function MyProfilePage() {
   const { data, loading, failure, reload } = usePatientQuery('profile');
   const [notice, setNotice] = useState(false);
-  return <section className="workspace-page patients-page">
+  return <section className="workspace-page patients-page patient-editor-page">
     <header className="page-heading"><h1>Mi perfil</h1><p>Tus datos de contacto y preferencias en Clínica Vida Salud.</p></header>
     {notice && <Alert variant="success"><p>Tu perfil se guardó correctamente.</p></Alert>}
     <div aria-busy={loading}>{loading ? <p role="status">Consultando tu perfil…</p> : failure ? <><PatientFailure failure={failure} /><Button onClick={reload}>Volver a consultar mi perfil</Button></> : <ProfileEditor initial={data} onSubmitting={() => setNotice(false)} onSaved={() => { setNotice(true); reload(); }} />}</div>

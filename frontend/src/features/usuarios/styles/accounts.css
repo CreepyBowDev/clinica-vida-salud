@@ -2,22 +2,24 @@
 .accounts-page a.button { text-decoration: none; }
 .accounts-page a.button--primary { color: white; }
 .accounts-heading { display: flex; align-items: start; justify-content: space-between; gap: 24px; }
-.accounts-heading p { color: var(--color-muted); margin-top: 12px; max-width: 55ch; font-size: 18px; }
+.accounts-heading p { color: var(--color-muted); margin-top: 10px; max-width: 60ch; font-size: 17px; }
 .accounts-heading > a { flex-shrink: 0; }
-.accounts-filters { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 16px; padding: 24px; border: 1px solid var(--color-border); background: white; border-radius: var(--radius-panel); margin-bottom: 24px; }
+.accounts-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr); gap: 20px; padding: 24px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-panel); margin-bottom: 24px; }
 .accounts-filters .field { margin: 0; min-width: 0; }
-.accounts-filter-actions { grid-column: 1 / -1; display: flex; gap: 12px; }
-.accounts-table-scroll { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: white; }
-.accounts-table { width: 100%; border-collapse: collapse; text-align: left; }
-.accounts-table caption { padding: 16px 20px; text-align: left; color: var(--color-muted); font-size: 14px; border-bottom: 1px solid var(--color-border); }
-.accounts-table th { background: var(--color-story); font-size: 14px; font-weight: 600; }
-.accounts-table td, .accounts-table th { padding: 16px 20px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.accounts-filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; }
+.accounts-table-scroll { overflow: clip; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
+.accounts-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
+.accounts-table caption { padding: 18px 24px; text-align: left; color: var(--color-muted); font-size: 14px; border-bottom: 1px solid var(--color-border); }
+.accounts-table th { background: var(--color-background); font-size: 14px; font-weight: 600; }
+.accounts-table td, .accounts-table th { padding: 16px; border-bottom: 1px solid var(--color-border); vertical-align: middle; overflow-wrap: anywhere; }
+.accounts-table th:first-child { width: 40%; }
+.accounts-table tbody tr:hover { background: var(--color-background); }
 .accounts-table tr:last-child td { border-bottom: 0; }
-.accounts-table td:first-child { min-width: 200px; max-width: 360px; overflow-wrap: anywhere; }
 .accounts-table strong, .accounts-table td:first-child span, .accounts-table small { display: block; }
-.accounts-scroll-hint { display: none; color: var(--color-muted); font-size: 14px; margin-bottom: 12px; }
+.account-cell-label { display: none; }
 .accounts-table small { color: var(--color-muted); margin-top: 4px; }
-.accounts-table td:last-child a { display: inline-flex; align-items: center; min-height: 44px; white-space: nowrap; }
+.accounts-table td:last-child a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-control); text-decoration: none; font-weight: 600; }
+.accounts-table td:last-child a:hover { border-color: var(--color-primary); background: var(--color-story); }
 .accounts-pagination, .accounts-pagination > div, .accounts-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .accounts-pagination { justify-content: space-between; margin-top: 20px; }
 .accounts-pagination p { color: var(--color-muted); }
@@ -25,9 +27,17 @@
 .accounts-empty h2 { font-size: 22px; margin-bottom: 12px; }
 .accounts-empty p, .accounts-footnote { color: var(--color-muted); }
 .accounts-footnote { font-size: 14px; margin-block: 24px; max-width: 75ch; }
-.accounts-panel { padding: 28px; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-panel); margin-bottom: 24px; }
-.accounts-panel.account-summary { display: grid; grid-template-columns: 1fr 1fr; }
-.accounts-back { display: inline-block; margin-bottom: 24px; }
+.accounts-panel { min-width: 0; padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); margin-bottom: 24px; }
+.accounts-panel.account-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
+.accounts-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 16px; font-weight: 600; }
+.account-detail-page, .staff-create-page { max-width: 1120px; }
+.account-actions-panel form { max-width: 760px; }
+.account-actions-panel form > .field { max-width: 520px; }
+.account-actions-panel form > h3 { border-top: 1px solid var(--color-border); padding-top: 24px; }
+.staff-create-page .security-panel { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.staff-create-page .security-form { min-width: 0; }
+.staff-create-page .security-form > .button { width: 100%; }
+.staff-name-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .accounts-created-email { overflow-wrap: anywhere; font-weight: 600; margin-bottom: 24px; }
 .invitation-panel h2 { font-size: 24px; margin-bottom: 12px; }
 .invitation-panel > p { color: var(--color-muted); max-width: 70ch; margin-bottom: 24px; }
@@ -36,23 +46,44 @@
 .account-actions-panel > p, .account-action-note { color: var(--color-muted); max-width: 75ch; margin-bottom: 24px; overflow-wrap: anywhere; }
 .account-actions-panel h3 { font-size: 21px; margin-block: 24px; }
 .identity-confirmation { margin-block: 24px; max-width: 75ch; }
-.identity-confirmation label { display: flex; align-items: start; gap: 12px; }
+.identity-confirmation label { display: flex; align-items: start; gap: 12px; min-height: 44px; }
 .identity-confirmation input { width: 22px; height: 22px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--color-primary); }
-.credential-delivery { min-height: 100svh; background: var(--color-background); padding: 32px; }
+.credential-delivery { min-height: 100svh; background: var(--color-background); padding: 32px var(--layout-gutter); }
 .credential-delivery > header { max-width: 900px; margin: 0 auto 40px; }
-.credential-receipt { max-width: 640px; margin: auto; padding: 32px; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
+.credential-receipt { max-width: 680px; margin: auto; padding: clamp(20px, 4vw, 32px); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
 .credential-receipt > p { color: var(--color-muted); margin-block: 24px; }
 .credential-secret { display: block; padding: 24px 16px; border: 1px solid var(--color-border); background: var(--color-story); font-family: monospace; font-size: 25px; letter-spacing: .03em; overflow-wrap: anywhere; user-select: all; }
 .restricted-exit { margin-top: 24px; border-top: 1px solid var(--color-border); padding-top: 24px; }
 .restricted-exit > p { margin-bottom: 16px; color: var(--color-muted); }
-@media (max-width: 1100px) { .accounts-heading { flex-direction: column; } .accounts-filters { grid-template-columns: 1fr 1fr; } .accounts-filters .field:nth-child(3) { grid-column: 1 / -1; } }
+@media (min-width: 1280px) { .accounts-panel.account-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1100px) {
+  .accounts-heading { flex-direction: column; }
+  .accounts-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .accounts-filters .field:nth-child(3) { grid-column: 1 / -1; }
+  .staff-create-page .security-panel { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 700px) {
-  .credential-delivery { padding: 24px 20px; }
-  .credential-receipt { padding: 24px; }
+  .credential-delivery { padding-block: 24px; }
+  .credential-receipt > .button { width: 100%; }
   .credential-secret { font-size: 20px; }
-  .accounts-scroll-hint { display: block; }
+  .accounts-heading { align-items: stretch; gap: 20px; }
   .accounts-filters, .accounts-panel { padding: 20px; }
-  .accounts-filters, .accounts-panel.account-summary { grid-template-columns: 1fr; }
+  .accounts-filters, .accounts-panel.account-summary, .staff-name-fields { grid-template-columns: minmax(0, 1fr); }
+  .staff-name-fields { gap: 0; }
+  .staff-create-page .security-description, .staff-create-page .security-form { padding: 20px; }
   .accounts-filters .field:nth-child(3) { grid-column: auto; }
-  .accounts-table td, .accounts-table th { padding: 12px 16px; }
+  .accounts-table, .accounts-table caption, .accounts-table tbody { display: block; width: 100%; }
+  .accounts-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .accounts-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; align-items: center; padding: 20px; border-bottom: 1px solid var(--color-border); }
+  .accounts-table tbody tr:last-child { border-bottom: 0; }
+  .accounts-table td { display: block; min-width: 0; border: 0; padding: 0; }
+  .accounts-table td:first-child, .accounts-table td:last-child { grid-column: 1 / -1; }
+  .accounts-table td:first-child strong { font-size: 18px; }
+  .accounts-table td:last-child a { width: 100%; }
+  .accounts-table caption { padding: 16px 20px; }
+  .accounts-table .account-cell-label { display: block; margin-bottom: 4px; color: var(--color-muted); font-size: 13px; }
+  .accounts-actions > .button, .accounts-filter-actions > .button { flex: 1 1 180px; }
+  .accounts-pagination { align-items: start; gap: 16px; }
+  .accounts-pagination > div { width: 100%; }
+  .accounts-pagination .button { flex: 1; }
 }

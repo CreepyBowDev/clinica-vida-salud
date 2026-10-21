@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
 import SelectField from '../../../components/SelectField';
+import Icon from '../../../components/Icon';
 import PatientsTable from '../components/PatientsTable';
 import PatientFailure from '../components/PatientFailure';
 import { usePatientQuery } from '../hooks/usePatientQuery';
@@ -17,7 +18,7 @@ export default function PatientsPage() {
   const field = name => ({ value: draft[name], onChange: event => setDraft({ ...draft, [name]: event.target.value }), error: failure?.fields[name] });
   const paginate = page => { setFilters({ ...filters, page }); results.current?.focus(); };
   return <section className="workspace-page patients-page">
-    <header className="page-heading patients-heading"><div><h1>Pacientes</h1><p>Busca y consulta las fichas administrativas de la clínica.</p></div><Link className="button button--primary" to="/recepcion/pacientes/nuevo">Registrar paciente</Link></header>
+    <header className="page-heading patients-heading"><div><h1>Pacientes</h1><p>Busca y consulta las fichas administrativas de la clínica.</p></div><Link className="button button--primary" to="/recepcion/pacientes/nuevo"><Icon name="user" />Registrar paciente</Link></header>
     <form className="patients-filters" aria-label="Buscar pacientes" onSubmit={event => {
       event.preventDefault();
       setFilters({ documento_identidad: draft.documento_identidad.trim(), nombres: draft.nombres.trim(), apellidos: draft.apellidos.trim(), activo: draft.activo, page: 1 });

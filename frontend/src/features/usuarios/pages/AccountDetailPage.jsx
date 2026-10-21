@@ -31,7 +31,7 @@ function AccountDetail({ id }) {
   }, [confirm]);
   useEffect(() => { if (result && !loading) resultNotice.current?.focus(); }, [result, loading]);
   const eligible = account && account.rol !== ROLES.PACIENTE && account.estado_cuenta === 'Pendiente' && !account.correo_verificado_en;
-  return <section className="workspace-page accounts-page">
+  return <section className="workspace-page accounts-page account-detail-page">
     <Link className="accounts-back" to="/administracion/cuentas">Volver a cuentas</Link>
     <header className="page-heading"><h1>Detalle de cuenta</h1><p>Información administrativa del acceso al portal.</p></header>
     {notice && <Alert variant="success">{notice}</Alert>}

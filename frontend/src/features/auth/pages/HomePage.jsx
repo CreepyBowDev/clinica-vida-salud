@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 export default function HomePage({ area = false }) {
   const { usuario } = useAuth();
   const current = AREAS[usuario.rol];
-  return <div className="workspace-page">
+  return <div className="workspace-page workspace-home">
     <header className="page-heading"><h1>{area ? current.label : `Hola, ${usuario.nombre_visible}`}</h1>
       <p>{area ? current.description : 'Bienvenido a tu espacio en Clínica Vida Salud.'}</p></header>
     <section className="workspace-overview" aria-labelledby="access-title">

@@ -6,6 +6,7 @@ import { validarNuevaClave } from '../utils/passwordValidation';
 import PasswordField from '../../../components/PasswordField';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
+import Icon from '../../../components/Icon';
 import PasswordFailure from '../components/PasswordFailure';
 import LogoutButton from '../components/LogoutButton';
 
@@ -41,13 +42,14 @@ export default function ResetPasswordPage({ enlace }) {
     });
   }
 
-  return <div className="login-panel">
+  return <div className="login-panel auth-task-panel">
+    <span className={`session-symbol${success ? ' session-symbol--success' : ''}`} aria-hidden="true"><Icon name={success ? 'check' : !token ? 'info' : 'lock'} width="28" height="28" /></span>
     <h1 ref={heading} tabIndex="-1">{success ? 'Contraseña actualizada' : !token ? 'Enlace no disponible' : 'Elige una nueva contraseña'}</h1>
     {success ? <>
       <p className="login-intro">Las sesiones anteriores de la cuenta recuperada se han invalidado. Vuelve a iniciar sesión con tu nueva contraseña.</p>
       {['authenticated', 'restricted'].includes(status) ? <div className="recovery-guidance">
         <Alert variant="info">Hay otra sesión activa en este navegador. Puedes conservarla o cerrarla antes de ingresar con la cuenta recuperada.</Alert>
-        <Link className="auth-back-link" to={status === 'restricted' ? '/clave-obligatoria' : '/inicio'}>Volver a mi sesión</Link><LogoutButton />
+        <div className="auth-links"><Link className="auth-back-link" to={status === 'restricted' ? '/clave-obligatoria' : '/inicio'}>Volver a mi sesión</Link><LogoutButton /></div>
       </div> : <Link className="button button--primary auth-back-link" to="/login">Iniciar sesión</Link>}
     </> : !token ? <>
       <p className="login-intro">Abre el enlace más reciente de tu correo. Si venció, ya se usó o no está disponible, solicita uno nuevo.</p>
@@ -63,6 +65,6 @@ export default function ResetPasswordPage({ enlace }) {
         <Button type="submit" className="full-width" loading={busy} disabled={remaining > 0}>{busy ? 'Guardando contraseña…' : remaining > 0 ? `Espera ${remaining} s` : 'Guardar nueva contraseña'}</Button>
       </form>
     </>}
-    {!success && <Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link>}
+    {!success && <div className="auth-links"><Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></div>}
   </div>;
 }

@@ -19,7 +19,7 @@ export default function EditPatientPage() {
 }
 function EditPatient({ id }) {
   const { data, loading, failure, reload } = usePatientQuery('detail', id);
-  return <section className="workspace-page patients-page"><Link className="patients-back" to={`/recepcion/pacientes/${id}`}>Volver a la ficha</Link>
+  return <section className="workspace-page patients-page patient-editor-page"><Link className="patients-back" to={`/recepcion/pacientes/${id}`}>Volver a la ficha</Link>
     <header className="page-heading"><h1>Editar ficha administrativa</h1><p>Conserva la identidad y el historial del mismo paciente.</p></header>
     {loading ? <p role="status">Consultando ficha…</p> : failure ? <><PatientFailure failure={failure} /><Button onClick={reload}>Volver a consultar</Button></> : <PatientEditor initial={data} />}
   </section>;

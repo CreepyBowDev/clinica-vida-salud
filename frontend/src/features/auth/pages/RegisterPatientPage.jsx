@@ -5,6 +5,7 @@ import PasswordField from '../../../components/PasswordField';
 import Button from '../../../components/Button';
 import PasswordFailure from '../components/PasswordFailure';
 import RegistrationSession from '../components/RegistrationSession';
+import RegistrationProgress from '../components/RegistrationProgress';
 import { useRegistrationSubmission } from '../hooks/useRegistrationSubmission';
 import { registrarPaciente, vincularPaciente } from '../services/registration.service';
 import { validarNuevaClave } from '../utils/passwordValidation';
@@ -47,26 +48,33 @@ function RegistrationForm({ linking }) {
     });
   }
   return <div className="login-panel registration-panel">
-    <h1>{linking ? 'Vincula tu ficha al portal' : 'Crea tu cuenta de Paciente'}</h1>
-    <p className="login-intro">{linking ? 'Usa la autorización entregada presencialmente por Recepción. Se conservarán tu ficha y tu historial.' : 'Si nunca te registraste en la clínica, comienza aquí. Verificarás tu correo antes de ingresar.'}</p>
-    <Link className="registration-switch" to={linking ? '/registro' : '/vincular-ficha'}>{linking ? 'Soy Paciente nuevo' : 'Ya tengo un código de activación'}</Link>
+    <RegistrationProgress />
+    <header className="auth-panel-heading"><h1>{linking ? 'Vincula tu ficha al portal' : 'Crea tu cuenta de Paciente'}</h1>
+      <p className="login-intro">{linking ? 'Usa la autorización entregada presencialmente por Recepción. Se conservarán tu ficha y tu historial.' : 'Si nunca te registraste en la clínica, comienza aquí. Verificarás tu correo antes de ingresar.'}</p>
+      <Link className="registration-switch" to={linking ? '/registro' : '/vincular-ficha'}>{linking ? 'Soy Paciente nuevo' : 'Ya tengo un código de activación'}</Link></header>
     <form ref={form} className="recovery-form" aria-label={linking ? 'Vincular ficha de Paciente' : 'Registrar Paciente nuevo'} aria-busy={busy} onSubmit={submit}>
       <PasswordFailure failure={failure} remaining={remaining} />
-      {input('documento_identidad', 'CI', { required: true, maxLength: 50, hint: 'El CI es obligatorio para el registro web. Si no tienes uno, acude a Recepción para asistencia administrativa.' })}
-      {linking ? input('codigo_activacion', 'Código de Recepción', { required: true, minLength: 12, maxLength: 12, autoComplete: 'off', spellCheck: false, hint: '12 caracteres alfanuméricos. Es de un solo uso y vence a las 24 horas de su emisión.' }) : <>
-        <div className="registration-grid">{input('nombres', 'Nombres', { required: true, maxLength: 120, autoComplete: 'given-name' })}{input('apellidos', 'Apellidos', { required: true, maxLength: 120, autoComplete: 'family-name' })}</div>
-        <div className="registration-grid">{input('fecha_nacimiento', 'Fecha de nacimiento', { required: true, type: 'date', autoComplete: 'bday' })}{input('telefono', 'Teléfono', { required: true, type: 'tel', maxLength: 40, autoComplete: 'tel' })}</div>
-        {input('sexo', 'Sexo (opcional)', { maxLength: 32 })}
-        {input('direccion', 'Dirección (opcional)', { maxLength: 2000, autoComplete: 'street-address' })}
+      <fieldset className="registration-section"><legend>{linking ? 'Tu ficha en la clínica' : 'Datos personales'}</legend><div className="registration-grid">
+        <div className="registration-wide">{input('documento_identidad', 'CI', { required: true, maxLength: 50, hint: 'El CI es obligatorio para el registro web. Si no tienes uno, acude a Recepción para asistencia administrativa.' })}</div>
+        {linking ? <div className="registration-wide">{input('codigo_activacion', 'Código de Recepción', { required: true, minLength: 12, maxLength: 12, autoComplete: 'off', spellCheck: false, hint: '12 caracteres alfanuméricos. Es de un solo uso y vence a las 24 horas de su emisión.' })}</div> : <>
+          {input('nombres', 'Nombres', { required: true, maxLength: 120, autoComplete: 'given-name' })}{input('apellidos', 'Apellidos', { required: true, maxLength: 120, autoComplete: 'family-name' })}
+          {input('fecha_nacimiento', 'Fecha de nacimiento', { required: true, type: 'date', autoComplete: 'bday' })}{input('sexo', 'Sexo (opcional)', { maxLength: 32 })}
+        </>}
+      </div></fieldset>
+      {!linking && <fieldset className="registration-section"><legend>Datos de contacto</legend><div className="registration-grid">
+        {input('telefono', 'Teléfono', { required: true, type: 'tel', maxLength: 40, autoComplete: 'tel' })}
         {input('correo_contacto', 'Correo de contacto (opcional)', { type: 'email', maxLength: 254, hint: 'Es distinto del correo de acceso. No se copia automáticamente.' })}
-      </>}
-      {input('correo_acceso', 'Correo de acceso', { required: true, type: 'email', maxLength: 254, autoComplete: 'username', hint: 'Usa un correo propio al que puedas acceder para verificarlo.' })}
-      <PasswordField name="password" label="Contraseña" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase." value={values.password} busy={busy} onChange={change} error={failure?.fields.password} />
-      <PasswordField name="password_confirmation" label="Confirmar contraseña" autoComplete="new-password" value={values.password_confirmation} busy={busy} onChange={change} error={failure?.fields.password_confirmation} />
+        <div className="registration-wide">{input('direccion', 'Dirección (opcional)', { maxLength: 2000, autoComplete: 'street-address' })}</div>
+      </div></fieldset>}
+      <fieldset className="registration-section"><legend>Acceso al portal</legend><div className="registration-grid">
+        <div className="registration-wide">{input('correo_acceso', 'Correo de acceso', { required: true, type: 'email', maxLength: 254, autoComplete: 'username', hint: 'Usa un correo propio al que puedas acceder para verificarlo.' })}</div>
+        <PasswordField name="password" label="Contraseña" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase." value={values.password} busy={busy} onChange={change} error={failure?.fields.password} />
+        <PasswordField name="password_confirmation" label="Confirmar contraseña" autoComplete="new-password" value={values.password_confirmation} busy={busy} onChange={change} error={failure?.fields.password_confirmation} />
+      </div></fieldset>
       <Button type="submit" className="full-width" loading={busy} disabled={remaining > 0}>{busy ? 'Enviando solicitud…' : remaining > 0 ? `Espera ${remaining} s` : 'Continuar a verificación de correo'}</Button>
     </form>
-    <p className="recovery-note">{linking ? 'Después necesitarás un segundo código de seis dígitos enviado a tu correo. Si el código presencial venció o se agotó, solicita otro en Recepción.' : 'El proceso pendiente dura 24 horas. Solicitar otro código no amplía ese plazo.'}</p>
-    <Link className="auth-back-link" to="/verificar-registro">Ya inicié una solicitud; verificar mi correo</Link>
-    <Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link>
+    <p className="auth-guidance">{linking ? 'Después necesitarás un segundo código de seis dígitos enviado a tu correo. Si el código presencial venció o se agotó, solicita otro en Recepción.' : 'El proceso pendiente dura 24 horas. Solicitar otro código no amplía ese plazo.'}</p>
+    <div className="auth-links"><Link className="auth-back-link" to="/verificar-registro">Ya inicié una solicitud; verificar mi correo</Link>
+      <Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></div>
   </div>;
 }

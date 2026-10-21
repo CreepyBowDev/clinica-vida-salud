@@ -6,6 +6,7 @@ import PasswordField from '../../../components/PasswordField';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
 import PasswordFailure from '../components/PasswordFailure';
+import '../styles/access.css';
 
 export default function ChangePasswordPage() {
   const { updatePassword } = useAuth();
@@ -29,7 +30,7 @@ export default function ChangePasswordPage() {
     });
   }
 
-  return <section className="workspace-page">
+  return <section className="workspace-page security-page">
     <header className="page-heading"><h1>Cambiar contraseña</h1><p>Actualiza la contraseña de tu cuenta.</p></header>
     <div className="security-panel"><div className="security-description"><h2>Una contraseña solo tuya</h2>
       <p>Usa una frase de al menos 12 caracteres que puedas recordar. No es necesario agregar símbolos ni combinaciones difíciles.</p>

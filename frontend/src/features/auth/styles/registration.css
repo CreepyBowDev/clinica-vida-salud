@@ -1,4 +1,17 @@
-.registration-switch { display: inline-block; margin-top: 20px; font-weight: 600; color: var(--color-primary-hover); }
-.registration-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-.registration-grid .field { min-width: 0; }
-@media (max-width: 600px) { .registration-grid { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+.auth-content .registration-panel { max-width: 680px; container: registration / inline-size; }
+.registration-switch { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 14px; margin-top: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-control); font-weight: 600; color: var(--color-primary-hover); text-decoration: none; line-height: 1.4; }
+.registration-switch:hover { background: var(--color-story); border-color: var(--color-primary); }
+.registration-progress { display: flex; flex-wrap: wrap; gap: 12px 24px; list-style: none; padding: 0 0 20px; margin: 0 0 28px; border-bottom: 1px solid var(--color-border); }
+.registration-progress li { display: flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: 14px; }
+.registration-progress li > span { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--color-border); border-radius: 50%; font-variant-numeric: tabular-nums; }
+.registration-progress [aria-current="step"] { color: var(--color-primary-hover); font-weight: 600; }
+.registration-progress [aria-current="step"] > span { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+.registration-section { margin: 0 0 28px; padding: 0; border: 0; min-width: 0; }
+.registration-section > legend { margin-bottom: 20px; padding: 0; font-size: 20px; font-weight: 600; }
+.registration-section + .registration-section { border-top: 1px solid var(--color-border); }
+.registration-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.registration-grid .field { min-width: 0; margin: 0; }
+.registration-wide { grid-column: 1 / -1; min-width: 0; }
+.registration-section input[name="codigo_activacion"] { font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+@container registration (min-width: 520px) { .registration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 370px) { .registration-progress { gap: 8px 16px; } .registration-progress li { font-size: 13px; gap: 6px; } }

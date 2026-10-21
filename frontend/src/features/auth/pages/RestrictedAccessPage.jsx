@@ -30,11 +30,11 @@ export default function RestrictedAccessPage() {
     });
   }
 
-  return <div className="login-panel">
+  return <div className="login-panel auth-task-panel">
     <span className="session-symbol" aria-hidden="true"><Icon name="lock" width="28" height="28" /></span>
     <h1>Cambia tu contraseña</h1>
     <p className="login-intro">Tu acceso es restringido. Debes establecer una contraseña definitiva antes de usar el portal.</p>
-    <p className="recovery-note">Debes completar este paso antes de que venza la credencial temporal. Al guardar se cerrará esta sesión y tendrás que ingresar con tu nueva contraseña.</p>
+    <p className="auth-guidance">Debes completar este paso antes de que venza la credencial temporal. Al guardar se cerrará esta sesión y tendrás que ingresar con tu nueva contraseña.</p>
     <form ref={form} className="recovery-form" aria-label="Establecer contraseña definitiva" aria-busy={busy} onSubmit={submit}>
       <PasswordFailure failure={failure} remaining={remaining} />
       <PasswordField label="Nueva contraseña" name="password" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase."

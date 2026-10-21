@@ -1,5 +1,59 @@
 # Frontend — Clínica Vida Salud
 
+## Mejora visual y responsive — fase 4 completada (2026-10-21)
+
+**Plan visual de cuatro fases completado para las pantallas existentes.** Se conserva la identidad clínica acordada y se revisa el conjunto después de las mejoras de acceso, cuentas y Pacientes. Las secciones inferiores mantienen la cronología de cada fase.
+
+**Correcciones de navegación:** `AuthLayout` y `MainLayout` restablecen el desplazamiento al cambiar de pantalla. El layout público enfoca el contenido al cambiar de ruta y su destino «Saltar al contenido» admite foco sin añadir una parada a Tab. La carga inicial pública conserva el recorrido de teclado desde la cabecera. `src/layouts/Navigation.test.jsx` incorpora dos pruebas de regresión para desplazamiento/foco en navegación pública y autenticada; `src/styles/global.css` evita el contorno de foco del contenedor público completo, manteniendo el de sus controles.
+
+**Verificación final:** `pnpm test`: **379 pruebas correctas/23 archivos**; `pnpm build` y `git diff --check` correctos. Persiste el aviso conocido del bundle principal (~508 kB). Revisión Chrome headless sobre React con transporte API ficticio: 23 variantes públicas/autenticadas a 320/1440 px, seis vistas representativas en los límites 700/701, 960/961, 1100/1101, 1280 y 1920 px, texto raíz al 200 % y espaciado ampliado en seis vistas. **108 comprobaciones de distribución sin desbordamiento global ni controles fuera de ancho**, y **47 auditorías axe-core 4.10.3 sin infracciones automáticas**. Se verifican navegación desde el final de páginas largas, foco en contenido, salto al contenido, Tab/Shift+Tab/Escape en ayuda, devolución de foco, menú y cierre al cambiar de breakpoint, y reducción de movimiento. Sin excepciones JS ni Web Storage. Capturas representativas de escritorio amplio y transición del menú revisadas.
+
+Esta revisión automatizada no equivale a una certificación completa de accesibilidad ni a una nueva integración Laravel/PostgreSQL o validación Railway. Auxiliares/evidencias fuera de Git y servidor temporal retirado. Documentación sincronizada en contexto §17.53 y análisis de fronteras; diagrama global con aplazamiento expreso. La fase termina la revisión visual de las vistas construidas, sin declarar implementados los módulos futuros.
+
+## Mejora visual y responsive — fase 3 completada (2026-10-21)
+
+Revisión específica de las áreas autenticadas existentes:
+
+- **Cuentas:** filtros, paginación y acciones adaptables; tabla con filas apiladas hasta 700 px conservando correo, ID, rol, estado y detalle visibles. Semántica de tabla comprobada en escritorio y móvil. Detalle administrativo en tres/dos/una columnas según ancho; formularios de acciones con longitud de lectura limitada.
+- **Personal:** composición de ayuda/formulario equilibrada, nombres/apellidos emparejados cuando hay espacio y botón principal completo. Invitaciones, confirmaciones y entrega temporal usan la base visual compartida.
+- **Pacientes:** ficha con identidad y acciones a ancho completo, contacto y emergencia paralelos en escritorio y apilados hasta 1100 px. Edición y perfil con ancho máximo coherente de 1000 px. Activación presencial limitada a 900 px, con entrega legible y acción de ocultar adaptable.
+- **Correo de acceso:** solicitud y verificación en columnas independientes en escritorio, secuencia vertical en tablet/móvil, código destacado y separaciones claras de las ayudas.
+- **Inicio/áreas de los cuatro roles:** ancho de lectura limitado, distribución proporcional y textos de disponibilidad apilados en móvil.
+
+Archivos principales: páginas/componentes y estilos de `src/features/usuarios/` y `src/features/pacientes/`, `HomePage.jsx` y `src/styles/workspace.css`. Se ajustó la espera asíncrona del foco en una prueba existente de login.
+
+**Verificado:** regresión completa **377 pruebas/22 archivos** y build correctos; aviso conocido de bundle principal ~508 kB. Chrome headless con React y transporte API ficticio: once variantes de vistas a 320/390/768/1024/1440, inicio general/área para cuatro roles a 320/390/1440 y estados adicionales; 100 capturas/comprobaciones sin overflow global ni controles fuera de ancho. **32 auditorías axe-core 4.10.3 sin infracciones automáticas**. Tabla de cuentas con cuatro encabezados y doce celdas de muestra en árbol accesible en los cinco anchos. Recorridos: alta/reenvío, estado de cuenta, entrega/ocultación temporal y de activación, estado de ficha, edición con 409/adopción/guardado, perfil y cambio de correo hasta login. Vacío/500/403 y denegación de ruta revisados a 320 px; Tab/foco visibles, sin Web Storage ni excepciones JS. Capturas representativas revisadas. No acredita nueva integración Laravel ni despliegue. Auxiliares fuera de Git y servidor temporal retirado.
+
+Contexto §17.52 y referencia visual en `analisis-clases.md` sincronizados. **Siguiente:** fase 4 de revisión integral. Diagrama global aplazado expresamente; sin cierre funcional adicional.
+
+## Mejora visual y responsive — fase 2 completada (2026-10-21)
+
+Acceso y seguridad adaptados a la base visual de la fase 1:
+
+- **Registro/vinculación:** ancho propio de hasta 680 px, campos agrupados en ficha/datos personales, contacto y acceso, con dos columnas solo cuando hay espacio real. Indicador compartido de los dos pasos: datos y verificación del correo.
+- **Verificación:** código de seis dígitos más legible, acciones principal/reenvío separadas y condiciones de vigencia/reenvío ordenadas. Se conserva la respuesta neutra sobre la entrega de correo.
+- **Recuperación, invitación y acceso restringido:** ancho de lectura consistente, ayudas, enlaces de retorno y confirmaciones uniformes. El panel ilustrado se retira hasta 960 px para priorizar la tarea; en escritorio acompaña al formulario largo sin estirarse con él.
+- **Cambio de contraseña autenticado:** formulario con espacio proporcional y botón completo; una columna en tablet/móvil, manteniendo la información sobre renovación de sesión.
+
+Archivos principales: `src/layouts/AuthLayout.jsx`, páginas de `src/features/auth/pages/`, `RegistrationProgress.jsx`, `RegistrationSession.jsx`, `styles/access.css`, `styles/registration.css` y el icono de correo compartido.
+
+**Verificado:** `pnpm test`: **377 pruebas correctas/22 archivos**. `pnpm build` correcto con aviso conocido de bundle >500 kB (~507 kB). Chrome headless con React y API ficticia: ocho vistas en 320/390/768/1024/1440 px sin overflow global ni controles fuera del ancho; registro horizontal en 960×600. Dieciséis auditorías axe-core 4.10.3 sin infracciones automáticas a 390/1440; capturas revisadas. Ambos recorridos de registro, código inválido/espera, confirmaciones, enlaces inválidos, salida restringida, sesión existente/no disponible y validación 422 comprobados. Tab/foco visible y mostrar/ocultar contraseña por teclado correctos; secretos limpiados, tokens retirados de URL, sin Web Storage ni excepciones JS. Transporte simulado exclusivamente para revisión visual, sin nueva integración Laravel ni despliegue remoto. Auxiliares/capturas fuera de Git y servidor temporal retirado.
+
+README, contexto §17.51 y referencia de fronteras de CU-04 en `analisis-clases.md` sincronizados. **Siguiente:** fase 3, demás áreas autenticadas; después fase 4, revisión integral. El diagrama global conserva su aplazamiento expreso; no se cierra ningún CU adicional.
+
+## Mejora visual y responsive — fase 1 completada (2026-10-21)
+
+Evolución del diseño existente con `frontend-design`: se conservan el verde clínico, los fondos claros y Source Sans 3. Tokens de separación/radios/controles y tamaño de título afinados; gutters fluidos, botones y campos compartidos consistentes y modal con padding adaptable. Sin nuevas dependencias.
+
+- **Estructura:** lateral de 248 px con navegación persistente en escritorio; menú compacto hasta 960 px, dos columnas en tablet y una en móvil. Cabecera de área de 80 px, identidad legible y contenido con más espacio útil. Escape cierra el menú y devuelve el foco; navegar o cambiar de breakpoint lo cierra. El foco inicial del contenido ya no desplaza la cabecera al cargar la ruta.
+- **Login de referencia:** panel de marca refinado conservando su ilustración, mejor separación de campos y dos enlaces de primer acceso con áreas táctiles independientes.
+- **Listado de Pacientes de referencia:** filtros en cuatro columnas a partir de 1280 px, dos en anchos intermedios y una en móvil. Tabla en escritorio y filas apiladas hasta 700 px, conservando nombre/código/CI/estado/«Ver ficha» y semántica de tabla en el árbol de accesibilidad. Sin desplazamiento horizontal para consultar o abrir las fichas.
+- **Formulario de referencia:** `PatientForm` agrupa identidad, contacto y emergencia; CI con ayuda a ancho completo, nombres/apellidos y fecha/sexo emparejados en escritorio, una columna en móvil. Su reutilización aplica esas mejoras a edición y perfil. Validaciones y operaciones se conservan.
+
+**Verificado:** regresión completa de 377 pruebas/22 archivos; después de los últimos ajustes de distribución/foco, 81 pruebas focalizadas correctas. `pnpm build` correcto con el aviso existente de bundle superior a 500 kB (~504 kB). Chrome headless con React real y respuestas API ficticias interceptadas solo para la revisión visual: login/listado/alta en 320, 390, 768, 1024 y 1440 px, sin overflow global ni controles fuera del ancho; estados vacío/error a 320 px; estructura compartida de los cuatro roles a 390/1440. Capturas revisadas, seis auditorías axe-core 4.10.3 sin infracciones automáticas en las tres vistas a 390/1440, tabla presente con sus cinco encabezados/quince celdas de muestra en todos los anchos, Tab/Escape/cierre de menú y reducción de movimiento comprobados. Sin excepciones JS ni Web Storage. Auxiliares/capturas fuera de Git; servidor temporal de revisión retirado. No acredita una nueva integración con Laravel ni un despliegue Railway.
+
+**Siguiente:** fase 2 para el resto de acceso/seguridad; fase 3 para las demás áreas autenticadas; fase 4 de revisión integral. La base compartida ya beneficia a esas vistas, pero su revisión visual específica sigue pendiente. Contexto actualizado en §17.50; sin nuevos CU, cambios de API o persistencia y sin cambios en análisis de clases/DER. Diagrama global mantiene el aplazamiento expreso.
+
 ## Railway: React y API por el mismo origen
 
 El `Dockerfile` compila React con Node/pnpm y `VITE_API_URL=/api`, y sirve `dist/` mediante Caddy. `Caddyfile` reenvía `/api`, `/api/*` y `/sanctum/csrf-cookie` al backend definido en `BACKEND_ORIGIN`; conserva Origin, Referer, cookies, cabecera CSRF, cuerpo y rutas. Solo cambia Host al destino para el enrutado de Railway. Las respuestas de Laravel no pasan por el fallback de React ni se cachean; las rutas UI sí permiten recarga de la SPA.
@@ -157,14 +211,14 @@ Fuente de verdad: `src/styles/tokens.css`.
 | Fondo / superficie | `#F5F8FA` / `#FFFFFF` |
 | Texto / secundario | `#18333B` / `#526871` |
 | Identidad / hover | `#146B68` / `#105653` |
-| Borde estructural | `#D5E0E5`; campos usan `#8B9FA7` para distinguir el control |
+| Borde estructural | `#D5E0E5`; campos usan `#81979F` para distinguir el control |
 | Fondo editorial / ilustración | `#EAF3F1` / `#D1E6DF` |
 | Error / éxito | `#A52E38` / `#206746`, con fondos semánticos claros |
 | Información / advertencia | `#245B79` / `#805413`, con fondos semánticos claros |
 | Tipografía | Source Sans 3 local; pesos 400/600/700, fallback system-ui |
-| Tamaños | Texto 16 px; auxiliar 14 px; título 28–32 px; interlineado 1,5 |
-| Espaciado | 4, 8, 12, 16, 24, 32 y 48 px |
-| Radios | Controles 6 px; paneles/modales 10 px; panel editorial 18 px |
+| Tamaños | Texto 16 px; auxiliar 14 px; título fluido 28–36 px; interlineado 1,5 |
+| Espaciado | 4, 8, 12, 16, 20, 24, 32, 40 y 48 px; margen lateral fluido 16–40 px |
+| Radios | Controles 8 px; paneles/modales 14 px; panel editorial asimétrico 24/80 px, reducido en móvil |
 | Interacción | Botones de 46 px mínimo; campos de 50 px; controles de icono de 44 px |
 
 ### Componentes implementados

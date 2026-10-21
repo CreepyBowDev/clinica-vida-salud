@@ -1,5 +1,42 @@
 # Frontend — Clínica Vida Salud
 
+## Railway: React y API por el mismo origen
+
+El `Dockerfile` compila React con Node/pnpm y `VITE_API_URL=/api`, y sirve `dist/` mediante Caddy. `Caddyfile` reenvía `/api`, `/api/*` y `/sanctum/csrf-cookie` al backend definido en `BACKEND_ORIGIN`; conserva Origin, Referer, cookies, cabecera CSRF, cuerpo y rutas. Solo cambia Host al destino para el enrutado de Railway. Las respuestas de Laravel no pasan por el fallback de React ni se cachean; las rutas UI sí permiten recarga de la SPA.
+
+### Servicio frontend en Railway
+
+1. Configurar **Root Directory: `/frontend`** y utilizar el **Dockerfile** de esa carpeta. Si el servicio tenía un comando de inicio personalizado (`pnpm preview`, `vite`, etc.), quitarlo para utilizar el `CMD` de la imagen. Quitar también overrides de build que sustituyan el proceso del Dockerfile.
+2. Añadir esta variable **de servidor**, sin comillas ni barra final:
+
+   ```dotenv
+   BACKEND_ORIGIN=https://clinica-vida-salud-production.up.railway.app
+   ```
+
+   Debe ser únicamente el origen del backend, sin `/api`. No renombrarla a `VITE_*`: el navegador no necesita conocer el destino interno del proxy.
+3. El Dockerfile fija `VITE_API_URL=/api` durante el build. Retirar la variable anterior con URL absoluta del servicio, o dejarla como `/api` para que la configuración visible coincida. No se usa Vite como servidor de producción.
+4. El servidor escucha en `0.0.0.0:$PORT`; por defecto 8080. Usar ese puerto objetivo si Railway solicita uno y `/login` como healthcheck opcional. Railway termina HTTPS; Caddy atiende HTTP dentro del contenedor.
+5. Volver a desplegar el frontend después de subir los archivos. No basta con cambiar la variable del build anterior.
+
+### Variables relacionadas del backend
+
+```dotenv
+APP_URL=https://clinica-vida-salud-production.up.railway.app
+FRONTEND_URL=https://striking-enchantment-production-a5d9.up.railway.app
+SANCTUM_STATEFUL_DOMAINS=striking-enchantment-production-a5d9.up.railway.app,clinica-vida-salud-production.up.railway.app
+SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=true
+SESSION_HTTP_ONLY=true
+SESSION_SAME_SITE=lax
+SESSION_PATH=/
+```
+
+**Eliminar `SESSION_DOMAIN`** para cookies host-only; no establecer `.up.railway.app`. Al solicitarse a través del proxy, tanto la cookie de sesión como XSRF-TOKEN quedan asociadas al origen del frontend. La primera continúa HttpOnly y la segunda permite a Axios adjuntar X-XSRF-TOKEN. Mantener la APP_KEY existente. Aplicar cambios/recrear la caché de configuración del backend mediante su despliegue. No se desactiva CSRF ni se introduce JWT o almacenamiento de sesión en Web Storage.
+
+El navegador debe consultar `https://striking-enchantment-production-a5d9.up.railway.app/api/auth/me` y `/sanctum/csrf-cookie` en ese mismo host. Antes del login, `/api/auth/me` responde 401 normal; CSRF responde 204, login válido 200 y logout 204. Tras el cambio de arquitectura, limpiar datos de los sitios antiguos o probar en incógnito.
+
+**Verificación local (2026-10-21):** build con `/api` correcto; Caddy 2.11.7 valida configuración y pasa comprobaciones de fallback SPA, assets/404, conservación de las dos cookies, Origin/Referer/Cookie/X-XSRF-TOKEN, cuerpo/query, status/Retry-After y ausencia de repetición del POST. Chrome con la compilación estática, Caddy, Laravel y PostgreSQL reales en esquema aislado: login/recarga/logout Recepcionista y Paciente, cabecera CSRF presente y guardado de perfil persistido, sin 419 ni excepciones JS/Web Storage. Auxiliares fuera de Git; fixture y servidores temporales retirados. Docker no está instalado localmente: la construcción de la imagen y el flujo HTTPS de Railway deben comprobarse al desplegar. No se declara resuelto el entorno remoto antes de esa comprobación.
+
 ## Estado actual: Pacientes fases 1–6 — integración local verificada
 
 Implementados sesión, contraseñas, cuentas del personal/invitaciones, acceso/roles/credencial temporal, ambos recorridos de registro del Paciente (CU-04) y emisión presencial de Recepción (parte de CU-07). Revisión del cliente con 213 pruebas correctas y AUT-21 verificada en Chrome contra Laravel/PostgreSQL reales con identidades ficticias aisladas. El correo se capturó localmente: aceptación y entrega mediante Brevo permanecen pendientes. La cronología inferior conserva las limitaciones de cada fase; el resultado vigente está al final.

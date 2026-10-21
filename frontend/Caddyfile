@@ -1,0 +1,30 @@
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080} {
+	root * /srv
+	encode zstd gzip
+
+	# Conservar rutas, Origin, Referer, Cookie y X-XSRF-TOKEN hacia Laravel.
+	# Host debe corresponder al servicio de destino para el enrutado de Railway.
+	@laravel path /api /api/* /sanctum/csrf-cookie
+	handle @laravel {
+		header Cache-Control "no-store, private"
+		reverse_proxy {$BACKEND_ORIGIN} {
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	# Los recursos inexistentes no deben devolver el HTML de la SPA.
+	handle /assets/* {
+		file_server
+	}
+
+	handle {
+		try_files {path} /index.html
+		header Cache-Control "no-cache"
+		file_server
+	}
+}

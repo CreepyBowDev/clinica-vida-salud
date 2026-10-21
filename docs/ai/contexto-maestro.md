@@ -1037,6 +1037,16 @@ Se contrastaron el servicio frontend de correo, sus mensajes y la coordinación 
 
 **Cierre:** plan frontend fases 1–6 completado para gestión administrativa CU-07 y perfil/correo CU-08 en el alcance aprobado. Citas anteriores dependen de CU-21; no se declara RF02 íntegro ni implementación clínica o generación de avisos. README frontend/backend y análisis incremental sincronizados; sin cambios de persistencia/DER. Diagrama global continúa aplazado por decisión expresa; entrega real Brevo y HTTPS/cookies de producción pendientes de despliegue.
 
+### 17.48. Railway — proxy del mismo origen para Sanctum/CSRF (2026-10-21)
+
+**Problema observado:** frontend y backend en hosts diferentes `*.up.railway.app`; después de corregir URLs y retirar un dominio de cookie de ejemplo, la consulta anónima de sesión funciona, pero el login presenta 419. La cookie CSRF de otro host no puede leerse desde React; modificar solo SameSite no resuelve ese acceso.
+
+**Preparado en repositorio:** `frontend/Dockerfile` compila con Node 24/pnpm del proyecto y `VITE_API_URL=/api`; Caddy sirve React y reenvía `/api`, `/api/*` y `/sanctum/csrf-cookie` al origen de servidor `BACKEND_ORIGIN`, conservando Origin/Referer/Cookie/X-XSRF-TOKEN y cambiando Host al upstream. Cookies host-only quedan en el origen del frontend para el navegador; sesión HttpOnly/segura, SameSite Lax, Sanctum y CSRF se conservan. `.dockerignore` excluye entornos privados, node_modules/dist y auxiliares. Desarrollo Vite local mantiene su configuración existente. Sin cambios de reglas, clases de negocio o persistencia/DER.
+
+**Configuración requerida en Railway:** raíz `/frontend`, Dockerfile como constructor y CMD de imagen sin override de Vite preview. `BACKEND_ORIGIN=https://clinica-vida-salud-production.up.railway.app`; Laravel conserva APP_URL del backend, FRONTEND_URL del frontend y ambos hosts en Sanctum, sesión database/segura/HttpOnly/Lax y SESSION_DOMAIN ausente. El Dockerfile fija `/api` en el build; retirar el valor absoluto previo. URLs y pasos exactos en README frontend. Aplicar los cambios exige subirlos y desplegar; no se realiza commit/push/despliegue automáticamente.
+
+**Evidencia local:** build con URL relativa correcto (aviso conocido de bundle ~503 kB). Caddy 2.11.7 valida configuración y pruebas HTTP de rutas/cookies/cabeceras/cuerpo/query/status/Retry-After/POST único. Chrome con React estático/Caddy/Laravel/PostgreSQL reales en esquema aislado confirma login, restauración y logout de Recepción/Paciente, cabecera X-XSRF-TOKEN y perfil persistido sin 419; sin excepciones JS ni Web Storage. Auxiliares de prueba fuera del repositorio; servidores y fixture retirados. Docker no disponible localmente: imagen y HTTPS/cookies del despliegue Railway siguen pendientes. No cambia el cierre funcional anterior ni se acredita entrega real Brevo. Diagrama global continúa aplazado expresamente.
+
 ## 18. Protocolo de implementación y cierre de tareas
 
 1. Inspeccionar repositorio, `AGENTS.md` y documentación aplicable antes de escribir código.

@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
-use Clinica\business\services\CorreoSeguridadService;
-use Clinica\data\repositories\BitacoraRepository;
+use Clinica\business\services\usuarios\CorreoSeguridadService;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Clinica\shared\utils\RecuperacionClaveMail;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;

@@ -1,7 +1,7 @@
 <?php
 
-use Clinica\presentation\controllers\InvitacionPersonalController;
-use Clinica\presentation\controllers\PersonalController;
+use Clinica\presentation\controllers\usuarios\InvitacionPersonalController;
+use Clinica\presentation\controllers\usuarios\PersonalController;
 use Clinica\presentation\middlewares\ExigirRol;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\LimitarInvitaciones;

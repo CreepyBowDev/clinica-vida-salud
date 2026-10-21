@@ -4,7 +4,7 @@
 > **Proyecto:** Sistema Web para la Gestión de Citas Médicas para la Clínica Vida Salud  
 > **Fuente estructural primaria:** `DER_Clinica_Vida_Salud_Reorganizado_Corregido(2).drawio` (archivo recibido, **dos pestañas**, **28 entidades**, **239 atributos** y **43 relaciones gráficas**)  
 > **Referencia académica:** `Clinica_Vida_Salud_Coherencia_Actualizada(2).pdf` (117 páginas) y enunciado oficial del Segundo Parcial de Ingeniería de Requisitos  
-> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.15.
+> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.18. Esquema con migraciones 000030–000032: **28 entidades, 242 atributos y 43 relaciones**; la fuente original de 239 atributos se conserva como antecedente.
 
 ## 1. Propósito, precedencia y reglas de uso
 
@@ -268,6 +268,12 @@ Alta sin consultorio permitida. Un consultorio fijo válido es obligatorio para 
 | — | `correo_contacto` | `String` | No | — | — |
 | — | `activo` | `Boolean` | No | — | — |
 
+**Extensión técnica de CU-10 implementada (fuera de los 239 atributos originales):**
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| — | `actualizado_en` | `TIMESTAMPTZ(6)` | No | — | Migración aditiva 000031, DEFAULT CURRENT_TIMESTAMP para filas existentes/nuevas. Versión monotónica y precondición bajo lock en edición administrativa de datos. |
+
 ### 3.14. `Especialidad`
 
 **Restricciones únicas declaradas:** `(nombre)`.
@@ -278,6 +284,12 @@ Alta sin consultorio permitida. Un consultorio fijo válido es obligatorio para 
 | UQ | `nombre` | `String` | No | — | — |
 | — | `descripcion` | `Text` | Sí | — | — |
 | — | `activa` | `Boolean` | No | — | — |
+
+**Extensión técnica de CU-09 implementada (fuera de los 239 atributos del Draw.io original):**
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| — | `actualizado_en` | `TIMESTAMPTZ(6)` | No | — | Migración aditiva 000030, DEFAULT CURRENT_TIMESTAMP para filas existentes/nuevas; Repository avanza de forma monotónica, Service compara precondición bajo lock. |
 
 ### 3.15. `MedicoEspecialidad`
 
@@ -292,7 +304,15 @@ Clave primaria compuesta; relación muchos a muchos.
 
 **Claves:** PK compuesta (`id_medico`, `id_especialidad`). Eloquent no ofrece una PK compuesta nativa equivalente a una PK simple; conservar la PK compuesta en PostgreSQL y tratar la relación como pivote con operaciones compatibles. No introducir un ID sustituto sin aprobación.
 
-**Decisión pendiente — retiro de habilitación futura:** una asociación referida por citas debe conservarse para mantener la FK compuesta y el historial. El modelo actual no define cómo retirar la habilitación de ese par para nuevas reservas sin eliminar su referencia histórica. La política y su mecanismo requieren definición y aprobación antes de implementar esa operación; no se añaden `activo`, `estado`, `fecha_fin` ni estructuras de vigencia por esta aclaración. La existencia del par y la actividad del Médico y de la Especialidad no resuelven por sí solas ese retiro específico.
+**Extensión técnica implementada en fase 4 (fuera de los 239 atributos originales):**
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| — | `habilitada` | `BOOLEAN` | No | — | Migración aditiva 000032, DEFAULT TRUE e inicialización de pares previos; retirada false conserva PK/FK e historia, rehabilitación reutiliza el mismo par. |
+
+**Decisión aprobada — retiro de habilitación futura (2026-10-21), implementada fase 4:** conservar la asociación y rechazar su retiro mientras tenga citas futuras Programadas/Confirmadas con inicio >= corte UTC capturado después de locks; ver VS-MED-07 y CU-10. Mantiene PK/FK y relaciones existentes. Nuevas reservas/reprogramaciones deberán comprobar habilitada bajo el mismo bloqueo de Médico, además de actividad de profesional/catálogo; no basta la FK. Retirar/rehabilitar cambia la marca, sin DELETE ni reescritura de citas. Se conserva al menos un par habilitado mediante Service/transacción; no se confunde con actividad del catálogo.
+
+**Versionado administrativo:** fases 1/2 incorporan actualizado_en a Especialidad/Medico mediante 000030/000031 (§§6.16–6.17); fase 4 incorpora MedicoEspecialidad.habilitada mediante 000032 (§6.18). Esquema con las tres: 242 atributos. Los cambios reales de habilitación avanzan también la versión del Médico, con auditoría atómica. Se distingue aplicación en pruebas de aplicación en base habitual/Railway.
 
 ### 3.16. `HorarioAtencion`
 
@@ -661,7 +681,7 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 ### 5.4. ORGANIZACIÓN MÉDICA Y CONFIGURACIÓN
 
 - MedicoEspecialidad tiene PK compuesta (id_medico, id_especialidad). Una especialidad puede relacionarse con varios médicos; cada Médico se registra con una o más especialidades.
-- Conservar las asociaciones referidas por citas históricas. El retiro de la habilitación futura de un par Médico–Especialidad sigue pendiente según §3.15; no se implementa borrando el par ni se supone resuelto por inactivar todo el Médico o toda la Especialidad.
+- Conservar las asociaciones referidas por citas históricas. La política de retiro del par Médico–Especialidad está aprobada según §3.15/VS-MED-07; su soporte de persistencia y API sigue previsto, no implementado. No borrar el par ni confundir su habilitación con la actividad del Médico o del catálogo.
 - Especialidad.nombre es único tras normalización; se incluyen inicialmente Pediatría, Medicina General y Geriatría. Su inactivación conserva las relaciones históricas.
 - Medico.id_consultorio admite NULL durante el alta por CU-10. CU-11 asigna un consultorio fijo válido antes de horarios reservables o nuevas citas. Varios Médicos pueden compartirlo solo con horarios compatibles.
 - HorarioAtencion admite varios intervalos por Médico; dia_semana utiliza 1=lunes a 7=domingo y hora_fin debe ser posterior a hora_inicio.
@@ -1279,6 +1299,34 @@ Verificación posterior de la excepción: **274 pruebas, 1738 aserciones correct
 
 **Pendientes técnicos:** mecanismo y entrega de credencial, duración, intentos/reemisión/usos, momento de consumo, contraseña anterior al emitir y coordinación con recuperación/cambio/sesiones. No hereda los plazos de invitación/recuperación. Ningún CU queda implementado por este soporte; CU-01/CU-02 pueden desarrollarse con sus controles definidos, denegando acceso normal ante cambio obligatorio.
 
+### 6.16. CU-09 — versionado administrativo de Especialidad (2026-10-21)
+
+**Implementado y probado en PostgreSQL aislado:** migración aditiva `2026_10_21_000030_add_actualizado_en_to_especialidades.php`. Añade actualizado_en TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP e inicializa filas existentes sin cambiar su nombre, descripción, actividad, identificador, asociaciones o citas. No cambia PK/FK, índice lower(btrim(nombre)) ni restricciones anteriores; esquema resultante: **28 entidades, 240 atributos, 43 relaciones**. La base habitual y Railway no se migraron en esta entrega.
+
+Especialidad convierte la fecha a immutable_datetime y conserva seis decimales; Eloquent no administra timestamps automáticamente. EspecialidadRepository avanza al mayor entre reloj UTC y fecha anterior + 1 microsegundo. Service compara actualizado_en_original con fila bloqueada antes de determinar no-op, y confirma cambio/versión/bitácora en una transacción. La aplicación permite controlar edición/estado sin sobrescribir borradores obsoletos; no añade reglas de negocio al modelo.
+
+Treinta pruebas funcionales y cuatro carreras correctas (386 aserciones focalizadas) incluyen preservación de filas anteriores al aplicar/revertir la extensión solo dentro de transacciones de pruebas, tipo/precisión/NOT NULL/default, FK/historia intactas, versión monotónica/obsoleta y unicidad normalizada con escritores independientes. Se sincroniza la expectativa original de columnas de CatalogosInicialesTest con esta extensión y se comprueba su cast; junto con EspecialidadesTest suma 57 pruebas/457 aserciones correctas. No se aplicó migración ni reversión en datos habituales; no se ejecutaron seeders. Medico.actualizado_en y habilitación independiente del pivote conservan su estado previsto para fases siguientes. Regresión completa registrada al cierre en contexto §17.55/README backend.
+
+### 6.17. CU-10 fase 2 — versionado de Médico y alta administrativa (2026-10-21)
+
+Migración aditiva `2026_10_21_000031_add_actualizado_en_to_medicos.php`: TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, inicializa filas previas conservando todos sus datos/relaciones. Medico incorpora cast immutable_datetime/formato con microsegundos, timestamps Eloquent deshabilitados. MedicoRepository genera código MED- con 128 bits aleatorios y guarda médico/pares iniciales bajo transacción de MedicoService; avance monotónico al cambiar datos y auditoría atómica. No se añade unicidad a registro profesional/correo de contacto.
+
+Los pares aún no tienen habilitada: se preserva PK/FK compuesta, sin borrado/sustitución de asociaciones por PATCH de datos. Las especialidades iniciales se bloquean en orden ascendente y se comprueba existencia; actividad del catálogo es independiente, asociar no genera disponibilidad. No se crean cuentas, consultorios ni horarios automáticos. CU-03 sigue siendo responsable de cuentas/vínculos.
+
+**Esquema con 000030/000031: 28 entidades, 241 atributos, 43 relaciones**. Treinta y cinco pruebas funcionales correctas (436 aserciones) incluyen migración sobre filas anteriores, tipo/precisión/default/NOT NULL/cast y preservación de citas/cuentas; tres carreras nuevas verifican borradores simultáneos, desaparición de especialidad y actor revocado durante espera. MedicosHorariosTest actualiza su diccionario esperado. Migración/reversión solo en base aislada; base habitual y Railway pendientes. No se añaden tablas/FK, ni se declara completo CU-10; habilitación del pivote conserva fase 4. Evidencia global final en contexto §17.56/README.
+
+**CU-10 fase 3 (2026-10-21), sin cambio estructural:** PATCH de actividad reutiliza Medico.activo/actualizado_en y Bitacora. Cambio/versión/evento atómicos; conserva cuenta, sesiones, rol y relaciones clínicas/administrativas. Coordinación compartida con CU-03 protege comprobación de rol y vínculo al reactivar; no convierte actividad profesional en estado de cuenta. No se crean columnas/tablas ni se modifican restricciones; esquema permanece 28 entidades/241 atributos/43 relaciones. Evidencia de pruebas en contexto §17.57 y README; habilitada del pivote continúa prevista para fase 4.
+
+### 6.18. CU-10 fase 4 — habilitación independiente del par (2026-10-21)
+
+Migración aditiva `2026_10_21_000032_add_habilitada_to_medico_especialidad.php`, BOOLEAN NOT NULL DEFAULT TRUE, inicializa pares existentes sin cambiar PK compuesta, FK de citas ni identificadores históricos. MedicoEspecialidad castea booleano; N:M histórica en Medico/Especialidad incluye atributo pivot. Listados/filtros administrativos consultan explícitamente habilitadas; detalle muestra habilitadas y retiradas. Seeders usan default para altas e insertOrIgnore conserva marcas previas, sin rehabilitar al repetir.
+
+Service conserva mínimo un par habilitado y compara versión bajo lock de Médico. Especialidades y pares se bloquean ordenados, corte UTC capturado después de locks. Repository consulta solo Programada/Confirmada cuyo inicio >= corte para los pares a retirar. Cambios/pares nuevos/versión/evento confirman o revierten juntos. Rehabilitar actualiza fila; retiro nunca DELETE. La FK protege historia, **no sustituye comprobación de habilitación**: los futuros CU-14/CU-15 deberán revalidarla bajo el mismo protocolo.
+
+**Esquema con 000030–000032: 28 entidades/242 atributos/43 relaciones**, una columna nueva respecto de fase 3. Migración/reversión probadas sobre pares/citas previos únicamente en base aislada; base habitual/Railway pendientes. Verificación focalizada: 110 pruebas/1126 aserciones de datos/esquema/seeder y cinco carreras/70 aserciones; protocolo de reserva simulado exclusivamente en tests, ambos órdenes con commit/rollback y última habilitación ante sustituciones concurrentes. Evidencia global final en contexto §17.58/README. No se acredita reserva/reprogramación funcional por estas pruebas.
+
+**Integración fase 5 (2026-10-21), sin cambios estructurales:** MedicosEspecialidadesIntegracionTest verifica alta administrativa con asociaciones y vinculación posterior por invitación CU-03 sin duplicar Médico, y mantenimiento de ficha con cita/consulta/versiones/antecedentes/laboratorio conservados. Dos recorridos/140 aserciones correctos con todas las migraciones en esquemas aislados; no se migró base habitual/Railway. Se confirma separación de Usuario/Medico/Especialidad/MedicoEspecialidad y preservación de pares/FK al retirar/rehabilitar. Esquema final de este backend: 28 entidades/242 atributos/43 relaciones. Evidencia global final en contexto §17.59/README; agenda/reserva mantienen sus desarrollos posteriores.
+
 ## 7. Validaciones de aceptación antes de implementar casos de uso
 
 Esta matriz sirve para revisar **migraciones**, **modelos**, **servicios** y **pruebas** cuando existan. No implica que hoy se hayan ejecutado.
@@ -1345,7 +1393,7 @@ RN01–RN14 permanecen como reglas **oficiales**, sin renumeración; las demás 
 
 ## 10. Control de integridad final de esta documentación
 
-- **28 entidades**, **239 atributos** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada.
+- **28 entidades**, **239 atributos originales** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada. Las extensiones técnicas CU-09/CU-10 (§§3.13–3.15 y 6.16–6.18) agregan actualizado_en a Especialidad/Medico y habilitada al pivote: **242 atributos en el esquema con migraciones 000030–000032**, sin nuevas entidades/relaciones.
 - Se conservan todos los identificadores, FK simples y compuestas, restricciones UQ y atributos opcionales indicados en el Draw.io. Las listas cerradas se conservan salvo la ampliación expresamente aprobada de `TokenAcceso.proposito` con `CredencialTemporal`, identificada en §§3.4 y 6.15; no se presenta como parte del original.
 - La documentación distingue los datos fuente de las **orientaciones propuestas para Laravel/PostgreSQL**.
 - La elaboración inicial del diccionario no generó código ni migraciones. La infraestructura de fase 0 (§6.6.5) y las migraciones verificadas de fases 1–7 (§6.7–§6.13) completan la preparación de datos, diferenciada de los CU/módulos funcionales pendientes.

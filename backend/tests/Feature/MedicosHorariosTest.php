@@ -34,8 +34,8 @@ class MedicosHorariosTest extends TestCase
     public function test_schema_has_exact_dictionary_columns_composite_key_and_no_initial_data(): void
     {
         $tables = [
-            'medicos' => ['id_medico', 'id_usuario', 'id_consultorio', 'codigo_medico', 'registro_profesional', 'nombres', 'apellidos', 'telefono', 'correo_contacto', 'activo'],
-            'medico_especialidad' => ['id_medico', 'id_especialidad'],
+            'medicos' => ['id_medico', 'id_usuario', 'id_consultorio', 'codigo_medico', 'registro_profesional', 'nombres', 'apellidos', 'telefono', 'correo_contacto', 'activo', 'actualizado_en'],
+            'medico_especialidad' => ['id_medico', 'id_especialidad', 'habilitada'],
             'horarios_atencion' => ['id_horario', 'id_medico', 'dia_semana', 'hora_inicio', 'hora_fin', 'activo'],
         ];
 
@@ -117,7 +117,8 @@ class MedicosHorariosTest extends TestCase
         $this->assertSame('id_especialidad', $pivot->getRelatedKey());
         $this->assertSame($first->getKey(), $pivot->medico->getKey());
         $this->assertSame($one->getKey(), $pivot->especialidad->getKey());
-        $this->assertSame(['id_medico', 'id_especialidad'], array_keys($pivot->getAttributes()));
+        $this->assertSame(['id_medico', 'id_especialidad', 'habilitada'], array_keys($pivot->getAttributes()));
+        $this->assertTrue($pivot->habilitada);
         $this->assertRejected(fn () => $first->especialidades()->attach($one->getKey()), '23505', 'medico_especialidad_pk');
 
         // Solo prueba claves del adaptador con datos sin referencias históricas; no define retiro funcional.

@@ -1,9 +1,9 @@
 <?php
 
-use Clinica\presentation\controllers\CambioCorreoController;
-use Clinica\presentation\controllers\CodigoActivacionController;
-use Clinica\presentation\controllers\MiPerfilController;
-use Clinica\presentation\controllers\PacienteController;
+use Clinica\presentation\controllers\pacientes\CodigoActivacionController;
+use Clinica\presentation\controllers\pacientes\MiPerfilController;
+use Clinica\presentation\controllers\pacientes\PacienteController;
+use Clinica\presentation\controllers\usuarios\CambioCorreoController;
 use Clinica\presentation\middlewares\ExigirRol;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\LimitarCambioCorreo;

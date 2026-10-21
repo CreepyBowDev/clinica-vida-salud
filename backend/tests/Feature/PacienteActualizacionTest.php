@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Paciente;
-use Clinica\data\repositories\BitacoraRepository;
-use Clinica\data\repositories\CodigoActivacionRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
+use Clinica\data\repositories\pacientes\CodigoActivacionRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Mockery;

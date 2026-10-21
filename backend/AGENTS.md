@@ -101,7 +101,7 @@ No saltar capas por comodidad en operaciones de negocio. No agregar capas artifi
 
 ## 4. Estructura de carpetas: replicar la organización de CADEFAR
 
-**Decisión expresa del proyecto:** conservar la estructura de carpetas de CADEFAR **dentro de `backend/src/`, incluidos sus nombres en minúsculas y sus cuatro capas**. No cambiarla silenciosamente por `src/Presentation/`, `src/Business/`, `src/Data/` o `src/Shared/`, ni reorganizarla por funcionalidades. El lenguaje y framework sí cambian: aquí se utilizan PHP, Laravel y Eloquent.
+**Decisión expresa del proyecto:** conservar la estructura de carpetas de CADEFAR **dentro de `backend/src/`, incluidos sus nombres en minúsculas y sus cuatro capas**. No cambiarla silenciosamente por `src/Presentation/`, `src/Business/`, `src/Data/` o `src/Shared/`, ni sustituir las capas por una raíz organizada por funcionalidades. **Actualización aprobada el 2026-10-21:** agrupar los archivos por módulo dentro de `controllers/`, `dtos/`, `services/` y `repositories/`, como se concreta en §4.2. El lenguaje y framework sí cambian: aquí se utilizan PHP, Laravel y Eloquent.
 
 ```text
 backend/
@@ -154,6 +154,17 @@ Este árbol **combina la organización específica solicitada con los archivos q
 
 ### 4.2. Controladores, validación y DTO
 
+**Organización interna aprobada:** las cuatro carpetas de Controllers, DTO, Services y Repositories contienen subcarpetas en minúsculas por módulo. Ubicaciones actuales:
+
+| Módulo propietario | Controllers / DTO / Services / Repositories |
+| --- | --- |
+| Usuarios y autenticación (CU-01–CU-06) | `usuarios/` en las cuatro carpetas; incluye registro/vinculación web, invitaciones, contraseñas, sesiones y correo de acceso |
+| Pacientes y perfil (CU-07/CU-08) | `pacientes/` en las cuatro carpetas; incluye emisión presencial del código de activación |
+| Médicos y especialidades (CU-09/CU-10) | `medicos/` en las cuatro carpetas; incluye catálogo de especialidades |
+| Bitácora | `repositories/bitacora/BitacoraRepository.php`; no implica CU-30 completo ni crear carpetas vacías en otras capas |
+
+Cada clase se define una sola vez en su módulo de responsabilidad principal, no según el número circunstancial de llamadas. Los consumidores de otros módulos importan su namespace real. `CuentaRequest`, `ClaveRequest` y `RespuestaError` pertenecen a `dtos/usuarios/` y siguen siendo reutilizables; RespuestaError conserva el renderizado central de toda la API desde `bootstrap/app.php`. No duplicar estas clases ni crear alias de compatibilidad para las ubicaciones anteriores. No extender automáticamente este reordenamiento a modelos, validadores, rutas, middlewares o migraciones.
+
 - Controllers: `src/presentation/controllers/`.
 - Los DTO y las clases de entrada HTTP de presentación (por ejemplo, Form Requests de Laravel) pueden residir en `src/presentation/dtos/`, sin crear automáticamente una carpeta `Requests/` adicional.
 - Validadores de negocio reutilizables sin dependencia de HTTP: `src/business/validators/`.
@@ -174,7 +185,7 @@ Este árbol **combina la organización específica solicitada con los archivos q
 ### 4.4. Composer, namespaces e integración
 
 - Mapear `src/` en el autoload PSR-4 de `composer.json`, por ejemplo `"Clinica\\": "src/"`, respetando **mayúsculas/minúsculas exactas** de carpetas y namespaces.
-- Al conservar directorios en minúsculas como CADEFAR, una clase ubicada en `src/business/services/CitaService.php` puede utilizar el namespace `Clinica\business\services`, con nombre de clase `CitaService` en PascalCase. Verificar el autoload en Linux y ejecutar `composer dump-autoload` cuando corresponda.
+- Al conservar directorios y módulos en minúsculas, `src/business/services/medicos/MedicoService.php` utiliza el namespace `Clinica\business\services\medicos`, con nombre de clase `MedicoService` en PascalCase. Aplicar la misma correspondencia PSR-4 a Controllers, DTO y Repositories. Verificar mayúsculas/minúsculas exactas para Linux y ejecutar `composer dump-autoload` cuando corresponda.
 - El código auxiliar que Laravel obligue a mantener en `app/`, `bootstrap/`, `routes/` y `config/` debe ser mínimo y **no reemplazará** la ubicación de la lógica propia del proyecto en `src/`.
 - Si los modelos de autenticación están en `src/data/models/`, registrar el modelo correcto en `config/auth.php` y en cualquier configuración requerida; no generar un segundo modelo `User` para la misma cuenta.
 - No crear una versión paralela de cada Controller, Service, Repository, Model, middleware, migración o ruta en una carpeta convencional de Laravel.

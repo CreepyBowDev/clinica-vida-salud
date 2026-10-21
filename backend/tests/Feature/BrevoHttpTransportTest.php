@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use Clinica\business\services\CorreoSeguridadService;
+use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Clinica\shared\utils\BrevoHttpTransport;
 use Clinica\shared\utils\InvitacionPersonalMail;
 use Illuminate\Http\Client\Request;

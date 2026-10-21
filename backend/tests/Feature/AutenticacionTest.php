@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use Clinica\data\repositories\BitacoraRepository;
-use Clinica\data\repositories\SesionRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
+use Clinica\data\repositories\usuarios\SesionRepository;
 use Clinica\presentation\middlewares\ExigirRol;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\VerificarCuentaHabilitada;

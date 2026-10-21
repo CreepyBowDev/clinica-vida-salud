@@ -1,5 +1,216 @@
 # Backend — Clínica Vida Salud
 
+## Organización interna por módulos (2026-10-21)
+
+Controllers, DTO, Services y Repositories se agrupan por módulo dentro de sus capas. Cada clase tiene una sola ubicación según su responsabilidad principal; otros módulos importan su namespace real. Las cuatro capas conservan el flujo Controller → Service → Repository → Model.
+
+```text
+src/
+├── presentation/
+│   ├── controllers/ → usuarios/, pacientes/, medicos/
+│   └── dtos/        → usuarios/, pacientes/, medicos/
+├── business/
+│   └── services/    → usuarios/, pacientes/, medicos/
+└── data/
+    └── repositories/ → usuarios/, pacientes/, medicos/, bitacora/
+```
+
+- **usuarios:** CU-01–CU-06, cuentas, autenticación, invitaciones, contraseñas, registro/vinculación web y correo de acceso. `CuentaRequest`, `ClaveRequest` y `RespuestaError` tienen aquí su única definición reutilizable; este último sigue normalizando errores de toda la API.
+- **pacientes:** CU-07/CU-08, ficha administrativa, perfil y emisión presencial del código de activación. RegistroPacienteService/Repository pertenecen a Usuarios por gestionar la activación de la cuenta web, aunque colaboren con fichas.
+- **medicos:** CU-09/CU-10, profesionales y catálogo de especialidades; MedicoRepository pertenece aquí aunque CU-03 también lo use.
+- **bitacora:** BitacoraRepository, reutilizado para registrar eventos de todos los módulos. Su ubicación no acredita la consulta administrativa CU-30.
+
+Ejemplo PSR-4: `src/business/services/medicos/MedicoService.php` → `Clinica\business\services\medicos\MedicoService`. Se actualizan consumidores en Controllers, servicios, rutas, middlewares, bootstrap y pruebas/fixtures; sin duplicados ni alias antiguos. Modelos, validadores, rutas, middlewares y migraciones conservan su organización. Las secciones inferiores documentan la cronología funcional; esta reorganización no cambia contratos HTTP ni persistencia.
+
+Distribución comprobada de **83 clases**:
+
+| Carpeta | usuarios | pacientes | medicos | bitacora | Total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| services | 11 | 3 | 2 | — | 16 |
+| controllers | 9 | 3 | 2 | — | 14 |
+| dtos | 21 | 9 | 12 | — | 42 |
+| repositories | 6 | 2 | 2 | 1 | 11 |
+
+Autoload optimizado PSR-4/ambigüedad estrictos y carga por reflexión de las 83 clases/tipos correctos; sin clases PHP sueltas en las cuatro carpetas ni nombres duplicados. Registro Laravel conserva 43 rutas sin duplicados. Regresión completa tras el reordenamiento: **852 pruebas/9306 aserciones correctas**, 263,564 s y 130 MB, con `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never`. Pint y sintaxis correctos en 130 PHP existentes afectados (incluidos cambios acumulados); Composer validate/requisitos de plataforma, classmap sin namespaces antiguos, UTF-8/Markdown y `git diff --check` correctos. Cierre registrado en contexto §17.60.
+
+## Médicos y especialidades — fase 5: integración backend CU-09/CU-10 (2026-10-21)
+
+**Alcance administrativo del backend implementado:** catálogo de especialidades, registro/consulta/edición de médicos, estado profesional y habilitaciones históricas. Se conservan capas, autenticación y errores existentes; esta fase agrega pruebas integradas y documentación, sin nuevas dependencias, cambios de esquema ni ajustes de comportamiento. Los apartados inferiores conservan la cronología de las fases 0–4.
+
+### API administrativa vigente
+
+Todos los endpoints requieren Administrador con cuenta habilitada/sesión normal, cookies/Sanctum y origen permitido; escrituras con CSRF. IDs BIGINT se devuelven como cadenas.
+
+| Método y ruta | Entrada / resultado |
+| --- | --- |
+| GET /api/especialidades | nombre literal, activa, page/per_page; listado paginado, ID descendente |
+| POST /api/especialidades | nombre, descripcion nullable/opcional; 201 con especialidad activa |
+| GET /api/especialidades/{id} | Detalle de catálogo y versión |
+| PATCH /api/especialidades/{id} | nombre/descripcion parciales y actualizado_en_original |
+| PATCH /api/especialidades/{id}/estado | activa y actualizado_en_original |
+| GET /api/medicos | nombre completo literal, id_especialidad habilitada, activo, page/per_page; listado administrativo mínimo |
+| POST /api/medicos | registro_profesional/nombres/apellidos/telefono/correo_contacto y especialidades; 201 con código generado, sin cuenta/consultorio automáticos |
+| GET /api/medicos/{id} | Datos administrativos, cuenta_vinculada booleano, versión y asociaciones históricas con habilitada |
+| PATCH /api/medicos/{id} | Datos administrativos parciales y actualizado_en_original; no cambia controles ni vínculos |
+| PATCH /api/medicos/{id}/estado | activo y actualizado_en_original; cuenta/rol/sesiones independientes |
+| PUT /api/medicos/{id}/especialidades | Conjunto completo deseado de IDs habilitados y actualizado_en_original; conserva pares históricos |
+
+Versiones UTC/seis decimales, página por defecto 20/máximo 100. Éxitos con data y meta/links al paginar; errores seguros centralizados. 409 por nombre/código único conocido, borrador obsoleto, vínculo incompatible, mínimo una habilitación o retiro con citas futuras. 422 por campos/relaciones inválidos; 401/403/419 conservan semántica. No hay DELETE ni reasignación de citas.
+
+### Integración y cierre
+
+`MedicosEspecialidadesIntegracionTest` ejecuta dos recorridos con todos los componentes Laravel y PostgreSQL aislado: **2 pruebas/140 aserciones correctas**.
+
+1. Alta de dos especialidades y un Médico → invitación CU-03 → verificación/contraseña y login → edición de contacto sin alterar correo de acceso → catálogo/estado/habilitaciones independientes → dos sesiones conservadas por inactivación profesional y revocadas por desactivación de cuenta → nuevo login tras reactivar cuenta → rehabilitación sin duplicar par. Auditoría con actor real, sin contactos/tokens; correo exclusivamente simulado.
+2. Médico existente con cita, consulta/versiones, antecedentes y laboratorio → alta de especialidades → retiro rechazado sin agregar pares parciales → inactivación sin resolver artificialmente obligaciones → retiro después del inicio histórico y rehabilitación → conservación íntegra de ocho tablas clínicas/documentales, identidad/vínculo/código y estados de catálogo/profesional.
+
+Regresión global correcta: `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never`, **852 pruebas/9306 aserciones**, 291,615 s y 130 MB. Pint y sintaxis correctos en 37 PHP afectados; Composer validate, requisitos de plataforma y autoload PSR-4/ambigüedad estrictos correctos. Registro de 43 rutas, 11 del módulo, sin duplicados. La suite conserva las carreras de fases 1–4 y la coordinación con CU-03. README, casos, análisis, DER y contexto §17.59 reflejan el alcance real; **diagrama global aplazado expresamente por el usuario**.
+
+**Aplicación:** migraciones aditivas 000030–000032 disponibles y probadas; esquema resultante 28 entidades/242 atributos/43 relaciones. Base habitual/Railway pendientes de `php artisan migrate --force`; no se aplican durante esta entrega. Interfaz React específica, agenda CU-20, consultorios/horarios CU-11/CU-12 y reservas/reprogramaciones CU-14/CU-15 conservan sus incrementos. Estos últimos deberán tomar el mismo bloqueo del Médico y revalidar actividad de Médico/catálogo y habilitación del par al guardar. RF03 íntegro depende de agenda; no se acredita aceptación frontend ni despliegue/Brevo real por cerrar este backend.
+
+## Médicos y especialidades — fase 4: habilitaciones CU-10 (2026-10-21)
+
+Implementado `PUT /api/medicos/{id}/especialidades` para Administrador normal: `especialidades` es el conjunto completo de IDs habilitados deseados y `actualizado_en_original` la versión UTC/seis decimales. Respuesta 200 con detalle vigente; IDs inválidos/repetidos, relaciones inexistentes y campos extra producen 422. Conjunto vacío produce `409 MEDICO_SIN_ESPECIALIDADES_HABILITADAS`, también si el Médico o catálogo están inactivos. Versión antigua falla antes del no-op o de evaluar el conjunto.
+
+- Agregar crea el par; retirar solo pone `habilitada=false`; rehabilitar actualiza el mismo par. No se borran asociaciones ni se usa sync destructivo. Se conservan PK compuesta, FK de citas e historial; actividad del catálogo y habilitación son independientes.
+- Retiro rechazado con `409 MEDICO_ESPECIALIDAD_CON_CITAS_FUTURAS` si el par tiene citas Programadas/Confirmadas con `inicio_at >= ahora`. El corte UTC se captura una sola vez **después de adquirir locks**. Inicio anterior, Atendida/Cancelada/Inasistencia y citas de otros pares no bloquean por esta regla. El conflicto no cancela/reprograma ni guarda altas o retiros parciales.
+- Orden de coordinación: CU-03 → actor → Médico → especialidades ordenadas → pares. Datos/estado/habilitaciones comparten versión monotónica; conjunto vigente idéntico, aunque cambie orden, no guarda ni duplica evento. Cambio/versión/evento `MEDICO_ESPECIALIDADES_CAMBIADAS` confirman juntos; fallo de auditoría revierte marcas, pares nuevos y versión. Bitácora registra IDs habilitados/retirados y responsable, sin contactos ni datos clínicos.
+- Listado y filtro de médicos incluyen **solo asociaciones habilitadas**. Detalle muestra todas las históricas con `habilitada` booleano; las relaciones Eloquent históricas conservan todos los pares. No se derivan turnos por habilitar. Seeders conservan insertOrIgnore: pares nuevos usan default true; reejecución no rehabilita marcas retiradas.
+
+**Migración aditiva 000032:** `2026_10_21_000032_add_habilitada_to_medico_especialidad.php` añade `BOOLEAN NOT NULL DEFAULT TRUE` e inicializa todos los pares anteriores sin modificar identidad/FK/citas. MedicoEspecialidad incorpora cast booleano y relaciones N:M incluyen el atributo de pivote. Esquema con 000030–000032: **28 entidades, 242 atributos, 43 relaciones**. Probada únicamente en base/rol aislados; base habitual/Railway requieren `php artisan migrate --force` al incorporar estas entregas.
+
+**Verificación focalizada:** 110 pruebas/1126 aserciones correctas de MedicosAdministrativosTest, MedicosHorariosTest y CuentasPruebaSeederTest, más cinco carreras PostgreSQL/70 aserciones correctas. Se comprueban bordes de fecha/estados, no-op/versiones, mínimo un par, alta/retiro/rehabilitación, filtros e historia, inputs/permisos/CSRF, rollback, migración sobre pares/citas previos y preservación de marcas al repetir seeder. Retiro vs reserva se prueba en ambos órdenes con commit/rollback y dos sustituciones simultáneas no eliminan la última habilitación. El escritor de reserva es **solo una simulación del protocolo en pruebas**; CU-14/CU-15 deberán implementarlo y revalidar Médico/catálogo/par bajo bloqueo al persistir. No se acreditan esos endpoints ni agenda.
+
+**Cierre verificado de fase 4:** suite completa **850 pruebas/9166 aserciones correctas** (325,215 s), 29 casos nuevos respecto de fase 3. El primer intento con PHP CLI de 128 MB agotó memoria antes del cierre; repetición completa correcta con `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never` (130 MB consumidos), sin cambiar configuración permanente. Pint/sintaxis de 36 PHP afectados acumulados, Composer validate/autoload optimizado PSR-4/ambigüedad estrictos, 43 rutas totales sin duplicados (seis de médicos), UTF-8/Markdown y revisión de diferencias correctos. README, CU-10, análisis, DER §§3.15/6.18 y contexto §17.58 sincronizados; diagrama global mantiene aplazamiento expreso. **Siguiente: fase 5 — integración y cierre backend CU-09/CU-10.**
+
+## Médicos y especialidades — fase 3: estado profesional CU-10 (2026-10-21)
+
+Implementado `PATCH /api/medicos/{id}/estado`: Administrador normal, entrada cerrada `activo` booleano y `actualizado_en_original` UTC/seis decimales; respuesta 200 con detalle administrativo. Reutiliza controles de sesión/cuenta/rol/origen/CSRF, versión de fase 2, persistencia y auditoría existentes. No requiere nueva migración.
+
+- Cambiar actividad solo modifica `Medico.activo` y su versión monotónica. Evento `MEDICO_ESTADO_CAMBIADO` en la misma transacción, con actor/referencia/campo seguro. No-op vigente no guarda ni emite; borrador obsoleto recibe 409 antes del no-op. Fallo de auditoría revierte actividad/versión.
+- Inactivar conserva citas, atenciones/revisiones pendientes, asociaciones, horarios, consultorio, cuenta, rol, bloqueos y sesiones. No cancela ni reprograma. Cuenta activa/rol Médico y vínculo legítimo permiten conservar acceso normal a funciones autorizadas; los endpoints clínicos/agenda mantienen su desarrollo posterior.
+- Activar sin cuenta es válido. Con cuenta vinculada se exige rol Médico, ausencia de ficha Paciente y vínculo recíproco con el mismo profesional; en caso contrario `409 MEDICO_VINCULO_INCOMPATIBLE`. No activa cuentas Pendientes/Desactivadas ni elimina un bloqueo temporal. Una cuenta con rol retirado por CU-03 requiere primero su retorno explícito y autorizado a Médico; la actividad profesional no promueve roles.
+- Coordinación administrativa compartida con CU-03 antes de actor y Médico. Consulta de cuenta sin adquirir un lock posterior al profesional: la coordinación compartida protege cambios de rol/vínculo de CU-03. Se prueba retiro de rol vs activación en ambos órdenes; no queda activo un profesional cuya cuenta perdió el rol mediante esos flujos.
+- CU-03 mantiene sus reglas: para retirar el rol exige inactividad profesional expresa y ausencia comprobable de obligaciones. Inactivar no acredita cierre clínico/documental. Desactivar la cuenta revoca sesiones sin cambiar actividad profesional. Reservas/reprogramaciones futuras deberán tomar el lock del Médico y revalidar actividad al guardar; este incremento no implementa CU-14/CU-15.
+
+**Verificación y cierre de fase 3:** regresión completa **821 pruebas/8863 aserciones correctas**, 299,87 s. Incluye 21 casos nuevos respecto de fase 2: 17 funcionales (52 acumulados en MedicosAdministrativosTest) y cuatro carreras nuevas en AutenticacionConcurrenteTest. Se prueban sesiones múltiples conservadas, cuentas activas/desactivadas/pendientes y bloqueo preservados, salida/retorno explícito de rol, versión común datos/estado, rollback, entradas/roles/CSRF y coordinación entre procesos PostgreSQL independientes. Pint/sintaxis de los 32 PHP afectados acumulados, Composer validate/autoload optimizado PSR-4/ambigüedad estrictos, 42 rutas totales sin duplicados (cinco de médicos), UTF-8/Markdown y revisión de diferencias correctos.
+
+**Estado documental:** CU-10, análisis incremental, DER (sin cambio de esquema) y contexto §17.57 sincronizados. Esquema permanece en 28 entidades/241 atributos/43 relaciones; migraciones 000030/000031 siguen pendientes en base habitual/Railway. Diagrama global aplazado expresamente. **Siguiente: fase 4 — habilitaciones de especialidades e integridad concurrente**, conservando las asociaciones históricas.
+
+## Médicos y especialidades — fase 2: datos administrativos CU-10 (2026-10-21)
+
+Implementados `GET/POST /api/medicos` y `GET/PATCH /api/medicos/{id}` para **Administrador con sesión normal**. Listado por nombre completo literal, especialidad y actividad, filtros combinados, ID descendente y paginación 20/100. Detalle con registro profesional/contactos, especialidades, `cuenta_vinculada` booleano y versión; listado sin contactos ni datos de cuenta. IDs textuales y respuestas con lista explícita de campos.
+
+- Alta con registro/nombres/apellidos/teléfono/correo de contacto y una o varias especialidades existentes, IDs distintos en una lista. Código `MED-` + 128 bits aleatorios generado exclusivamente en servidor, inicialmente activo y sin cuenta, consultorio ni horarios automáticos. Registro profesional/correo de contacto **no son únicos**. Correo normalizado en minúsculas, distinto del correo de acceso.
+- Asociaciones iniciales en transacción junto al profesional y evento `MEDICO_CREADO`. Se bloquean especialidades en orden ascendente y se verifica existencia bajo lock. Actividad del catálogo y asociación son independientes; asociar una especialidad inactiva conserva esa actividad y no habilita reservas. Todos los pares mantienen la semántica existente: **no se consulta `habilitada` antes de fase 4**.
+- PATCH solo acepta datos administrativos y `actualizado_en_original` UTC/seis decimales. Comparación bajo bloqueo; `409 MEDICO_EDICION_OBSOLETA` incluso para un aparente no-op antiguo. Guardado con avance monotónico de versión y evento `MEDICO_ACTUALIZADO`; no-op vigente no guarda ni duplica auditoría. No cambia código, cuenta, rol, consultorio, asociaciones, actividad o citas.
+- Reutiliza coordinación administrativa de CU-03 **antes** del bloqueo de actor/profesional; actor/cuenta/sesión/rol revalidados dentro de transacción. Auditoría con responsable/referencia/campos, sin copiar contactos ni información clínica. Fallo de auditoría revierte datos, pares y versión. Solo la colisión del índice `medicos_codigo_uq` se traduce a `409 MEDICO_CONFLICTO_UNICIDAD`; otros fallos SQL conservan 500 seguro.
+- Capas: MedicoController + tres Requests/dos Resources → MedicoService → ampliación de MedicoRepository/EspecialidadRepository → modelos existentes. Middleware compartido de sesión, roles, origen y CSRF. Sin duplicar modelos/repositorios ni añadir dependencias.
+
+**Persistencia:** migración aditiva `2026_10_21_000031_add_actualizado_en_to_medicos.php`: `medicos.actualizado_en TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP`, con inicialización de filas previas. Esquema con 000030/000031: **28 entidades, 241 atributos, 43 relaciones**. Se conserva PK/FK del pivote y todas las relaciones existentes. Probada en base/rol aislados `clinica_vida_salud_test`; pendiente aplicar migraciones en base habitual/Railway mediante `php artisan migrate --force` al incorporar la entrega.
+
+**Verificación:** MedicosAdministrativosTest, **35 pruebas/436 aserciones correctas**; incluye permisos, restricciones de sesión, CSRF/origen, validaciones, recursos mínimos, filtros, IDs, registro repetible, versión/no-op, preservación de cuentas/citas/consultorio, rollback y migración sobre filas existentes. Tres carreras nuevas de procesos PostgreSQL: dos borradores de distintos Administradores, especialidad que desaparece durante espera y actor revocado durante coordinación. **Regresión completa: 800 pruebas/8613 aserciones correctas**, 286,38 s; 38 casos nuevos respecto del cierre de fase 1. Pint/sintaxis de los 31 PHP afectados acumulados, Composer validate/plataforma/autoload estricto, 41 rutas totales sin duplicados (cuatro de médicos), UTF-8/Markdown y revisión de diferencias correctos.
+
+README, CU-10, análisis incremental, DER §§3.13/6.17 y contexto §17.56 sincronizados. **Próxima fase: 3 — estado profesional e integración con cuentas CU-03**; asociaciones editables conservan fase 4. Consultorios/horarios/agenda e interfaz específica siguen sus incrementos. Diagrama global conserva aplazamiento expreso.
+
+## Médicos y especialidades — fase 1: CU-09 implementado (2026-10-21)
+
+Gestión administrativa de especialidades disponible en backend. Solo Administrador con sesión normal, cuenta habilitada y origen/CSRF válidos: `GET/POST /api/especialidades`, `GET/PATCH /api/especialidades/{id}` y `PATCH /api/especialidades/{id}/estado`. Se respetan los contratos de la fase 0 descritos debajo; los endpoints posteriores de datos de Médico/CU-10 se describen en fase 2.
+
+- Nombre obligatorio, máximo 120; descripción opcional/nullable hasta 2000; rechazar campos extra y caracteres de control. Filtros nombre literal/activa, página desde 1, 20 elementos por defecto/100 máximo y orden ID descendente. Se conserva la normalización de PostgreSQL `lower(btrim(nombre))`, sin eliminar acentos ni espacios internos; además se aplica el saneamiento de entrada compartido de Laravel. Duplicados del índice conocido producen `409 ESPECIALIDAD_NOMBRE_DUPLICADO`; fallos SQL distintos conservan error seguro, no un conflicto ficticio.
+- El Resource devuelve únicamente `id_especialidad` textual, nombre, descripción, activa y `actualizado_en` UTC con seis decimales. PATCH exige `actualizado_en_original`, compara la fila bloqueada y devuelve `409 ESPECIALIDAD_EDICION_OBSOLETA` si cambió, incluso para un aparente no-op. Cambio efectivo avanza versión monotónica; no-op válido conserva versión y evita eventos duplicados.
+- Crear deja activa; editar datos no cambia estado. Desactivar/reactivar no borra, modifica ni cancela asociaciones, médicos o citas, y no genera disponibilidad. Las futuras reservas/reprogramaciones deberán revalidar actividad al guardar. No se ofrece DELETE.
+- `EspecialidadController`/Requests/Resource → `EspecialidadService` → `EspecialidadRepository` → Especialidad. Actor/rol revalidados bajo bloqueo en transacción; datos/versión/evento de BitacoraRepository se confirman juntos. Eventos ESPECIALIDAD_CREADA/ACTUALIZADA/ESTADO_CAMBIADO con actor, referencia y campos, sin copiar descripción/contactos ni información clínica.
+
+**Migración aditiva nueva:** `src/data/database/migrations/2026_10_21_000030_add_actualizado_en_to_especialidades.php`, agrega `actualizado_en TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP` e inicializa registros anteriores sin cambiar sus datos. No modifica migraciones aplicadas ni añade tablas/FK. El esquema con esta migración comprende **28 entidades, 240 atributos y 43 relaciones**; los 239 atributos citados en fases anteriores corresponden al esquema previo. `medicos.actualizado_en` y `medico_especialidad.habilitada` siguen previstos para fases 2/4. Migración aplicada/revertida únicamente en base aislada de pruebas; **base habitual y Railway aún requieren `php artisan migrate --force` al incorporar esta entrega**. No se ejecutaron seeders ni envíos reales.
+
+**Verificación focalizada:** 30 pruebas/329 aserciones en EspecialidadesTest y cuatro carreras/57 aserciones en AutenticacionConcurrenteTest: **34 pruebas/386 aserciones correctas**. Incluyen cookies/CSRF/origen, cuatro roles, cuenta revocada y sesión restringida, entradas/IDs/paginación, duplicados/normalización, versión obsoleta/monotónica, descripción nullable, no-op, preservación de citas/asociaciones, rollback de auditoría, error SQL ajeno y migración sobre filas existentes con tipo/precisión/NOT NULL/default comprobados. Dos procesos PostgreSQL independientes con Administradores distintos prueban altas/renombrados por el mismo nombre, edición vs estado y revocación mientras se espera. La primera regresión detectó una expectativa histórica de columnas en CatalogosInicialesTest; actualizada para incluir la extensión CU-09 y verificar su cast/default. Ejecución conjunta posterior Especialidades/Catálogos: 57 pruebas/457 aserciones correctas. Regresión completa posterior pendiente de registrar al cierre. Composer validate/autoload PSR-4/ambigüedad estrictos y registro de 37 rutas totales/cinco de especialidades sin duplicados correctos.
+
+Análisis CU-09, caso de uso, DER §6.16 y contexto §17.55 sincronizados. Diagrama global aplazado expresamente; no se declara completo el módulo CU-09/CU-10. Próxima fase: **2, datos y alta de médicos**.
+
+**Cierre verificado de fase 1:** suite completa `php artisan test --compact --no-ansi`, **762 pruebas/8143 aserciones correctas** (304,61 s). Incluye los 34 casos nuevos y regresión de Usuarios, Pacientes, datos/seeders y concurrencia. Pint y sintaxis de los 18 PHP afectados correctos; Composer validate, autoload optimizado PSR-4/ambigüedad estrictos y requisitos de plataforma correctos; rutas y revisión documental/diff comprobadas. CU-09 backend implementado/verificado; interfaz específica y CU-10 siguen posteriores. Los estados de ejecución descritos antes corresponden a la cronología de la comprobación.
+
+## Médicos y especialidades — fase 0: diseño backend (2026-10-21)
+
+**Registro histórico de diseño:** fase 0 de CU-09/CU-10 diseñada; los contratos y participantes de este apartado eran **previstos, no endpoints/clases implementados** al cerrar esta fase. El avance posterior de CU-09 está en el apartado superior. La persistencia existente no completa los CU. Fuentes: RF03/RF04, RN02/RN04/RN11/RN12/RN14, VS-MED-01–07 y CU-09/CU-10. La decisión de retiro aprobada es una regla propia del proyecto. Agenda CU-20, asignación de consultorio CU-11 y horarios CU-12 conservan su alcance posterior; RF03 íntegro no se declara cerrado por este módulo.
+
+### Secuencia de entregas
+
+| Fase | Entrega | Criterio de cierre |
+| --- | --- | --- |
+| **0 — Diseño** | Regla de retiro, contratos, persistencia prevista, transacciones y pruebas | Documentos coherentes con esquema/código real; sin presentar API como implementada |
+| **1 — CU-09** | Listado/detalle/alta/edición/estado de especialidades | Administrador, duplicados normalizados, estados, versionado, auditoría y carreras verificados; análisis CU-09 actualizado |
+| **2 — CU-10: datos** | Listado/detalle/alta/edición administrativa de médicos y asociaciones iniciales | Alta atómica con una o varias especialidades, código único, versión y datos permitidos; sin cuenta/consultorio automáticos |
+| **3 — CU-10: estado** | Activación/inactivación profesional e integración con CU-03 | Cuenta/rol/ficha independientes; historial preservado y operaciones simultáneas con cuentas verificadas |
+| **4 — CU-10: asociaciones** | Agregar, retirar y rehabilitar habilitaciones | FK histórica conservada, bloqueo por citas futuras, al menos una habilitación y concurrencia comprobados |
+| **5 — Integración** | Recorridos completos y regresión de módulos anteriores | Suite PostgreSQL, HTTP/JSON, rutas, Pint/autoload, auditoría, análisis/DER/contexto y README sincronizados |
+
+El diagrama global conserva su aplazamiento expreso; su ausencia no se presenta como documento actualizado. Cada fase implementada registra su evidencia real y análisis incremental, sin esperar al cierre final.
+
+### Contratos administrativos previstos
+
+Todos bajo `/api`, con sesión normal de **Administrador**, cookies/Sanctum, origen/CSRF, verificación de cuenta habilitada y revalidación del actor en el Service. Reutilizar `ExigirSesionNormal`, `ExigirRol` y `VerificarCuentaHabilitada`; no crear otra autenticación. Lecturas administrativas de estos CU no se abren a otros roles para anticipar búsqueda pública de turnos.
+
+| Método / ruta futura | Entrada permitida | Respuesta |
+| --- | --- | --- |
+| `GET /especialidades` | `nombre`, `activa`, `page`, `per_page` | 200, `data` paginado y `meta`/`links` del patrón actual |
+| `GET /especialidades/{id}` | ID BIGINT positivo | 200, `data` administrativa y versión |
+| `POST /especialidades` | `nombre`, `descripcion` opcional/nullable | 201, `data`; ID del servidor, inicialmente activa |
+| `PATCH /especialidades/{id}` | `nombre` y/o `descripcion`, `actualizado_en_original` | 200, `data` vigente |
+| `PATCH /especialidades/{id}/estado` | `activa`, `actualizado_en_original` | 200, `data` vigente; no modifica citas |
+| `GET /medicos` | `nombre`, `id_especialidad`, `activo`, `page`, `per_page` | 200, `data` paginado; filtro por especialidad habilitada, no solo histórica |
+| `GET /medicos/{id}` | ID BIGINT positivo | 200, `data` administrativa, asociaciones y versión |
+| `POST /medicos` | `registro_profesional`, `nombres`, `apellidos`, `telefono`, `correo_contacto`, `especialidades` (IDs distintos, mínimo uno) | 201, `data`; código/ID del servidor, activo, sin cuenta/consultorio asignados |
+| `PATCH /medicos/{id}` | Campos administrativos anteriores salvo `especialidades`, más `actualizado_en_original` | 200, `data`; no cambia vínculo/código/consultorio/estado |
+| `PATCH /medicos/{id}/estado` | `activo`, `actualizado_en_original` | 200, `data`; no modifica cuenta ni citas |
+| `PUT /medicos/{id}/especialidades` | `especialidades` (conjunto completo deseado de IDs habilitados), `actualizado_en_original` | 200, detalle vigente; omitidos se deshabilitan, nunca se borran |
+
+La última operación aparece en fase 4; fase 2 solo crea asociaciones iniciales. `PUT` expresa sustitución explícita del conjunto habilitado; no equivale a `sync()` destructivo. Relaciones retiradas siguen visibles como históricas en el detalle, con `habilitada: false` desde fase 4. Rehabilitar reutiliza el mismo par. Médico y especialidad activos/habilitados no garantizan turnos sin CU-11–CU-14.
+
+Antes de fase 4, todos los pares existentes conservan su significado actual de asociación habilitada; el código de fase 2 no consultará una columna que todavía no existe. La migración y adaptación de consultas/Resources de fase 4 se entregarán juntas.
+
+**Campos/formato:** nombre de especialidad 120; registro profesional 80; nombres/apellidos 120; teléfono 40; correo de contacto 254; descripción nullable con límite HTTP de 2000 caracteres, siguiendo el límite de texto administrativo existente. Rechazar vacíos efectivos/caracteres de control y campos extra, arrays con claves ajenas y IDs fuera de BIGINT positivo. IDs de salida como cadenas, sin pérdida en JavaScript. No inventar unicidad del registro profesional ni del correo de contacto: el esquema solo declara código y vínculo de usuario únicos. Código `MED-` con aleatoriedad criptográfica del servidor, sin `MAX(id)+1`, como el patrón de Pacientes. Correo normalizado conforme al contacto existente; no es correo de acceso.
+
+**Normalización de especialidades:** recorte exterior U+0020, comparación `lower(btrim(nombre))` con PostgreSQL, coherente con `especialidades_nombre_normalizado_uq`. No quitar acentos ni colapsar espacios internos arbitrariamente. Conservar nombre legible recortado. Búsqueda literal parcial sin interpretar `%`/`_` como comodines; filtros combinados con AND, orden descendente por ID, página desde 1, tamaño por defecto 20 y máximo 100, siguiendo Pacientes. En médicos, `nombre` busca nombres/apellidos y su concatenación. No devolver listados sin límites.
+
+**Proyecciones:** especialidad: ID, nombre, descripción, activa y versión; médico listado: ID/código/nombres/apellidos/activo/especialidades habilitadas; detalle: añade registro, teléfono, correo de contacto, `cuenta_vinculada` y versión, y desde fase 4 incluye todas las asociaciones con su habilitación. No serializar Usuario ni exponer credenciales, correo de acceso, datos clínicos, agenda o información de Pacientes. Especialidades existentes inactivas conservan identidad y asociaciones: su actividad sigue siendo independiente de la habilitación del par y no se deriva disponibilidad del alta administrativa.
+
+### Retiro aprobado y persistencia prevista
+
+- Retiro bloqueado si el par tiene citas **Programadas o Confirmadas con `inicio_at >= ahora`**. Capturar el instante UTC del servidor después de obtener el bloqueo y usar el mismo corte para toda la comprobación. Atendida/Cancelada/Inasistencia no bloquean por esta regla; no cambiar automáticamente estados de citas pasadas o en curso. Preservar su atención/documentación autorizada aunque posteriormente se retire la habilitación.
+- El rechazo no modifica nada ni decide qué cita debe cancelarse. Recepción conserva CU-15/CU-16: reprogramar mantiene Médico/especialidad, por lo que posponer no resuelve el impedimento. No crear traslado a otro Médico ni cancelación administrativa.
+- Mantener **al menos un par habilitado** del Médico al sustituir el conjunto, incluso si el profesional o alguna especialidad están inactivos; habilitación y actividad del catálogo no son el mismo estado. La inactivación completa del Médico corresponde a fase 3.
+- Migración **aditiva futura de fase 4**: `medico_especialidad.habilitada BOOLEAN NOT NULL DEFAULT TRUE`, preservando todos los pares existentes y FK compuesta de citas. No modificar migración 000017 aplicada, no borrar pares ni crear un nuevo ID. Los pares existentes se consideran habilitados como antes; los cambios posteriores se auditan. Mantener relaciones históricas y consultas explícitas de habilitadas; revisar consumidores, seeders y pruebas sin ocultar relaciones anteriores.
+- Migraciones **aditivas futuras de fases 1/2**: `especialidades.actualizado_en` y `medicos.actualizado_en`, TIMESTAMPTZ(6), NOT NULL, con inicialización de filas existentes. Recursos emiten UTC/seis decimales; escrituras comparan `actualizado_en_original` bajo bloqueo y avanzan versión de forma monotónica, también si cambia solo una asociación. No-op con versión vigente no avanza ni duplica evento; versión obsoleta se rechaza antes de decidir no-op.
+- En fase 0 no se aplica ninguna migración: DER implementado conserva **28 entidades/239 atributos/43 relaciones**. Los tres atributos nuevos son diseño pendiente y actualizarán el DER al implementarse. No se imponen nuevas unicidades de identidad profesional sin decisión funcional.
+
+### Capas, atomicidad y coordinación
+
+Participantes **previstos**: `EspecialidadController`/`MedicoController`, Form Requests/Resources específicos en `src/presentation/dtos/`, `EspecialidadService`/`MedicoService`, nuevo `EspecialidadRepository` y ampliación del `MedicoRepository` existente; modelos Especialidad/Medico/MedicoEspecialidad y BitacoraRepository reutilizados. Rutas nuevas en `src/presentation/routes/`, registradas una sola vez mediante `routes/api.php`. No crear carpetas por CU ni repositorios genéricos.
+
+El Service revalida sesión/rol en transacción con el patrón de AutenticacionService; Repository consulta/escribe, no decide permisos. Reutilizar coordinación de CU-03 antes de adquirir recursos del profesional: inspeccionar el orden efectivo de locks de cuentas al implementar y no invertirlo. Después, Médico → especialidades ordenadas por ID → pares; consultar impedimentos bajo el mismo bloqueo del Médico que deberán tomar reserva/reprogramación antes de crear obligaciones. Las operaciones sobre catálogo no deben adquirir luego locks de médicos y crear un ciclo. Cuando intervengan varios registros, ordenar claves; bloquear la fila padre cubre también un par aún inexistente. El alta inserta médico, pares y evento en una transacción. Cada cambio confirma datos/versión/bitácora conjuntamente; fallo de auditoría revierte todo.
+
+La garantía de concurrencia frente a reservas **requiere que CU-14/CU-15 participen del protocolo al implementarse**. En este módulo se prueba con dos procesos/conexiones PostgreSQL que sigan ese protocolo; no declarar implementados los endpoints de citas por esa prueba. Catálogo y par habilitados deben revalidarse al guardar la futura reserva, no solo al buscar disponibilidad. La inactivación profesional conserva cuenta, sesiones, bloqueos y rol; su reactivación debe respetar la identidad/vínculo y los cambios de rol de CU-03, sin devolver permisos clínicos automáticamente a un antiguo Médico.
+
+Auditoría prevista: `ESPECIALIDAD_CREADA`, `ESPECIALIDAD_ACTUALIZADA`, `ESPECIALIDAD_ESTADO_CAMBIADO`, `MEDICO_CREADO`, `MEDICO_ACTUALIZADO`, `MEDICO_ESTADO_CAMBIADO`, `MEDICO_ESPECIALIDADES_CAMBIADAS`. Registrar actor real, correlación, referencias, nombres de campos y cambios de habilitación; sin copias de contactos, contraseñas, documentos ni contenido clínico. El conflicto no deja evento de éxito.
+
+### Errores y criterios verificables
+
+Mantener `RespuestaError`/`AppError`; agregar traducciones explícitas cuando cada operación se implemente. Códigos futuros 409: `ESPECIALIDAD_NOMBRE_DUPLICADO`, `ESPECIALIDAD_EDICION_OBSOLETA`, `MEDICO_CONFLICTO_UNICIDAD`, `MEDICO_EDICION_OBSOLETA`, `MEDICO_ESPECIALIDAD_CON_CITAS_FUTURAS`, `MEDICO_SIN_ESPECIALIDADES_HABILITADAS`, `MEDICO_VINCULO_INCOMPATIBLE`. Relaciones inválidas en datos: 422 con errores de campo seguros. Recurso objetivo ausente: 404. Mantener 401/403/419 y 429 cuando corresponda al mecanismo existente; no convertir errores SQL arbitrarios en conflictos ni cambiar el contrato de errores de otros módulos. No hay umbrales nuevos de rate limit aprobados por esta fase.
+
+Pruebas por fase e integración final:
+
+1. Sesión ausente/restringida/revocada, cuenta desactivada, cuatro roles, origen/CSRF, campos extra, IDs, formatos y paginación.
+2. Duplicado normalizado y carrera de dos altas/renombrados; SQL inesperado conserva 500 seguro; fallo de auditoría revierte el cambio.
+3. Alta de médico con conjunto válido; código único, sin relaciones parciales, sin crear cuenta/horario/consultorio; edición de contacto no cambia credenciales.
+4. Dos borradores sobre datos/estado/asociaciones: uno guarda y otro recibe 409; no-op no duplica eventos; timestamp monotónico.
+5. Inactivar/reactivar profesional frente a cambios de rol/vínculo de CU-03: no resucitar permisos ni alterar cuentas; obligaciones anteriores conservadas.
+6. Retiro con citas futuras Programadas/Confirmadas bloqueado; estados finales y fechas anteriores no bloquean por esta regla; borde temporal, par correcto y otro par del mismo Médico diferenciados. Mantener FK/historial y mínimo un par habilitado. Reactivación del par no duplica identidad.
+7. Retiro vs reserva coordinada en ambos órdenes y rollback; dos cambios de asociaciones, incluida última habilitación, no dejan datos parciales. Base aislada PostgreSQL, nunca SQLite como sustituto de las carreras.
+8. Regresión de Usuarios/Pacientes y consumidores de relaciones, rutas sin duplicados, Resources sin secretos, contratos/error codes y actualización progresiva de análisis/DER.
+
+**Comprobación de fase 0:** código y documentación inspeccionados; PHP CLI 8.5.11 y Laravel 13.37.0 comprobados. Esta entrega documental no ejecuta migraciones, seeders, envíos de correo ni pruebas funcionales que todavía no existen. Próxima entrega: fase 1, CU-09.
+
 ## Cuentas de pruebas para la demostración (Railway o local)
 
 `CuentasPruebaSeeder` es una carga manual independiente: un Médico con cuenta/ficha por **cada especialidad activa existente**, dos Recepcionistas y diez Pacientes con cuenta vinculada. No crea Administradores ni modifica el existente. Requiere los catálogos ya cargados; no se incorpora a `DatabaseSeeder` ni a los despliegues automáticos.

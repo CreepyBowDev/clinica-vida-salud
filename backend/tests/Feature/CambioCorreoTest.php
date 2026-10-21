@@ -3,12 +3,12 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
-use Clinica\business\services\CorreoSeguridadService;
+use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Clinica\data\models\Usuario;
-use Clinica\data\repositories\BitacoraRepository;
-use Clinica\data\repositories\CambioCorreoRepository;
-use Clinica\data\repositories\TokenAccesoRepository;
-use Clinica\data\repositories\UsuarioRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
+use Clinica\data\repositories\usuarios\CambioCorreoRepository;
+use Clinica\data\repositories\usuarios\TokenAccesoRepository;
+use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\utils\CambioCorreoMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;

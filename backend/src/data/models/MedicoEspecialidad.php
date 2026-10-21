@@ -18,6 +18,11 @@ class MedicoEspecialidad extends Pivot
 
     protected $guarded = ['*'];
 
+    protected function casts(): array
+    {
+        return ['habilitada' => 'boolean'];
+    }
+
     public function medico(): BelongsTo
     {
         return $this->belongsTo(Medico::class, 'id_medico', 'id_medico');

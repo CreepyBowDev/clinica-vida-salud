@@ -1,10 +1,125 @@
 # Análisis de clases — Clínica Vida Salud
 
 > **Ruta canónica:** `docs/ai/analisis-clases.md`  
-> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`).
+> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo fases 1–5 implementado; frontend/agenda posteriores y diagrama global aplazado).
 > **Avance:** Usuarios backend fases 0–8, incluidas 7A/7B; Pacientes backend/frontend fases 1–6 revisados el 2026-10-20. Plan frontend de gestión administrativa, perfil y correo completado con integración real local. Consulta histórica de citas conserva dependencia de CU-21; no se acredita RF02 íntegro ni producción/Brevo real.
 > **Estado:** backend de Usuarios y autenticación cerrado con revisión integrada de fase 8. React fases 1–6 implementadas, revisión del cliente con 213 pruebas y AUT-21 local aprobada en Chrome/Laravel/PostgreSQL reales (§17.34 del contexto). Incluye sesión, contraseñas, cuentas y registro/vinculación con emisión presencial de Recepción. Correo capturado localmente: aceptación/entrega real Brevo y comprobación de producción pendientes. `diagrama-clases.md` aplazado por solicitud expresa del usuario.
 > **Presentación aprobada:** ACTOR → BOUNDARY → CONTROL → ENTITY; un bloque CONTROL por diagrama, métodos principales sin clase, parámetros ni retorno, y atributos seleccionados por procedimiento.
+
+## Organización física de las clases por módulo (2026-10-21)
+
+Decisión aprobada posterior al cierre de CU-09/CU-10: Controllers, DTO, Services y Repositories incorporan subcarpetas por módulo dentro de sus capas. No altera responsabilidades, colaboraciones ni flujos de los análisis siguientes. Namespaces y rutas documentadas se corresponden con las ubicaciones nuevas; los nombres simples de clase de los diagramas de análisis mantienen su significado.
+
+| Subcarpeta | Clases y responsabilidad principal |
+| --- | --- |
+| `usuarios/` en las cuatro carpetas | CU-01–CU-06, cuentas, sesiones, credenciales, invitaciones, registro/activación web y correo de acceso. Incluye RegistroPacienteService/Repository y DTO de registro/vinculación. CuentaRequest/ClaveRequest/RespuestaError se reutilizan desde aquí; errores de toda la API continúan centralizados. |
+| `pacientes/` en las cuatro carpetas | CU-07/CU-08, fichas/perfil y emisión presencial del código: CodigoActivacionController/Service/Repository y EmitirCodigoActivacionRequest. |
+| `medicos/` en las cuatro carpetas | CU-09/CU-10, Médico y Especialidad. MedicoRepository es importado también por gestión de cuentas. |
+| `repositories/bitacora/` | BitacoraRepository registra eventos de todos los módulos; no acredita CU-30 completo. |
+
+Las clases compartidas se importan desde su módulo propietario; no hay copias ni alias antiguos. Se actualizan referencias entre capas, bootstrap/rutas/middlewares y tests/fixtures. Modelos, validadores, rutas, middlewares y migraciones conservan ubicación. DER sin cambios; diagrama global aplazado expresamente. Evidencias de regresión en contexto §17.60 y README.
+
+## CU-09/CU-10 — fase 5: integración del módulo administrativo backend (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador mantiene catálogo/profesionales/habilitaciones y usa CU-03 para cuenta independiente; Médico invitado confirma acceso y conserva permisos según cuenta/rol. RF03/RF04 y VS-MED-01–07. Agenda RF03/CU-20 y frontend específico siguen posteriores; no se atribuye al cierre administrativo cumplimiento integral del requisito ni aceptación de producción.
+
+**Colaboración acumulativa implementada:** EspecialidadController/Requests/Resource → EspecialidadService → EspecialidadRepository → Especialidad; MedicoController/Requests/Resources → MedicoService → MedicoRepository y EspecialidadRepository → Medico/MedicoEspecialidad/Especialidad. Ambos reutilizan AutenticacionService y BitacoraRepository, AppError/RespuestaError. MedicoService coordina CU-03 mediante ContinuidadAdministrativaService/UsuarioRepository. InvitacionPersonalService vincula el profesional existente y coordina invitación con TokenAccesoRepository/CorreoSeguridadService; AdministracionCuentaService conserva responsabilidad de estado/rol y revocación a través de SesionRepository. Se reutilizan clases reales, sin capa/modelo paralelo.
+
+**Pruebas integradas nuevas:** MedicosEspecialidadesIntegracionTest ejecuta todos los componentes en esquemas PostgreSQL efímeros y cookies/CSRF con reinicio de guard por petición; Mail fake, sin envíos externos. Dos recorridos/140 aserciones correctos: catálogo/alta Médico/invitación/aceptación/login/contacto/actividad/habilitaciones/cuentas/sesiones múltiples; y mantenimiento de ficha con ocho tablas de historia clínica/laboratorio conservadas, retiro bloqueado sin alta parcial y posterior retiro/rehabilitación. Comprueba actor/eventos, IDs/credenciales/vínculos independientes, proyecciones y ausencia de contenido clínico/contactos/tokens en eventos administrativos.
+
+**Cierre técnico:** se revisaron las clases/relaciones de las fases inferiores, consumidores de habilitaciones, eventos, reglas CU-03 y contratos de 11 endpoints. Esta fase solo agrega pruebas/documentación; sin nuevas migraciones ni modificaciones de comportamiento. Resultado global final en README/contexto §17.59. DER conserva 28 entidades/242 atributos/43 relaciones; base habitual/Railway pendientes de aplicar 000030–000032. Diagrama de clases global mantiene aplazamiento expreso, no se presenta como actualizado. Las dependencias de agenda, consultorios/horarios y validación de nuevas reservas no se implementan en este módulo.
+
+## CU-10 — fase 4 backend: habilitaciones conservando historia (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador normal sustituye conjunto habilitado sin borrar pares históricos. RF03/RF04, RN02/RN11 y VS-MED-01/03/06/07; restricción de retiro es decisión aprobada del proyecto, no una nueva regla atribuida al examen.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| CambiarEspecialidadesMedicoRequest / MedicoController.especialidades | PUT con IDs distintos en lista, versión y campos cerrados; adapta datos/contexto y proyecta detalle mediante MedicoAdministrativoResource |
+| MedicoService.cambiarEspecialidades | Revalida actor, compara versión, conserva mínimo uno, verifica relaciones, calcula altas/retiros y corte temporal único después de locks; coordina persistencia y evento |
+| MedicoRepository.pares/tieneCitasFuturas/guardarHabilitaciones | Obtiene/bloquea pares ordenados, consulta citas de pares retirables y escribe marcas/pares nuevos sin borrar. guardar avanza versión de Médico |
+| EspecialidadRepository.porIdBloqueado | Bloquea especialidades ordenadas y permite verificar existencia sin confundir actividad del catálogo con habilitación |
+| Medico/Especialidad/MedicoEspecialidad | N:M histórica con withPivot habilitada y cast booleano. PK/FK compuesta original, sin ID sustituto |
+| MedicoListadoResource / MedicoAdministrativoResource | Listado y filtro solo habilitadas; detalle conserva todas con marca. especialidadesVisibles permite reutilizar proyección sin ocultar historia |
+| BitacoraRepository.medicoModificado | Extensión opcional de metadatos de habilitación: IDs habilitados/retirados; evento en misma transacción, sin contactos ni clínica |
+| AppError / RespuestaError | 409 de mínimo un par, citas futuras y versión; 422 de relaciones/entrada, con salida central segura |
+
+**Flujo y relaciones:** coordinación CU-03 → actor → Médico bloqueado → versión → mínimo uno → IDs de especialidades ordenados → pares bloqueados → diff/corte UTC → consulta de impedimentos → marcas/pares/versión/evento → Resource. La relación histórica se conserva incluso con habilitada=false y citas anteriores referenciando el mismo par. Rehabilitar reutiliza fila; conjunto vigente idéntico, incluido cambio solo de orden, no avanza versión ni emite. Versión antigua falla antes del no-op.
+
+**Alternativos:** Programada/Confirmada con inicio >= corte bloquea únicamente el retiro de su par. Citas anteriores o estados finales no bloquean por VS-MED-07. Conflicto de cualquier retiro rechaza también altas del mismo PUT; fallo de evento revierte pares nuevos, marcas y versión. Actividad de Médico/catálogo permanece independiente; ni una asociación retirada ni catálogo inactivo se reactivan implícitamente por seeders.
+
+**Persistencia/verificación:** migración aditiva 000032 añade habilitada BOOLEAN NOT NULL DEFAULT TRUE y conserva citas/PK/FK existentes; esquema 28 entidades/242 atributos/43 relaciones. Pruebas funcionales y de esquema/seeder: 110 pruebas/1126 aserciones correctas; cinco carreras/70 aserciones correctas en conexiones/procesos independientes prueban retiro vs reserva en ambos órdenes, commit/rollback y dos conjuntos concurrentes. La reserva es un escritor **exclusivo de tests**, no un endpoint CU-14/CU-15; futuros consumidores deberán tomar el mismo bloqueo y revalidar. **Regresión completa: 850 pruebas/9166 aserciones correctas**, con límite de 512 MB solo en el proceso (130 MB consumidos); Pint/sintaxis, Composer/autoload, rutas y documentación/diff correctos. Evidencia en README/contexto §17.58. Migración habitual/Railway y diagrama global mantienen sus pendientes; módulo conserva fase 5 de integración.
+
+## CU-10 — fase 3 backend: actividad profesional e integración CU-03 (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador normal cambia actividad de la ficha sin confundir cuenta, rol y estado profesional. RF03, RN04/RN11 y VS-MED-04–06; incremento parcial, habilitaciones/agenda siguen posteriores.
+
+**Participantes reales:** CambiarEstadoMedicoRequest extiende CuentaRequest y valida ID, booleano, versión y lista cerrada. MedicoController.estado recibe datos/contexto y devuelve MedicoAdministrativoResource. MedicoService.cambiarEstado coordina transacción, actor y profesional; compara versión antes del no-op y comprueba rol/vínculo mediante UsuarioRepository.porId al activar con cuenta. Reutiliza ContinuidadAdministrativaService/AutenticacionService, MedicoRepository.guardar/cargarEspecialidades y BitacoraRepository.medicoModificado. RespuestaError agrega 409 MEDICO_VINCULO_INCOMPATIBLE, además del conflicto de versión existente.
+
+**Colaboración:** middleware/Request → Controller → Service/transacción → coordinación administrativa → actor → Médico bloqueado → comprobación de cuenta para activación → persistencia/versión/evento → Resource. La cuenta se consulta sin adquirir lock después de Médico; la coordinación compartida con CU-03 serializa cambios de rol/vínculo. Sin cuenta puede activarse; con cuenta se exige rol Médico, mismo vínculo y ausencia de ficha Paciente. Estado Pendiente/Desactivada o bloqueo no son actividad profesional: se conservan sin habilitar acceso.
+
+**Flujos alternativos:** versión antigua 409 antes del no-op; vínculo incompatible 409 sin promoción automática; no-op vigente no guarda ni duplica evento; fallo de auditoría revierte actividad/versión. Inactivar preserva consultas/citas/solicitudes pendientes y sesiones. CU-03 conserva rechazo de retiro de rol cuando hay obligaciones o profesional activo; no se acredita cierre clínico por inactivar. Retornar al rol Médico se realiza explícitamente por CU-03 y luego se puede activar la ficha. Desactivar cuenta sigue revocando sesiones sin alterar ficha.
+
+**Verificación y cierre de fase 3:** MedicosAdministrativosTest incorpora 17 casos (52 acumulados), roles/CSRF/entrada estricta, sesiones múltiples, cuentas y bloqueo, salida/retorno de rol, versión común y rollback. Cuatro carreras nuevas en AutenticacionConcurrenteTest prueban retiro/activación en ambos órdenes, datos vs estado y activación tras desactivar cuenta. Procesos PostgreSQL independientes con bloqueo comprobado; no se declaran implementadas reservas/agenda/atenciones por estas pruebas. **Regresión completa: 821 pruebas/8863 aserciones correctas**, 299,87 s; Pint/sintaxis de 32 PHP afectados acumulados, Composer/autoload estricto, rutas y revisión documental/diff correctos. Sin cambios de esquema ni nuevas entidades; DER conserva 28/241/43. Diagrama global continúa aplazado.
+
+## CU-10 — fase 2 backend: datos y asociaciones iniciales (2026-10-21)
+
+**Actor/objetivo/trazabilidad:** Administrador normal registra/consulta/edita datos profesionales conforme RF03/RF04, RN02/RN04/RN11/RN12/RN14 y VS-MED-01/06. Incremento parcial de CU-10; no acredita estado profesional, retiro de habilitaciones ni agenda.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| Rutas medicos y middleware compartido | Cuatro endpoints, Sanctum/cuenta habilitada/sesión normal/rol; origen y CSRF mediante configuración existente |
+| MedicoController | index/show/store/update adaptan HTTP, entrada validada y contexto; devuelven 200 o 201 |
+| CrearMedicoRequest / ActualizarMedicoRequest / ListarMedicosRequest | Datos/tamaños/lista de IDs distintos, PATCH parcial con versión UTC/seis decimales y filtros/paginación limitados; listas cerradas de campos. CuentaRequest valida BIGINT de ruta |
+| MedicoListadoResource / MedicoAdministrativoResource | ID/código/nombres/actividad/especialidades; detalle añade registro/contacto/booleano de vínculo/versión, sin serializar Usuario, agenda ni datos clínicos |
+| MedicoService | Revalida actor después de ContinuidadAdministrativaService.coordinar y AutenticacionService.exigirSesionNormal. Coordina alta, relaciones existentes, versión, no-op y auditoría; convierte solo colisión de código conocida a 409 |
+| MedicoRepository / EspecialidadRepository | Eloquent, filtros literales/AND, paginación, bloqueo de filas, código criptográfico, insert de pares iniciales y versión monotónica. Se amplía el repositorio usado por CU-03 |
+| Medico / Especialidad / MedicoEspecialidad | Entidades existentes, N:M con PK/FK compuesta preservada; nuevo cast de fecha inmutable en Medico. Sin columna habilitada todavía |
+| BitacoraRepository / Bitacora, AppError / RespuestaError | Eventos MEDICO_CREADO/ACTUALIZADO en la misma transacción, referencias y campos sin contactos; 409 de versión/código y errores centrales seguros |
+
+**Colaboración:** actor → API/Request → Controller → Service/transacción → coordinación CU-03 → actor bloqueado → Médico (si existe) → especialidades ordenadas → persistencia/auditoría → Resource. Alta bloquea/verifica especialidades existentes antes de insertar un profesional nuevo, no accesible por otras operaciones hasta commit. Registro/contacto repetibles; código generado por servidor. PATCH no modifica vínculos, asociaciones, actividad ni ubicación y no reescribe citas.
+
+**Alternativos/concurrencia:** relación inexistente 422 sin altas parciales; borrador obsoleto 409 antes del no-op; no-op vigente conserva fecha/evento. Fallo de evento revierte médico/pares/versión; fallos SQL ajenos a código permanecen 500 seguro. Pérdida de especialidad y revocación del Administrador mientras espera se revalidan. Asociar catálogo inactivo no lo reactiva ni da disponibilidad; todos los pares representan habilitación como antes hasta fase 4.
+
+**Evidencia y cierre de fase 2:** 35 pruebas/436 aserciones correctas de MedicosAdministrativosTest y tres carreras nuevas con procesos/conexiones PostgreSQL independientes. Se actualiza expectativa de columnas de MedicosHorariosTest; pruebas aisladas verifican migración aditiva 000031 sobre filas previas, precisión/default/NOT NULL/cast e integridad. **Regresión completa: 800 pruebas/8613 aserciones correctas**, 286,38 s; Pint/sintaxis de 31 PHP afectados acumulados, Composer/autoload/plataforma, rutas y revisión documental/diff correctos. Esquema con extensión: 28 entidades/241 atributos/43 relaciones; base habitual/Railway pendientes de migrar. Diagrama global continúa aplazado; CU-10 conserva fases 3/4/5 pendientes.
+
+## CU-09 — fase 1 backend: gestión de especialidades implementada (2026-10-21)
+
+**Actor, objetivo y trazabilidad:** Administrador con sesión normal mantiene catálogo sin nombres normalizados duplicados, conservando citas e historia. RF04, RN12/RN14, VS-MED-02/03; no concede permisos a otros roles ni implementa agenda, reserva o reprogramación.
+
+| Participante real | Responsabilidad / colaboración |
+| --- | --- |
+| Rutas especialidades y middlewares existentes | Auth Sanctum, origen/CSRF, cuenta habilitada, sesión normal y rol Administrador; cinco rutas registradas una sola vez |
+| EspecialidadController | Adapta index/show/store/update/estado a HTTP; delega datos validados/contexto al Service |
+| ListarEspecialidadesRequest / CrearEspecialidadRequest | Filtros/paginación y datos de alta con lista cerrada, longitudes/formato; nombre recortado y descripción nullable |
+| ActualizarEspecialidadRequest / CambiarEstadoEspecialidadRequest | Reutilizan CuentaRequest para BIGINT de ruta, rechazan entradas extra y exigen precondición UTC/seis decimales; separan datos y estado |
+| EspecialidadResource | Proyecta solo ID textual/nombre/descripción/activa/versión; no serializa relaciones ni datos de otros módulos |
+| EspecialidadService | Revalida sesión/rol a través de AutenticacionService; transacción, fila bloqueada, comparación de versión, no-op y auditoría. Traduce solo violación del índice de nombre conocido a conflicto |
+| EspecialidadRepository / Especialidad | Consultas Eloquent paginadas/literales, lock de fila y persistencia; avance monotónico de timestamp administrado por Repository. Modelo representa actividad y fecha inmutable |
+| BitacoraRepository / Bitacora | Evento con actor/referencia/campos; pertenece a la misma transacción del cambio, sin copiar descripción ni datos clínicos |
+| AppError / RespuestaError | 409 de duplicado/edición obsoleta y contrato central de 401/403/404/419/422/500, sin detalles SQL |
+
+**Colaboración principal:** middleware → Request → Controller → Service/transacción → actor bloqueado → Repository/fila → comparación y cambio → evento → Resource. Alta inicia activa y genera ID en PostgreSQL. Edición de datos no acepta `activa`, ni estado acepta nombre/descripción. Sin diferencias reales y versión vigente no guarda ni emite; versión obsoleta falla antes del no-op. Lecturas también revalidan actor; listado escapa semánticamente comodines mediante strpos y mantiene el orden/paginación acordados.
+
+**Métodos principales comprobados:** index/show/store/update/estado en EspecialidadController; rules en los cuatro Requests; listar/consultar/crear/actualizar en EspecialidadService; listar/porIdBloqueado/crear/guardar en EspecialidadRepository; especialidadModificada en BitacoraRepository; toArray en EspecialidadResource. La colaboración con Usuario/Rol expresa autorización, no modificación de la cuenta. Las asociaciones históricas y citas se preservan y no se incluyen como contenido clínico en la respuesta administrativa.
+
+**Alternativos:** nombre duplicado provoca rollback y 409; recurso ausente 404; versión inválida 422 o ajena/antigua 409; fallos inesperados/auditoría conservan 500 seguro y rollback de datos/versión. Desactivar/reactivar conserva sin modificación médicos/pares/citas, sin borrar filas ni crear turnos. La reserva futura deberá comprobar actividad bajo protocolo compartido al persistir; no se declara implementada en este CU.
+
+**Persistencia y pruebas:** migración aditiva 000030 incorpora actualizado_en TIMESTAMPTZ(6), inicializando filas anteriores y sin tocar migraciones previas. Esquema con ella: 28 entidades/240 atributos/43 relaciones; aplicado solo en pruebas aisladas. EspecialidadesTest: 30 pruebas/329 aserciones correctas; cuatro carreras nuevas en AutenticacionConcurrenteTest: 57 aserciones, procesos/conexiones independientes y distintos Administradores. Comprueban índice ante alta/renombrado, edición/estado y actor revocado mientras espera; fallos no dejan cambios/eventos de éxito. Se actualiza la expectativa de columnas de CatalogosInicialesTest y se comprueban tipo/precisión/default/cast de la extensión; ambas clases suman 57 pruebas/457 aserciones correctas. Regresión global posterior, evidencia final en README/contexto §17.55. Diagrama global aplazado, CU-10 pendiente; la fase 0 inferior conserva el diseño histórico.
+
+**Cierre:** regresión completa **762 pruebas/8143 aserciones correctas**, incluidos Usuarios/Pacientes y carreras PostgreSQL. Pint/sintaxis de 18 PHP, Composer/autoload/plataforma, rutas y documentación/diff correctos. Backend CU-09 verificado; no se acredita interfaz específica ni módulo completo CU-09/CU-10. Migración habitual/Railway y diagrama global conservan sus pendientes explícitos.
+
+## Médicos y especialidades — fase 0: análisis técnico previsto CU-09/CU-10 (2026-10-21)
+
+**Actor/objetivo:** Administrador con sesión normal administra catálogo y profesionales según RF03/RF04, RN02/RN04/RN11/RN12/RN14 y VS-MED-01–07. La política de retiro aprobada impide deshabilitar un par con citas futuras Programadas/Confirmadas, conservando siempre su relación histórica. CU-15 no traslada citas a otro Médico/especialidad; agenda conserva dependencia CU-20. No se declaran CU-09/CU-10 implementados.
+
+**Participantes existentes inspeccionados:** Especialidad, Medico y MedicoEspecialidad representan catálogo/profesional/pivote; Cita referencia la PK compuesta del pivote. MedicoRepository ya bloquea profesionales, vincula usuarios y consulta obligaciones para CU-03; se ampliará, no se duplicará. AutenticacionService y middlewares existentes controlan actor/sesión/rol; BitacoraRepository y RespuestaError/AppError se reutilizarán para auditoría atómica y HTTP seguro.
+
+**Participantes previstos, todavía inexistentes:** EspecialidadController/MedicoController y sus Form Requests/Resources adaptarán HTTP; EspecialidadService/MedicoService decidirán permisos, estado, unicidad, versionado y habilitaciones; EspecialidadRepository y la ampliación de MedicoRepository encapsularán acceso/bloqueos. Las rutas se registrarán en presentación sin consultas ni reglas dentro del Controller. No crear nuevas clases por cada fase ni repetir las de cuentas.
+
+**Colaboración diseñada:** petición autenticada/validada → Service en transacción → revalidación del actor → bloqueos compatibles con CU-03 → entidad/versionado → validación de relaciones/citas futuras → cambios y bitácora → Resource. La sustitución del conjunto habilitado bloquea Médico y especialidades/pares en orden estable, conserva las filas retiradas y avanza la versión del Médico. Nueva reserva/reprogramación futura deberá adquirir el mismo bloqueo y verificar habilitación al guardar; su implementación no se anticipa en este módulo. Auditoría fallida revierte datos/versión/asociaciones.
+
+**Persistencia prevista:** tres columnas aditivas, no aplicadas: actualizado_en de Especialidad/Medico y habilitada del pivote. El DER implementado conserva 28 entidades/239 atributos/43 relaciones. No borrar pares referidos, no agregar ID sustituto, no alterar viejas migraciones ni restricciones ajenas. Contratos, códigos futuros y matriz de pruebas en README backend/contexto §17.54. Evidencia de esta fase: inspección documental/código y versiones locales; pruebas funcionales y carreras se incorporan por fase. Diagrama global ausente y aplazado expresamente.
 
 ## Revisión integral de fronteras — fase visual 4 (2026-10-21)
 
@@ -1693,10 +1808,10 @@ Las clases PHP de §§5.1–5.2 existen en fase 1. Se conserva PSR-4 y minúscul
 
 | Ubicación / clase | Responsabilidad |
 | --- | --- |
-| `src/presentation/controllers/AutenticacionController.php` | Adaptar login/me/logout a HTTP; recibir entrada validada, delegar al Service, producir Resource o 204. Sin consultas Eloquent, hashes o decisiones de bloqueo. |
-| `src/presentation/dtos/LoginRequest.php` | FormRequest de entrada: formato, normalización del correo y lista de campos válidos; no contar intentos ni decidir estados. |
-| `src/presentation/dtos/UsuarioAutenticadoResource.php` | JsonResource con la proyección pública definida en §4.2. |
-| `src/presentation/dtos/RespuestaError.php` | Proyección central de excepciones a código HTTP/JSON seguro; la registra bootstrap/app.php. No expone mensajes internos. |
+| `src/presentation/controllers/usuarios/AutenticacionController.php` | Adaptar login/me/logout a HTTP; recibir entrada validada, delegar al Service, producir Resource o 204. Sin consultas Eloquent, hashes o decisiones de bloqueo. |
+| `src/presentation/dtos/usuarios/LoginRequest.php` | FormRequest de entrada: formato, normalización del correo y lista de campos válidos; no contar intentos ni decidir estados. |
+| `src/presentation/dtos/usuarios/UsuarioAutenticadoResource.php` | JsonResource con la proyección pública definida en §4.2. |
+| `src/presentation/dtos/usuarios/RespuestaError.php` | Proyección central de excepciones a código HTTP/JSON seguro; la registra bootstrap/app.php. No expone mensajes internos. |
 | `src/presentation/middlewares/ExigirOrigenSpa.php` | Verificar procedencia permitida/contexto de sesión; coordinar su posición con el pipeline stateful/CSRF. |
 | `src/presentation/middlewares/LimitarLogin.php` | Obtener IP real conforme a proxies confiables, pedir evaluación al Service de límites y traducir denegación mediante el manejo central. No decidir el bloqueo de cuenta. |
 | `src/presentation/middlewares/VerificarCuentaHabilitada.php` | Pedir al Service revalidación de la cuenta/actor actual; invalidar el contexto cuando perdió habilitación. |
@@ -1710,12 +1825,12 @@ El middleware `auth:sanctum` es la barrera de autenticación de me. Se integró 
 
 | Ubicación / clase | Responsabilidad |
 | --- | --- |
-| `src/business/services/AutenticacionService.php` | Verificar credenciales mediante Hash, estados/vínculos, contador y bloqueo; coordinar transacciones, apertura/revalidación/cierre de sesión y auditoría. Recibe datos permitidos y contexto seguro, nunca Request/Response. |
-| `src/business/services/ControlIntentosService.php` | Decidir límites por ámbito, ventanas y espera; reutilizable por otros flujos al diseñarlos, sin sustituir el contador de Usuario. |
-| `src/data/repositories/UsuarioRepository.php` | Búsqueda normalizada, recuperación por ID con rol/vínculos y bloqueo `FOR UPDATE`, escritura de contador/bloqueo. No decide si se permite login. |
-| `src/data/repositories/SesionRepository.php` | Adaptador concreto del guard web/contrato Session de Laravel y de consultas sobre sessions: crear/guardar/destruir sesión e invalidar varias por user_id. Ejecuta decisiones del Service; no incorpora políticas de acceso. |
-| `src/data/repositories/ControlIntentosRepository.php` | Crear de forma segura el ámbito único y recuperarlo con bloqueo; persistir ventana/cantidad sin decidir límites. |
-| `src/data/repositories/BitacoraRepository.php` | Insertar metadatos explícitos de eventos de autenticación; no admitir cuerpos completos ni permitir mutaciones. |
+| `src/business/services/usuarios/AutenticacionService.php` | Verificar credenciales mediante Hash, estados/vínculos, contador y bloqueo; coordinar transacciones, apertura/revalidación/cierre de sesión y auditoría. Recibe datos permitidos y contexto seguro, nunca Request/Response. |
+| `src/business/services/usuarios/ControlIntentosService.php` | Decidir límites por ámbito, ventanas y espera; reutilizable por otros flujos al diseñarlos, sin sustituir el contador de Usuario. |
+| `src/data/repositories/usuarios/UsuarioRepository.php` | Búsqueda normalizada, recuperación por ID con rol/vínculos y bloqueo `FOR UPDATE`, escritura de contador/bloqueo. No decide si se permite login. |
+| `src/data/repositories/usuarios/SesionRepository.php` | Adaptador concreto del guard web/contrato Session de Laravel y de consultas sobre sessions: crear/guardar/destruir sesión e invalidar varias por user_id. Ejecuta decisiones del Service; no incorpora políticas de acceso. |
+| `src/data/repositories/usuarios/ControlIntentosRepository.php` | Crear de forma segura el ámbito único y recuperarlo con bloqueo; persistir ventana/cantidad sin decidir límites. |
+| `src/data/repositories/bitacora/BitacoraRepository.php` | Insertar metadatos explícitos de eventos de autenticación; no admitir cuerpos completos ni permitir mutaciones. |
 | `src/shared/errors/AppError.php` | Excepción de negocio con código y mensaje seguro, sin Request/Response ni SQL público; traducción HTTP en el manejador central. |
 
 SesionRepository utiliza AuthManager/SessionManager nativos y resuelve el guard `web` y Store actual en cada operación. Son dependencias de infraestructura, no Request/Response dentro del Service. No se añade una interfaz vacía por Repository ni un BaseRepository. La composición concreta se resuelve por el contenedor sin bindings propios adicionales.
@@ -1888,10 +2003,10 @@ Se mantienen espacios y mayúsculas de los tres campos mediante las exclusiones 
 
 | Clase real | Responsabilidad y colaboración |
 | --- | --- |
-| `src/presentation/dtos/CambiarClaveRequest.php` | Tipo, presencia, longitudes, confirmación y compatibilidad con bcrypt. `validated()` limita la entrada utilizada. |
-| `src/presentation/controllers/ClaveController.php` | Adapta HTTP, entrega contraseñas/contexto a ClaveService y responde 204. No recibe ni selecciona otra cuenta. |
+| `src/presentation/dtos/usuarios/CambiarClaveRequest.php` | Tipo, presencia, longitudes, confirmación y compatibilidad con bcrypt. `validated()` limita la entrada utilizada. |
+| `src/presentation/controllers/usuarios/ClaveController.php` | Adapta HTTP, entrega contraseñas/contexto a ClaveService y responde 204. No recibe ni selecciona otra cuenta. |
 | `src/presentation/middlewares/LimitarCambioClave.php` | Tras auth/cuenta/sesión normal, delega límite de solicitudes al Service reutilizado. |
-| `src/business/services/ClaveService.php` | Orquesta autorización actual bajo bloqueo, verificación de contraseña actual, Hash, persistencia, revocación, renovación y auditoría atómicas. |
+| `src/business/services/usuarios/ClaveService.php` | Orquesta autorización actual bajo bloqueo, verificación de contraseña actual, Hash, persistencia, revocación, renovación y auditoría atómicas. |
 | `AutenticacionService` | `exigirSesionNormal(bloquear: true)` devuelve el actor actual tras consultar UsuarioRepository con FOR UPDATE y comprobar de nuevo cuenta/rol/vínculo/huella/cambio obligatorio. |
 | `UsuarioRepository` / `Usuario` | Reutilizan consulta bloqueada y guardado del único hash en Usuario. |
 | `SesionRepository` | `vigente()` comprueba fila del ID actual, titular y expiración; `revocarUsuario()` elimina sesiones previas e `iniciar()` guarda la renovada con huella nueva. Limpieza/invalidación retiran actor cacheado tanto de web como de Sanctum. |
@@ -1942,17 +2057,17 @@ Errores: 401/403 para sesión/rol; 419 CSRF; 422 de campos o INVITACION_INVALIDA
 
 | Clase/archivo real | Responsabilidad |
 | --- | --- |
-| `src/presentation/controllers/PersonalController.php` | Alta y reenvío autorizados; proyección administrativa explícita/segura y meta de envío, códigos 201/200. |
-| `src/presentation/controllers/InvitacionPersonalController.php` | Aceptación con datos validados y contexto; delega al Service y devuelve 204. |
-| `src/presentation/dtos/CrearPersonalRequest.php` | Normaliza correo y valida rol, nombres o ID profesional según rol; no consulta persistencia. |
-| `src/presentation/dtos/ReenviarInvitacionRequest.php` | Valida el BIGINT de la ruta dentro del rango real de PostgreSQL; ignora selector del cuerpo. |
-| `src/presentation/dtos/ClaveRequest.php` | Base abstracta reutilizable de validación de clave/confirmación; la heredan CambiarClaveRequest y AceptarInvitacionRequest. |
-| `src/presentation/dtos/AceptarInvitacionRequest.php` | Añade formato/presencia del token sin alterar reglas de primera contraseña. |
+| `src/presentation/controllers/usuarios/PersonalController.php` | Alta y reenvío autorizados; proyección administrativa explícita/segura y meta de envío, códigos 201/200. |
+| `src/presentation/controllers/usuarios/InvitacionPersonalController.php` | Aceptación con datos validados y contexto; delega al Service y devuelve 204. |
+| `src/presentation/dtos/usuarios/CrearPersonalRequest.php` | Normaliza correo y valida rol, nombres o ID profesional según rol; no consulta persistencia. |
+| `src/presentation/dtos/usuarios/ReenviarInvitacionRequest.php` | Valida el BIGINT de la ruta dentro del rango real de PostgreSQL; ignora selector del cuerpo. |
+| `src/presentation/dtos/usuarios/ClaveRequest.php` | Base abstracta reutilizable de validación de clave/confirmación; la heredan CambiarClaveRequest y AceptarInvitacionRequest. |
+| `src/presentation/dtos/usuarios/AceptarInvitacionRequest.php` | Añade formato/presencia del token sin alterar reglas de primera contraseña. |
 | `src/presentation/middlewares/LimitarInvitaciones.php` | Límites por acción administrativa o aceptación, antes de procesar los datos sensibles; deriva ámbito de sesión o token acotado. |
-| `src/business/services/InvitacionPersonalService.php` | Autorización actual bajo bloqueo, cuenta pendiente, vínculo, generación/HMAC, reemisión/vigencia, transacciones, consumo y despacho post-commit. |
-| `src/business/services/CorreoSeguridadService.php` | Adaptador de correo de seguridad mediante Laravel: solo array local/testing o Brevo HTTP (§19), validación de configuración/destino y enlace de invitación. No envía mensajes de citas o clínica. |
-| `src/data/repositories/MedicoRepository.php` | Obtiene registro profesional bloqueado y persiste vínculo; no determina permisos ni crea identidad clínica. |
-| `src/data/repositories/TokenAccesoRepository.php` | Consultas de invitaciones por hash, emisión, consumo, invalidación y recuento/ventanas; no envía correo ni decide activación. |
+| `src/business/services/usuarios/InvitacionPersonalService.php` | Autorización actual bajo bloqueo, cuenta pendiente, vínculo, generación/HMAC, reemisión/vigencia, transacciones, consumo y despacho post-commit. |
+| `src/business/services/usuarios/CorreoSeguridadService.php` | Adaptador de correo de seguridad mediante Laravel: solo array local/testing o Brevo HTTP (§19), validación de configuración/destino y enlace de invitación. No envía mensajes de citas o clínica. |
+| `src/data/repositories/medicos/MedicoRepository.php` | Obtiene registro profesional bloqueado y persiste vínculo; no determina permisos ni crea identidad clínica. |
+| `src/data/repositories/usuarios/TokenAccesoRepository.php` | Consultas de invitaciones por hash, emisión, consumo, invalidación y recuento/ventanas; no envía correo ni decide activación. |
 | `UsuarioRepository` / `Usuario` / `Rol` / `Medico` | Reutiliza consultas bloqueadas; obtiene catálogo fijo y crea la cuenta mediante campos fijados por el Service. |
 | `BitacoraRepository` / `Bitacora` | Añade objetivo y rol objetivo conjuntamente, según CHECK existente; registra creación/emisión/envío/aceptación y responsables reales, sin secreto/hash/enlace. |
 | `AutenticacionService` / `SesionRepository` | Revalida Admin bajo bloqueo y sesión persistida; aceptación revoca posibles sesiones anteriores y renueva contexto anónimo sin login. |
@@ -2005,14 +2120,14 @@ Todas requieren Admin normal, origen permitido, sesión persistida revalidada y 
 
 | Clase/archivo | Responsabilidad y colaboración |
 | --- | --- |
-| `src/presentation/controllers/CuentaController.php` | Adapta listado/detalle/estado/rol; delega datos validados al Service y responde Resource. Sin reglas ni Eloquent. |
-| `src/presentation/dtos/CuentaRequest.php` | Valida BIGINT de ruta y rechaza campos ajenos; base del detalle y solicitudes de mutación. |
-| `src/presentation/dtos/CambiarEstadoCuentaRequest.php` | Hereda CuentaRequest y acepta solo Activa/Desactivada. |
-| `src/presentation/dtos/CambiarRolCuentaRequest.php` | Hereda CuentaRequest; roles del personal y correspondencia estructural de ID profesional/declaración de identidad. |
-| `src/presentation/dtos/ListarCuentasRequest.php` | Valida filtros/paginación y normaliza filtro de correo; no consulta datos. |
-| `src/presentation/dtos/CuentaAdministrativaResource.php` | Lista permitida de respuesta, diferente para Paciente y personal; IDs como cadenas. |
-| `src/business/services/AdministracionCuentaService.php` | Revalida Admin/objetivo; aplica estados, identidad/roles/obligaciones, transacciones, sesiones y auditoría. |
-| `src/business/services/ContinuidadAdministrativaService.php` | Coordina exclusión transaccional y comprueba Admin normal en estado resultante; reutilizable por fase 6. |
+| `src/presentation/controllers/usuarios/CuentaController.php` | Adapta listado/detalle/estado/rol; delega datos validados al Service y responde Resource. Sin reglas ni Eloquent. |
+| `src/presentation/dtos/usuarios/CuentaRequest.php` | Valida BIGINT de ruta y rechaza campos ajenos; base del detalle y solicitudes de mutación. |
+| `src/presentation/dtos/usuarios/CambiarEstadoCuentaRequest.php` | Hereda CuentaRequest y acepta solo Activa/Desactivada. |
+| `src/presentation/dtos/usuarios/CambiarRolCuentaRequest.php` | Hereda CuentaRequest; roles del personal y correspondencia estructural de ID profesional/declaración de identidad. |
+| `src/presentation/dtos/usuarios/ListarCuentasRequest.php` | Valida filtros/paginación y normaliza filtro de correo; no consulta datos. |
+| `src/presentation/dtos/usuarios/CuentaAdministrativaResource.php` | Lista permitida de respuesta, diferente para Paciente y personal; IDs como cadenas. |
+| `src/business/services/usuarios/AdministracionCuentaService.php` | Revalida Admin/objetivo; aplica estados, identidad/roles/obligaciones, transacciones, sesiones y auditoría. |
+| `src/business/services/usuarios/ContinuidadAdministrativaService.php` | Coordina exclusión transaccional y comprueba Admin normal en estado resultante; reutilizable por fase 6. |
 | `UsuarioRepository` / `Usuario` / `Rol` | Consulta administrativa/paginación y persistencia; bloqueo PostgreSQL de continuidad y consulta de habilitación administrativa. |
 | `MedicoRepository` / `Medico` | Bloqueo/vínculo profesional existente; consulta de citas y consultas que impiden comprobar cierre asistencial. |
 | `SesionRepository` / infraestructura sessions | Revoca todas las filas del titular y cierra contexto propio al mutarse; garantías existentes frente a guardados tardíos. |

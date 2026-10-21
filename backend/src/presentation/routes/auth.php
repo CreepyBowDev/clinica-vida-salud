@@ -1,10 +1,10 @@
 <?php
 
-use Clinica\presentation\controllers\AutenticacionController;
-use Clinica\presentation\controllers\ClaveController;
-use Clinica\presentation\controllers\CredencialTemporalController;
-use Clinica\presentation\controllers\RecuperacionClaveController;
-use Clinica\presentation\controllers\RegistroPacienteController;
+use Clinica\presentation\controllers\usuarios\AutenticacionController;
+use Clinica\presentation\controllers\usuarios\ClaveController;
+use Clinica\presentation\controllers\usuarios\CredencialTemporalController;
+use Clinica\presentation\controllers\usuarios\RecuperacionClaveController;
+use Clinica\presentation\controllers\usuarios\RegistroPacienteController;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\ExigirSesionRestringida;
 use Clinica\presentation\middlewares\LimitarCambioClave;

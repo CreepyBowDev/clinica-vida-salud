@@ -15,13 +15,15 @@ class Medico extends Model
 
     public $timestamps = false;
 
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
+
     protected $fillable = ['registro_profesional', 'nombres', 'apellidos', 'telefono', 'correo_contacto'];
 
     protected $attributes = ['activo' => true];
 
     protected function casts(): array
     {
-        return ['activo' => 'boolean'];
+        return ['activo' => 'boolean', 'actualizado_en' => 'immutable_datetime'];
     }
 
     public function usuario(): BelongsTo
@@ -37,7 +39,7 @@ class Medico extends Model
     public function especialidades(): BelongsToMany
     {
         return $this->belongsToMany(Especialidad::class, 'medico_especialidad', 'id_medico', 'id_especialidad', 'id_medico', 'id_especialidad')
-            ->using(MedicoEspecialidad::class);
+            ->using(MedicoEspecialidad::class)->withPivot('habilitada');
     }
 
     public function horarios(): HasMany

@@ -2,7 +2,7 @@
 
 namespace Clinica\presentation\middlewares;
 
-use Clinica\business\services\AutenticacionService;
+use Clinica\business\services\usuarios\AutenticacionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

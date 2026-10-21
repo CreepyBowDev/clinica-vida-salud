@@ -1,7 +1,7 @@
 <?php
 
-use Clinica\presentation\controllers\CredencialTemporalController;
-use Clinica\presentation\controllers\CuentaController;
+use Clinica\presentation\controllers\usuarios\CredencialTemporalController;
+use Clinica\presentation\controllers\usuarios\CuentaController;
 use Clinica\presentation\middlewares\ExigirRol;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\LimitarCredencialTemporal;

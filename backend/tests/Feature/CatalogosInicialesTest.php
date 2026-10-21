@@ -27,13 +27,14 @@ class CatalogosInicialesTest extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertSuccessful();
     }
 
-    public function test_migrations_create_only_the_dictionary_columns_and_named_primary_keys(): void
+    public function test_migrations_create_dictionary_columns_with_cu09_extension_and_named_primary_keys(): void
     {
         $columns = [
             'roles' => ['id_rol', 'nombre'],
             'controles_intentos' => ['id_control', 'clave_ambito_hash', 'inicio_ventana', 'cantidad_intentos', 'bloqueado_hasta', 'actualizado_en'],
             'consultorios' => ['id_consultorio', 'codigo_consultorio', 'nombre', 'activo'],
-            'especialidades' => ['id_especialidad', 'nombre', 'descripcion', 'activa'],
+            // CU-09 incorpora versionado mediante la migración aditiva 000030.
+            'especialidades' => ['id_especialidad', 'nombre', 'descripcion', 'activa', 'actualizado_en'],
             'configuracion_clinica' => ['id_configuracion', 'nombre_sede', 'direccion_sede', 'zona_horaria', 'duracion_turno_minutos', 'actualizado_en'],
         ];
 
@@ -66,6 +67,7 @@ class CatalogosInicialesTest extends TestCase
         $this->assertTrue(Consultorio::query()->firstOrFail()->activo);
         $this->assertTrue(Especialidad::query()->firstOrFail()->activa);
         $this->assertNull(Especialidad::query()->firstOrFail()->descripcion);
+        $this->assertInstanceOf(CarbonImmutable::class, Especialidad::query()->firstOrFail()->actualizado_en);
 
         $config = ConfiguracionClinica::query()->firstOrFail();
         $this->assertSame(1, $config->getKey());

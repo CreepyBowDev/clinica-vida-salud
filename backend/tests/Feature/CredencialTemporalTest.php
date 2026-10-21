@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
-use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Clinica\shared\utils\CredencialTemporal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;

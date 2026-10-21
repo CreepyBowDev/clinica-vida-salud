@@ -2,7 +2,7 @@
 
 namespace Clinica\presentation\middlewares;
 
-use Clinica\business\services\ControlIntentosService;
+use Clinica\business\services\usuarios\ControlIntentosService;
 use Clinica\shared\utils\RegistroPacienteContexto;
 use Closure;
 use Illuminate\Http\Request;

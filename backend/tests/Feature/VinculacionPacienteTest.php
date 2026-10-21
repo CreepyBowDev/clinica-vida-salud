@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
-use Clinica\business\services\CorreoSeguridadService;
+use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Clinica\data\models\Paciente;
 use Clinica\data\models\Usuario;
-use Clinica\data\repositories\BitacoraRepository;
-use Clinica\data\repositories\UsuarioRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
+use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\utils\RegistroPacienteContexto;
 use Clinica\shared\utils\VerificacionPacienteMail;
 use Illuminate\Support\Facades\DB;

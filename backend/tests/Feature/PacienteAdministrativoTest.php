@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Paciente;
-use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Illuminate\Support\Facades\DB;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;

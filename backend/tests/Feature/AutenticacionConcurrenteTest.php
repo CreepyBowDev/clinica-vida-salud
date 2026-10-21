@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
-use Clinica\data\repositories\RegistroPacienteRepository;
-use Clinica\data\repositories\SesionRepository;
-use Clinica\data\repositories\UsuarioRepository;
+use Clinica\data\repositories\usuarios\RegistroPacienteRepository;
+use Clinica\data\repositories\usuarios\SesionRepository;
+use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\utils\CambioCorreoMail;
 use Clinica\shared\utils\CredencialTemporal;
 use Clinica\shared\utils\VerificacionPacienteMail;
@@ -16,11 +16,12 @@ use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Fixtures\AutenticacionFixtures;
+use Tests\Fixtures\CitasFixtures;
 use Tests\TestCase;
 
 class AutenticacionConcurrenteTest extends TestCase
 {
-    use AutenticacionFixtures;
+    use AutenticacionFixtures, CitasFixtures;
 
     private string $schema;
 
@@ -35,11 +36,15 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->previousPath = DB::selectOne('SHOW search_path')->search_path;
         DB::statement('CREATE SCHEMA "'.$this->schema.'"');
         DB::select('SELECT set_config(?, ?, false)', ['search_path', $this->schema.', public, pg_temp']);
-        foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000011_create_contactos_emergencia', '000012_create_preferencias_paciente', '000013_create_codigos_activacion_paciente', '000014_create_registros_paciente_pendientes', '000015_create_verificaciones_correo', '000016_create_medicos'] as $name) {
+        foreach (['000001_create_roles', '000002_create_controles_intentos', '000003_create_consultorios', '000004_create_especialidades', '000006_create_usuarios', '000007_create_sessions', '000008_create_tokens_acceso', '000009_create_bitacora', '000010_create_pacientes', '000011_create_contactos_emergencia', '000012_create_preferencias_paciente', '000013_create_codigos_activacion_paciente', '000014_create_registros_paciente_pendientes', '000015_create_verificaciones_correo', '000016_create_medicos'] as $name) {
             $migration = require base_path('src/data/database/migrations/2026_10_19_'.$name.'_table.php');
             $migration->up();
         }
         (require base_path('src/data/database/migrations/2026_10_19_000029_allow_temporary_credentials_in_tokens_acceso.php'))->up();
+        (require base_path('src/data/database/migrations/2026_10_21_000030_add_actualizado_en_to_especialidades.php'))->up();
+        (require base_path('src/data/database/migrations/2026_10_19_000017_create_medico_especialidad_table.php'))->up();
+        (require base_path('src/data/database/migrations/2026_10_21_000031_add_actualizado_en_to_medicos.php'))->up();
+        (require base_path('src/data/database/migrations/2026_10_21_000032_add_habilitada_to_medico_especialidad.php'))->up();
         // La migración productiva fija public; la prueba usa exclusivamente su esquema efímero.
         DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$this->schema.'", public, pg_temp');
         config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
@@ -139,6 +144,337 @@ class AutenticacionConcurrenteTest extends TestCase
             usleep(10000);
         } while (microtime(true) < $deadline);
         $this->fail('La autenticación no esperó el bloqueo transaccional de Usuario.');
+    }
+
+    public static function conflictosNombreEspecialidad(): array
+    {
+        return [['crear'], ['editar']];
+    }
+
+    public function test_doctor_two_drafts_commit_only_one_edit_with_distinct_administrators(): void
+    {
+        $peticiones = [];
+        $idEspecialidad = DB::table('especialidades')->insertGetId(['nombre' => 'Especialidad Ficticia'], 'id_especialidad');
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            if ($i === 0) {
+                $f = $this->navegador($cookies, 'POST', '/api/medicos', ['registro_profesional' => 'REG-FICTICIO',
+                    'nombres' => 'Original', 'apellidos' => 'Ficticio', 'telefono' => '70000000',
+                    'correo_contacto' => 'contacto@example.test', 'especialidades' => [(string) $idEspecialidad]])->assertCreated()->json('data');
+            }
+            $peticiones[] = ['cookies' => $cookies, 'id_objetivo' => $f['id_medico'],
+                'payload' => ['actualizado_en_original' => $f['actualizado_en'], 'nombres' => 'Edicion '.$i]];
+        }
+        DB::beginTransaction();
+        DB::table('medicos')->where('id_medico', $f['id_medico'])->lockForUpdate()->first();
+        $workers = [];
+        foreach ($peticiones as $datos) {
+            $w = $this->worker('', '', mode: 'medico-editar', extra: $datos);
+            $this->signal($w, 'INICIAR');
+            $this->blocked($w);
+            $workers[] = $w;
+        }
+        DB::commit();
+        $statuses = array_map(fn ($w) => json_decode($this->line($w), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([200, 409], $statuses);
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'MEDICO_ACTUALIZADO')->count());
+        $this->assertContains(DB::table('medicos')->where('id_medico', $f['id_medico'])->value('nombres'), ['Edicion 0', 'Edicion 1']);
+    }
+
+    public static function ordenEstadoRol(): array
+    {
+        return [[true], [false]];
+    }
+
+    public static function ordenRetiroReserva(): array
+    {
+        return [[true, true], [true, false], [false, true], [false, false]];
+    }
+
+    #[DataProvider('ordenRetiroReserva')]
+    public function test_doctor_specialty_withdrawal_and_reservation_protocol_serialize_in_both_orders_with_rollback(bool $reservaPrimero, bool $confirmar): void
+    {
+        (require base_path('src/data/database/migrations/2026_10_19_000019_create_citas_table.php'))->up();
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $r = $this->citaResources();
+        $otra = DB::table('especialidades')->insertGetId(['nombre' => 'Otra Ficticia'], 'id_especialidad');
+        DB::table('medico_especialidad')->insert(['id_medico' => $r['doctors'][0], 'id_especialidad' => $otra]);
+        $f = $this->navegador($cookies, 'GET', '/api/medicos/'.$r['doctors'][0])->assertOk()->json('data');
+        $payload = ['actualizado_en_original' => $f['actualizado_en'], 'especialidades' => [(string) $otra]];
+        DB::beginTransaction();
+        DB::table('medicos')->where('id_medico', $f['id_medico'])->lockForUpdate()->first();
+        if ($reservaPrimero) {
+            // El escritor de citas toma Médico → Especialidad → par y revalida antes de escribir.
+            DB::table('especialidades')->where('id_especialidad', $r['specialty'])->lockForUpdate()->first();
+            $par = DB::table('medico_especialidad')->where('id_medico', $f['id_medico'])->where('id_especialidad', $r['specialty'])->lockForUpdate()->first();
+            $this->assertTrue($par->habilitada);
+            $w = $this->worker('', '', mode: 'medico-especialidades', extra: ['cookies' => $cookies, 'id_objetivo' => $f['id_medico'], 'payload' => $payload]);
+        } else {
+            $w = $this->worker('', '', mode: 'medico-reserva-protocolo', extra: ['cookies' => $cookies, 'fila_cita' => $this->citaRow($r)]);
+        }
+        $this->signal($w, 'INICIAR');
+        $this->blocked($w);
+        if ($reservaPrimero) {
+            DB::table('citas')->insert($this->citaRow($r));
+        } else {
+            $this->navegador($cookies, 'PUT', '/api/medicos/'.$f['id_medico'].'/especialidades', $payload)->assertOk();
+        }
+        $confirmar ? DB::commit() : DB::rollBack();
+        $esperado = $confirmar ? 409 : ($reservaPrimero ? 200 : 201);
+        $this->assertSame($esperado, json_decode($this->line($w), true)['status']);
+        $habilitada = DB::table('medico_especialidad')->where('id_medico', $f['id_medico'])->where('id_especialidad', $r['specialty'])->value('habilitada');
+        $this->assertSame($reservaPrimero === $confirmar, $habilitada);
+        $this->assertSame($habilitada ? 1 : 0, DB::table('citas')->count());
+        $this->assertSame($habilitada ? 0 : 1, DB::table('bitacora')->where('tipo_evento', 'MEDICO_ESPECIALIDADES_CAMBIADAS')->count());
+        $this->assertSame(3, DB::table('medico_especialidad')->count());
+    }
+
+    public function test_doctor_two_specialty_replacements_cannot_remove_each_others_last_enabled_pair(): void
+    {
+        (require base_path('src/data/database/migrations/2026_10_19_000019_create_citas_table.php'))->up();
+        $r = $this->citaResources();
+        $otra = DB::table('especialidades')->insertGetId(['nombre' => 'Otra Ficticia'], 'id_especialidad');
+        DB::table('medico_especialidad')->insert(['id_medico' => $r['doctors'][0], 'id_especialidad' => $otra]);
+        $peticiones = [];
+        foreach ([$r['specialty'], $otra] as $idEspecialidad) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $f = $this->navegador($cookies, 'GET', '/api/medicos/'.$r['doctors'][0])->assertOk()->json('data');
+            $peticiones[] = ['cookies' => $cookies, 'id_objetivo' => $f['id_medico'],
+                'payload' => ['actualizado_en_original' => $f['actualizado_en'], 'especialidades' => [(string) $idEspecialidad]]];
+        }
+        DB::beginTransaction();
+        DB::table('medicos')->where('id_medico', $f['id_medico'])->lockForUpdate()->first();
+        $workers = [];
+        foreach ($peticiones as $datos) {
+            $w = $this->worker('', '', mode: 'medico-especialidades', extra: $datos);
+            $this->signal($w, 'INICIAR');
+            $this->blocked($w);
+            $workers[] = $w;
+        }
+        DB::commit();
+        $statuses = array_map(fn ($w) => json_decode($this->line($w), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([200, 409], $statuses);
+        $this->assertSame(1, DB::table('medico_especialidad')->where('id_medico', $f['id_medico'])->where('habilitada', true)->count());
+        $this->assertSame(2, DB::table('medico_especialidad')->where('id_medico', $f['id_medico'])->count());
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'MEDICO_ESPECIALIDADES_CAMBIADAS')->count());
+    }
+
+    #[DataProvider('ordenEstadoRol')]
+    public function test_doctor_state_and_cu03_role_exit_cannot_leave_active_former_doctor(bool $rolPrimero): void
+    {
+        // Evita consultar tablas públicas ajenas al escenario al comprobar obligaciones CU-03.
+        (require base_path('src/data/database/migrations/2026_10_19_000019_create_citas_table.php'))->up();
+        (require base_path('src/data/database/migrations/2026_10_19_000022_create_consultas_medicas_table.php'))->up();
+        $this->usuarioAuth('Recepcionista');
+        $usuario = $this->usuarioAuth('Médico');
+        $id = (string) $usuario->medico->getKey();
+        $administradores = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $administradores[] = $cookies;
+        }
+        $f = $this->navegador($administradores[0], 'GET', '/api/medicos/'.$id)->assertOk()->json('data');
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
+        $w = $this->worker('', '', mode: $rolPrimero ? 'medico-estado' : 'cuenta-rol', extra: [
+            'cookies' => $administradores[1], 'id_objetivo' => $rolPrimero ? $id : (string) $usuario->getKey(),
+            'payload' => $rolPrimero ? ['activo' => true, 'actualizado_en_original' => $f['actualizado_en']] : ['rol' => 'Recepcionista']]);
+        $this->signal($w, 'INICIAR');
+        $this->blocked($w);
+        if ($rolPrimero) {
+            $this->navegador($administradores[0], 'PATCH', '/api/usuarios/'.$usuario->getKey().'/rol', ['rol' => 'Recepcionista'])->assertOk();
+        } else {
+            $this->navegador($administradores[0], 'PATCH', '/api/medicos/'.$id.'/estado',
+                ['activo' => true, 'actualizado_en_original' => $f['actualizado_en']])->assertOk();
+        }
+        DB::commit();
+        $this->assertSame(409, json_decode($this->line($w), true)['status']);
+        $this->assertSame(! $rolPrimero, $usuario->fresh()->medico->activo);
+        $this->assertSame($rolPrimero ? 'Recepcionista' : 'Médico', $usuario->fresh()->rol->nombre);
+        $this->assertSame($id, (string) $usuario->fresh()->medico->getKey());
+    }
+
+    public function test_doctor_state_and_data_drafts_share_one_version_under_concurrency(): void
+    {
+        $usuario = $this->usuarioAuth('Médico');
+        $id = (string) $usuario->medico->getKey();
+        $workers = [];
+        $peticiones = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $f = $this->navegador($cookies, 'GET', '/api/medicos/'.$id)->assertOk()->json('data');
+            $peticiones[] = ['cookies' => $cookies, 'id_objetivo' => $id,
+                'payload' => ['actualizado_en_original' => $f['actualizado_en'], ...($i === 0 ? ['activo' => true] : ['nombres' => 'Edicion Ficticia'])]];
+        }
+        DB::beginTransaction();
+        DB::table('medicos')->where('id_medico', $id)->lockForUpdate()->first();
+        foreach ($peticiones as $i => $datos) {
+            $w = $this->worker('', '', mode: $i === 0 ? 'medico-estado' : 'medico-editar', extra: $datos);
+            $this->signal($w, 'INICIAR');
+            $this->blocked($w);
+            $workers[] = $w;
+        }
+        DB::commit();
+        $statuses = array_map(fn ($w) => json_decode($this->line($w), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([200, 409], $statuses);
+        $this->assertSame(1, DB::table('bitacora')->whereIn('tipo_evento', ['MEDICO_ACTUALIZADO', 'MEDICO_ESTADO_CAMBIADO'])->count());
+        $medico = $usuario->fresh()->medico;
+        $this->assertTrue(($medico->activo && $medico->nombres === 'Medico') || (! $medico->activo && $medico->nombres === 'Edicion Ficticia'));
+    }
+
+    public function test_doctor_reactivation_waits_for_account_deactivation_without_restoring_access(): void
+    {
+        $usuario = $this->usuarioAuth('Médico');
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $f = $this->navegador($cookies, 'GET', '/api/medicos/'.$usuario->medico->getKey())->assertOk()->json('data');
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
+        $w = $this->worker('', '', mode: 'medico-estado', extra: ['cookies' => $cookies, 'id_objetivo' => $f['id_medico'],
+            'payload' => ['activo' => true, 'actualizado_en_original' => $f['actualizado_en']]]);
+        $this->signal($w, 'INICIAR');
+        $this->blocked($w);
+        $this->navegador($cookies, 'PATCH', '/api/usuarios/'.$usuario->getKey().'/estado', ['estado_cuenta' => 'Desactivada'])->assertOk();
+        DB::commit();
+        $this->assertSame(200, json_decode($this->line($w), true)['status']);
+        $this->assertTrue($usuario->fresh()->medico->activo);
+        $this->assertSame('Desactivada', $usuario->fresh()->estado_cuenta);
+        $this->assertSame('Médico', $usuario->fresh()->rol->nombre);
+    }
+
+    public function test_doctor_creation_rechecks_specialty_after_waiting_without_partial_rows(): void
+    {
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $id = DB::table('especialidades')->insertGetId(['nombre' => 'Especialidad Ficticia'], 'id_especialidad');
+        DB::beginTransaction();
+        DB::table('especialidades')->where('id_especialidad', $id)->lockForUpdate()->first();
+        $w = $this->worker('', '', mode: 'medico-crear', extra: ['cookies' => $cookies, 'payload' => [
+            'registro_profesional' => 'REG-FICTICIO', 'nombres' => 'Persona', 'apellidos' => 'Ficticia', 'telefono' => '70000000',
+            'correo_contacto' => 'contacto@example.test', 'especialidades' => [(string) $id]]]);
+        $this->signal($w, 'INICIAR');
+        $this->blocked($w);
+        // Simula pérdida concurrente de la relación por una escritura externa; la API no ofrece DELETE.
+        DB::table('especialidades')->where('id_especialidad', $id)->delete();
+        DB::commit();
+        $this->assertSame(422, json_decode($this->line($w), true)['status']);
+        $this->assertSame(0, DB::table('medicos')->count());
+        $this->assertSame(0, DB::table('medico_especialidad')->count());
+        $this->assertSame(0, DB::table('bitacora')->where('tipo_evento', 'MEDICO_CREADO')->count());
+    }
+
+    public function test_doctor_creation_revalidates_revoked_administrator_after_coordination_wait(): void
+    {
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
+        $w = $this->worker('', '', mode: 'medico-crear', extra: ['cookies' => $cookies, 'payload' => [
+            'registro_profesional' => 'REG-FICTICIO', 'nombres' => 'Persona', 'apellidos' => 'Ficticia', 'telefono' => '70000000',
+            'correo_contacto' => 'contacto@example.test', 'especialidades' => ['1']]]);
+        $this->signal($w, 'INICIAR');
+        $this->blocked($w);
+        DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']);
+        DB::commit();
+        $this->assertSame(401, json_decode($this->line($w), true)['status']);
+        $this->assertSame(0, DB::table('medicos')->count());
+    }
+
+    #[DataProvider('conflictosNombreEspecialidad')]
+    public function test_specialty_name_race_between_distinct_administrators_commits_only_one(string $operacion): void
+    {
+        $peticiones = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $datos = ['nombre' => $i === 0 ? 'Objetivo Ficticio' : 'OBJETIVO FICTICIO'];
+            if ($operacion === 'editar') {
+                $r = $this->navegador($cookies, 'POST', '/api/especialidades', ['nombre' => 'Original '.$i])->assertCreated()->json('data');
+                $datos['actualizado_en_original'] = $r['actualizado_en'];
+            }
+            $peticiones[] = ['cookies' => $cookies, 'payload' => $datos, 'id_objetivo' => $r['id_especialidad'] ?? null];
+        }
+        // Barrera en el índice de nombre, no en el actor: los dos procesos usan Administradores distintos.
+        DB::beginTransaction();
+        DB::table('especialidades')->insert(['nombre' => 'objetivo ficticio']);
+        $workers = [];
+        foreach ($peticiones as $datos) {
+            $w = $this->worker('', '', mode: 'especialidad-'.$operacion, extra: $datos);
+            $this->signal($w, 'INICIAR');
+            $this->blocked($w);
+            $workers[] = $w;
+        }
+        DB::rollBack();
+        $statuses = array_map(fn ($w) => json_decode($this->line($w), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([$operacion === 'crear' ? 201 : 200, 409], $statuses);
+        $this->assertSame(1, DB::table('especialidades')->whereRaw('lower(btrim(nombre)) = ?', ['objetivo ficticio'])->count());
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', $operacion === 'crear' ? 'ESPECIALIDAD_CREADA' : 'ESPECIALIDAD_ACTUALIZADA')->count());
+    }
+
+    public function test_specialty_data_and_state_race_rejects_stale_writer(): void
+    {
+        $peticiones = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            if ($i === 0) {
+                $f = $this->navegador($cookies, 'POST', '/api/especialidades', ['nombre' => 'Concurrente Ficticia'])->assertCreated()->json('data');
+            }
+            $peticiones[] = ['cookies' => $cookies, 'id_objetivo' => $f['id_especialidad'],
+                'payload' => ['actualizado_en_original' => $f['actualizado_en'], ...($i === 0 ? ['descripcion' => 'Editada'] : ['activa' => false])]];
+        }
+        DB::beginTransaction();
+        DB::table('especialidades')->where('id_especialidad', $f['id_especialidad'])->lockForUpdate()->first();
+        $workers = [];
+        foreach ($peticiones as $i => $datos) {
+            $w = $this->worker('', '', mode: $i === 0 ? 'especialidad-editar' : 'especialidad-estado', extra: $datos);
+            $this->signal($w, 'INICIAR');
+            $this->blocked($w);
+            $workers[] = $w;
+        }
+        DB::commit();
+        $statuses = array_map(fn ($w) => json_decode($this->line($w), true)['status'], $workers);
+        sort($statuses);
+        $this->assertSame([200, 409], $statuses);
+        $this->assertSame(1, DB::table('bitacora')->whereIn('tipo_evento', ['ESPECIALIDAD_ACTUALIZADA', 'ESPECIALIDAD_ESTADO_CAMBIADO'])->count());
+        $row = DB::table('especialidades')->where('id_especialidad', $f['id_especialidad'])->first();
+        $this->assertTrue(($row->activa && $row->descripcion === 'Editada') || (! $row->activa && $row->descripcion === null));
+    }
+
+    public function test_specialty_write_revalidates_administrator_revoked_while_waiting(): void
+    {
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->porId($actor->getKey(), bloquear: true);
+        $w = $this->worker('', '', mode: 'especialidad-crear', extra: ['cookies' => $cookies, 'payload' => ['nombre' => 'No autorizada']]);
+        $this->signal($w, 'INICIAR');
+        $this->blocked($w);
+        DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']);
+        DB::commit();
+        $this->assertSame(401, json_decode($this->line($w), true)['status']);
+        $this->assertSame(0, DB::table('especialidades')->count());
+        $this->assertSame(0, DB::table('bitacora')->where('tipo_evento', 'ESPECIALIDAD_CREADA')->count());
     }
 
     public function test_pacientes_parallel_administrative_creations_commit_only_one_identity(): void

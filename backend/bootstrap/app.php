@@ -1,6 +1,6 @@
 <?php
 
-use Clinica\presentation\dtos\RespuestaError;
+use Clinica\presentation\dtos\usuarios\RespuestaError;
 use Clinica\presentation\middlewares\ExigirOrigenSpa;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;

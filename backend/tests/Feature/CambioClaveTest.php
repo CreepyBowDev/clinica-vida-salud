@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use Clinica\data\repositories\BitacoraRepository;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Testing\TestResponse;

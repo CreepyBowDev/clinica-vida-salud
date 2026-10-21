@@ -75,10 +75,14 @@ class CuentasPruebaSeederTest extends TestCase
             'password_hash' => Hash::make('Otra clave de prueba 456'), 'intentos_fallidos' => 2,
         ]);
         DB::table('pacientes')->where('codigo_paciente', 'PRUEBA-P01')->update(['telefono' => '71111111', 'activo' => false]);
+        $par = DB::table('medico_especialidad')->orderBy('id_medico')->first();
+        DB::table('medico_especialidad')->where('id_medico', $par->id_medico)->where('id_especialidad', $par->id_especialidad)->update(['habilitada' => false]);
+        $pares = DB::table('medico_especialidad')->orderBy('id_medico')->orderBy('id_especialidad')->get()->toJson();
         $before = $this->snapshot();
         config(['seeders.demo_password' => 'Nueva clave no debe sobrescribir 789']);
         $this->seed(CuentasPruebaSeeder::class);
         $this->assertSame($before, $this->snapshot());
+        $this->assertSame($pares, DB::table('medico_especialidad')->orderBy('id_medico')->orderBy('id_especialidad')->get()->toJson());
 
         $extra = DB::table('especialidades')->insertGetId(['nombre' => 'Nueva especialidad ficticia'], 'id_especialidad');
         $this->seed(CuentasPruebaSeeder::class);

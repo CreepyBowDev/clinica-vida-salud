@@ -1,7 +1,7 @@
 <?php
 
 // Router de servidor loopback exclusivo de pruebas: no se registra en public/ ni Artisan.
-use Clinica\business\services\CorreoSeguridadService;
+use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

@@ -2,8 +2,9 @@
 
 // Proceso auxiliar exclusivo de pruebas; nunca se registra como ruta o comando de la aplicación.
 use Carbon\CarbonImmutable;
-use Clinica\business\services\CorreoSeguridadService;
+use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\DB;
@@ -72,7 +73,7 @@ try {
         throw new RuntimeException('Falta barrera de inicio.');
     }
     $cookies = $data['cookies'] ?? [];
-    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-') || $data['mode'] === 'invitacion-aceptar') {
+    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-') || str_starts_with($data['mode'], 'especialidad-') || str_starts_with($data['mode'], 'medico-') || $data['mode'] === 'invitacion-aceptar') {
         // Ya se validó la identidad PostgreSQL aislada; ejercitar ahora CSRF real.
         $app['env'] = 'local';
     }
@@ -95,7 +96,31 @@ try {
 
         return $response;
     };
+    // Simula únicamente el protocolo de escritura que deberán compartir CU-14/CU-15.
+    // No registra una ruta ni implementa una reserva funcional de la aplicación.
+    $reservaMedico = function () use ($data) {
+        return DB::transaction(function () use ($data) {
+            $fila = $data['fila_cita'];
+            $medico = DB::table('medicos')->where('id_medico', $fila['id_medico'])->lockForUpdate()->first();
+            $especialidad = DB::table('especialidades')->where('id_especialidad', $fila['id_especialidad'])->lockForUpdate()->first();
+            $par = DB::table('medico_especialidad')->where('id_medico', $fila['id_medico'])->where('id_especialidad', $fila['id_especialidad'])->lockForUpdate()->first();
+            if (! $medico?->activo || ! $especialidad?->activa || ! $par?->habilitada) {
+                return new JsonResponse([], 409);
+            }
+            DB::table('citas')->insert($fila);
+
+            return new JsonResponse([], 201);
+        });
+    };
     $response = match (true) {
+        $data['mode'] === 'medico-reserva-protocolo' => $reservaMedico(),
+        $data['mode'] === 'medico-crear' => $send('POST', '/api/medicos', $data['payload']),
+        $data['mode'] === 'medico-editar' => $send('PATCH', '/api/medicos/'.$data['id_objetivo'], $data['payload']),
+        $data['mode'] === 'medico-estado' => $send('PATCH', '/api/medicos/'.$data['id_objetivo'].'/estado', $data['payload']),
+        $data['mode'] === 'medico-especialidades' => $send('PUT', '/api/medicos/'.$data['id_objetivo'].'/especialidades', $data['payload']),
+        $data['mode'] === 'especialidad-crear' => $send('POST', '/api/especialidades', $data['payload']),
+        $data['mode'] === 'especialidad-editar' => $send('PATCH', '/api/especialidades/'.$data['id_objetivo'], $data['payload']),
+        $data['mode'] === 'especialidad-estado' => $send('PATCH', '/api/especialidades/'.$data['id_objetivo'].'/estado', $data['payload']),
         in_array($data['mode'], ['paciente-correo', 'paciente-correo-pausa'], true) => $send('POST', '/api/mi-perfil/correo', $data['payload']),
         $data['mode'] === 'paciente-correo-verificar' => $send('POST', '/api/mi-perfil/correo/verificar', ['codigo' => $data['codigo']]),
         $data['mode'] === 'paciente-crear' => $send('POST', '/api/pacientes', $data['payload']),

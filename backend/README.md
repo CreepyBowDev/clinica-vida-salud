@@ -1,5 +1,11 @@
 # Backend — Clínica Vida Salud
 
+## Requisito de PHP para despliegue
+
+El manifiesto y el lock requieren **PHP `^8.4.1`** (8.4.1 o superior dentro de PHP 8). Las dependencias Symfony bloqueadas necesitan al menos esa versión; PHP 8.3 no es compatible con el lock actual. Configurar el constructor de Railway para respetar este requisito y comprobar la versión seleccionada en el registro del nuevo build.
+
+Corrección del 2026-10-21: sincronizados `composer.json` y `composer.lock` sin cambiar versiones de paquetes. `composer validate --strict` y `composer check-platform-reqs --lock` correctos localmente con PHP 8.5.11. La ejecución del nuevo build en Railway queda pendiente; no usar `--ignore-platform-reqs` para eludir el requisito.
+
 ## Estado vigente de integración
 
 Pacientes y perfil: backend fases 1–6 y plan frontend fases 1–6 completados en su alcance administrativo/perfil. Integración local real de Chrome/React/Laravel/PostgreSQL verificada con datos ficticios y correo capturado, según `../frontend/README.md` y contexto §17.47. Regresión focalizada de seis clases del módulo: **134 pruebas/1272 aserciones correctas**; cliente **377 pruebas/22 archivos**, build correcto con aviso conocido de bundle ~503 kB. Consulta de citas anteriores depende de CU-21; no se declara RF02 íntegro. Entrega Brevo real/producción y diagrama global expresamente aplazado conservan sus pendientes. La cronología siguiente registra el avance histórico de cada fase.

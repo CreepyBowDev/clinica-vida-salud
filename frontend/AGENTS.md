@@ -174,6 +174,27 @@ src/features/citas/
 - No mover toda la lógica a una sola página ni crear una abstracción genérica para un único uso.
 - Conservar convenciones de nombres ya utilizadas en el repositorio.
 
+### 5.1. Pruebas dentro de cada feature
+
+**Decisión aprobada el 2026-10-21:** todos los archivos de pruebas de una feature se ubican en `src/features/<modulo>/tests/`, separados de los archivos funcionales y organizados por la responsabilidad que verifican:
+
+```text
+src/features/<modulo>/tests/
+├── pages/
+├── services/
+├── context/
+├── components/
+├── hooks/
+└── utils/
+```
+
+- Crear únicamente las subcarpetas que contengan pruebas; no anticipar carpetas vacías.
+- Mantener los nombres `*.test.jsx` para pruebas con JSX y `*.test.js` para las demás, conforme a la convención existente.
+- No colocar pruebas junto al código funcional en `pages/`, `services/`, `context/`, `components/`, `hooks/` o `utils/` de la feature; todas pertenecen a su `tests/` correspondiente.
+- Al trasladar pruebas, actualizar imports, rutas de mocks e importaciones como `vi.importActual`, incluidas referencias a otras features, conservando los casos y sus aserciones.
+- `src/test/setup.js` conserva la configuración compartida de Vitest. Las pruebas ajenas a features (por ejemplo, layouts) mantienen su organización existente.
+- Verificar que Vitest descubre los archivos trasladados y ejecutar las pruebas afectadas; al cerrar una reorganización global, ejecutar la suite completa y el build.
+
 ---
 
 ## 6. Pages y componentes

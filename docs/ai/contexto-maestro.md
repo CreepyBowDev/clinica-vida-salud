@@ -1227,6 +1227,14 @@ README, CU-10, análisis incremental y DER §§3.15/6.18 sincronizados; diagrama
 
 **Cierre:** plan administrativo frontend CU-09/CU-10 completado localmente; README/análisis/casos sincronizados. Auxiliares/evidencias `med5*` fuera de Git; esquema/secretos temporales retirados y servidores detenidos al finalizar. DER sin cambios nuevos; diagrama global expresamente aplazado. Consultorios CU-11/horarios CU-12/agenda CU-20, Railway/HTTPS y entrega Brevo real conservan sus pendientes. Actualización PHP aplazada por usuario. No commit/push/despliegue.
 
+### 17.66. Reorganización de pruebas del frontend por feature (2026-10-21)
+
+**Decisión técnica aprobada e implementada en cuatro fases:** todos los archivos de pruebas de una feature se separan del código funcional en `src/features/<modulo>/tests/<responsabilidad>/`. Incluye pages/services/context/utils y, cuando existan pruebas, components/hooks; no se crean subcarpetas vacías. Convención obligatoria en `frontend/AGENTS.md` §5.1. Se conserva Feature-Based + Component-Based, JavaScript/JSX y nombres de archivos.
+
+**Resultado:** 29 archivos trasladados: Auth 11, Usuarios 3, Pacientes 8, Médicos 5 y Especialidades 2. Imports, mocks e importaciones `vi.importActual` actualizados, incluidas referencias entre features. Comparación con Git confirma que solo cambian rutas relativas de las pruebas, conservando casos/aserciones; ninguna prueba de feature queda fuera de su `tests/`. `src/test/setup.js`, prueba de layouts y configuración Vitest conservan ubicación/configuración. README actualizado con inventario, comandos y referencia trasladada de AuthIntegration; revisión documental no encuentra otras rutas antiguas de pruebas.
+
+**Verificación de cierre:** `pnpm test` **521 pruebas/30 archivos correctos**, build correcto con aviso conocido del bundle de 556,88 kB y `git diff --check` correcto. No cambia comportamiento, API, clases funcionales ni persistencia; no se cierra otro CU ni se modifica análisis/DER/diagrama global, cuyo aplazamiento se conserva. Sin commit/push/despliegue.
+
 ## 18. Protocolo de implementación y cierre de tareas
 
 1. Inspeccionar repositorio, `AGENTS.md` y documentación aplicable antes de escribir código.

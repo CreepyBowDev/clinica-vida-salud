@@ -1,5 +1,47 @@
 # Frontend — Clínica Vida Salud
 
+## Organización de pruebas — fase 4 completada (2026-10-21)
+
+**Reorganización de las cinco features terminada.** Cada prueba pertenece a `src/features/<modulo>/tests/<responsabilidad>/`, separada del código funcional. La convención obligatoria se documenta en `AGENTS.md` §5.1 y se aplica también a futuras pruebas de componentes/hooks. Se crean subcarpetas únicamente cuando contienen archivos.
+
+| Feature | Archivos de pruebas | Distribución dentro de `tests/` |
+| --- | ---: | --- |
+| auth | 11 | pages (6), services (3), context (1), utils (1) |
+| usuarios | 3 | pages (2), services (1) |
+| pacientes | 8 | pages (5), services (3) |
+| medicos | 5 | pages (4), services (1) |
+| especialidades | 2 | pages (1), services (1) |
+
+Los 29 archivos conservan nombres, casos y aserciones; la comparación contra Git confirma que solo cambian rutas relativas. No quedan pruebas fuera de `tests/` dentro de features. `src/layouts/Navigation.test.jsx` conserva su ubicación y `src/test/setup.js` el setup compartido. Vitest descubre todos los archivos sin ajustes de configuración.
+
+```powershell
+pnpm test
+pnpm test src/features/auth/tests
+pnpm build
+```
+
+**Verificación final:** **521 pruebas correctas/30 archivos**, build correcto con el aviso conocido del bundle de 556,88 kB y `git diff --check` correcto. Referencias documentales revisadas; se actualiza la ruta de AuthIntegration en este README. Contexto §17.66 registra la decisión técnica aprobada y el cierre de las cuatro fases. Sin nuevos CU ni cambios de clases funcionales/persistencia, por lo que análisis/DER/diagrama global no requieren modificación. Las secciones siguientes conservan la cronología de cada fase.
+
+## Reorganización de pruebas — fase 3: Médicos y Especialidades (2026-10-21)
+
+**Completada:** Médicos tiene cuatro archivos en `tests/pages/` y uno en `tests/services/`; Especialidades, uno en `tests/pages/` y uno en `tests/services/`. Se conservan nombres y casos, ajustando imports y mocks, incluidas las referencias entre features, Auth, Router, Axios y constantes compartidas.
+
+**Verificado:** `pnpm test src/features/medicos/tests src/features/especialidades/tests`: **142 pruebas/7 archivos correctos**; build correcto con aviso conocido del bundle de 556,88 kB. Los 29 archivos de pruebas de las cinco features actuales están dentro del `tests/` de su módulo, sin pruebas mezcladas en carpetas funcionales. Pendiente fase 4: regresión completa, documentación definitiva de la convención y revisión de referencias documentales. Sin cambios funcionales, de contratos o persistencia.
+
+## Reorganización de pruebas — fase 2: Usuarios y Pacientes (2026-10-21)
+
+**Completada:** todos los archivos de pruebas de ambos módulos se encuentran en su `tests/` correspondiente. Usuarios: dos archivos en `tests/pages/` y uno en `tests/services/`; Pacientes: cinco en `tests/pages/` y tres en `tests/services/`. Se conservan nombres y casos, ajustando imports, mocks e importaciones `vi.importActual` a la nueva ubicación, incluidas referencias a Auth y Axios compartido.
+
+**Verificado:** `pnpm test src/features/usuarios/tests src/features/pacientes/tests`: **225 pruebas/11 archivos correctos**. Build correcto con el aviso conocido del bundle de 556,88 kB. Sin pruebas fuera de `tests/` en estos dos módulos; Auth conserva el traslado de fase 1. Pendientes: fase 3 Médicos/Especialidades y fase 4 revisión/documentación global. Sin cambios funcionales ni cierre adicional de CU; análisis/DER/diagrama global no requieren cambios por este traslado.
+
+## Reorganización de pruebas — fase 1: Auth (2026-10-21)
+
+Se adopta progresivamente `src/features/<modulo>/tests/<responsabilidad>/` para todos los archivos de pruebas de cada feature. Inventario inicial: 29 archivos en features (Auth 11, Usuarios 3, Pacientes 8, Médicos 5 y Especialidades 2); un archivo adicional de layouts permanece fuera de este alcance.
+
+**Fase 1 completada:** las once pruebas de Auth están en `auth/tests/`: seis archivos en `pages/`, tres en `services/`, uno en `context/` y uno en `utils/`. Se conservan nombres y casos, ajustando únicamente imports y rutas de mocks. Vitest descubre la ubicación sin cambiar su configuración y `src/test/setup.js` continúa como setup compartido.
+
+**Verificado:** `pnpm test src/features/auth/tests`: **152 pruebas/11 archivos correctos**; `pnpm build` correcto con aviso conocido del bundle principal de 556,88 kB. Fases siguientes: Usuarios/Pacientes, Médicos/Especialidades y revisión/documentación global de la convención. No cambia comportamiento, contratos ni clases funcionales; este traslado no cierra nuevos CU ni modifica DER/diagrama global.
+
 ## Médicos y especialidades — fase 5: cierre administrativo local (2026-10-21)
 
 Detalle ofrece «Crear cuenta para este médico» solo sin vínculo. CU-03 recibe `id_medico` como cadena, valida parámetro único/reconsulta y fija rol Médico/registro; vínculo existente impide alta. No infiere ID/estado de cuenta desde el booleano. Correo de acceso se introduce expresamente, separado del contacto; Laravel valida vinculación al guardar. Resultados inciertos bloquean repetición hasta revisar vínculo vigente.
@@ -469,7 +511,7 @@ Contexto §17.32 y análisis incremental CU-04/CU-07 sincronizados. Integración
 
 Revisados router/guards, sesión, servicios Axios, generación HTTP, enlaces secretos, errores y consultas cancelables. Se mantienen los 20 endpoints API del backend consolidado, cuatro roles fijos y separación Page/Component → Service → Axios → Laravel. No se detectó necesidad de cambiar código productivo en esta revisión.
 
-`src/features/auth/pages/AuthIntegration.test.jsx` añade **12 pruebas integradas del cliente**: se montan router, páginas, AuthProvider, servicios e interceptores reales y se sustituye únicamente el adaptador HTTP de Axios. Permite detectar incompatibilidades entre capas del frontend que las pruebas con servicios simulados no verifican. No comprueba cookies del navegador, CORS, PostgreSQL, reglas clínicas ni autenticación real de Laravel.
+`src/features/auth/tests/pages/AuthIntegration.test.jsx` añade **12 pruebas integradas del cliente**: se montan router, páginas, AuthProvider, servicios e interceptores reales y se sustituye únicamente el adaptador HTTP de Axios. Permite detectar incompatibilidades entre capas del frontend que las pruebas con servicios simulados no verifican. No comprueba cookies del navegador, CORS, PostgreSQL, reglas clínicas ni autenticación real de Laravel.
 
 | CU / recorrido | Evidencia disponible | Pendiente real |
 | --- | --- | --- |

@@ -167,7 +167,7 @@ describe('reemisión de invitación', () => {
     expect(reenviarInvitacion).not.toHaveBeenCalled();
     expect(screen.getByText(/¿Emitir una nueva invitación/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmar nuevo envío' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('No se confirmó el envío');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No se confirmó el envío'));
     expect(reenviarInvitacion).toHaveBeenCalledWith('17');
     expect(consultarCuenta).toHaveBeenCalledTimes(2);
     expect(crearPersonal).not.toHaveBeenCalled();

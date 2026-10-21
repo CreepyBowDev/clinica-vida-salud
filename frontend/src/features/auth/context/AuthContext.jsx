@@ -165,10 +165,25 @@ export function AuthProvider({ children }) {
     } finally { changing.current = false; }
   }, [commit]);
 
+  const completeEmailChange = useCallback(async (request) => {
+    if (changing.current) throw new Error('Ya hay una operación de sesión en curso.');
+    changing.current = true;
+    const operation = ++sequence.current;
+    pending.current = null;
+    avanzarSesion();
+    try {
+      await request();
+      if (operation === sequence.current) {
+        avanzarSesion();
+        commit({ status: 'anonymous', usuario: null, error: null, notice: 'correo_actualizado' });
+      }
+    } finally { changing.current = false; }
+  }, [commit]);
+
   const value = useMemo(() => ({ ...state, loading: state.status === 'loading',
     isAuthenticated: state.status === 'authenticated', isRestricted: state.status === 'restricted',
-    login, logout, refreshSession, updatePassword, mutateAccount, completeTemporaryPassword,
-  }), [state, login, logout, refreshSession, updatePassword, mutateAccount, completeTemporaryPassword]);
+    login, logout, refreshSession, updatePassword, mutateAccount, completeTemporaryPassword, completeEmailChange,
+  }), [state, login, logout, refreshSession, updatePassword, mutateAccount, completeTemporaryPassword, completeEmailChange]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

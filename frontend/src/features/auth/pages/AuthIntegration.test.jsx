@@ -163,7 +163,7 @@ describe('integración HTTP del frontend de autenticación', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Reenviar invitación' }));
     expect(calls.some(c => c.url === '/personal/17/invitacion')).toBe(false);
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar nuevo envío' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('simulad');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('simulad'));
     await waitFor(() => expect(calls.filter(c => c.url === '/usuarios/17')).toHaveLength(2));
     expect(calls.filter(c => c.url === '/personal')).toHaveLength(1);
   });

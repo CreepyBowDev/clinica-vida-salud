@@ -15,7 +15,7 @@ export default function MainLayout() {
   const menuButton = useRef(null);
   useEffect(() => {
     main.current?.focus();
-    const title = location.pathname.startsWith('/administracion/cuentas') ? 'Cuentas de usuario' : location.pathname === '/recepcion/activacion-web' ? 'Activación web de Paciente' : location.pathname === '/mi-cuenta/contrasena' ? 'Cambiar contraseña' : location.pathname === '/inicio' ? 'Inicio' : current.label;
+    const title = location.pathname === '/mi-perfil/correo' ? 'Cambiar correo de acceso' : location.pathname === '/mi-perfil' ? 'Mi perfil' : location.pathname.startsWith('/recepcion/pacientes') ? 'Pacientes' : location.pathname.startsWith('/administracion/cuentas') ? 'Cuentas de usuario' : location.pathname === '/recepcion/activacion-web' ? 'Activación web de Paciente' : location.pathname === '/mi-cuenta/contrasena' ? 'Cambiar contraseña' : location.pathname === '/inicio' ? 'Inicio' : current.label;
     document.title = `${title} | Clínica Vida Salud`;
   }, [location.pathname, current.label]);
 
@@ -29,7 +29,9 @@ export default function MainLayout() {
         onKeyDown={(event) => { if (event.key === 'Escape') { setMenu(false); menuButton.current?.focus(); } }}>
         <NavLink to="/inicio" onClick={() => setMenu(false)}><Icon name="home" />Inicio</NavLink>
         <NavLink to={current.path} end onClick={() => setMenu(false)}><Icon name="grid" />{current.label}</NavLink>
+        {usuario.rol === ROLES.PACIENTE && <NavLink to="/mi-perfil" onClick={() => setMenu(false)}><Icon name="grid" />Mi perfil</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/cuentas" onClick={() => setMenu(false)}><Icon name="grid" />Cuentas de usuario</NavLink>}
+        {usuario.rol === ROLES.RECEPCIONISTA && <NavLink to="/recepcion/pacientes" onClick={() => setMenu(false)}><Icon name="grid" />Pacientes</NavLink>}
         {usuario.rol === ROLES.RECEPCIONISTA && <NavLink to="/recepcion/activacion-web" onClick={() => setMenu(false)}><Icon name="lock" />Activación web</NavLink>}
         <NavLink to="/mi-cuenta/contrasena" onClick={() => setMenu(false)}><Icon name="lock" />Cambiar contraseña</NavLink>
       </nav>

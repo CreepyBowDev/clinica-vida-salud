@@ -1,8 +1,87 @@
 # Frontend — Clínica Vida Salud
 
-## Estado actual: fase 7 — integración local real verificada; Brevo pendiente
+## Estado actual: Pacientes fases 1–6 — integración local verificada
 
 Implementados sesión, contraseñas, cuentas del personal/invitaciones, acceso/roles/credencial temporal, ambos recorridos de registro del Paciente (CU-04) y emisión presencial de Recepción (parte de CU-07). Revisión del cliente con 213 pruebas correctas y AUT-21 verificada en Chrome contra Laravel/PostgreSQL reales con identidades ficticias aisladas. El correo se capturó localmente: aceptación y entrega mediante Brevo permanecen pendientes. La cronología inferior conserva las limitaciones de cada fase; el resultado vigente está al final.
+
+**Avance vigente de Pacientes:** plan frontend completado para gestión administrativa CU-07 y perfil/correo CU-08, con integración real local y regresión de **377 pruebas frontend**. La consulta de citas anteriores conserva su dependencia de CU-21; no se acredita RF02 íntegro por esta entrega. Cierre y límites de fase 6 a continuación de la cronología de Pacientes.
+
+### Pacientes — fase 1 frontend (2026-10-20)
+
+Recepción dispone de **Pacientes** en su menú y área, con listado en `/recepcion/pacientes` y detalle en `/recepcion/pacientes/:id`. Filtros por CI, nombres, apellidos y estado de ficha; búsqueda al enviar, limpieza y paginación por `meta` del servidor. Consultas GET `/api/pacientes` y `/api/pacientes/{id}` según contratos existentes. Presenta identidad, teléfono, correo de contacto, dirección y emergencia, incluidos datos ausentes; distingue ficha activa/inactiva de cuenta vinculada, sin inferir estado de acceso ni bloqueos.
+
+Servicios con filtros permitidos, cookies y `sessionBound`; IDs como texto y timestamps intactos. Consultas cancelables y respuestas tardías descartadas; carga/vacío/error/reconsulta y 401/403/404/419/422/429/red/500. La UI no almacena fichas/filtros personales en Web Storage ni los agrega a URL. Activación existente mantiene emisión por ID y orienta al nuevo catálogo.
+
+**Verificación actual:** `pnpm test`: **243 pruebas correctas/16 archivos** (30 nuevas); `pnpm build` correcto. Se corrigió una espera prematura en la prueba previa de invitación para esperar su confirmación. Chrome headless con API simulada recorrió listado → detalle → búsqueda vacía; Tab entre filtros, anchos 1440/768/390/320 sin overflow global, capturas revisadas y axe sin infracciones automáticas en listado/detalle a 1440/390. Sin excepciones JS. Esta revisión no acredita integración autenticada real de las nuevas consultas con Laravel/PostgreSQL.
+
+**Siguientes fases:** 2 alta administrativa; 3 edición/CI/estado/activación desde ficha; 4 perfil propio; 5 correo verificado; 6 integración/responsive/cierre. Avance parcial de CU-07, sin cerrar CU-07/CU-08. Documentación: contexto §17.41 y análisis incremental; DER sin cambios y diagrama global aplazado expresamente. Comprobación real Brevo aplazada al despliegue por decisión del usuario.
+
+### Pacientes — fase 2 frontend (2026-10-20)
+
+**Registrar paciente** desde el listado abre `/recepcion/pacientes/nuevo`, exclusiva de Recepción. El formulario envía identidad/fecha civil, teléfono, sexo de texto opcional, correo de contacto/dirección y emergencia completa opcionales. Utiliza POST `/api/pacientes`, CSRF, cookies y campos permitidos; normaliza opcionales vacíos a NULL. No crea cuenta web, códigos ni preferencias. Solo 201 confirmado muestra éxito y enlace a la ficha persistida, preservando BIGINT textual.
+
+**Duplicados y ausencia de CI:** búsqueda integrada por CI exacto o nombres/apellidos, incluidos inactivos, con paginación y enlaces a fichas en otra pestaña. Para alta sin CI se exige consulta exitosa y declaración de revisión; modificar identidad invalida lo revisado. No se fusionan fichas ni se presenta una coincidencia como prueba de titularidad o la falta de resultados como garantía de unicidad. El CI sigue siendo obligatorio para registro/vinculación web.
+
+**Fallos:** doble envío bloqueado, 409 orientado a revisión, 422 por campo con conservación de datos y foco, 419 sin reenvío automático, 429 con espera, 403 sin logout y 401 retirando formulario. Un fallo de red/5xx o respuesta no confirmada conserva resultado incierto y exige consultar otra vez el registro antes de habilitar otro envío manual. No se afirma rollback ni ausencia de duplicados por una búsqueda. Datos solo en memoria, sin Web Storage.
+
+**Verificación vigente:** **271 pruebas correctas/17 archivos**, 28 nuevas; `pnpm build` correcto. Incluye recorrido con servicios/Axios reales y transporte simulado (revisión → CSRF → alta sin CI → detalle) y revocación 401 al enviar. Chrome headless simulado revisa formulario con emergencia, confirmación y detalle; formulario/confirmación a 1440/768/390/320 sin overflow global, capturas revisadas y axe sin infracciones automáticas a 1440/390; teclado Tab correcto, un solo POST, Web Storage vacío y sin excepciones JS. Integración autenticada real de estas pantallas con Laravel/PostgreSQL aún pendiente.
+
+**Siguiente entrega:** fase 3 edición/CI/estado/activación desde ficha. CU-07/CU-08 frontend conservan avance parcial. Documentación sincronizada en contexto §17.42 y análisis incremental; DER sin cambios y diagrama global aplazado expresamente.
+
+### Pacientes — fase 3 frontend (2026-10-20)
+
+Recepción puede editar desde la ficha mediante `/recepcion/pacientes/:id/editar`: contacto/emergencia y corrección de identidad con comprobación presencial, motivo y confirmación. El CI informado no se retira; incorporarlo o corregirlo advierte de la invalidación de códigos y vinculaciones pendientes, conservando cuenta e historial. Se envían únicamente diferencias permitidas por PATCH `/api/pacientes/{id}`.
+
+El detalle permite desactivar/reactivar ficha con motivo y confirmación mediante PATCH `/api/pacientes/{id}/estado`. Se explica la independencia de cuenta web, sesiones, bloqueos y citas existentes. La activación desde `/recepcion/pacientes/:id/activacion` consulta la ficha, fija su ID y reutiliza `ActivationCodePage`; requiere CI y ausencia de cuenta vinculada, con comprobación final del servidor.
+
+**Concurrencia y errores:** `actualizado_en_original` conserva los seis decimales sin pasar por `Date`. Conflicto obsoleto o resultado incierto bloquean nuevas escrituras y conservan el borrador/motivo mientras se consulta la versión actual. Cargarla y descartar el borrador exige una acción explícita; estado reinicia motivo/confirmación. Sin reenvíos automáticos ni Web Storage; campos seguros y espera Retry-After.
+
+**Verificación vigente:** **306 pruebas correctas/18 archivos**, 35 nuevas; `pnpm build` correcto. Incluye permisos, payload parcial, CI, confirmaciones, microsegundos, 409 y revisión explícita con servicios/Axios reales y adaptador simulado, fallos inciertos y activación seleccionada. Chrome con API simulada completa CI → conflicto/revisión → estado → activación/ocultado; cuatro vistas a 1440/768/390/320 sin overflow global, capturas desktop/móvil revisadas para identidad y conflicto, axe sin infracciones automáticas a 1440/390, Web Storage vacío y sin excepciones JS.
+
+**Siguiente entrega:** fase 4 perfil propio; después correo verificado e integración autenticada real de las pantallas con Laravel/PostgreSQL. CU-07/CU-08 siguen con cierre frontend pendiente. Contexto §17.43 y análisis incremental actualizados; diagrama global aplazado por decisión expresa. Brevo real sigue pendiente de despliegue.
+
+### Pacientes — fase 4 frontend: Mi perfil (2026-10-20)
+
+`/mi-perfil` está disponible exclusivamente para Paciente, desde el menú y su área personal. Consulta GET `/api/mi-perfil` y muestra identidad como solo lectura (CI, nombres, apellidos, nacimiento civil, sexo y estado), orientando correcciones a Recepción. Permite cambiar teléfono, correo de contacto, dirección, emergencia y preferencia de recordatorios mediante PATCH del mismo endpoint, sin ID del titular en URL/payload. Cuenta activa con ficha inactiva conserva estas operaciones; se informa de la restricción de nuevas reservas.
+
+Reutiliza `PatientForm` limitado a contacto y emergencia y presenta recordatorios como elección explícita: NULL se mantiene «Sin preferencia registrada» sin inventar un valor. Retirar emergencia/deshabilitar avisos requiere confirmación. Correo de acceso se muestra separado y enlaza al cambio de contraseña ya existente. No carga información clínica. El cambio verificado de correo de acceso corresponde a fase 5.
+
+Actualiza solo diferencias permitidas, con CSRF/cookies/sessionBound y `actualizado_en_original` intacto. Obsolescencia o resultado incierto conservan borrador y bloquean escrituras hasta revisión explícita de la versión propia actual, incluidas preferencias. Consulta cancelable, errores seguros por campo, Retry-After y retirada de datos al invalidarse sesión; sin Web Storage. Guardado confirmado reconsulta el perfil; una nueva tentativa retira el mensaje de éxito anterior.
+
+**Verificación vigente:** **338 pruebas correctas/20 archivos**, 32 nuevas (23 interfaz/integración y 9 contrato); build correcto. Incluye Axios real con transporte simulado para GET → CSRF/PATCH → GET y 401 durante PATCH. Se ajustan esperas asíncronas anteriores de consulta de ficha, foco de activación y confirmación de invitación. Chrome con API simulada recorre edición de ficha inactiva, emergencia/preferencia, conflicto/adopción y confirmación de retirada/deshabilitación; tres vistas a 1440/768/390/320 sin overflow global, capturas de perfil móvil/conflicto desktop revisadas, axe sin infracciones automáticas a 1440/390, Tab entre contacto correcto, sin consultas administrativas, Web Storage vacío y sin excepciones JS.
+
+Contexto §17.44 y análisis incremental sincronizados. Próxima fase 5: correo de acceso verificado; fase 6: integración autenticada real Laravel/PostgreSQL y cierre de CU-07/CU-08. DER sin cambios; diagrama global aplazado por decisión expresa. Comprobación real Brevo pendiente de despliegue.
+
+### Pacientes — fase 5 frontend: cambio verificado del correo de acceso (2026-10-20)
+
+Desde Mi perfil, el Paciente abre `/mi-perfil/correo`. La nueva solicitud requiere correo distinto, contraseña actual y confirmación de sustitución de una solicitud anterior. Consume POST `/api/mi-perfil/correo`, `/correo/reenviar` y `/correo/verificar` existentes. Presenta `envio` aceptado/simulado/fallido/pendiente sin afirmar llegada al buzón, junto al vencimiento del código según servidor; muestra espera de 60 segundos tras emisión y respeta Retry-After. Laravel determina límites, vigencia y consumo.
+
+La verificación utiliza código de seis dígitos, preservando ceros iniciales; no envía destino, contraseña ni identificador. Se puede retomar la solicitud de la misma cuenta tras volver a iniciar sesión: el servidor selecciona la última solicitud y su destino, sin recuperar un proceso con CI/correo. El correo vigente permanece visible hasta confirmar; el correo de contacto es independiente. Código inválido/vencido/agotado tiene respuesta segura común, sin contadores locales autoritativos.
+
+Solo 204 confirma el cambio. `AuthContext.completeEmailChange` coordina la escritura, invalida comprobaciones anteriores y limpia el contexto público con aviso de éxito al login, sin autenticación automática. Errores de red/5xx/respuesta no confirmada bloquean escrituras y exigen consultar explícitamente sesión/perfil antes de decidir otro envío, sin afirmar rollback o cambio exitoso. Contraseña y código se limpian tras sus operaciones, al salir y en pagehide; sin Web Storage, códigos ni contraseñas en URL.
+
+**Verificación vigente:** **377 pruebas correctas/22 archivos**, 39 nuevas (26 interfaz/integración y 13 contratos). Incluye servicios/Axios reales con adaptador simulado para solicitud 202 → verificación 204 → login y 401 al verificar, carrera con comprobación /me anterior, roles, estados de transporte, reenvío, límites, secretos y resultado incierto. Build correcto con aviso de tamaño del bundle principal (~503 kB minificado). Chrome con API simulada completa Mi perfil → solicitud → confirmación → código → login; tres vistas a 1440/768/390/320 sin overflow global, capturas código móvil/confirmación desktop revisadas, axe sin infracciones automáticas a 1440/390, Tab correcto, Web Storage vacío y sin excepciones JS.
+
+README/análisis/contexto §17.45 sincronizados. Fase 6 pendiente: integración autenticada real Laravel/PostgreSQL, revisión final y cierre frontend CU-07/CU-08. Persistencia/DER sin cambios; diagrama global aplazado expresamente. Entrega real Brevo permanece pendiente de despliegue según decisión del usuario.
+
+### Pacientes — fase 6 frontend: integración real y cierre del plan (2026-10-20)
+
+Tras iniciar PostgreSQL, Chrome headless recorrió React → Axios → Laravel → PostgreSQL reales. Se utilizó base/rol `clinica_vida_salud_test`, esquema aleatorio aislado, los cuatro roles y pacientes ficticios; frontend temporal en localhost:5174 y Laravel en localhost:8001. Sin interceptar respuestas de la API ni deshabilitar CSRF. Únicamente el transporte de correo se sustituyó por captura local para evitar envíos externos.
+
+| Recorrido | Resultado verificado |
+| --- | --- |
+| Recepción | Listado, paginación, búsqueda, alta sin CI después de revisión explícita, detalle e incorporación del CI conservando ID. |
+| Mantenimiento | Edición con 409 obsoleto real, borrador conservado/bloqueado, adopción explícita de versión actual y guardado posterior; desactivación/reactivación con motivo y confirmación. |
+| Activación | Emisión desde ficha seleccionada con ID de solo lectura, código de 12 caracteres y ocultación tras comunicarlo. No crea cuenta. |
+| Perfil | Cuenta activa/ficha inactiva editable; identidad solo consulta, contacto/emergencia/preferencia persistidos, correos independientes, 409 propio y confirmación de retirada de emergencia/deshabilitación. |
+| Correo de acceso | Contraseña actual, solicitud 202/código capturado, correo anterior vigente hasta confirmar 204, retorno al login y nuevo acceso conservando ficha, contraseña y correo de contacto. |
+| Protección | Roles ajenos rechazados sin cerrar sesión; sesión vencida retira datos privados; cookies HttpOnly/SameSite Lax, CSRF y CORS con credenciales reales. |
+
+Respuestas reales observadas: **200/201/202/204/401/403/409/419/422/429**. Algunas comprobaciones negativas (CSRF ausente, campos prohibidos, permisos y límite de reenvío) se ejecutaron mediante fetch autenticado en el navegador; no se presentan como errores provocados desde controles normales. La comprobación SQL final verificó vínculo/identidad, cuenta activa con ficha inactiva, correo nuevo, contraseña conservada y bitácora sin contraseña ni códigos de la prueba.
+
+**Verificación de cierre:** `pnpm test`: **377 pruebas correctas/22 archivos**; `pnpm build` correcto con el aviso conocido de bundle principal ~503 kB. Regresión focalizada Laravel de seis clases de Pacientes/perfil/correo: **134 pruebas/1272 aserciones correctas**. Las seis vistas reales (listado, detalle, alta, edición, perfil y correo) sin overflow global a 1440/768/390/320; axe sin infracciones automáticas a 1440/390, Tab comprobado en perfil, capturas listado desktop/perfil móvil revisadas. Sin excepciones JS ni Web Storage.
+
+Auxiliares/evidencia no sensible en `C:\Users\jesus\AppData\Local\Temp\opencode\pac6*`, fuera de Git. Servidores temporales detenidos; esquema aislado y secretos temporales retirados al finalizar. No se requirieron correcciones del código funcional ni cambios de esquema. Análisis/contexto §17.47 y README backend sincronizados. Se completa el plan frontend del módulo dentro del alcance administrativo/perfil aprobado; CU-21, entrega real de Brevo/HTTPS de producción y diagrama global expresamente aplazado conservan su estado pendiente. El DER no cambia.
 
 ## Fase 1: base visual e inicio de sesión
 

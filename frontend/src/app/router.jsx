@@ -21,6 +21,13 @@ import CredentialReceiptHost from '../features/usuarios/components/CredentialRec
 import RegisterPatientPage from '../features/auth/pages/RegisterPatientPage';
 import VerifyRegistrationPage from '../features/auth/pages/VerifyRegistrationPage';
 import ActivationCodePage from '../features/pacientes/pages/ActivationCodePage';
+import PatientsPage from '../features/pacientes/pages/PatientsPage';
+import PatientDetailPage from '../features/pacientes/pages/PatientDetailPage';
+import NewPatientPage from '../features/pacientes/pages/NewPatientPage';
+import EditPatientPage from '../features/pacientes/pages/EditPatientPage';
+import PatientActivationPage from '../features/pacientes/pages/PatientActivationPage';
+import MyProfilePage from '../features/pacientes/pages/MyProfilePage';
+import ChangeEmailPage from '../features/pacientes/pages/ChangeEmailPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -43,7 +50,15 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
     children: [{ element: <MainLayout />, children: [
       { path: '/inicio', element: <HomePage /> },
       { path: '/mi-cuenta/contrasena', element: <ChangePasswordPage /> },
-      { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [{ path: '/recepcion/activacion-web', element: <ActivationCodePage /> }] },
+      { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [{ path: '/mi-perfil', element: <MyProfilePage /> }, { path: '/mi-perfil/correo', element: <ChangeEmailPage /> }] },
+      { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [
+        { path: '/recepcion/activacion-web', element: <ActivationCodePage /> },
+        { path: '/recepcion/pacientes', element: <PatientsPage /> },
+        { path: '/recepcion/pacientes/nuevo', element: <NewPatientPage /> },
+        { path: '/recepcion/pacientes/:id/editar', element: <EditPatientPage /> },
+        { path: '/recepcion/pacientes/:id/activacion', element: <PatientActivationPage /> },
+        { path: '/recepcion/pacientes/:id', element: <PatientDetailPage /> },
+      ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
         { path: '/administracion/cuentas', element: <AccountsPage /> },
         { path: '/administracion/cuentas/nueva', element: <NewStaffPage /> },

@@ -73,6 +73,7 @@ export default function LoginPage() {
     <div className="login-heading"><h1>Bienvenido de nuevo</h1><p className="login-intro">Ingresa a tu cuenta de Clínica Vida Salud.</p></div>
     <form ref={form} onSubmit={submit} aria-label="Iniciar sesión" aria-busy={busy}>
       {notice === 'clave_temporal_actualizada' && <Alert variant="success">Contraseña definitiva establecida. Inicia sesión con tu nueva contraseña.</Alert>}
+      {notice === 'correo_actualizado' && <Alert variant="success">Correo de acceso actualizado. Tus sesiones anteriores se cerraron. Inicia sesión con tu nuevo correo y tu contraseña.</Alert>}
       {sessionError && !failure && <Alert>{sessionError}</Alert>}
       {errorBlock}
       <FormField label="Correo electrónico" name="correo_acceso" type="email" autoComplete="username"

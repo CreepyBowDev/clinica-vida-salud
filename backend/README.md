@@ -1,5 +1,9 @@
 # Backend — Clínica Vida Salud
 
+## Estado vigente de integración
+
+Pacientes y perfil: backend fases 1–6 y plan frontend fases 1–6 completados en su alcance administrativo/perfil. Integración local real de Chrome/React/Laravel/PostgreSQL verificada con datos ficticios y correo capturado, según `../frontend/README.md` y contexto §17.47. Regresión focalizada de seis clases del módulo: **134 pruebas/1272 aserciones correctas**; cliente **377 pruebas/22 archivos**, build correcto con aviso conocido de bundle ~503 kB. Consulta de citas anteriores depende de CU-21; no se declara RF02 íntegro. Entrega Brevo real/producción y diagrama global expresamente aplazado conservan sus pendientes. La cronología siguiente registra el avance histórico de cada fase.
+
 ## Estado de esta fase
 
 **Usuarios y autenticación — fase 8, backend cerrado:** CU-01–CU-06 implementados y revisados de forma integrada, incluidos acceso normal/restringido, administración de cuentas, ambos escenarios de registro/vinculación y credenciales. La emisión de Recepción cubre la parte de CU-07 requerida por CU-04. Análisis vigente en [`../docs/ai/analisis-clases.md`](../docs/ai/analisis-clases.md) y cierre en contexto §17.26/último apartado de este README. **`diagrama-clases.md` aplazado expresamente por el usuario.** React/AUT-21, entrega real de Brevo y CRUD administrativo restante de CU-07 siguen pendientes. Brevo HTTP está integrado y configurado privadamente; sus pruebas usan red simulada.

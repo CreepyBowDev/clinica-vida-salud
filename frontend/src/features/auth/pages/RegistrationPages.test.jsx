@@ -92,7 +92,8 @@ describe('verificación compartida', () => {
     verificarRegistro.mockResolvedValue(undefined);
     mount('/verificar-registro'); await screen.findByLabelText('Código del correo');
     field('Código del correo', '001234'); fireEvent.submit(screen.getByRole('form'));
-    expect(await screen.findByRole('heading', { name: 'Tu cuenta está activada' })).toHaveFocus();
+    await screen.findByRole('heading', { name: 'Tu cuenta está activada' });
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Tu cuenta está activada' })).toHaveFocus());
     expect(verificarRegistro).toHaveBeenCalledWith({ codigo: '001234' });
     expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/login');
     expect(iniciarSesion).not.toHaveBeenCalled();

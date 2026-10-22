@@ -23,6 +23,19 @@ class IntervalosAtencion
         return $inicio < $otroFin && $otroInicio < $fin;
     }
 
+    public function candidatos(CarbonImmutable $dia, object $horario, int $duracion): array
+    {
+        $inicio = $dia->setTimeFromTimeString($horario->hora_inicio);
+        $cantidad = $this->turnos($horario, $duracion);
+        $turnos = [];
+        for ($k = 0; $k < $cantidad; $k++) {
+            $desde = $inicio->addMinutes($k * $duracion);
+            $turnos[] = ['inicio' => $desde, 'fin' => $desde->addMinutes($duracion)];
+        }
+
+        return $turnos;
+    }
+
     public function cubierto(CarbonImmutable $inicio, CarbonImmutable $fin, iterable $horarios): bool
     {
         $inicio = $inicio->setTimezone('America/La_Paz');

@@ -8,6 +8,15 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ usuario: { nombre_visible
 afterEach(() => { document.documentElement.scrollTop = 0; });
 
 describe('navegación accesible entre pantallas', () => {
+  it('el salto autenticado enfoca main sin introducir navegación nativa fuera del router', async () => {
+    const router = createMemoryRouter([{ element: <MainLayout />, children: [{ path: '/reservar-cita', element: <h1>Reserva</h1> }] }], { initialEntries: ['/reservar-cita'] });
+    render(<RouterProvider router={router} />); await screen.findByRole('heading', { name: 'Reserva' });
+    const link = screen.getByRole('link', { name: 'Saltar al contenido' }); link.focus();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true); expect(screen.getByRole('main')).toHaveFocus();
+    expect(router.state.location.pathname).toBe('/reservar-cita'); expect(router.state.location.hash).toBe('');
+  });
   it.each([['pública', AuthLayout], ['autenticada', MainLayout]])('%s: al cambiar ruta vuelve arriba y enfoca el contenido', async (_, Layout) => {
     const router = createMemoryRouter([{ element: <Layout />, children: [
       { path: '/origen', element: <><h1>Pantalla de origen</h1><Link to="/destino">Abrir destino</Link></> },

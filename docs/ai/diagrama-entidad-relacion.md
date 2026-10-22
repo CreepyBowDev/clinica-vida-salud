@@ -4,7 +4,7 @@
 > **Proyecto:** Sistema Web para la Gestión de Citas Médicas para la Clínica Vida Salud  
 > **Fuente estructural primaria:** `DER_Clinica_Vida_Salud_Reorganizado_Corregido(2).drawio` (archivo recibido, **dos pestañas**, **28 entidades**, **239 atributos** y **43 relaciones gráficas**)  
 > **Referencia académica:** `Clinica_Vida_Salud_Coherencia_Actualizada(2).pdf` (117 páginas) y enunciado oficial del Segundo Parcial de Ingeniería de Requisitos  
-> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.19. Esquema con migración 000033: **28 entidades, 243 atributos y 43 relaciones**; la fuente original de 239 atributos se conserva como antecedente.
+> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.22. Esquema con migración 000035: **28 entidades, 244 atributos y 43 relaciones**; la fuente original de 239 atributos se conserva como antecedente.
 
 ## 1. Propósito, precedencia y reglas de uso
 
@@ -345,12 +345,19 @@ Una sola sede y una configuración vigente; no incorpora administración de múl
 
 FK compuesta (id_medico,id_especialidad) hacia MedicoEspecialidad. Duración y ubicación conservadas por atención.
 
-**Restricciones únicas declaradas:** `(codigo_cita)`.
+**Restricciones únicas declaradas:** `(codigo_cita)` y `(id_propuesta_reserva)` cuando se informa; UUID nullable, múltiples NULL permitidos.
+
+**Diseño CU-13/CU-14 fase 1, 2026-10-22 — aún no aplicado al esquema ni a la tabla siguiente:** se prevé añadir `citas.id_propuesta_reserva UUID NULL UNIQUE` para reconocer una confirmación propia ya persistida sin duplicar cita/evento; UUID de propuesta generado por servidor, las filas anteriores conservan NULL. No se crea entidad de turnos ni tabla de reservas pendientes. En fase 4 se prevé exclusión GiST de `id_paciente` y `tstzrange(inicio_at,fin_at,'[)')` **solo para estados Programada/Confirmada**, permitiendo contiguos; las exclusiones no Canceladas del Médico y consultorio se conservan. Prevalidar conflictos existentes y detener la migración si aparecen, sin borrar/alterar estados por automatismo. No `now()` en el predicado. Columna/UQ y exclusión requieren migraciones aditivas futuras en `src/data/database/migrations/`; no existen todavía. La tabla de atributos, cantidades vigentes y representación del esquema implementado permanecen sin cambios en esta fase. Diseño completo/locks/idempotencia en backend README, análisis y contexto §17.87; actualizar representación efectiva cuando se implementen las migraciones.
+
+**Actualización efectiva fase 3, 2026-10-22:** UUID/UQ implementados mediante 000034 y probados en PostgreSQL aislado (§6.20); la tabla siguiente ya los incorpora. La nota anterior conserva el diseño histórico de fase 1. Sigue **pendiente** la exclusión GiST del Paciente de fase 4, sin cambiar las exclusiones existentes de Médico/sala.
+
+**Actualización efectiva fase 4, 2026-10-22:** exclusión `citas_paciente_no_solapado_excl` implementada por 000035, por Paciente e intersección de `tstzrange(inicio_at,fin_at,'[)')` solo en Programada/Confirmada (§6.21). La indicación pendiente anterior describe el estado histórico de fase 3. Médico/sala conservan sus exclusiones no Canceladas. Instalación verifica conflictos previos bajo lock exclusivo y aborta sin corregir datos. No atributos/relaciones nuevos ni aplicación a base habitual/Railway.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
 | PK | `id_cita` | `BigInt` | No | — | — |
 | UQ | `codigo_cita` | `String` | No | — | — |
+| UQ | `id_propuesta_reserva` | `UUID` | Sí | — | Extensión técnica CU-14 fase 3, 000034; deduplicación durable, único si no NULL; generado por servidor y oculto en serialización genérica. |
 | FK | `id_paciente` | `BigInt` | No | `Paciente` | — |
 | FK | `id_medico` | `BigInt` | No | `MedicoEspecialidad(id_medico,id_especialidad)` | — |
 | FK | `id_especialidad` | `BigInt` | No | `MedicoEspecialidad(id_medico,id_especialidad)` | — |
@@ -1341,6 +1348,32 @@ Esquema con 000033: **28 entidades/243 atributos/43 relaciones**. No se creó ta
 
 **CU-11 fase 3 (2026-10-21), sin cambios estructurales adicionales:** AsignacionConsultorioService/Repository reutilizan filas/relaciones existentes y coordinación de planificación para GET/impacto/confirmación. Validan horarios activos y citas reales no Canceladas con fin_at > ahora; consulta existente bloquea traslado incluso con inicio desconocido. Confirmación actualiza asignación/versión de Médico y ubicación/actualizada_en de todas las citas futuras elegibles, preserva version_programacion y recordatorios, y añade CambioCita/bitácora atómicos. Huella del impacto completo detecta cambios entre consulta/confirmación sin tabla de reserva. Historia final/pasada conservada. Pruebas de preservación/rollback y procesos independientes; reserva/consulta concurrentes son simulaciones del protocolo de futuros CU-14/CU-23. Continúan 28 entidades/243 atributos/43 relaciones; evidencia final en contexto §17.78.
 
+### 6.20. Reserva CU-14 — identidad durable de propuesta, fase 3 (2026-10-22)
+
+Migración aditiva `2026_10_22_000034_add_id_propuesta_reserva_to_citas.php`: columna UUID nullable id_propuesta_reserva y unicidad citas_propuesta_reserva_uq. Preserva filas anteriores/NULL, PK/código/FK y restricciones de ocupación; no incorpora tabla de turnos, proceso de reserva pendiente ni relación nueva. Modelo Cita mantiene mass assignment cerrado y oculta el UUID. Esquema con 000034: **28 entidades/244 atributos/43 relaciones**.
+
+ReservaService coordina planificación/ficha/recursos, revalida propuesta cifrada/actor y guarda Cita + evento CITA_PROGRAMADA en una transacción. Repetición propia o consulta de resultado encuentra la misma cita actual por UUID, sin restaurar estado/duplicar evento. La propuesta sin guardar no persiste ninguna fila ni reserva intervalos. Instantes, duración y ubicación efectivos se almacenan en los atributos anteriores; no CambioCita inicial ni recordatorio automático. Colisión de código aleatorio se maneja acotadamente mediante savepoints; UUID concurrente permite reconciliación después de rollback. Las exclusiones GiST existentes siguen reforzando Médico/consultorio; el Paciente se protege por protocolo aplicativo, con exclusión SQL adicional todavía pendiente de fase 4.
+
+Pruebas de migración/reversión con fila anterior, conservación de atributos/NULL y rechazo 23505 de UUID duplicado; rollback después de auditoría y exclusión real 23P01, repetición/resultado sin más escrituras. Verificación dirigida de fase 3: 56 pruebas/678 aserciones correctas, sin aplicación a base habitual/Railway; regresión final y límites en backend README/contexto §17.89/análisis CU-14. No acredita todavía carreras nuevas multiproceso, scheduler ni frontend.
+
+**Verificación final de fase 3:** suite completa 1300 pruebas/14957 aserciones correctas; inventario de columnas en CitasRecordatoriosTest actualizado a 000034 sin reducir las garantías anteriores. Pico 158 MB y límite CLI 512 MB solo en el proceso de pruebas. Esquema habitual/remoto no modificado; GiST del Paciente sigue pendiente de fase 4. Cierre y verificaciones técnicas en contexto §17.89/README.
+
+### 6.21. Reserva CU-13/CU-14 — exclusión de Paciente y concurrencia, fase 4 (2026-10-22)
+
+000035 añade exclusivamente `citas_paciente_no_solapado_excl EXCLUDE USING gist (id_paciente public.gist_int8_ops WITH =, tstzrange(inicio_at,fin_at,'[)') WITH &&) WHERE (estado IN ('Programada','Confirmada'))`. Usa btree_gist ya requerido por Médico/sala, sin nueva extensión/columna de rango ni predicado temporal now(). Otros estados no ocupan el Paciente según la ampliación aprobada; los predicados anteriores de Médico/sala no cambian. Inventario estable 28/244/43.
+
+Up inicia transacción, bloquea citas ACCESS EXCLUSIVE y comprueba pares conflictivos antes de ALTER; si encuentra alguno, lanza CITAS_PACIENTE_CONFLICTO_PREVIO sin IDs/identidad/clínica, sin modificar filas ni instalar parcialmente la barrera. Requiere revisión administrativa autorizada, no saneamiento implícito. Espera una escritura pendiente anterior y considera su resultado confirmado; rollback de esa escritura permite instalar. Down retira solo la nueva restricción, preservando UUID/UQ, FK, datos y exclusiones Médico/sala. No se aplica a entornos habituales/remotos por esta tarea.
+
+PacienteSolapamientoTest verifica matriz de estados, contiguas/otros pacientes/cancelación, actualización/reentrada, preservación/reversión y conflictos previos. ReservaService traduce 23P01 conocido a CITA_PACIENTE_SOLAPADO sin filtrar SQL. ReservaConcurrenteTest comprueba SQL concurrente que omite el protocolo para los tres recursos y migración esperando un escritor previo, además de reservas reales/cambios administrativos/revocaciones (62/1218 correcto). Conjunto dirigido de persistencia/API 107/929 correcto; regresión final 1377/16232 y cierre técnico en contexto §17.90/README. Fase 5 sigue pendiente; no nuevos CU de gestión de citas ni recordatorios.
+
+**Cierre de fase 4:** regresión final **1377 pruebas/16232 aserciones correctas**, 10 min 15,366 s/178 MB. Dos fixtures antiguos de planificación ajustados a otro Paciente ficticio para conservar la prueba de conflicto de sala, verificados previamente con 9/429. Se preserva el inventario 28/244/43 y las tres exclusiones; no migración habitual/remota, nuevos estados ni funcionalidades de fase 5. Evidencia técnica en contexto §17.90/README/análisis. Diagrama global continúa aplazado.
+
+### 6.22. CU-13/CU-14 fase 5 — cierre backend local sin cambio de esquema (2026-10-22)
+
+Integración de seis operaciones con Cita/evento únicos, duración/ubicación efectivas, revisión sin filas, consulta/replay tras nuevo login y permisos de CU-30. Preparación administrativa por API y ficha presencial sin CI/cuenta creada con revisión de duplicados; identidad previamente activada del Paciente es fixture. No tabla de turnos, reserva temporal, CambioCita inicial ni avisos automáticos.
+
+Esquema efectivo permanece con 000034/000035: **28 entidades/244 atributos/43 relaciones**, UUID nullable/único y tres exclusiones según §6.20/§6.21. Sin migración/índice/FK nuevos en fase 5. Medición de disponibilidad con 30/300 citas ficticias: 31 consultas HTTP constantes, sin evidencia para índices nuevos ni SLA. Suite completa final **1380 pruebas/16361 aserciones correctas**; 3 pruebas nuevas de integración/129 aserciones. Contexto §17.91/README/análisis/CU/reglas sincronizados. Backend cerrado localmente; producción y aplicación habitual/remota de migraciones no verificadas. Frontend separado y diagrama global/PHP aplazados.
+
 ## 7. Validaciones de aceptación antes de implementar casos de uso
 
 **CU-11/CU-12 fase 6 (2026-10-22), sin cambios estructurales:** integración real de API/cookies/sesiones y productores CU-30 con fixtures aislados de citas/avisos/clínica. Traslado efectivo modifica solo ubicación/actualizada_en y crea CambioCita; cambio exclusivamente de catálogo/no-op no reescribe instantáneas. Recordatorio.cita devuelve ubicación vigente sin duplicar aviso/versión/lectura. Cambio administrativo posterior a atención histórica conserva byte a byte filas de consulta/versiones/antecedentes/laboratorio/documentos/revisión; no acredita sus endpoints. Persisten 28 entidades/243 atributos/43 relaciones con 000033 previa. Evidencia/regresión en contexto §17.81/README; base habitual/Railway no comprobadas.
@@ -1413,7 +1446,7 @@ RN01–RN14 permanecen como reglas **oficiales**, sin renumeración; las demás 
 
 ## 10. Control de integridad final de esta documentación
 
-- **28 entidades**, **239 atributos originales** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada. Las extensiones técnicas CU-09/CU-10 (§§3.13–3.15 y 6.16–6.18) agregan actualizado_en a Especialidad/Medico y habilitada al pivote (242 atributos con 000030–000032). CU-11 fase 2 (§§3.12/6.19) agrega actualizado_en a Consultorio: **243 atributos con 000033**, sin nuevas entidades/relaciones.
+- **28 entidades**, **239 atributos originales** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada. Las extensiones técnicas CU-09/CU-10 (§§3.13–3.15 y 6.16–6.18) agregan actualizado_en a Especialidad/Medico y habilitada al pivote (242 atributos con 000030–000032). CU-11 fase 2 (§§3.12/6.19) agrega actualizado_en a Consultorio: 243 atributos con 000033. CU-14 fase 3 (§§3.18/6.20) añade id_propuesta_reserva a Cita: **244 atributos con 000034**, sin nuevas entidades/relaciones.
 - Se conservan todos los identificadores, FK simples y compuestas, restricciones UQ y atributos opcionales indicados en el Draw.io. Las listas cerradas se conservan salvo la ampliación expresamente aprobada de `TokenAcceso.proposito` con `CredencialTemporal`, identificada en §§3.4 y 6.15; no se presenta como parte del original.
 - La documentación distingue los datos fuente de las **orientaciones propuestas para Laravel/PostgreSQL**.
 - La elaboración inicial del diccionario no generó código ni migraciones. La infraestructura de fase 0 (§6.6.5) y las migraciones verificadas de fases 1–7 (§6.7–§6.13) completan la preparación de datos, diferenciada de los CU/módulos funcionales pendientes.

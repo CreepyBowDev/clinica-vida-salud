@@ -21,7 +21,7 @@ class Cita extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['motivo_breve'];
+    protected $hidden = ['motivo_breve', 'id_propuesta_reserva'];
 
     protected $attributes = ['estado' => 'Programada', 'modalidad' => 'Presencial', 'version_programacion' => 1];
 

@@ -24,11 +24,11 @@ export default function MainLayout() {
     main.current?.focus({ preventScroll: true });
     document.documentElement.scrollTop = 0;
     const title = location.pathname.startsWith('/administracion/especialidades') ? 'Especialidades' : location.pathname.startsWith('/administracion/medicos') ? 'Médicos' : location.pathname === '/mi-perfil/correo' ? 'Cambiar correo de acceso' : location.pathname === '/mi-perfil' ? 'Mi perfil' : location.pathname.startsWith('/recepcion/pacientes') ? 'Pacientes' : location.pathname.startsWith('/administracion/cuentas') ? 'Cuentas de usuario' : location.pathname === '/recepcion/activacion-web' ? 'Activación web de Paciente' : location.pathname === '/mi-cuenta/contrasena' ? 'Cambiar contraseña' : location.pathname === '/inicio' ? 'Inicio' : current.label;
-    document.title = `${location.pathname.startsWith('/administracion/horarios') ? 'Horarios de atención' : location.pathname.startsWith('/administracion/consultorios') ? 'Consultorios' : location.pathname.startsWith('/administracion/bitacora') ? 'Bitácora del Sistema' : title} | Clínica Vida Salud`;
+    document.title = `${location.pathname === '/reservar-cita' ? 'Reservar cita' : location.pathname === '/recepcion/citas/nueva' ? 'Programar cita' : location.pathname.startsWith('/administracion/horarios') ? 'Horarios de atención' : location.pathname.startsWith('/administracion/consultorios') ? 'Consultorios' : location.pathname.startsWith('/administracion/bitacora') ? 'Bitácora del Sistema' : title} | Clínica Vida Salud`;
   }, [location.pathname, current.label]);
 
   return <div className="workspace-shell">
-    <a className="skip-link" href="#contenido">Saltar al contenido</a>
+    <a className="skip-link" href="#contenido" onClick={event => { event.preventDefault(); main.current?.focus(); }}>Saltar al contenido</a>
     <aside className="workspace-sidebar">
       <div className="sidebar-heading"><Brand /><button ref={menuButton} type="button" className="icon-button mobile-menu"
         aria-expanded={menu} aria-controls="workspace-navigation" aria-label={menu ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMenu(!menu)}>
@@ -38,6 +38,8 @@ export default function MainLayout() {
         <NavLink to="/inicio" onClick={() => setMenu(false)}><Icon name="home" />Inicio</NavLink>
         <NavLink to={current.path} end onClick={() => setMenu(false)}><Icon name="grid" />{current.label}</NavLink>
         {usuario.rol === ROLES.PACIENTE && <NavLink to="/mi-perfil" onClick={() => setMenu(false)}><Icon name="user" />Mi perfil</NavLink>}
+        {usuario.rol === ROLES.PACIENTE && <NavLink to="/reservar-cita" onClick={() => setMenu(false)}><Icon name="grid" />Reservar cita</NavLink>}
+        {usuario.rol === ROLES.RECEPCIONISTA && <NavLink to="/recepcion/citas/nueva" onClick={() => setMenu(false)}><Icon name="grid" />Programar cita</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/cuentas" onClick={() => setMenu(false)}><Icon name="people" />Cuentas de usuario</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/medicos" onClick={() => setMenu(false)}><Icon name="people" />Médicos</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/especialidades" onClick={() => setMenu(false)}><Icon name="grid" />Especialidades</NavLink>}

@@ -1,5 +1,183 @@
 # Frontend — Clínica Vida Salud
 
+## CU-13/CU-14 — fase 5: integración real y cierre frontend local (2026-10-22)
+
+**Estado vigente: fases frontend 1–5 completadas y verificadas localmente.** Los apartados inferiores conservan evidencia histórica; sus pendientes de integración local de búsqueda/reserva quedan resueltos por este cierre. React → Axios → Laravel → PostgreSQL comprobados para Recepción y Paciente. No se implementan CU-15/CU-16/CU-17–CU-21/CU-28, no se acredita producción/Railway/HTTPS ni el cierre independiente de otros módulos.
+
+**Entorno aislado:** Vite propio en localhost:5175 y Laravel temporal en localhost:8000; exclusivamente base/rol clinica_vida_salud_test, esquema aleatorio prueba_reservas5_*, 35 migraciones ejecutadas en él (incluidas 000034/000035). Cuatro roles con credenciales aleatorias ficticias, dos Médicos/salas/horarios, especialidades paginadas y fichas propia/presencial sin CI/cuenta/otra/inactiva. CORS/Sanctum/cookies y sesiones configurados solo en el arnés desechable, CSRF real activo, solicitudes externas bloqueadas, correo array sin envío real. search_path del trigger adaptado solo al esquema propio; extensión btree_gist exigida como preexistente, no instalada/reubicada. Comparación de objetos/funciones/conteos de public de la base de pruebas sin diferencias. Base habitual/remota no utilizada. Esquemas/credenciales/perfil Chrome propios retirados y servidores detenidos al terminar.
+
+**23 comprobaciones funcionales reales (16 principales + 7 de revisión final):**
+- Login/cookies/CSRF, ficha presencial seleccionada sin CI/cuenta, paginación de turnos con segundos y retiro de radio, registro Programada por Recepción y reserva propia del Paciente sin selector.
+- Pérdida de respuesta provocada con Chrome **después de recibir un 201 real de Laravel**, no API ficticia ni rollback inyectado: UI pasa a incierto, no reenvía; consultar resultado recupera la única cita confirmada. PostgreSQL verifica que no se duplicó.
+- Otra sesión HTTP real de Recepción ocupa exactamente el turno mientras el Paciente revisa su propuesta; al confirmar, 409 y nueva revisión exigida. Es intercalado real de peticiones, no nueva prueba multiproceso de locks (esa garantía conserva backend fase 4).
+- Cambio de duración solo en el esquema aislado después de revisar provoca 409 real sin cambiar las citas existentes. CSRF ausente 419 y datos inválidos 422, logout/401, ficha inactiva sin seleccionar turno, Administrador/Médico rechazados por rutas React y API 403, revocación real de sesiones del Paciente al recuperar foco.
+- Consulta real de los cuatro eventos CITA_PROGRAMADA por Administrador, resultado EXITO y detalle sin motivo/comprobantes. PostgreSQL: **4 citas, 4 UUID distintos y 4 eventos**, todas Programada y duración histórica de 15 minutos; cero CambioCita y cero Recordatorio, auditoría sin contraseña/motivo ficticios.
+- Especialidades paginadas sin selección implícita; radio por teclado, foco al resumen, recarga restaura sesión sin conservar propuesta/crear cita, salto al contenido y menú móvil/Escape. Cookies HttpOnly/CORS con credenciales observados, Web Storage vacío. HTTP observados 200/201/204/401/403/409/419/422; red perdida después del COMMIT controlada por CDP, no fallos reales de infraestructura. 429/5xx restantes conservan pruebas simuladas de fase 4, no se presentan como nuevos casos productivos provocados.
+
+**Hallazgo de integración corregido:** el enlace compartido «Saltar al contenido» usaba navegación nativa a #contenido mientras React Router tenía un blocker registrado, produciendo advertencia de historial POP ajeno al router. MainLayout mantiene href semántico pero su activación enfoca main sin cambiar fragmento/historial. Navigation.test.jsx añade una regresión específica. Se repitió teclado en entorno real limpio: hash vacío, cero advertencias de blocker; no cambios a reglas/contratos/estado de la reserva. Los procesos temporales reportan salida no cero al detenerlos expresamente; no significa fallo del build o de los recorridos.
+
+**Revisión visual final:** **15 comprobaciones de disposición/legibilidad y 10 auditorías axe WCAG A/AA sin infracciones detectadas**, cero excepciones JS. Incluyen resumen de Recepción/Paciente, recibo, incertidumbre y ficha inactiva, con revisión adicional a 320/390/768/1440 px, texto al 200% y espaciado ampliado; capturas inspeccionadas. Evidencia principal de 8 vistas y revisión final corregida de 7 vistas, sin sumar de nuevo la primera revisión equivalente. No certificación integral de accesibilidad. Ajustes previos de escape/selectores/espera del arnés y un 429 durante sus reintentos se resolvieron en el entorno desechable, sin relajar límites del producto ni atribuirlos a defectos de negocio.
+
+**Verificación/cierre:** suite final **929 pruebas/51 archivos correctos**, build correcto con aviso conocido de bundle >500 kB (661,32 kB). Módulo acumulado **138 pruebas/5 archivos** de citas más la regresión nueva del layout: 139 casos frente a las 790 pruebas anteriores al módulo. No suite backend intacta repetida ni lint inexistente. README/contexto §17.96/análisis/CU-13/CU-14 sincronizados; reglas/RF/RN/DER/PHP sin cambios por fase 5. Diagrama global de clases y actualización PHP conservan aplazamiento explícito; no se declaran terminados.
+
+**Evidencia externa:** `%LOCALAPPDATA%/Temp/opencode/reservas5-review/{evidence.json,evidence-extra-final.json,database-evidence.json,*.png}`; arneses temporales reservas5.php/reservas5-browser.cjs/reservas5-extra.cjs, sin secretos versionados. La comprobación SQL de cuatro citas corresponde al recorrido principal, antes de limpiar su esquema; la revisión final de teclado usó otro esquema limpio y también se retiró. Sin commit/push/despliegue. **Frontend CU-13/CU-14 cerrado localmente; se detiene sin iniciar otro módulo.**
+
+## CU-13/CU-14 — frontend fase 4: robustez y seguridad (2026-10-22)
+
+**Alcance verificado:** ampliación de sesión/errores/contratos/navegación y resultado incierto sobre la reserva existente. No endpoints, dependencias, migraciones, PHP, CSS global ni funcionalidades de otro CU. Fase 5 integración real/cierre conserva autorización posterior; las comprobaciones de esta fase usan React/AuthProvider/Axios reales con transporte HTTP simulado, no Laravel/PostgreSQL.
+
+**Fallos reproducidos y corregidos:** dos pruebas fallaron antes del ajuste. (1) Logout con error de red incrementa la época de sesión pero puede mantener la misma identidad autenticada; si el POST de reserva termina después, Axios descarta su respuesta. useReservaRegistro antes ignoraba SESSION_SUPERSEDED dejando «Registrando» sin salida. Ahora, si la ruta sigue vigente, termina busy y pasa a resultado incierto (o fallo previo de CSRF si aún no se había enviado), sin publicar el recibo antiguo ni reenviar; si la identidad/ruta ya cambió, sigue descartando por montaje/secuencia. (2) Un 403 durante el GET CSRF previo al POST retenía revisión y botón de confirmar por considerar todo fallo previo reintentable. Ahora 403/404/422 no conservan esa autorización visual; reintento explícito de revisión solo para red/5xx previos o 419/429. No cambios a AuthProvider/api.js globales.
+
+**Navegación y límites de contrato:** una advertencia de salida pendiente se descarta cuando deja de existir incertidumbre (por éxito o ausencia comprobada), sin arrastrar una navegación antigua ni cambiar ruta automáticamente. Servicios comprueban listas/meta y contexto mínimo de disponibilidad antes de renderizar: estructura inválida se convierte en fallo seguro, no listado inventado ni excepción JSX. Propuesta puede contrastar inicio exacto del turno elegido; confirmación/resultado contrastan Paciente contra el del resumen, sin enviar esos datos de comprobación al backend. No se exige conservar Médico/sala/tiempos del resumen al reconciliar una cita vigente que pudo cambiar por un flujo autorizado. Backend sigue siendo autoridad de permisos/reglas: estas comprobaciones protegen presentación, no sustituyen autorización ni calculan turnos.
+
+**41 casos nuevos:** 10 de lectura malformada, 4 de contrato de propuesta/resultado (inicio/Paciente/booleano), 6 del hook (Retry-After de tres operaciones, beforeunload, pagehide/respuesta tardía, consulta doble) y 21 de páginas. Estos últimos cubren los dos defectos reproducidos, matrices de siete errores de propuesta y siete de resultado, 401 al consultar, cambio de rol durante propuesta/resultado, salida durante propuesta y finalización con navegación bloqueada. Resultado 403 oculta resumen y bloquea nuevas consultas de ese comprobante; no autoriza recreación. Ausencia false requiere otra decisión expresa; errores/429 no generan envíos automáticos al vencer el contador. Se comprueban token fuera de DOM/almacenamientos y limpieza de sesiones con los casos acumulados.
+
+**Verificación final:** módulo **138 pruebas/5 archivos correctos**, regresión frontend completa **928 pruebas/51 archivos correctos**; `pnpm build` correcto con aviso conocido de bundle >500 kB (661,27 kB). Nuevas pruebas en tests/hooks, ampliaciones de tests/pages y tests/services, fixture ficticio existente reutilizado. Sin script lint configurado, no se afirma lint. No se repite la suite backend intacta. No se modificó la disposición/CSS en esta fase ni se presentan las capturas/axe de fase 3 como ejecución nueva: validación visual real/integración final se revisará en fase 5. Foco/errores/transiciones de salida comprobados por Testing Library, no certificación integral de accesibilidad.
+
+README/contexto §17.95/análisis/CU-14 sincronizados. Esquema/DER/reglas/RF/RN y base habitual/Railway intactos; sin commit/push/despliegue. Diagrama global/PHP siguen aplazados. **Fase 4 cerrada localmente; se detiene antes de fase 5.** Módulo frontend todavía no cerrado integralmente.
+
+## Reserva CU-14 — frontend fase 3: revisión, registro y resultado (2026-10-22)
+
+**Implementado:** seleccionar turno → motivo breve opcional → POST propuesta → resumen explícito → POST /citas → cita registrada. Mismas rutas/roles de fase 2. ReservarCitaPage integra useReservaRegistro y ReservaRegistro; el servicio añade proponerReserva/confirmarReserva/consultarResultadoReserva. Los apartados inferiores conservan historia: el registro ya no está pendiente como se indicó al cerrar fase 2. Sin frontend de cancelar/reprogramar/confirmar llegada ni recordatorios; fases 4 robustez ampliada y 5 integración real/cierre siguen pendientes.
+
+**Revisión y consentimiento:** motivo opcional trim/vacío→null, máximo 500 caracteres sin controles/saltos de línea; «0» válido. Hora/revisión del turno y selección exactas por whitelist, id_paciente solo Recepción. Resumen exclusivamente del backend: Paciente/código, especialidad, Médico, inicio/fin (24 horas, segundos y America/La_Paz), duración, consultorio, sede/dirección, Presencial y motivo. No retención del turno. Durante propuesta/guardado no se editan criterios ni motivo; volver retira la propuesta y obliga a consultar/seleccionar/revisar de nuevo. Doble envío bloqueado con ref antes del primer await y botones retirados durante envío. POST exige cookie CSRF y sessionBound; sin retries ni cambios globales de Axios.
+
+**Contrato y resultado:** 201 con repetida=false o 200 con repetida=true validados junto al DTO mínimo; respuesta malformada de creación no es éxito. Resultado muestra exclusivamente atributos efectivos de Cita, incluido su estado vigente, código y ubicación/duración guardadas; no inventa nombres/dirección actuales que ese DTO no contiene. Programada no se confunde con Confirmada/llegada. Al obtener la cita se descartan token/resumen de propuesta; no UUID/cifrado en DOM, URL, history.state, Web Storage o AuthContext. Los únicos cambios en pruebas previas reconocen que ahora hay botón Revisar cita tras seleccionar, sin cambiar el contrato de búsqueda.
+
+**Incertidumbre mínima segura desde la primera escritura:** servicio distingue fallo del GET CSRF (reservaEnviada=false, no POST) de error tras intentar POST. Red/timeout/5xx o 2xx inválido tras /citas deja estado incierto, sin botón de creación ni reenvío automático. «Consultar resultado» hace POST solo con el mismo sobre. true presenta la cita vigente sin crear otra; false informa ausencia en ese instante y permite volver a buscar o confirmar expresamente la misma propuesta/motivo, sin nuevo UUID automático. Fallo de consulta mantiene incertidumbre; no polling. Navegación interna durante guardado/incertidumbre/consulta usa useBlocker con advertencia y elección permanecer/salir, y beforeunload solicita aviso nativo al recargar/cerrar cuando el navegador lo permita. Avisos no garantizan entrega ni persistencia. Logout/pagehide/401/desmontaje/cambio de identidad limpian; no recuperación prometida tras recarga/nuevo login.
+
+**Errores:** 409 obsoleta/ocupación/Paciente no disponible retira propuesta y exige otra búsqueda, sin sustituciones silenciosas. 404/403/422 no habilitan confirmar el resumen anterior; 422 publica solo campos permitidos. 419 mantiene revisión para una decisión explícita y nueva preparación CSRF; 429 deshabilita acciones según Retry-After. SQL/texto arbitrario/error completo no se muestra. Respuestas de otra época/instancia no publican recibos ni reautorizan operaciones. Fase 4 ampliará matrices de errores/sesión/navegación; no se declara cerrada toda la robustez por esta fase.
+
+**Verificación:** **46 pruebas nuevas** (22 de servicio, 24 de páginas), acumulado del módulo **97 pruebas/4 archivos**. Ambos roles/resumen/whitelist/CSRF/segundos/motivo «0»/validación, propuesta fallida, doble clic, 201/200 vigente, cuatro conflictos 409, fallo previo CSRF, 419/422/429/401, red/500/respuesta inválida inciertas, resultado true/false/fallido, confirmación expresa del mismo sobre, logout tardío y advertencia/abandono sin persistir. Primeras dos expectativas de hora detectaron formato regional de 12 horas; se fijó hourCycle h23 para mostrar 08:00:01 sin cambiar instantes. **Suite completa: 887 pruebas/50 archivos correctos** y pnpm build correcto (aviso conocido bundle >500 kB, 659,74 kB). No lint configurado ni suite backend intacta repetida.
+
+**Diseño/revisión visual:** identidad/tokens existentes conservados; revisión en sección completa sustituye búsqueda, resultado usa datos persistidos y foco al encabezado en cambios de estado. Chrome/CDP con HTTP ficticio interceptado: cinco estados × 1440/768/390/320 px, **20 comprobaciones sin desbordamiento, 10 auditorías axe sin infracciones detectadas**, cero excepciones JS; capturas móvil/escritorio inspeccionadas. Primer intento del arnés tuvo un selector mal escapado, corregido solo en el script temporal antes de completar todas las comprobaciones. Evidencia externa reservas3-evidence.json/reservas3-*.png, sin datos reales/secretos. No integración Laravel/PostgreSQL real nueva ni certificación integral de accesibilidad.
+
+**Cierre local fase 3:** README/contexto §17.94/análisis/CU-14 sincronizados; reglas/RF/RN/DER/PHP/base habitual/Railway intactos. Sin commit/push/despliegue/dependencias. Diagrama global y actualización PHP aplazados. Se detiene antes de fase 4 hasta autorización; módulo frontend todavía abierto.
+
+## Búsqueda y disponibilidad CU-13 — frontend fase 2 (2026-10-22)
+
+**Implementado localmente:** `/recepcion/citas/nueva` y `/reservar-cita`, con ProtectedRoute/RoleRoute/MainLayout y menú/título exclusivos según rol. Esta fase permite buscar y seleccionar un turno, **no registrar citas**: propuesta/revisión/POST /citas/resultado conservan fases 3–4. La pantalla indica expresamente ese límite y que la disponibilidad no reserva espacio. Los apartados inferiores son evidencia histórica, no descripción del estado actual de implementación.
+
+**Capas/componentes:** nueva feature `src/features/citas/`: ReservarCitaPage y ReservaFlujo (interno) coordinan selección; ReservaCatalogo presenta consultas paginadas de ficha/especialidad/Médico con callbacks; DisponibilidadTurnos presenta contexto/turnos/selección local. reserva.service.js contiene exclusivamente tres GET de reserva, whitelist, IDs BIGINT textuales, signal/sessionBound y filtros literales; reutiliza api.js, useCatalogQuery, servicio propietario de Pacientes y controles compartidos. No catálogo administrativo de Médicos/especialidades abierto a otros roles, ni nuevo Axios/Context/dependencia. Pruebas en tests/services y tests/pages de la feature.
+
+**Comportamiento:** Recepción selecciona explícitamente una ficha por CI opcional/nombres/apellidos; muestra código y actividad, permite sin CI/cuenta y no crea fichas desde reserva. Paciente no ve selector ni envía id_paciente. Especialidad → Médico (nombre/código de consultorio) → fecha civil → consulta explícita. Turnos, duración, ubicación, actividad de ficha y zona America/La_Paz vienen de la API; sin cálculo local/anclaje/horizonte arbitrario. Fecha imposible/vacía se señala; backend decide fecha pasada/inicio futuro. Hora local con segundos íntegros, HMAC opaca no mostrada ni recalculada. Ficha inactiva puede consultar pero radios quedan deshabilitados; respuestas 403/404/409 bloquean la selección disponible, sin adoptar condiciones nuevas silenciosamente.
+
+**Estado/privacidad:** filtros/selecciones solo en memoria, sin query/history.state/Web Storage/almacén global. Cambiar ficha/especialidad/filtros de Médico/fecha retira dependencias y resultados inmediatamente; cambiar página de turnos/actualizar retira turno elegido. Peticiones obsoletas canceladas/descartadas mediante useCatalogQuery y época de sesión de Axios. Key por usuario/rol evita heredar selección; salida/pagehide/logout/revocación retiran datos privados. 401 integra login, 419 pide reconsulta, 422 fecha permitida, 429 respeta Retry-After en reconsulta; errores de red/5xx no reintentan ni muestran cuerpos técnicos. **No POST de reserva ni CSRF solicitado por estos GET**, no motivo/propuesta por esta fase. Las futuras escrituras deberán implementar la incertidumbre diseñada en fase 1.
+
+**Diseño/revisión:** Source Sans 3, paleta y layout existentes conservados. Filtros en filas flexibles y secciones con jerarquía, contexto efectivo y radios nativos para turno único; móvil apilado y grilla flexible. Chrome real con API **ficticia interceptada**, cuatro escenarios (Paciente, Recepción, ficha inactiva, sin turnos) × 1440/768/390/320 px: **16 comprobaciones sin desbordamiento**, **8 auditorías axe sin infracciones detectadas**, cero excepciones JS. Capturas móvil/escritorio inspeccionadas. No certificación integral de accesibilidad ni integración con Laravel/DB por esta revisión. Evidencia temporal externa `%LOCALAPPDATA%/Temp/opencode/reservas2-{evidence.json,*.png}` y arnés reservas2-browser.cjs; sin pacientes reales ni secretos.
+
+**Verificación final:** **51 pruebas nuevas/2 archivos** (12 servicios, 39 páginas). Roles/cruce de rutas/anonimato/restricción, ficha sin CI, filtros/IDs/segundos, vacíos/paginación/ficha inactiva, cambios de selección/respuestas tardías, errores 403/404/409/419/422/429/5xx/red, 401/logout/cambio de rol y ausencia de persistencia. Prueba de errores inicial esperaba encabezado desaparecido en 403/404/409: se conservó encabezado contextual accesible también en esos estados y pasaron todos los casos. **Regresión completa frontend: 841 pruebas/48 archivos correctos**; `pnpm build` correcto, aviso conocido de bundle >500 kB (645,61 kB), sin optimización ajena al alcance. No script lint configurado, no se afirma ejecución de lint ni suite backend intacta. Diff/documentos verificados al cierre.
+
+README/contexto §17.93/análisis CU-13/ficha sincronizados. Backend/DB/migraciones/DER/reglas/RF/RN sin cambios por esta entrega; base habitual/Railway sin tocar, sin commit/push/despliegue. Diagrama global/PHP aplazados. **Fase 2 cerrada localmente; no iniciar fase 3 sin autorización.** Módulo frontend todavía abierto.
+
+## Búsqueda y reserva CU-13/CU-14 — fase 1: diseño frontend (2026-10-22)
+
+**Estado: diseñado, no implementado.** Backend cerrado localmente en contexto §17.91 (1380 pruebas/16361 aserciones). Esta fase no crea feature/rutas/componentes/servicios/tests funcionales ni modifica PHP, esquema, sesión o CSS. Se inspeccionaron router, MainLayout, AuthProvider, Axios, servicios de Pacientes/perfil, componentes compartidos y contratos PHP reales. React 19/Vite 8/JavaScript/React Router 7/Axios, pnpm 11.17.0 y Vitest/Testing Library existentes; sin librerías nuevas. Las cinco fases siguientes son frontend, independientes de las cinco fases backend ya terminadas.
+
+### Alcance, entradas y arquitectura previstas
+
+- **Recepción:** `/recepcion/citas/nueva`, menú «Programar cita». Selección explícita de ficha mediante búsqueda paginada autorizada de Pacientes, nombre/código/CI solo cuando exista; mostrar actividad y permitir volver a seleccionar. No exigir CI ni cuenta web a ficha presencial. No alta de ficha incrustada ni transporte de ficha/motivo por URL/history.state; se reutiliza la gestión de Pacientes existente fuera del flujo.
+- **Paciente:** `/reservar-cita`, menú «Reservar cita». Sin selector de ficha y **sin enviar id_paciente**; backend deriva la identidad. Puede consultar su perfil existente para contexto mínimo/actividad, sin ampliar AuthContext ni depender del nombre de la cuenta para probar identidad. La disponibilidad y el resumen de propuesta son la referencia efectiva del servidor.
+- Ambas rutas previstas bajo ProtectedRoute/RoleRoute y MainLayout; Administrador/Médico sin acceso. No listado general de citas, agenda/historial ni acciones de cancelar/reprogramar/llegada/Atendida. No enlaces a páginas todavía inexistentes.
+- Una Page compartida `ReservarCitaPage` con variante según rol, dentro de `src/features/citas/pages/`, sin duplicar flujos. Composición prevista: selector de ficha de Recepción, criterios, turnos, revisión y resultado como componentes de feature. `services/reserva.service.js` encapsulará las seis operaciones; Page/hook local coordinará estados, sin Axios en componentes ni lógica de disponibilidad. Subcarpetas hooks/utils/styles solo si tienen uso real. Nombres de diseño, **no archivos creados**. Reutilizar Button/FormField/SelectField/Alert/Modal y patrones de paginación cuando encajen; no forzar un catálogo administrativo en los catálogos de reserva.
+- Estado local de la instancia de ruta, no AuthContext ni caché global. Pruebas futuras exclusivamente en `src/features/citas/tests/{services,pages,components,hooks,utils}/` según los archivos necesarios, no carpetas vacías. Services existentes de Pacientes/perfil se importan desde su módulo propietario.
+
+### Flujo visual previsto
+
+Conservar Source Sans 3, tamaños/tokens actuales y alineación izquierda: verde clínico `#146b68`, texto `#18333b`, secundario `#526871`, fondo `#f5f8fa`, superficie `#ffffff`, borde `#d5e0e5`; feedback con tokens existentes, sin cambiar paleta ni tipografía. Elemento principal: selección legible de fecha/turnos y ubicación real, no métricas ni calendario decorativo. Secuencia real «Buscar turno → Revisar → Resultado» con paso actual accesible; revisión y resultado sustituyen el área de búsqueda, no apilan formularios activos.
+
+```text
+Escritorio (MainLayout existente)
+Programar cita / Reservar cita
+Buscar turno · Revisar · Resultado
+[Paciente seleccionado y Cambiar]  (solo Recepción)
+[Especialidad] [Médico + búsqueda] [Fecha]
+[Filtro opcional de consultorio] [Consultar turnos]
+Consultorio real · duración · America/La_Paz
+[08:00:01] [08:15:01] [08:30:01] ... [paginación]
+Motivo breve (opcional)                 [Revisar cita]
+
+Revisión: Paciente / especialidad / Médico / fecha-hora completa
+          duración / sede-dirección / consultorio / Presencial / motivo
+          «El turno no queda reservado hasta completar el registro»
+          [Volver a buscar] [Reservar cita / Programar cita]
+
+Resultado incierto: «No pudimos confirmar si la cita se registró»
+                   [Consultar resultado] (sin botón de reenvío automático)
+Resultado confirmado: «Cita registrada» · código · Programada · datos efectivos
+```
+
+En móvil, criterios/resumen apilados, turnos con salto de línea y controles >=44 px, sin desplazamiento horizontal; revisión en sección completa para no encerrar formulario largo en modal. Radios nativos para turno único, fieldset/legend, etiquetas visibles, aria-busy/live para cambios, foco al encabezado de revisión/resultado o primer error, sin anunciar cada tecla. Fechas con zona de sede explícita, nunca zona automática del navegador. Pruebas futuras a 320/390/768/1440 px, teclado, zoom/texto ampliado y contraste. Sin animaciones de entrada ni significado comunicado solo por color. Revisión de diseño: se descarta un calendario mensual y tarjetas decorativas, pues la API consulta por fecha y no persiste meses de turnos; se conserva el lenguaje visual ya aprobado.
+
+### Contratos efectivos para implementar en fases 2–4
+
+Prefijo `/api` configurado solo en api.js; services usan rutas relativas, `sessionBound: true`, cookies/XSRF y `signal` en consultas cancelables. POST obtiene cookie CSRF conforme a los servicios existentes; nunca reintenta automáticamente. IDs BIGINT textuales, página/tamaño acotados por API, listas vacías válidas. No seguir links recibidos como URLs arbitrarias: construir parámetros permitidos sobre ruta conocida.
+
+| Operación | Entrada permitida | Respuesta que consumirá React |
+| --- | --- | --- |
+| GET `/reservas/especialidades` | nombre opcional, page/per_page | data[] id_especialidad/nombre, links/meta |
+| GET `/reservas/medicos` | id_especialidad; nombre/consultorio opcionales; page/per_page | data[] id_medico/codigo_medico/nombres/apellidos/consultorio mínimo, links/meta; no catálogo administrativo |
+| GET `/reservas/disponibilidad` | id_especialidad/id_medico/fecha YYYY-MM-DD; id_paciente obligatorio solo Recepción; page/per_page | data con contexto Médico/especialidad/consultorio, zona_horaria/consultado_en/paciente_reservable/duracion_minutos/turnos; links/meta están en raíz, no dentro de data |
+| POST `/reservas/propuesta` | selección sin paginación + hora_inicio HH:mm:ss + revision_turno + motivo_breve opcional; id_paciente solo Recepción | 200 data: id_propuesta/propuesta opacos, resumen Paciente/Médico/especialidad/consultorio/inicio_at/fin_at/duracion_minutos/zona_horaria/modalidad/sede_atencion/direccion_sede/motivo_breve |
+| POST `/citas` | propuesta exacta + mismo motivo_breve revisado; sin selección/estado/roles/duración adicionales | 201 primera creación o 200 repetición; data cita vigente y meta.repetida en raíz |
+| POST `/reservas/resultado` | únicamente propuesta exacta | 200 data.registrada booleano; si true, data.cita vigente. Nunca crea |
+
+Turnos: inicio_at/fin_at UTC con seis decimales, hora_inicio local con segundos y revision_turno HMAC opaca. Mostrar segundos cuando existan, conservar texto exacto al enviar; no truncar segundos, no regenerar HMAC ni convertir YYYY-MM-DD con toISOString(). Usar Intl con `timeZone: 'America/La_Paz'` al presentar instantes, no imponer horizonte/anticipación ni calcular cuadrícula/ocupación en React. El reloj cliente solo ayuda: backend decide fecha/inicio futuro.
+
+Motivo opcional: trim, vacío→null, máximo 500 caracteres y sin caracteres de control según servidor; «0» no es vacío. Se edita antes de solicitar propuesta; editarlo posteriormente retira propuesta y exige revisión nueva. No enviar motivo al consultar resultado. Servicios harán listas permitidas de campos, tratarán respuestas de guardado malformadas como resultado no confirmado y no mostrarán error.response/config/request completos.
+
+Cita devuelta: IDs id_cita/id_paciente/id_medico/id_especialidad/id_consultorio; codigo_cita/estado/modalidad/duracion_minutos/sede_atencion/consultorio_atencion/motivo_breve/version_programacion e inicio_at/fin_at/creada_en/actualizada_en. **No devuelve nombres actuales ni direccion_sede/zona_horaria/UUID**. Resultado usa campos efectivos persistidos; nombres del resumen solo como contexto de la revisión de esta instancia, no como datos actuales reconsultados. No inventar endpoint GET de cita ni reconstruir estado inicial al reconciliar. «Cita registrada» no equivale a estado Confirmada; mostrar estado vigente, incluso distinto de Programada en replay.
+
+### Estados, invalidación y resultado incierto
+
+Estados **de interfaz**, no estados nuevos de Cita: buscando/cargando → turno seleccionado → preparando propuesta → revisión → guardando → registrada; alternativa guardando → resultado incierto → consultando resultado → registrada o ausencia comprobada. Errores de consulta/propuesta no implican que se haya creado una cita; solo POST /citas tiene esa escritura.
+
+| Cambio/resultado | Efecto previsto |
+| --- | --- |
+| Cambiar ficha o especialidad | Cancelar/descartar respuestas anteriores, limpiar dependencias Médico/turnos/selección/propuesta; motivo se limpia al cambiar ficha |
+| Cambiar Médico, fecha, filtro de Médicos o página/tamaño de turnos | Retirar turno/revisión/propuesta y resultados que ya no correspondan; no seleccionar automáticamente el primero |
+| Editar motivo o volver desde revisión | Invalidar propuesta; nueva solicitud de revisión, nunca reutilizarla con otro cuerpo |
+| Nueva consulta de disponibilidad | Cancelar la anterior o ignorar por secuencia; preservar criterios válidos pero exigir selección vigente |
+| `paciente_reservable=false` | Informar ficha inactiva y bloquear nueva propuesta; no confundir con cuenta desactivada |
+| Guardando | Bloqueo inmediato en ref y visual contra doble submit; congelar selección/motivo. No afirmar rollback por abortar/navegar |
+| Resultado incierto | Conservar en memoria propuesta exacta/motivo/snapshot; bloquear nueva reserva desde este flujo hasta consultar o abandonar explícitamente con advertencia. No polling ni reenvío automático |
+| Resultado true | Presentar cita vigente, retirar controles de creación anterior; no duplicar evento ni restaurar estado/ubicación/duración |
+| Resultado false | «No se encontró una cita registrada para esta propuesta al consultar». No es autorización de reenvío: permitir volver a buscar o una confirmación explícita de la misma propuesta revisada, que backend revalidará. Nunca emitir automáticamente otro UUID |
+| Fallo al consultar resultado | Mantener incertidumbre y botón de consulta cuando corresponda; no habilitar un nuevo POST /citas por suposición |
+
+Sin persistencia en localStorage/sessionStorage, URL/query/hash, history.state, logs, analytics ni AuthContext de ficha/motivo/propuesta/HMAC/resumen/cita. Solo ruta sin query para retorno de login. Limpiar al desmontar/abandonar/pagehide, logout, cambio de actor/rol, sesión restringida o inválida; descartar respuestas tardías con secuencia local + sessionBound/época existentes. La indisponibilidad de comprobación de sesión oculta área privada, sin confundir error de red con logout.
+
+**Límite deliberado:** backend puede reconciliar un token conservado autorizadamente después de nuevo login, pero este frontend no lo conserva a través de logout/401/recarga. No ampliar AuthContext ni crear un almacén de comprobantes sobre el área pública para prometer esa recuperación. Advertir antes de abandonar un envío incierto, cuando la navegación pueda interceptarse con APIs existentes, y ofrecer aviso nativo beforeunload sin datos sensibles; la advertencia no garantiza entrega ni preservación. Después de perder la prueba no reconstruir petición ni crear otra automáticamente, ni inventar búsqueda pública por CI/código. Mostrar orientación administrativa sin afirmar que ya existe una pantalla de historial/CU-21 ni un procedimiento nuevo de recuperación. Cualquier recuperación persistente entre sesiones requerirá diseño/autorización separados.
+
+### Errores y pruebas previstas
+
+| Caso | Presentación/acción |
+| --- | --- |
+| 401 | Integración con invalidación de sesión existente, limpiar datos privados y login; no reenvío ni transporte del comprobante |
+| 403 | Acceso denegado, no fingir logout ni mostrar datos previos como autorizados |
+| 404 | Selección no disponible, reconsultar catálogos/ficha sin revelar datos ajenos |
+| 409 CITA_PROPUESTA_OBSOLETA | Retirar propuesta/consentimiento; preservar criterios razonables, obtener disponibilidad vigente y nueva elección/revisión explícitas |
+| 409 CITA_TURNO_NO_DISPONIBLE/CITA_PACIENTE_SOLAPADO | Informar indisponibilidad sin ocupante, reconsultar; sin elegir alternativa automáticamente |
+| 409 CITA_PACIENTE_NO_DISPONIBLE | Bloquear reserva, revisar ficha autorizada; no activar ficha/cuenta desde este módulo |
+| 419 | Renovación CSRF solo mediante nueva acción explícita; si envío ya incierto, consultar resultado, no reenviar confirmación |
+| 422 | Campos permitidos y mensaje seguro; propuesta/revisión inválida exige nueva búsqueda/revisión, no edición manual del comprobante |
+| 429 | Retry-After del servidor, botón de acción limitado sin bucle/reintento; no revelar cuenta/ocupante |
+| Sin red/timeout/5xx o 2xx inválido después de enviar /citas | Resultado incierto, consultar endpoint de resultado. Si solo falló obtención de CSRF antes del POST, señalar que no se envió; no adivinar la etapa |
+
+`describirError` existente requiere mensajes específicos en feature: su genérico 419 sugiere reenviar y **no debe aplicarse ciegamente al guardado incierto**. Categorías error.details.cambios se limitan a HORARIO/DURACION/CONSULTORIO/HABILITACION/DISPONIBILIDAD; no suponer causa exacta si API informa genéricamente. Nunca errores técnicos completos en pantalla/consola.
+
+Matriz futura: contratos de seis servicios y whitelist; IDs grandes/segundos/motivo «0»; permisos de cuatro roles y sesión restringida; Paciente sin id_paciente/Recepción con ficha sin CI; cambios de criterios y respuestas fuera de orden; vacíos/paginación/ficha inactiva; resumen coherente y propuesta invalidada; doble clic; 201/200 replay; red después de COMMIT simulado → resultado true/false/fallido; 401/logout/cambio de rol durante solicitud; 403/404/409/419/422/429/5xx; ausencia de persistencia/filtración; foco/teclado/responsive. Vitest/Testing Library por fase; integración real solo en entorno/base/rol aislados, correos externos bloqueados. No repetir suites backend intactas sin causa técnica.
+
+### Cadencia y cierre de fase 1
+
+1. **Diseño (esta entrega):** contratos/estados/rutas/UX/matriz, sin código funcional.
+2. **CU-13:** feature/servicio de lecturas/rutas/menús y búsqueda/selector autorizado/turnos; pruebas y revisión visual. No POST /citas todavía.
+3. **CU-14:** propuesta/revisión/confirmación/resultado nominal y protección mínima imprescindible desde el primer guardado: incertidumbre bloquea reenvío y ofrece consulta explícita. **No entregar guardado inseguro esperando fase 4.**
+4. **Robustez:** ampliar pruebas y estados de reconciliación, sesión/respuestas tardías/navegación/errores/privacidad; cerrar alternativos sin reintentos automáticos.
+5. **Integración/cierre:** recorridos reales de ambos roles, accesibilidad/responsive, suite frontend y build; sincronización documental. Frontend funcional local no equivale a aceptación Railway/HTTPS.
+
+**Fase 1 completada solo documentalmente:** README/contexto §17.92/análisis previsto y notas CU-13/CU-14 sincronizados, fuentes/contratos revisados; sin cambios de reglas/RF/RN/DER/PHP/UI ni tests funcionales ejecutados por este diseño. Las pruebas/build de fases posteriores no se anuncian como realizadas. Diagrama global y actualización PHP conservan aplazamiento expreso; no commit/push/despliegue ni cambios de base habitual/Railway. Se detiene antes de fase 2 hasta autorización.
+
 ## Consultorios y horarios CU-11/CU-12 — fase 5: cierre integrado local (2026-10-22)
 
 **Estado vigente:** fases frontend 1–5 completadas y comprobadas localmente con React → Axios → Laravel → PostgreSQL. Los apartados inferiores conservan la evidencia histórica de cada fase; sus pendientes de integración local de CU-11/CU-12 quedan resueltos por esta entrega. No se cierra la integración propia de CU-30 ni se inicia otro módulo.

@@ -35,7 +35,7 @@ class CitasRecordatoriosTest extends TestCase
     public function test_schema_preserves_dictionary_columns_primary_keys_and_composite_reference(): void
     {
         $tables = [
-            'citas' => ['id_cita', 'codigo_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio', 'creada_por', 'inicio_at', 'fin_at', 'duracion_minutos', 'estado', 'motivo_breve', 'modalidad', 'sede_atencion', 'consultorio_atencion', 'version_programacion', 'creada_en', 'actualizada_en'],
+            'citas' => ['id_cita', 'codigo_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio', 'creada_por', 'inicio_at', 'fin_at', 'duracion_minutos', 'estado', 'motivo_breve', 'modalidad', 'sede_atencion', 'consultorio_atencion', 'version_programacion', 'creada_en', 'actualizada_en', 'id_propuesta_reserva'],
             'cambios_cita' => ['id_cambio_cita', 'id_cita', 'id_actor', 'operacion', 'realizado_en', 'estado_anterior', 'estado_nuevo', 'datos_anteriores', 'datos_nuevos', 'motivo'],
             'recordatorios' => ['id_recordatorio', 'id_cita', 'version_programacion', 'generado_en', 'leido_en', 'invalidado_en'],
         ];
@@ -49,7 +49,7 @@ class CitasRecordatoriosTest extends TestCase
         $this->assertSame(['id_medico', 'id_especialidad'], $foreign['columns']);
         $this->assertSame('medico_especialidad', $foreign['foreign_table']);
         $this->assertSame(['id_medico', 'id_especialidad'], $foreign['foreign_columns']);
-        $this->assertSame(2, (int) DB::selectOne("SELECT count(*) AS total FROM pg_constraint WHERE conrelid = 'citas'::regclass AND contype = 'x'")->total);
+        $this->assertSame(3, (int) DB::selectOne("SELECT count(*) AS total FROM pg_constraint WHERE conrelid = 'citas'::regclass AND contype = 'x'")->total);
         $this->assertSame('public', DB::selectOne("SELECT n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = 'btree_gist'")->nspname);
     }
 
@@ -120,7 +120,9 @@ class CitasRecordatoriosTest extends TestCase
         $id = DB::table('citas')->insertGetId($this->citaRow($resources), 'id_cita');
         DB::table('citas')->insert($this->citaRow($resources, ['inicio_at' => '2026-11-01T11:45:00Z', 'fin_at' => '2026-11-01T12:00:00Z']));
         DB::table('citas')->insert($this->citaRow($resources, ['inicio_at' => '2026-11-01T12:15:00Z', 'fin_at' => '2026-11-01T12:30:00Z']));
-        DB::table('citas')->insert($this->citaRow($resources, ['id_medico' => $resources['doctors'][1], 'id_consultorio' => $resources['rooms'][1]]));
+        $otroPaciente = DB::table('pacientes')->insertGetId(['codigo_paciente' => 'OTRA-FICHA-CONTIGUA', 'nombres' => 'Paciente', 'apellidos' => 'Ficticio',
+            'fecha_nacimiento' => '1990-01-01', 'telefono' => '70000000'], 'id_paciente');
+        DB::table('citas')->insert($this->citaRow($resources, ['id_paciente' => $otroPaciente, 'id_medico' => $resources['doctors'][1], 'id_consultorio' => $resources['rooms'][1]]));
         DB::table('citas')->where('id_cita', $id)->update(['estado' => 'Cancelada']);
         DB::table('citas')->insert($this->citaRow($resources));
         $this->assertSame(5, Cita::query()->count());

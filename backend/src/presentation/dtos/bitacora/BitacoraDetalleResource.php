@@ -35,6 +35,17 @@ class BitacoraDetalleResource extends BitacoraListadoResource
             return (object) [];
         }
         $salida = [];
+        if ($this->tipo_evento === 'CITA_PROGRAMADA') {
+            if (in_array($origen->origen ?? null, ['PROPIA', 'RECEPCION'], true)) {
+                $salida['origen'] = $origen->origen;
+            }
+            if (($origen->estado ?? null) === 'Programada') {
+                $salida['estado'] = 'Programada';
+            }
+            if (is_int($origen->duracion_minutos ?? null) && $origen->duracion_minutos > 0 && $origen->duracion_minutos <= 2147483647) {
+                $salida['duracion_minutos'] = $origen->duracion_minutos;
+            }
+        }
         if ($this->tipo_evento === 'DURACION_CITAS_CAMBIADA') {
             foreach (['antes', 'despues'] as $clave) {
                 $duracion = $origen->{$clave}->duracion_turno_minutos ?? null;

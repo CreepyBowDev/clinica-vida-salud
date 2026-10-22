@@ -250,6 +250,8 @@ Las siguientes precisiones son **decisiones propias** de Clínica Vida Salud, ag
 - **Reprogramación:** solo Recepción antes de la atención para Programada/Confirmada; conserva el identificador y Programada queda Programada, Confirmada vuelve a Programada. Revalida ocupación y actualiza avisos. Atendida/Cancelada/Inasistencia son finales para acciones ordinarias.
 - Conservar agenda, historial y ubicación histórica; no revelar motivos de consulta ni registros ajenos a usuarios sin permiso.
 
+**Precisiones propias aprobadas el 2026-10-22 para CU-13/CU-14 (no alteran RF/RN oficiales):** turnos anclados al inicio de cada intervalo activo, avanzando por duración vigente, sin desplazar la cuadrícula por huecos/cancelaciones/duraciones históricas. Además de Médico y consultorio, impedir superposición de citas Programada/Confirmada de un mismo Paciente, incluso con recursos distintos y ante concurrencia; intervalos consecutivos permitidos. Inicio estrictamente futuro respecto del servidor en America/La_Paz, incluido hoy, sin límites arbitrarios de anticipación; cálculo por fecha sin persistir meses de turnos. Cambio incompatible de condiciones entre consulta y confirmación se rechaza y exige nueva revisión, sin sustituciones silenciosas. La exclusividad del Paciente es ampliación del proyecto, no texto de RN07. Reglas verificables VS-HOR-12/VS-CIT-11–13. Fase 1 solo diseña contratos/garantías: no acredita aún implementación de disponibilidad/reserva.
+
 ### 5.6. Historia clínica y consultas (`CU-22`, `CU-23`)
 
 - Información clínica protegida: tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes familiares/relevantes, así como consultas autorizadas.

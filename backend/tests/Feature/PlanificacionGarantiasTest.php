@@ -122,6 +122,13 @@ class PlanificacionGarantiasTest extends TestCase
         return [['exclusion'], ['inesperado']];
     }
 
+    private function otroPacienteFicticio(): int
+    {
+        return DB::table('pacientes')->insertGetId(['codigo_paciente' => 'PLANIFICACION-OTRO',
+            'nombres' => 'Paciente', 'apellidos' => 'Ficticio distinto', 'fecha_nacimiento' => '1990-01-01',
+            'telefono' => '70000000'], 'id_paciente');
+    }
+
     #[DataProvider('fallosPersistencia')]
     public function test_late_postgresql_errors_are_translated_selectively_and_rollback_transfer(string $tipo): void
     {
@@ -133,7 +140,8 @@ class PlanificacionGarantiasTest extends TestCase
         $repo->shouldReceive('trasladar')->once()->andReturnUsing(function (Cita $cita, Consultorio $destino, int|string $actor, CarbonImmutable $ahora) use ($tipo, $r): void {
             if ($tipo === 'exclusion') {
                 // Inyección tardía de ocupación para ejercitar la barrera GiST real y su traducción.
-                DB::table('citas')->insert($this->citaRow($r, ['id_medico' => $r['doctors'][1], 'id_consultorio' => $r['rooms'][1]]));
+                DB::table('citas')->insert($this->citaRow($r, ['id_paciente' => $this->otroPacienteFicticio(),
+                    'id_medico' => $r['doctors'][1], 'id_consultorio' => $r['rooms'][1]]));
             }
             (new AsignacionConsultorioRepository)->trasladar($cita, $destino, $actor, $ahora);
             if ($tipo === 'inesperado') {
@@ -155,9 +163,11 @@ class PlanificacionGarantiasTest extends TestCase
             DB::table('citas')->insert($this->citaRow($r, ['inicio_at' => $inicio, 'fin_at' => $inicio->addMinutes(15)]));
         }
         $contigua = null;
+        $otroPaciente = $this->otroPacienteFicticio();
         foreach ([['11:59:00', 2], ['12:15:00', 15], ['12:35:00', 5], ['12:59:00', 2]] as [$hora, $duracion]) {
             $inicio = CarbonImmutable::parse('2026-11-01T'.$hora.'Z');
-            $id = DB::table('citas')->insertGetId($this->citaRow($r, ['id_medico' => $r['doctors'][1], 'id_consultorio' => $r['rooms'][1],
+            $id = DB::table('citas')->insertGetId($this->citaRow($r, ['id_paciente' => $otroPaciente,
+                'id_medico' => $r['doctors'][1], 'id_consultorio' => $r['rooms'][1],
                 'inicio_at' => $inicio, 'fin_at' => $inicio->addMinutes($duracion), 'duracion_minutos' => $duracion]), 'id_cita');
             if ($hora === '12:15:00') {
                 $contigua = (string) $id;

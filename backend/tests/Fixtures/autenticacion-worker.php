@@ -5,6 +5,7 @@ use Carbon\CarbonImmutable;
 use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Events\RouteMatched;
@@ -90,6 +91,24 @@ try {
     if (trim(fgets(STDIN)) !== 'INICIAR') {
         throw new RuntimeException('Falta barrera de inicio.');
     }
+    if (in_array($data['mode'], ['reserva-sql', 'reserva-migracion'], true)) {
+        try {
+            if ($data['mode'] === 'reserva-sql') {
+                DB::transaction(fn () => DB::table('citas')->insert($data['fila']));
+            } else {
+                (require $app->basePath('src/data/database/migrations/2026_10_22_000035_prevent_patient_appointment_overlap.php'))->up();
+            }
+            echo json_encode(['ok' => true]), "\n";
+        } catch (QueryException $error) {
+            echo json_encode(['ok' => false, 'sqlstate' => $error->getCode()]), "\n";
+        } catch (RuntimeException $error) {
+            if (! str_starts_with($error->getMessage(), 'CITAS_PACIENTE_CONFLICTO_PREVIO:')) {
+                throw $error;
+            }
+            echo json_encode(['ok' => false, 'code' => 'CITAS_PACIENTE_CONFLICTO_PREVIO']), "\n";
+        }
+        exit(0);
+    }
     $cookies = $data['cookies'] ?? [];
     if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-') || str_starts_with($data['mode'], 'especialidad-') || str_starts_with($data['mode'], 'medico-') || str_starts_with($data['mode'], 'consultorio-') || str_starts_with($data['mode'], 'horario-') || $data['mode'] === 'configuracion-citas' || $data['mode'] === 'invitacion-aceptar') {
         // Ya se validó la identidad PostgreSQL aislada; ejercitar ahora CSRF real.
@@ -130,7 +149,12 @@ try {
             return new JsonResponse([], 201);
         });
     };
+    if (str_starts_with($data['mode'], 'reserva-')) {
+        $app['env'] = 'local';
+    }
     $response = match (true) {
+        $data['mode'] === 'reserva-confirmar' => $send('POST', '/api/citas', $data['payload']),
+        $data['mode'] === 'reserva-resultado' => $send('POST', '/api/reservas/resultado', $data['payload']),
         $data['mode'] === 'planificacion-protocolo' => EscritorPlanificacionSimulado::ejecutar($data),
         str_starts_with($data['mode'], 'bitacora-') => $send('GET', $data['ruta']),
         $data['mode'] === 'medico-reserva-protocolo' => $reservaMedico(),
@@ -173,6 +197,9 @@ try {
         default => $send('POST', '/api/auth/login', ['correo_acceso' => $data['correo'], 'password' => $data['password']]),
     };
     $result = ['status' => $response->getStatusCode()];
+    if (str_starts_with($data['mode'], 'reserva-')) {
+        $result['body'] = json_decode($response->getContent(), true);
+    }
     if (str_starts_with($data['mode'], 'consultorio-') || str_starts_with($data['mode'], 'horario-') || in_array($data['mode'], ['configuracion-citas', 'planificacion-protocolo'], true)) {
         $result['code'] = json_decode($response->getContent(), true)['error']['code'] ?? null;
     }

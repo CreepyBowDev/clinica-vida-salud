@@ -31,6 +31,8 @@ class RespuestaError
                 'PLANIFICACION_CONFLICTO', 'ATENCION_NO_TRASLADABLE' => 409,
                 'MEDICO_CONFLICTO_UNICIDAD', 'MEDICO_EDICION_OBSOLETA' => 409,
                 'CONFIGURACION_EDICION_OBSOLETA', 'DURACION_INCOMPATIBLE', 'HORARIO_INTERVALO_INVALIDO', 'HORARIO_CITAS_SIN_COBERTURA' => 409,
+                'CITA_TURNO_NO_DISPONIBLE' => 409,
+                'CITA_PROPUESTA_OBSOLETA', 'CITA_PACIENTE_SOLAPADO', 'CITA_PACIENTE_NO_DISPONIBLE' => 409,
                 'MEDICO_VINCULO_INCOMPATIBLE' => 409,
                 'MEDICO_SIN_ESPECIALIDADES_HABILITADAS', 'MEDICO_ESPECIALIDAD_CON_CITAS_FUTURAS' => 409,
                 'PACIENTE_DOCUMENTO_NO_DISPONIBLE', 'PACIENTE_CONFLICTO_UNICIDAD' => 409,
@@ -67,6 +69,11 @@ class RespuestaError
         $body = ['code' => $codigo, 'message' => $mensaje];
         if ($error instanceof ValidationException) {
             $body['details'] = $error->errors();
+        }
+        if ($error instanceof AppError && $error->codigo === 'CITA_PROPUESTA_OBSOLETA' && $status === 409) {
+            $cambios = $error->detalles['cambios'] ?? [];
+            $body['details'] = ['cambios' => is_array($cambios) ? array_values(array_intersect(
+                array_filter($cambios, 'is_string'), ['HORARIO', 'DURACION', 'CONSULTORIO', 'HABILITACION', 'DISPONIBILIDAD'])) : []];
         }
         $headers = ['Cache-Control' => 'no-store, private'];
         if ($error instanceof AppError && $error->esperaSegundos !== null) {

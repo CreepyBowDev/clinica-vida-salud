@@ -45,6 +45,7 @@ import AsignacionConsultorioPage from '../features/consultorios/pages/Asignacion
 import HorariosPage from '../features/horarios/pages/HorariosPage';
 import HorariosMedicoPage from '../features/horarios/pages/HorariosMedicoPage';
 import ConfiguracionCitasPage from '../features/horarios/pages/ConfiguracionCitasPage';
+import ReservarCitaPage from '../features/citas/pages/ReservarCitaPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -67,8 +68,9 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
     children: [{ element: <MainLayout />, children: [
       { path: '/inicio', element: <HomePage /> },
       { path: '/mi-cuenta/contrasena', element: <ChangePasswordPage /> },
-      { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [{ path: '/mi-perfil', element: <MyProfilePage /> }, { path: '/mi-perfil/correo', element: <ChangeEmailPage /> }] },
+      { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [{ path: '/reservar-cita', element: <ReservarCitaPage /> }, { path: '/mi-perfil', element: <MyProfilePage /> }, { path: '/mi-perfil/correo', element: <ChangeEmailPage /> }] },
       { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [
+        { path: '/recepcion/citas/nueva', element: <ReservarCitaPage /> },
         { path: '/recepcion/activacion-web', element: <ActivationCodePage /> },
         { path: '/recepcion/pacientes', element: <PatientsPage /> },
         { path: '/recepcion/pacientes/nuevo', element: <NewPatientPage /> },

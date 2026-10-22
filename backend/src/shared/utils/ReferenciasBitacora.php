@@ -4,7 +4,7 @@ namespace Clinica\shared\utils;
 
 class ReferenciasBitacora
 {
-    public const ENTIDADES = ['Usuario', 'Paciente', 'Medico', 'Especialidad', 'Consultorio', 'HorarioAtencion', 'ConfiguracionClinica', 'CuentaPrueba', 'ConjuntoDemostracion'];
+    public const ENTIDADES = ['Usuario', 'Paciente', 'Medico', 'Especialidad', 'Consultorio', 'HorarioAtencion', 'ConfiguracionClinica', 'Cita', 'CuentaPrueba', 'ConjuntoDemostracion'];
 
     public const EVENTOS_PACIENTE = ['ACTIVACION_PACIENTE_EMITIDA', 'VINCULACION_PACIENTE_INICIADA', 'PACIENTE_CUENTA_VINCULADA'];
 
@@ -32,6 +32,16 @@ class ReferenciasBitacora
 
     public static function adicionales(string $tipo, mixed $referencias): object
     {
+        if ($tipo === 'CITA_PROGRAMADA' && is_object($referencias)) {
+            $salida = [];
+            foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $clave) {
+                if (($id = self::id($referencias->{$clave} ?? null)) !== null) {
+                    $salida[$clave] = $id;
+                }
+            }
+
+            return (object) $salida;
+        }
         if (in_array($tipo, ['MEDICO_CONSULTORIO_CAMBIADO', 'HORARIO_CREADO', 'HORARIO_ACTUALIZADO', 'HORARIO_ESTADO_CAMBIADO'], true) && is_object($referencias)) {
             $salida = [];
             foreach ($tipo === 'MEDICO_CONSULTORIO_CAMBIADO' ? ['id_medico', 'id_consultorio'] : ['id_medico', 'id_horario'] as $clave) {

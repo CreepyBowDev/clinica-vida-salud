@@ -11,6 +11,7 @@ class AppError extends RuntimeException implements ShouldntReport
         public readonly string $codigo,
         string $mensaje,
         public readonly ?int $esperaSegundos = null,
+        public readonly array $detalles = [],
     ) {
         parent::__construct($mensaje);
     }

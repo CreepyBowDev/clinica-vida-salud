@@ -38,6 +38,13 @@ import SpecialtyDetailPage from '../features/especialidades/pages/SpecialtyDetai
 import BitacoraPage from '../features/bitacora/pages/BitacoraPage';
 import BitacoraDetailPage from '../features/bitacora/pages/BitacoraDetailPage';
 import BitacoraWorkspace from '../features/bitacora/components/BitacoraWorkspace';
+import ConsultoriosPage from '../features/consultorios/pages/ConsultoriosPage';
+import ConsultorioEditorPage from '../features/consultorios/pages/ConsultorioEditorPage';
+import ConsultorioDetailPage from '../features/consultorios/pages/ConsultorioDetailPage';
+import AsignacionConsultorioPage from '../features/consultorios/pages/AsignacionConsultorioPage';
+import HorariosPage from '../features/horarios/pages/HorariosPage';
+import HorariosMedicoPage from '../features/horarios/pages/HorariosMedicoPage';
+import ConfiguracionCitasPage from '../features/horarios/pages/ConfiguracionCitasPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -70,6 +77,14 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
         { path: '/recepcion/pacientes/:id', element: <PatientDetailPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
+        { path: '/administracion/consultorios', element: <ConsultoriosPage /> },
+        { path: '/administracion/consultorios/nuevo', element: <ConsultorioEditorPage creating /> },
+        { path: '/administracion/consultorios/:id/editar', element: <ConsultorioEditorPage /> },
+        { path: '/administracion/consultorios/:id', element: <ConsultorioDetailPage /> },
+        { path: '/administracion/medicos/:id/consultorio', element: <AsignacionConsultorioPage /> },
+        { path: '/administracion/horarios', element: <HorariosPage /> },
+        { path: '/administracion/horarios/medicos/:id', element: <HorariosMedicoPage /> },
+        { path: '/administracion/horarios/configuracion', element: <ConfiguracionCitasPage /> },
         { element: <BitacoraWorkspace />, children: [
           { path: '/administracion/bitacora', element: <BitacoraPage /> },
           { path: '/administracion/bitacora/:id', element: <BitacoraDetailPage /> },

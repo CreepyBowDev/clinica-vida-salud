@@ -24,7 +24,7 @@ export default function MainLayout() {
     main.current?.focus({ preventScroll: true });
     document.documentElement.scrollTop = 0;
     const title = location.pathname.startsWith('/administracion/especialidades') ? 'Especialidades' : location.pathname.startsWith('/administracion/medicos') ? 'Médicos' : location.pathname === '/mi-perfil/correo' ? 'Cambiar correo de acceso' : location.pathname === '/mi-perfil' ? 'Mi perfil' : location.pathname.startsWith('/recepcion/pacientes') ? 'Pacientes' : location.pathname.startsWith('/administracion/cuentas') ? 'Cuentas de usuario' : location.pathname === '/recepcion/activacion-web' ? 'Activación web de Paciente' : location.pathname === '/mi-cuenta/contrasena' ? 'Cambiar contraseña' : location.pathname === '/inicio' ? 'Inicio' : current.label;
-    document.title = `${location.pathname.startsWith('/administracion/bitacora') ? 'Bitácora del Sistema' : title} | Clínica Vida Salud`;
+    document.title = `${location.pathname.startsWith('/administracion/horarios') ? 'Horarios de atención' : location.pathname.startsWith('/administracion/consultorios') ? 'Consultorios' : location.pathname.startsWith('/administracion/bitacora') ? 'Bitácora del Sistema' : title} | Clínica Vida Salud`;
   }, [location.pathname, current.label]);
 
   return <div className="workspace-shell">
@@ -41,6 +41,8 @@ export default function MainLayout() {
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/cuentas" onClick={() => setMenu(false)}><Icon name="people" />Cuentas de usuario</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/medicos" onClick={() => setMenu(false)}><Icon name="people" />Médicos</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/especialidades" onClick={() => setMenu(false)}><Icon name="grid" />Especialidades</NavLink>}
+        {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/consultorios" onClick={() => setMenu(false)}><Icon name="grid" />Consultorios</NavLink>}
+        {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/horarios" onClick={() => setMenu(false)}><Icon name="grid" />Horarios</NavLink>}
         {usuario.rol === ROLES.ADMINISTRADOR && <NavLink to="/administracion/bitacora" onClick={() => setMenu(false)}><Icon name="info" />Bitácora del Sistema</NavLink>}
         {usuario.rol === ROLES.RECEPCIONISTA && <NavLink to="/recepcion/pacientes" onClick={() => setMenu(false)}><Icon name="people" />Pacientes</NavLink>}
         {usuario.rol === ROLES.RECEPCIONISTA && <NavLink to="/recepcion/activacion-web" onClick={() => setMenu(false)}><Icon name="lock" />Activación web</NavLink>}

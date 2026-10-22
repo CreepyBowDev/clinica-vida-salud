@@ -1,5 +1,92 @@
 # Análisis de clases — Clínica Vida Salud
 
+## CU-11/CU-12 — frontend fase 5: integración y cierre local (2026-10-22)
+
+**Alcance:** cierre de los flujos administrativos de Consultorios y horarios, solo Administrador normal; RF05/RN08/RN12/RN14 y decisiones aprobadas de asignación/historia/duración. No incorpora búsqueda/reserva/reprogramación ni permisos nuevos. Las clases PHP, tablas y relaciones permanecen como en el cierre backend §17.81; no se requirió modificar código funcional frontend de fases 1–4.
+
+**Colaboración comprobada:** router/ProtectedRoute/RoleRoute/MainLayout → ConsultoriosPage/ConsultorioEditorPage/ConsultorioDetailPage → servicios de consultorios → API real; DoctorDetailPage y rutas administrativas → AsignacionConsultorioPage/ConsultorioSelector/AsignacionImpacto → servicio de asignación → API real; HorariosPage/HorariosMedicoPage/HorarioEditor y ConfiguracionCitasPage/DurationEditor → servicios de horarios/configuración → API real. Los colaboradores ya analizados useCatalogQuery/useConsultorioSubmission/useHorarioSubmission coordinan carga, versiones, diagnóstico/confirmación y errores; no se agregan clases de dominio ni una nueva capa. AuthProvider y api.js participan transversalmente en restauración, revocación, rol, cookies/CSRF y descarte de respuestas de otra sesión.
+
+**Flujo integrado:** catálogo/destino → impacto paginado y consentimiento completo → asignación con 22 traslados reales → horarios/impacto/cobertura y actividad → duración global/impacto/confirmación/reconsulta. Versiones y huella obsoletas por cambios concurrentes reales intercalados rechazan guardado; conservan borrador y exigen revisión explícita. El servidor impide dejar citas sin cobertura, desactivar sala ocupada y aprobar duración incompatible con el intervalo activo del Médico inactivo. Verificación PostgreSQL: 22 IDs/inicios/fines/estados/duraciones conservados, 22 cambios de cita y 30 eventos de bitácora sin contraseña temporal. No revalida aquí toda la matriz de concurrencia backend.
+
+**Pruebas nuevas:** PlanificacionSesion.test.jsx, ubicado en horarios/tests/pages por responsabilidad transversal de la revisión final. Diez casos usan AuthProvider, servicios y Axios reales con adaptador HTTP ficticio: cuatro rutas descartan lecturas pendientes tras logout, cuatro tras /me 401 al recuperar foco, cambio de rol retira borrador/confirmación y PATCH tardío después de logout no publica éxito ni restaura datos. Los arneses Chrome/PHP externos son evidencia de integración desechable, no nuevas clases de aplicación.
+
+**Cierre verificado:** suite frontend **790 pruebas/46 archivos**, build correcto (aviso conocido 635,97 kB); 27 comprobaciones reales de integración, 20 de disposición/legibilidad, 12 auditorías axe sin infracciones detectadas, cero excepciones JS. Base/rol de prueba y esquema propio, 33 migraciones existentes; servidor/esquema/credenciales/perfil Chrome temporales retirados y public sin diferencias en objetos/funciones/cantidades. Backend/base habitual/DER/reglas intactos, sin repetir suite backend. Evidencias y límites en frontend README/contexto §17.86/fichas CU. Módulo frontend cerrado funcionalmente **en local**, producción pendiente; diagrama global y actualización PHP aplazados por decisión expresa.
+
+## CU-12 — frontend fase 4: duración global (2026-10-22)
+
+**Alcance real:** consulta/propuesta/impacto/confirmación de duración global, exclusiva de Administrador con sesión normal. RF05, RN08/RN12/RN14, VS-HOR-03/11. Reutiliza backend cerrado, sin cambios de reglas ni persistencia. Fase 5 mantiene integración real y cierre conjunto; no acredita búsqueda/reserva CU-13/CU-14 ni reprogramación CU-15.
+
+| Participante UI real | Responsabilidad / colaboración |
+| --- | --- |
+| ConfiguracionCitasPage / DurationEditor (interno) | Carga singleton/version global, borrador de minutos, validación estructural INTEGER/no-op, diagnóstico/confirmación, descarte explícito y reconsulta tras éxito o bloqueo |
+| configuracionCitas.service.js | Tres endpoints GET/POST impacto/PATCH con payloads cerrados, versión exacta, CSRF/sessionBound, cancelación y sin reenvío automático |
+| useHorarioSubmission | Colaborador de fase 3 ampliado mediante opción de configuración para campos/códigos/mensajes globales, bloqueo de versión obsoleta o escritura incierta y control doble envío |
+| HorarioImpacto | Colaborador de fase 3 ampliado para título/alcance de duración; presenta intervalos incompatibles y meta, sin recalcular compatibilidad |
+| HorariosPage / router.jsx | Acceso desde Horarios y ruta de configuración bajo guards Administrador/sesión normal |
+
+**Flujo:** consultar configuración → proponer minutos → POST de impacto completo paginado → revisar cambio global antes/después → PATCH con versión de ConfiguracionClinica → reconsultar configuración vigente. No se usa huella ni versión de Médico. Backend determina si cabe en cada intervalo activo (incluye profesionales inactivos), transacción/evento/versiones y conservación de citas previas. Un cambio de borrador cancela lectura e invalida diagnóstico; cada página se consulta por POST y exige nueva confirmación. No hay estado persistente de la propuesta fuera de React.
+
+**Alternativos:** 409 incompatible retira impacto conservando borrador; configuración obsoleta bloquea hasta descarte/reconsulta explícitos, sin sustituir silenciosamente la base. Red/500 de escritura es resultado incierto, no rollback supuesto ni reenvío automático; se consulta estado guardado antes de otra decisión. 401 retira datos, 403/404 bloquean, 419/422/429 seguros/Retry-After. Desmontaje/cambio de entrada descarta impactos tardíos. El servidor recibe solo campos permitidos.
+
+**Cierre local de fase 4:** 37 pruebas nuevas/2 archivos, acumulado Horarios 79/5; suite completa frontend **780 pruebas/45 archivos correctos**, build correcto (aviso conocido bundle 635,97 kB). Chrome/React con HTTP ficticio: 12 comprobaciones responsive y 6 auditorías axe sin incidencias detectadas, cero excepciones JS y capturas revisadas. No integración real Laravel aún; evidencia en frontend README/contexto §17.85/CU-12. Backend/DER/reglas intactos y diagrama global/PHP aplazados.
+
+## CU-12 — frontend fase 3: horarios por Médico (2026-10-22)
+
+**Alcance real:** administración de intervalos semanales/actividad e impacto, exclusiva de Administrador normal. RF05, RN05/RN07/RN08/RN12/RN14, VS-HOR-01–04/09. Duración solo informativa en esta fase; edición global conserva fase 4 e integración real/revisión final conserva fase 5. No nuevas reglas ni cambios de backend.
+
+| Participante UI real | Responsabilidad y colaboración |
+| --- | --- |
+| HorariosPage | Selección de Médico por lista/búsqueda/actividad/página del servidor, incluye inactivos mediante listarMedicos, useCatalogQuery/CatalogResults |
+| HorariosMedicoPage / Load / Schedule (internos) | ID válido, contexto profesional/sala, filtros/página de horarios, versión vigente y duración; adapta data.elementos para presentar sin alterar API, abre una propuesta y reconsulta tras cierre/éxito |
+| HorarioEditor | Borrador de alta/edición/estado, formato local con segundos, edición parcial/no-op, diagnóstico previo y confirmación; invalida revisión al cambiar campos y conserva borrador ante errores |
+| HorarioImpacto | Proyecta códigos administrativos conocidos, referencias/estado/día/horas/fechas de sede y totales/página; sin JSON ni clínica genéricos, no decide cobertura |
+| useHorarioSubmission | Cancelación/secuencia/montaje, exclusión de doble envío, errores seguros/Retry-After, bloqueo de propuesta obsoleta o escritura incierta |
+| horario.service.js / horarioFormat.js | Cinco endpoints existentes con payloads cerrados/CSRF/sessionBound y versiones exactas; presentación de días ISO/horas HH:mm:ss/fechas en America/La_Paz sin normalización silenciosa |
+| router.jsx / MainLayout / DoctorDetailPage | Dos rutas y navegación/título exclusivos, enlace localizado desde Médico, sin cambiar su gestión profesional |
+
+**Colaboración:** Page/Component → servicio horarios → Axios → HorarioController/Service/Repository existentes. Listado recibe data.elementos/actualizado_en/duracion_turno_minutos y meta, sin calcular capacidad ni disponibilidad. Impacto CREAR/EDITAR/ESTADO comparte propuesta/versión, pagina mediante POST; no huella ni reserva. Campos nuevos cancelan diagnóstico, compatible habilita revisión/confirmación y escritura revalida backend. Estado conserva independencia con cuenta/Médico; React no gestiona citas ni su cobertura.
+
+**Errores:** 409 compatible al consultar pero rechazado al guardar retira revisión y conserva borrador; versión profesional obsoleta bloquea y exige descartar explícitamente/reconsultar antes de nueva propuesta, sin rebase automático. Red/500 de escritura es incierto y sigue el mismo control sin prometer rollback/reenvío. 401 retira vista, 403/404 bloquean, 419/422 seguros y 429 espera. Cambios de filtro/contexto deshabilitados durante editor para no perder borrador implícitamente.
+
+**Cierre fase 3:** 42 pruebas nuevas/3 archivos, suite frontend **743 pruebas/43 archivos correctos**, build correcto con aviso conocido de bundle. Chrome/React con HTTP ficticio: 20 comprobaciones responsive y 10 auditorías axe sin incidencias detectadas, capturas revisadas y cero excepciones JS; no integración Laravel real aún. README/contexto §17.84/CU-12 sincronizados, backend/DER/reglas intactos y diagrama global/PHP aplazados.
+
+## CU-11 — frontend fase 2: asignación e impacto (2026-10-22)
+
+**Alcance real:** consulta y cambio de consultorio fijo con impacto/consentimiento completo, exclusivo de Administrador normal. RF05, RN05/RN07/RN12/RN14, VS-HOR-01/05/06/09; sin cambio de reglas/backend. La interfaz no calcula elegibilidad ni solapamientos; representa el diagnóstico real. Fase 3 horarios, fase 4 duración y fase 5 integración mantienen autorización posterior.
+
+| Participante UI real | Responsabilidad / colaboración |
+| --- | --- |
+| AsignacionConsultorioPage / Load / Assignment (internos) | ID Médico válido, contexto de Médico/asignación, propuesta en memoria, control de solicitudes/huella/consentimiento/confirmación, refresh explícito y errores/resultados inciertos |
+| ConsultorioSelector | Búsqueda/paginación de activos mediante listarConsultorios/useCatalogQuery/CatalogResults; conserva selección fuera de página, sin descarga masiva ni límite ficticio de catálogo |
+| AsignacionImpacto | Proyección permitida de conflictos/cambios administrativos, totales/meta del servidor, fechas locales validadas y paginación con callbacks; no interpreta datos clínicos ni HTML/JSON arbitrario |
+| asignacionConsultorio.service.js | Tres endpoints existentes con payloads cerrados/ID/versión/huella exactos, CSRF y sessionBound; sin negocio visual ni reintento de PUT |
+| DoctorDetailPage / router.jsx | Enlace localizado desde Médico y ruta bajo guards Administrador/sesión normal, sin cambiar administración profesional |
+
+**Flujo:** Médico → consultar contexto → seleccionar destino → POST de impacto → revisar elementos/totales → aceptar conjunto completo si hay traslados → revisar confirmación → PUT con huella/versiones → respuesta de asignación/cantidad persistida. Backend AsignacionConsultorioService conserva autorización, revalidación y transacción, sin duplicar reglas en React. Destino nuevo cancela/descarta impacto; página nueva retira aceptación y huella diferente descarta toda la revisión. Lecturas obsoletas se abortan/ignoran por secuencia y desmontaje. No-op/sin traslados no exige checkbox; cambios con traslados no admiten selección parcial de citas.
+
+**Alternativos:** conflictos en vista previa no habilitan guardado; 409 retira impacto/consentimiento conservando destino. Versión profesional obsoleta y PUT de resultado incierto bloquean hasta consultar base actual, sin reintento automático ni prometer rollback; éxito también exige consulta vigente para otra operación. 401 retira la vista mediante AuthProvider, 403/404 bloquean, 419/422/429 muestran datos seguros y esperan cuando corresponde. No nuevos permisos a Médico/Recepción/Paciente ni retirada de asignación.
+
+**Verificación/cierre fase 2:** 41 pruebas nuevas, 80 acumuladas de Consultorios; suite completa frontend **701 pruebas/40 archivos correctos**, build correcto con aviso de bundle 607,06 kB. Chrome/React con HTTP ficticio: 8 comprobaciones responsive/4 auditorías axe sin incidencias detectadas, cero excepciones JS y captura móvil revisada. No integración real Laravel/PostgreSQL todavía. Frontend README/contexto §17.83/CU-11 sincronizados, backend/DER/reglas intactos y diagrama global/PHP aplazados.
+
+## CU-11 — frontend fase 1: catálogo de consultorios (2026-10-22)
+
+**Alcance real:** listado/filtros/paginación, alta/detalle/edición y actividad del catálogo exclusivos de Administrador normal. RF05/RN12/RN14, VS-HOR-10; backend administrativo ya cerrado en §17.81 del contexto. Frontend CU-11 parcial: asignación/impacto/traslado conserva fase 2. CU-12 frontend pendiente de fases 3/4; integración real/cierre en fase 5.
+
+| Participante UI real (no clase PHP de dominio) | Responsabilidad y colaboración |
+| --- | --- |
+| ConsultoriosPage | Borrador de filtros y criterios aplicados, listado/página del servidor; reusa useCatalogQuery y CatalogResults sin recalcular totales ni consultar por pulsación |
+| ConsultorioEditorPage / ConsultorioEditor | Alta/edición, carga por ID válido, validación de experiencia, lista cerrada de código/nombre, envío/versión; navegación al detalle con nueva consulta tras éxito |
+| ConsultorioDetailPage / ConsultorioActivity (componente interno) | Detalle/cantidades, confirmación de actividad, rechazo seguro de asignaciones/obligaciones y reconsulta después de guardar |
+| ConsultorioData / ConsultorioFailure | Presentación administrativa permitida y mensajes seguros; no serialización genérica de errores/objetos |
+| ConsultorioVersionReview | Consulta independiente sin reenvío; muestra datos actuales antes de descartarse borrador o adoptarse estado explícitamente |
+| useConsultorioSubmission | Bloqueo síncrono de doble envío, montaje/desmontaje, errores de campo/códigos conocidos, Retry-After y resultado incierto; no determina permisos ni compatibilidad |
+| consultorio.service.js | Cinco endpoints existentes vía api.js/cookies/CSRF/sessionBound; payloads cerrados, IDs textuales, versión intacta, sin reintentos |
+| router.jsx / MainLayout | Cuatro rutas bajo RoleRoute Administrador y ProtectedRoute, menú/título localizados; sin alterar módulos existentes |
+
+**Colaboración:** Page/Component → servicio de feature → Axios → endpoints Laravel existentes de ConsultorioController/Service/Repository. Formularios no calculan obligaciones ni deciden desactivación: backend es fuente de verdad. Rechazo 409 por código permite corregir; versión obsoleta conserva borrador bloqueado y exige revisión/adopción antes de reenviar; red/500 inciertos requieren consulta del estado persistido. 401 retira datos mediante mecanismo de sesión compartido, 419 sin reintento automático, 429 respeta espera. Lecturas pendientes se cancelan/descartan. Renombrar no anuncia cambios en ubicaciones históricas; no expone facultad de reprogramar.
+
+**Verificación/cierre local de fase 1:** 39 pruebas nuevas/2 archivos en tests/services y tests/pages de la feature; suite frontend completa 660 pruebas/38 archivos correctos, build correcto (aviso de bundle 592,48 kB). Chrome/React con HTTP ficticio interceptado: 16 tamaños/estados sin desbordamiento y 8 auditorías axe sin infracciones detectadas; capturas revisadas. Skill frontend-design local aplicada conservando tokens/layout/catalogs.css. Sin integración Laravel real en esta fase ni cambios de backend/DER/reglas. Evidencia y límites en frontend/README.md y contexto §17.82. Diagrama global/PHP aplazados.
+
 ## CU-11/CU-12 — fase 6: integración backend (2026-10-22)
 
 **Alcance:** backend administrativo de ambos CU terminado, integrado y verificado localmente, fases 1–6 completadas. RF05, RN05/RN07/RN08/RN12/RN14 y VS-HOR-01–11. No nuevas clases de producción: se contrastan colaboraciones reales descritas en fases 2–5. Diagrama global aplazado por solicitud expresa; disponibilidad/reservas/frontend/producción no se acreditan por este cierre.

@@ -22,6 +22,7 @@ function Detail({ id }) {
   return <section className="workspace-page catalog-page"><Link to="/administracion/medicos">Volver a médicos</Link>
     <header className="page-heading"><h1>Detalle de médico</h1><p>La actividad profesional, la cuenta de acceso y las habilitaciones son independientes.</p></header>
     {notice && <Alert variant="success">{notice}</Alert>}
+    {query.data && !query.loading && !query.failure && <div className="catalog-actions"><Link className="button button--secondary" to={`/administracion/medicos/${id}/consultorio`}>Gestionar consultorio fijo</Link><Link className="button button--secondary" to={`/administracion/horarios/medicos/${id}`}>Gestionar horarios</Link></div>}
     {query.loading ? <p role="status">Consultando médico…</p> : query.failure ? <><DoctorFailure failure={query.failure} remaining={query.remaining} /><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></> : <DoctorActivity initial={query.data} onSaved={() => { setNotice('Actividad profesional actualizada. Se consultó nuevamente el registro.'); query.reload(); }} />}
   </section>;
 }

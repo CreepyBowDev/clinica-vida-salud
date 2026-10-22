@@ -19,6 +19,40 @@ Decisión aprobada posterior al cierre de CU-09/CU-10: Controllers, DTO, Service
 
 Las clases compartidas se importan desde su módulo propietario; no hay copias ni alias antiguos. Se actualizan referencias entre capas, bootstrap/rutas/middlewares y tests/fixtures. Modelos, validadores, rutas, middlewares y migraciones conservan ubicación. DER sin cambios; diagrama global aplazado expresamente. Evidencias de regresión en contexto §17.60 y README.
 
+## CU-30 — frontend fase 4: garantías de las colaboraciones UI (2026-10-21)
+
+**Revisión:** AuthProvider/SessionGate/ProtectedRoute/RoleRoute desmontan las fronteras de Bitácora y su estado local al detectar sesión revocada/no verificable o rol ajeno; useCatalogQuery cancela consultas al desmontar y api.js descarta respuestas de una sesión anterior. Nuevo login no recupera borrador de sesión revocada. Las pruebas verifican estas colaboraciones existentes, sin introducir autorización de negocio en React ni alterar el backend.
+
+**Correcciones:** BitacoraFilters utiliza details nativo y reacciona a errores nuevos para abrir/enfocar; no mantiene un estado controlado que reabra el desplegable o robe foco tras un 422 anterior. bitacoraFormat valida que Date no haya normalizado una fecha imposible antes de presentarla en zona de sede; datos originales conservados. Sin nuevas entidades, contexto global ni persistencia.
+
+**Evidencia/límite:** 9 escenarios nuevos de seguridad/teclado y 5 de fechas, acumulado Bitácora 100/6 archivos, suite completa 621/36 archivos y build correctos. Chrome con respuestas ficticias interceptadas: 72 comprobaciones responsive/18 auditorías axe sin incidencias detectadas, Espacio/Tab/foco, otros roles sin lecturas y retirada de detalle por sesión inválida, sin escrituras/excepciones. No acredita sesiones reales de Laravel/PostgreSQL ni conformidad universal de accesibilidad; cierre integrado en fase 5 pendiente. Backend/DER conservados y diagrama global aplazado.
+
+## CU-30 — frontend fase 3: detalle y estado local de navegación (2026-10-21)
+
+**Participantes/frontera implementados:** BitacoraDetailPage valida ID mediante esIdentificador y coordina consultarEvento/useCatalogQuery, estados de consulta y retorno. BitacoraEventData organiza cabecera/recursos/cambios/metadatos con componentes internos de presentación y etiquetas explícitas: no es una clase de dominio, no consulta perfiles y no expande referencias. bitacoraFormat añade traducciones de causas conocidas, conservando el código seguro. ID de evento relacionado solo se muestra.
+
+**Colaboración real:** detalle → hook → service → Axios central → endpoint backend ya cerrado; respuesta proyectada → BitacoraEventData → secciones semánticas con valores conocidos, fechas de sede/UTC original, roles históricos, nombres de campos sin valores privados, referencias/habilitaciones y estados anteriores/posteriores. Formatos desconocidos y objetos adicionales vacíos no causan una exposición alternativa de JSON. Metadatos de instalación/pruebas explican límites de verificación de correo. 401 sigue invalidación central; ID inválido evita HTTP, 404/422 orientan al listado, otros fallos/429 permiten reintento controlado, cambio de ID descarta respuesta anterior.
+
+**Estado acotado:** BitacoraWorkspace es frontera contenedora de rutas con useState y Outlet context (solo borrador/criterios/página), compartido por listado/detalle. No se introducen Context global, caché de eventos, URL de filtros ni persistencia de navegador. Listado vuelve a solicitar datos al regresar por enlace o historial; estado se descarta al salir del módulo/desmontar la protección. Una llegada directa al detalle no requiere recuperar ni inventar un listado previo.
+
+**Evidencia/límite:** 28 pruebas nuevas de comportamiento, acumulado Bitácora 86/5 archivos y suite frontend completa 607/35 archivos correctos; build correcto. HTTP simulado con Router/AuthProvider/cliente Axios reales. Fases 1–3 frontend implementadas; revisión de interfaz y cierre integrado pendientes de fases 4–5. Backend/DER sin cambios y diagrama global aplazado.
+
+## CU-30 — frontend fase 2: colaboración del listado (2026-10-21)
+
+**Frontera React implementada:** BitacoraPage mantiene borrador y criterios aplicados, coordina servicio/página, reinicia al filtrar/limpiar y delega presentación. BitacoraFilters recibe datos/callbacks/errores, agrupa filtros principales/avanzados y abre/enfoca campos inválidos; BitacoraTable recibe eventos y muestra cabecera, roles históricos/origen/resultado/fecha de sede y enlace al detalle inicial. No son entidades PHP ni conceden acceso clínico.
+
+**Colaboración real:** Page → useCatalogQuery → listarBitacora → api.js → contrato backend existente; respuesta → CatalogResults (carga, fallo, vacío, paginación de meta) → BitacoraTable/bitacoraFormat. El hook compartido cancela/descarta consultas previas y respeta Retry-After; el interceptor/contexto existente retira sesión ante 401. Fields permitidos de 422 llegan a filtros; mensajes generales seguros no imprimen errores técnicos. Borrador no enviado no altera criterios de paginación; no se ordena/filtra/pagina localmente la colección ni se persisten eventos.
+
+**Evidencia/límite:** 14 escenarios nuevos de listado, feature 58/4 archivos y suite completa 579/34 archivos correctos, build correcto. Pruebas mediante Router/AuthProvider y cliente HTTP real con adaptador simulado. Backend/persistencia/DER sin cambios; frontend parcial hasta fases 3–5. Detalle/retorno con filtros en fase 3, revisión de interfaz/integración posteriores; diagrama global aplazado.
+
+## CU-30 — frontend fase 1: fronteras y acceso preparados (2026-10-21)
+
+**Avance parcial:** BitacoraPage y BitacoraDetailPage son fronteras React iniciales, con texto explícito de funcionalidades pendientes; aún no consultan ni presentan eventos. Router las protege con ProtectedRoute/RoleRoute y sesión normal; MainLayout ofrece menú solo a Administrador, título y foco compartidos. destinoSeguro conserva destinos de consulta tras login. La autorización definitiva continúa en Laravel.
+
+**Colaboración preparada:** futuras páginas → listarBitacora/consultarEvento de bitacora.service.js → Axios central (cookies, sessionBound, señal de cancelación) → endpoints existentes → clases backend descritas a continuación. El servicio devuelve el contrato sin procesar reglas de negocio, conserva IDs como cadenas y precisión de fechas; valida ID de detalle mediante esIdentificador de usuarios y limita los parámetros de listado al contrato. bitacoraFormat prepara presentación de fechas en America/La_Paz y etiquetas de origen/resultado; no es una clase de dominio ni modifica eventos persistidos.
+
+**Evidencia/límite:** 44 pruebas nuevas (servicio/navegación/utilidades); suite frontend 565/33 archivos y build correctos con adaptador HTTP simulado, sin integración real aún. Fases 2–5 pendientes; no se declara terminado CU-30 frontend. Diagrama global aplazado y persistencia/DER sin cambios.
+
 ## CU-30 — fase 5: análisis de cierre del backend (2026-10-21)
 
 **Actor/objetivo/trazabilidad:** Administrador con cuenta habilitada/sesión normal investiga eventos persistidos sin modificarlos ni obtener permisos clínicos. Ampliación propia CU-30 / VS-AUD-01–06 compatible con RN12/RN14; no crea RF/RN oficiales ni un proceso manual para registrar eventos. Backend completo localmente, frontend/producción pendientes. Las entradas siguientes conservan el análisis incremental de fases anteriores; el estado vigente es este cierre.

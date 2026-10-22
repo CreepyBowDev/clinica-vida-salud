@@ -1,5 +1,51 @@
 # Frontend — Clínica Vida Salud
 
+## Bitácora CU-30 — fase 4: seguridad de interfaz, responsive y accesibilidad (2026-10-21)
+
+**Revisión completada:** Chrome headless con React/Vite reales y respuestas HTTP interceptadas (datos ficticios, sin Laravel/PostgreSQL ni cookies reales del servidor en esta fase). Nueve estados: listado, avanzados, validación 422, vacío, denegado 403, detalle con 100 IDs de especialidad, estados de cuenta, formato desconocido y evento inexistente. **72 comprobaciones de tamaño** (1440/1024/961/960/768/700/390/320 px) sin desbordamiento de documento/contenido; **18 auditorías axe-core 4.10.3** (1440/390 px) sin infracciones detectadas. Capturas revisadas de listado desktop y detalle móvil. No se necesitó cambiar el CSS existente de Bitácora.
+
+**Teclado/permisos/sesión:** en Chrome se verifica apertura/cierre de avanzados con Espacio, Tab a responsable y, al cerrar después de 422, salto a tamaño de página; campos inválidos reciben foco. Tres roles ajenos no generan consultas de auditoría al abrir la ruta; revalidación a sesión no autenticada retira detalle y dirige a login. Sin solicitudes de escritura ni excepciones JavaScript en ese recorrido. Evidencia local fuera de Git en `%LOCALAPPDATA%/Temp/opencode/bit4-evidence.json`, capturas `bit4-*.png` y guion `bit4-browser.cjs`; no constituye aceptación de producción ni certificación completa de accesibilidad.
+
+**Correcciones focalizadas:** BitacoraFilters utiliza el desplegable nativo y abre/enfoca solo al recibir errores nuevos; un 422 ya mostrado no lo reabre al intentar cerrarlo ni roba foco al cambiar otro control. bitacoraFormat rechaza fechas imposibles que Date normalizaría silenciosamente (30 de febrero, 31 de abril, 24:00), conservando presentación válida de días bisiestos y precisión UTC original.
+
+**Regresión:** 9 escenarios nuevos en tests/pages/BitacoraSafety.test.jsx y 5 de fechas en tests/utils; cubren revocación y nuevo login con filtros limpios, cambio a los otros roles, fallo/restauración de comprobación de sesión, logout con respuesta pendiente, foco/semántica/solo lectura y regresiones de ambos ajustes. La activación nativa por Espacio y tabulación de details cerrado se comprueban en Chrome, pues jsdom no las reproduce completamente. Acumulado Bitácora **100 pruebas/6 archivos**, suite completa **621 pruebas/36 archivos correctos**, build correcto con aviso conocido del bundle de 576,32 kB.
+
+README/contexto §17.75/análisis parcial/ficha CU-30 sincronizados. Fases frontend 1–4 completadas; integración con Laravel/PostgreSQL y cierre local pendientes de fase 5. Backend/DER sin cambios; diagrama global y actualización PHP siguen aplazados.
+
+## Bitácora CU-30 — fase 3: detalle y retorno al listado (2026-10-21)
+
+**Implementado:** BitacoraDetailPage valida el ID antes de consultar, consume consultarEvento y presenta carga/errores seguros y detalle mediante BitacoraEventData. Cabecera con fechas del hecho/registro de sede y UTC original de seis decimales, origen, responsable/objetivo/roles históricos, resultado/causa general conocida, IP/procedencia, correlación, versión e ID de evento relacionado sin expansión ni enlace implícito.
+
+El componente presenta únicamente campos conocidos del contrato: referencias como identificadores, nombres de campos modificados sin valores personales/clínicos, altas sin CI, habilitaciones/retiradas, estados/vínculos antes/después, IDs de Paciente/registro de activación y metadatos de instalación/pruebas. No hay visor genérico de JSON. Claves desconocidas se omiten y formatos distintos de 1 conservan cabecera sin interpretar información adicional. Los metadatos explican que autorización de instalación o simulación no acreditan control real del buzón.
+
+BitacoraWorkspace mantiene borrador/criterios/página mediante estado local y Outlet context exclusivo de ambas rutas, sin guardar eventos ni escribir en URL, history.state, localStorage o sessionStorage. Se conserva al ir a detalle y volver (enlace o historial), se reconsulta el listado y se descarta al salir del módulo/desmontar el área protegida. Acceso directo al detalle funciona sin listado previo y vuelve a criterios iniciales. ID inválido local no genera HTTP; 404/422 orientan al listado, otros errores permiten consulta manual y 429 conserva espera. Cambio de ID cancela/descarta detalles previos.
+
+**Verificación:** 28 pruebas nuevas en tests/pages/BitacoraDetail.test.jsx; navegación/listado previos ajustados a la nueva consulta real del cliente. **86 pruebas en 5 archivos de Bitácora** incluidas en la suite completa: **607 pruebas/35 archivos correctos**. Build correcto con aviso conocido del bundle de 576,30 kB. Adaptador HTTP simulado con Router/AuthProvider/servicios/Axios del cliente reales; no acredita aún integración con Laravel/PostgreSQL ni revisión visual completa en navegador.
+
+README, contexto §17.74, análisis parcial y ficha CU-30 sincronizados. Frontend fases 1–3 implementadas; fases 4–5 revisión de seguridad/responsive/accesibilidad e integración/cierre pendientes. Backend/DER sin cambios; diagrama global y actualización PHP siguen aplazados.
+
+## Bitácora CU-30 — fase 2: listado, filtros y paginación (2026-10-21)
+
+**Implementado:** BitacoraPage consulta el servicio real del frontend y coordina borrador de filtros separado de los criterios aplicados. BitacoraFilters es presentacional y ofrece período, módulo y resultado, con criterios avanzados para responsable/objetivo, origen, operación, tipo de evento, IP y recurso. Permite 10/20/50/100 eventos por página; aplicar o limpiar reinicia la página. No hay consultas por cada pulsación. Las fechas locales se envían sin conversión; Laravel valida criterios, combina filtros y determina totales/orden.
+
+BitacoraTable presenta evento/fecha del hecho en America/La_Paz, módulo/operación, responsable y cuenta objetivo con IDs/roles históricos diferenciados, origen sistema/anónimo, resultado y enlace de detalle. Conserva el orden del servidor, sin deducir nombres ni consultar fichas. Se reutilizan FormField/SelectField/Button, useCatalogQuery y CatalogResults: carga/vacío, errores seguros, campos 422 (apertura de avanzados y foco), 429 con Retry-After/reintento manual, invalidación central 401 y cancelación/descarte de respuestas obsoletas. Paginación por meta; no se siguen URLs de links. Estilos específicos en features/bitacora/styles, con disposición móvil apoyada en catalogs.css.
+
+**Verificación:** 14 pruebas nuevas de comportamiento en tests/pages/BitacoraList.test.jsx y navegación previa adaptada al listado funcional. Feature completa **58 pruebas/4 archivos correctos**; suite frontend **579 pruebas/34 archivos correctos**; build correcto con aviso conocido del bundle de 566,55 kB. Pruebas con Router/AuthProvider/servicio/Axios reales del cliente y adaptador HTTP simulado. No acredita aún integración con Laravel/PostgreSQL ni revisión visual completa en navegador.
+
+Contexto §17.73, análisis parcial y ficha CU-30 sincronizados. Detalle y retorno con conservación de filtros/página se implementarán en fase 3; revisión de seguridad/responsive/accesibilidad e integración/cierre en fases 4–5. El enlace ya navega a la vista inicial de detalle. Backend/persistencia/DER sin cambios; diagrama global y actualización PHP siguen aplazados.
+
+## Bitácora CU-30 — fase 1: servicio, rutas y navegación (2026-10-21)
+
+**Completada la base del frontend.** La feature `src/features/bitacora/` incorpora `services/bitacora.service.js`: `listarBitacora` consume GET `/bitacora` y conserva `data/meta/links`; `consultarEvento` consume GET `/bitacora/{id}` y devuelve `data`. Ambas usan Axios central, cookies, `sessionBound` y AbortSignal, sin peticiones CSRF ni reintentos. Solo se envían filtros permitidos por el contrato de `backend/README.md`; se omiten vacíos, se recortan espacios ASCII y se conserva el caso. IDs de detalle se validan mediante `esIdentificador` existente; BIGINT/fechas/JSON de respuesta permanecen sin conversión.
+
+Rutas `/administracion/bitacora` y `/administracion/bitacora/:id` bajo ProtectedRoute/RoleRoute de Administrador. MainLayout incorpora menú exclusivo, estado activo, título y foco compartido. `destinoSeguro` admite listado/detalle para regresar después de login. Las páginas iniciales indican explícitamente qué funcionalidad está pendiente y todavía no consultan eventos: listado/filtros/paginación corresponden a fase 2 y detalle a fase 3.
+
+`utils/bitacoraFormat.js` prepara fechas ISO UTC del contrato para presentación en `America/La_Paz` (sin alterar el original) y etiquetas de actor/resultado; ausencia o valores desconocidos producen «No disponible». No se persisten eventos ni se añaden dependencias.
+
+**Pruebas:** tres archivos en `tests/services/`, `tests/pages/` y `tests/utils/`, **44 pruebas correctas** con adaptador HTTP simulado y Router/AuthProvider reales. Cubren filtros, cadenas BIGINT, precisión original, errores HTTP, cancelación/sesiones anteriores, cuatro roles, restauración/sesión restringida, retorno seguro, navegación y cruce de día UTC/La Paz. Suite completa `pnpm test`: **565 pruebas/33 archivos correctos**. `pnpm build` correcto con aviso conocido del bundle principal, ahora 558,16 kB. Sin script de lint instalado. Integración con Laravel/PostgreSQL y revisión responsive completas quedan para fases 4–5.
+
+Contexto §17.72, análisis parcial y ficha CU-30 sincronizados. Backend, persistencia y DER sin cambios; diagrama global y actualización PHP mantienen su aplazamiento.
+
 ## Organización de pruebas — fase 4 completada (2026-10-21)
 
 **Reorganización de las cinco features terminada.** Cada prueba pertenece a `src/features/<modulo>/tests/<responsabilidad>/`, separada del código funcional. La convención obligatoria se documenta en `AGENTS.md` §5.1 y se aplica también a futuras pruebas de componentes/hooks. Se crean subcarpetas únicamente cuando contienen archivos.

@@ -1,0 +1,17 @@
+.bitacora-filter-hint { grid-column: 1 / -1; color: var(--color-muted); font-size: 14px; max-width: 75ch; }
+.bitacora-advanced { grid-column: 1 / -1; min-width: 0; padding-block: 16px; border-block: 1px solid var(--color-border); }
+.bitacora-advanced summary { cursor: pointer; color: var(--color-primary-hover); font-weight: 600; padding-block: 8px; }
+.bitacora-advanced-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+.bitacora-table th:first-child { width: 24%; }
+.bitacora-table th:last-child { width: 10%; }
+.bitacora-cell-line { display: block; margin-top: 6px; }
+.bitacora-table time { color: var(--color-muted); font-size: 14px; }
+.bitacora-detail > section + section, .bitacora-detail > .catalog-note + section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-border); }
+.bitacora-detail h2 { font-size: 22px; margin-bottom: 16px; }
+.bitacora-detail h3 { font-size: 18px; margin-block: 16px 8px; }
+.bitacora-data-grid, .bitacora-state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+.bitacora-original { display: block; margin-top: 6px; font-size: 14px; color: var(--color-muted); }
+@media (max-width: 700px) {
+  .bitacora-advanced-grid { grid-template-columns: minmax(0, 1fr); }
+  .bitacora-data-grid, .bitacora-state-grid { grid-template-columns: minmax(0, 1fr); }
+}

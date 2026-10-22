@@ -35,6 +35,9 @@ import DoctorDetailPage from '../features/medicos/pages/DoctorDetailPage';
 import DoctorSpecialtiesPage from '../features/medicos/pages/DoctorSpecialtiesPage';
 import SpecialtyEditorPage from '../features/especialidades/pages/SpecialtyEditorPage';
 import SpecialtyDetailPage from '../features/especialidades/pages/SpecialtyDetailPage';
+import BitacoraPage from '../features/bitacora/pages/BitacoraPage';
+import BitacoraDetailPage from '../features/bitacora/pages/BitacoraDetailPage';
+import BitacoraWorkspace from '../features/bitacora/components/BitacoraWorkspace';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -67,6 +70,10 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
         { path: '/recepcion/pacientes/:id', element: <PatientDetailPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
+        { element: <BitacoraWorkspace />, children: [
+          { path: '/administracion/bitacora', element: <BitacoraPage /> },
+          { path: '/administracion/bitacora/:id', element: <BitacoraDetailPage /> },
+        ] },
         { path: '/administracion/especialidades', element: <SpecialtiesPage /> },
         { path: '/administracion/especialidades/nueva', element: <SpecialtyEditorPage creating /> },
         { path: '/administracion/especialidades/:id/editar', element: <SpecialtyEditorPage /> },

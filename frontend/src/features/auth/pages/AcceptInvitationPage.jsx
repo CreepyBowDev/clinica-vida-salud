@@ -5,6 +5,7 @@ import { aceptarInvitacion } from '../services/invitation.service';
 import { usePasswordSubmission } from '../hooks/usePasswordSubmission';
 import { validarNuevaClave } from '../utils/passwordValidation';
 import PasswordField from '../../../components/PasswordField';
+import FormSection from '../../../components/FormSection';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
 import Icon from '../../../components/Icon';
@@ -59,10 +60,12 @@ export default function AcceptInvitationPage({ enlace }) {
             <p className="auth-guidance">La invitación es de un solo uso y tiene una vigencia de 24 horas.</p>
             <form ref={form} className="recovery-form" aria-label="Aceptar invitación del personal" aria-busy={busy} onSubmit={submit}>
               <PasswordFailure failure={failure} remaining={remaining} />
+              <FormSection title="Tu contraseña de acceso">
               <PasswordField label="Nueva contraseña" autoComplete="new-password" name="password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase."
                 value={password} busy={busy} onChange={event => setPassword(event.target.value)} error={failure?.fields.password} />
               <PasswordField label="Confirmar nueva contraseña" autoComplete="new-password" name="password_confirmation" value={confirmation}
                 busy={busy} onChange={event => setConfirmation(event.target.value)} error={failure?.fields.password_confirmation} />
+              </FormSection>
               <Button type="submit" className="full-width" loading={busy} disabled={remaining > 0}>{busy ? 'Activando acceso…' : remaining > 0 ? `Espera ${remaining} s` : 'Establecer contraseña y activar'}</Button>
             </form><div className="auth-links"><Link className="auth-back-link" to="/login">Volver a iniciar sesión</Link></div></>}
   </div>;

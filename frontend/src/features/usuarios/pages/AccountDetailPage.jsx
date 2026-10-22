@@ -9,6 +9,9 @@ import AccountFailure from '../components/AccountFailure';
 import InvitationResult from '../components/InvitationResult';
 import AccountActions from '../components/AccountActions';
 import Alert from '../../../components/Alert';
+import PageHeading from '../../../components/PageHeading';
+import QueryMessage from '../../../components/QueryMessage';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
 import '../styles/accounts.css';
 
 export default function AccountDetailPage() {
@@ -31,11 +34,11 @@ function AccountDetail({ id }) {
   }, [confirm]);
   useEffect(() => { if (result && !loading) resultNotice.current?.focus(); }, [result, loading]);
   const eligible = account && account.rol !== ROLES.PACIENTE && account.estado_cuenta === 'Pendiente' && !account.correo_verificado_en;
-  return <section className="workspace-page accounts-page account-detail-page">
-    <Link className="accounts-back" to="/administracion/cuentas">Volver a cuentas</Link>
-    <header className="page-heading"><h1>Detalle de cuenta</h1><p>Información administrativa del acceso al portal.</p></header>
+  return <section className="workspace-page accounts-page account-detail-page query-detail">
+    <Link className="back-link" to="/administracion/cuentas">Volver a cuentas</Link>
+    <PageHeading title="Detalle de cuenta" description="Información administrativa del acceso al portal." />
     {notice && <Alert variant="success">{notice}</Alert>}
-    {loading ? <p role="status">Consultando cuenta…</p> : failure ? <><AccountFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></>
+    {loading ? <QueryMessage loading title="Consultando cuenta…" /> : failure ? <div className="query-failure"><AccountFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div>
       : <><dl className="account-summary accounts-panel">
         <div><dt>Identificador de cuenta</dt><dd>{account.id_usuario}</dd></div>
         {account.rol !== ROLES.PACIENTE && <div><dt>Nombre</dt><dd>{account.nombre_visible}</dd></div>}
@@ -53,9 +56,9 @@ function AccountDetail({ id }) {
               await submission.execute(async () => { const response = await reenviarInvitacion(id); setResult(response); setConfirm(false); reload(); });
             }}>
               <AccountFailure failure={submission.failure} remaining={submission.remaining} />
-              {confirm ? <div className="invitation-confirm"><p>¿Emitir una nueva invitación para {account.correo_acceso}? El enlace anterior dejará de ser válido.</p>
+              {confirm ? <ConfirmationPanel title="Revisar nuevo envío"><p>¿Emitir una nueva invitación para {account.correo_acceso}? El enlace anterior dejará de ser válido.</p>
                 <div className="accounts-actions"><Button type="submit" loading={submission.busy} disabled={actionBusy || submission.remaining > 0}>{submission.busy ? 'Solicitando envío…' : submission.remaining > 0 ? `Espera ${submission.remaining} s` : 'Confirmar nuevo envío'}</Button>
-                  <Button variant="quiet" disabled={submission.busy || actionBusy} onClick={() => { setConfirm(false); requestAnimationFrame(() => form.current?.querySelector('button')?.focus()); }}>Volver</Button></div></div>
+                  <Button variant="quiet" disabled={submission.busy || actionBusy} onClick={() => { setConfirm(false); requestAnimationFrame(() => form.current?.querySelector('button')?.focus()); }}>Volver</Button></div></ConfirmationPanel>
                 : <Button variant="secondary" disabled={actionBusy || submission.remaining > 0} onClick={() => setConfirm(true)}>Reenviar invitación</Button>}
             </form>
           </section>}

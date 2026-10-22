@@ -7,8 +7,8 @@ const labels = { HORARIO_INTERVALO_INVALIDO: 'El fin debe ser posterior al inici
 export default function HorarioImpacto({ impacto, onPage, disabled, configuracion = false }) {
   const { data, meta } = impacto;
   return <section className="catalog-review" aria-label={configuracion ? 'Impacto de duración global' : 'Impacto del horario'}><h2>{configuracion ? 'Impacto de duración global' : 'Impacto del horario'}</h2>
-    <p>{data.totales.conflictos} conflictos en la propuesta completa.</p>
-    <p>{configuracion ? (data.puede_confirmar ? 'La duración cabe en todos los horarios activos según la consulta actual. El servidor volverá a comprobarlo al guardar.' : 'No se puede guardar esta duración. Revisa los intervalos incompatibles, incluidos los de Médicos inactivos.') : (data.puede_confirmar ? 'La propuesta es compatible según la consulta actual. Al guardar, el servidor volverá a comprobar horarios y citas.' : 'No se puede guardar. Revisa los conflictos; las reprogramaciones de citas corresponden a Recepción.')}</p>
+    <div className={`impact-outcome${data.puede_confirmar ? '' : ' is-conflict'}`}><p className="impact-count">{data.totales.conflictos} conflictos en la propuesta completa.</p>
+    <p>{configuracion ? (data.puede_confirmar ? 'La duración cabe en todos los horarios activos según la consulta actual. El servidor volverá a comprobarlo al guardar.' : 'No se puede guardar esta duración. Revisa los intervalos incompatibles, incluidos los de Médicos inactivos.') : (data.puede_confirmar ? 'La propuesta es compatible según la consulta actual. Al guardar, el servidor volverá a comprobar horarios y citas.' : 'No se puede guardar. Revisa los conflictos; las reprogramaciones de citas corresponden a Recepción.')}</p></div>
     <p className="catalog-note">Horas y fechas de la sede, America/La_Paz. Solo referencias administrativas, sin datos clínicos ni de pacientes.</p>
     {data.elementos.length ? <ul className="horario-impact-list">{data.elementos.map((item, index) => <li key={`${meta.current_page}-${index}`}>
       <strong>{Object.hasOwn(labels, item.codigo) ? labels[item.codigo] : 'Conflicto de planificación'}</strong>

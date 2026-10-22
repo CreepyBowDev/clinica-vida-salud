@@ -16,6 +16,7 @@
   --color-story: #eaf3f1;
   --color-art: #d1e6df;
   --color-error: #a52e38;
+  --color-error-hover: #86232c;
   --color-error-bg: #fff3f3;
   --color-success: #206746;
   --color-success-bg: #ecf7ef;
@@ -39,4 +40,10 @@
   --text-small: .875rem;
   --text-body: 1rem;
   --text-title: clamp(1.75rem, 1.3rem + 1.2vw, 2.25rem);
+  --text-section: clamp(1.25rem, 1.1rem + .4vw, 1.5rem);
+  --text-label: .9375rem;
+  --control-height: 50px;
+  --button-height: 46px;
+  --panel-padding: clamp(1.25rem, 2vw, 1.75rem);
+  --layout-readable: 72ch;
 }

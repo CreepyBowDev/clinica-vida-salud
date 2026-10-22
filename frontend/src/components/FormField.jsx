@@ -1,8 +1,9 @@
 import { useId } from 'react';
 
-export default function FormField({ label, error, hint, trailing, ...inputProps }) {
-  const id = useId();
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ');
+export default function FormField({ label, error, hint, trailing, id: providedId, 'aria-describedby': externalDescription, ...inputProps }) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
+  const describedBy = [externalDescription, hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ');
   return <div className="field">
     <label htmlFor={id}>{label}</label>
     <div className={`field-control ${trailing ? 'field-control--trailing' : ''}`}>

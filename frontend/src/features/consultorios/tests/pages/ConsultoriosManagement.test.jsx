@@ -57,7 +57,7 @@ it('recorre listado, alta, detalle reconsultado y edición con Axios y Router re
   const name = await screen.findByLabelText('Nombre'); await user.clear(name); await user.type(name, 'Corregida');
   await user.click(screen.getByRole('button', { name: 'Guardar cambios' })); await screen.findByText('Corregida');
   expect(JSON.parse(writes()[1].data).actualizado_en_original).toBe(next);
-  expect(document.title).toBe('Consultorios | Clínica Vida Salud');
+  expect(document.title).toBe('Detalle del consultorio | Clínica Vida Salud');
 });
 it('aplica filtros solo al buscar, pagina con filtros aplicados y limpia a primera página', async () => {
   pages = 3; const user = userEvent.setup(); mount(); await screen.findByRole('table');

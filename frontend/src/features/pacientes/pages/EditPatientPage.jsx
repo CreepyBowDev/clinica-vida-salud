@@ -2,6 +2,9 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
+import PageHeading from '../../../components/PageHeading';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
+import ActionGroup from '../../../components/ActionGroup';
 import PatientForm from '../components/PatientForm';
 import PatientFailure from '../components/PatientFailure';
 import PatientVersionReview from '../components/PatientVersionReview';
@@ -19,8 +22,8 @@ export default function EditPatientPage() {
 }
 function EditPatient({ id }) {
   const { data, loading, failure, reload } = usePatientQuery('detail', id);
-  return <section className="workspace-page patients-page patient-editor-page"><Link className="patients-back" to={`/recepcion/pacientes/${id}`}>Volver a la ficha</Link>
-    <header className="page-heading"><h1>Editar ficha administrativa</h1><p>Conserva la identidad y el historial del mismo paciente.</p></header>
+  return <section className="workspace-page patients-page patient-editor-page admin-form-page"><Link className="back-link" to={`/recepcion/pacientes/${id}`}>Volver a la ficha</Link>
+    <PageHeading title="Editar ficha administrativa" description="Conserva la identidad y el historial del mismo paciente." />
     {loading ? <p role="status">Consultando ficha…</p> : failure ? <><PatientFailure failure={failure} /><Button onClick={reload}>Volver a consultar</Button></> : <PatientEditor initial={data} />}
   </section>;
 }
@@ -56,7 +59,7 @@ function PatientEditor({ initial }) {
     if (response?.data) navigate(`/recepcion/pacientes/${base.id_paciente}`, { replace: true, state: { patientNotice: 'Cambios administrativos guardados. La ficha se consultó nuevamente.' } });
     if (response?.failure) { setConfirm(false); if (response.failure.stale || response.failure.uncertain) setBlocked(true); }
   }
-  return <form ref={form} className="patients-panel patient-form" aria-label="Editar ficha administrativa" aria-busy={busy} onSubmit={submit}>
+  return <form ref={form} className="patients-panel patient-form admin-form" aria-label="Editar ficha administrativa" aria-busy={busy} onSubmit={submit}>
     <PatientFailure failure={failure} remaining={remaining} />
     <p>{base.codigo_paciente} · {base.nombres} {base.apellidos}</p>
     <PatientForm draft={draft} editing documentRequired={Boolean(base.documento_identidad)} onChange={(name, value) => { setDraft({ ...draft, [name]: value }); setIdentity(false); }} emergency={emergency} onEmergencyChange={setEmergency} busy={frozen} fields={failure?.fields} />
@@ -65,8 +68,8 @@ function PatientEditor({ initial }) {
       <div className="patient-checkbox"><label><input type="checkbox" required checked={identity} onChange={event => setIdentity(event.target.checked)} aria-invalid={Boolean(failure?.fields.identidad_verificada)} aria-describedby="identity-edit-help" />He comprobado presencialmente la identidad y los datos corregidos.</label><p id="identity-edit-help" className="field-hint">{failure?.fields.identidad_verificada || 'Las correcciones conservan el identificador, la cuenta vinculada y el historial.'}</p></div>
       {ciChanged && <p className="patients-note">Cambiar el CI invalida los códigos de Recepción y los procesos de vinculación pendientes. Conserva la cuenta ya vinculada y sus credenciales.</p>}
     </fieldset>}
-    {confirm && <p role="status" className="patients-note">Revisa la corrección antes de confirmar.{ciChanged ? ' Se invalidarán códigos y vinculaciones pendientes por el cambio efectivo de CI.' : ''}{base.contacto_emergencia && !emergency ? ' Se retirará el contacto de emergencia.' : ''}</p>}
+    {confirm && <ConfirmationPanel title="Revisar cambios administrativos"><p role="status">Revisa la corrección antes de confirmar.{ciChanged ? ' Se invalidarán códigos y vinculaciones pendientes por el cambio efectivo de CI.' : ''}{base.contacto_emergencia && !emergency ? ' Se retirará el contacto de emergencia.' : ''}</p></ConfirmationPanel>}
     {blocked && <PatientVersionReview id={base.id_paciente} onUse={adopt} />}
-    <div className="patients-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando cambios…' : remaining > 0 ? `Espera ${remaining} s` : confirm ? 'Confirmar cambios administrativos' : 'Guardar cambios'}</Button>{confirm && <Button variant="quiet" disabled={busy} onClick={() => setConfirm(false)}>Volver a revisar cambios</Button>}</div>
+    <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando cambios…' : remaining > 0 ? `Espera ${remaining} s` : confirm ? 'Confirmar cambios administrativos' : 'Guardar cambios'}</Button>{confirm && <Button variant="quiet" disabled={busy} onClick={() => setConfirm(false)}>Volver a revisar cambios</Button>}</ActionGroup>
   </form>;
 }

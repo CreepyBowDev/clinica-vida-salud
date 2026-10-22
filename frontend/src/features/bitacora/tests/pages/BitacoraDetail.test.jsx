@@ -170,7 +170,7 @@ describe('detalle seguro CU-30 fase 3', () => {
     expect(calls.at(-1).params).toMatchObject({ modulo: 'MEDICOS', page: 2 });
     expect(calls.every(call => call.method === 'get')).toBe(true);
     await user.click(screen.getByRole('link', { name: 'Inicio', exact: true }));
-    await user.click(screen.getByRole('link', { name: 'Bitácora del Sistema' })); await screen.findByRole('table');
+    await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Bitácora del Sistema' })); await screen.findByRole('table');
     expect(screen.getByLabelText('Módulo')).toHaveValue(''); expect(calls.at(-1).params).toEqual({ page: 1, per_page: '20' });
   });
 });

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
 import { actualizarMedico, crearMedico, camposMedico } from '../services/medico.service';
 import { useDoctorSubmission } from '../hooks/useDoctorSubmission';
 import DoctorFailure from './DoctorFailure';
@@ -35,16 +37,19 @@ export default function DoctorEditor({ initial }) {
     if (result?.data) navigate(`/administracion/medicos/${result.data.id_medico}`, { replace: true, state: { doctorNotice: base ? 'Datos profesionales guardados. Se consultó nuevamente el registro.' : 'Médico registrado. Se consultó nuevamente el registro.' } });
     if (result?.failure?.stale || result?.failure?.uncertain) setBlocked(true);
   }
-  return <form ref={form} className="catalog-panel catalog-editor" aria-label={initial ? 'Editar médico' : 'Registrar médico'} noValidate aria-busy={busy} onSubmit={submit}>
+  return <form ref={form} className="catalog-panel catalog-editor admin-form" aria-label={initial ? 'Editar médico' : 'Registrar médico'} noValidate aria-busy={busy} onSubmit={submit}>
     <DoctorFailure failure={failure} remaining={remaining} />
-    <fieldset className="catalog-editor-fields" disabled={busy || blocked}><legend>Datos profesionales</legend>
-      <div className="doctor-form-grid">{controls.map(([key, label, max]) => <FormField key={key} label={label} required maxLength={max} type={key === 'correo_contacto' ? 'email' : key === 'telefono' ? 'tel' : 'text'} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} error={failure?.fields[key]} />)}</div>
+    <FormSection title="Datos profesionales" disabled={busy || blocked}>
+      <div className="form-field-grid">{controls.slice(0, 3).map(([key, label, max]) => <FormField key={key} label={label} required maxLength={max} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} error={failure?.fields[key]} />)}</div>
+    </FormSection>
+    <FormSection title="Contacto profesional" disabled={busy || blocked}>
+      <div className="form-field-grid">{controls.slice(3).map(([key, label, max]) => <FormField key={key} label={label} required maxLength={max} type={key === 'correo_contacto' ? 'email' : 'tel'} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })} error={failure?.fields[key]} />)}</div>
       <p className="catalog-note">El correo de contacto no cambia el correo de acceso. El registro profesional y este correo no son identificadores únicos.</p>
-      {!initial && <InitialSpecialties selected={selected} onChange={setSelected} error={failure?.fields.especialidades} />}
-    </fieldset>
+    </FormSection>
+    {!initial && <FormSection title="Habilitación inicial" disabled={busy || blocked}><InitialSpecialties selected={selected} onChange={setSelected} error={failure?.fields.especialidades} /></FormSection>}
     {blocked && base && <DoctorVersionReview id={base.id_medico} onUse={current => { setBase(current); setDraft(draftFrom(current)); setBlocked(false); report(null); }} />}
     {!initial && <p className="catalog-note">El servidor genera el código profesional. El alta no crea una cuenta de acceso, consultorio ni horarios.</p>}
-    <div className="catalog-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando…' : initial ? 'Guardar datos profesionales' : 'Registrar médico'}</Button>
-      <Link className="button button--secondary" to={base ? `/administracion/medicos/${base.id_medico}` : '/administracion/medicos'}>{blocked && !base ? 'Consultar médicos' : 'Volver sin guardar'}</Link></div>
+    <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando…' : initial ? 'Guardar datos profesionales' : 'Registrar médico'}</Button>
+      <Link className="button button--secondary" to={base ? `/administracion/medicos/${base.id_medico}` : '/administracion/medicos'}>{blocked && !base ? 'Consultar médicos' : 'Volver sin guardar'}</Link></ActionGroup>
   </form>;
 }

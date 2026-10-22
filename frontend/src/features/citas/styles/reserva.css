@@ -1,6 +1,6 @@
 .reserva-page { max-width: var(--layout-content); }
 .reserva-progress, .reserva-note { color: var(--color-muted); }
-.reserva-section { min-width: 0; padding-block: var(--space-6); border-top: 1px solid var(--color-border); }
+.reserva-section { min-width: 0; padding: var(--panel-padding); margin-bottom: var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
 .reserva-section h2 { font-size: 1.4rem; margin-bottom: var(--space-4); }
 .reserva-filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); margin-block: var(--space-4); }
 .reserva-filters .field { flex: 1 1 210px; margin: 0; }
@@ -8,12 +8,13 @@
 .reserva-options { display: grid; gap: var(--space-3); list-style: none; margin: var(--space-4) 0; padding: 0; }
 .reserva-options .button { width: 100%; justify-content: flex-start; text-align: left; }
 .reserva-options [aria-pressed="true"] { border: 2px solid var(--color-primary); background: var(--color-story); }
-.reserva-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-block: var(--space-4); }
+.reserva-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--space-4) var(--space-6); margin-block: var(--space-5); }
+.reserva-context > div { min-width: 0; border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-4); }
 .reserva-context dt { color: var(--color-muted); }
 .reserva-context dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .reserva-slots { min-width: 0; border: 0; padding: 0; margin-block: var(--space-5); }
 .reserva-slots legend { font-weight: 600; margin-bottom: var(--space-3); }
-.reserva-slot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: var(--space-3); }
+.reserva-slot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-3); }
 .reserva-slot-grid label { min-height: 48px; display: flex; align-items: center; gap: var(--space-2); padding: 12px; border: 1px solid var(--color-control-border); border-radius: var(--radius-control); cursor: pointer; }
 .reserva-slot-grid label:has(:checked) { border-color: var(--color-primary); background: var(--color-story); font-weight: 600; }
 .reserva-slot-grid input { accent-color: var(--color-primary); width: 18px; height: 18px; }
@@ -23,4 +24,9 @@
 .reserva-reason label { font-weight: 600; }
 .reserva-reason input { min-width: 0; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--color-control-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); }
 .reserva-reason .button { justify-self: start; }
+.reserva-reason .field { margin: 0; }
+.reserva-reason .form-actions { margin-top: 0; }
+.reserva-guidance { color: var(--color-primary-hover); padding: var(--space-4); margin-bottom: var(--space-6); border-left: 3px solid var(--color-primary); background: var(--color-story); overflow-wrap: anywhere; }
+.reserva-review > p { max-width: var(--layout-readable); margin-block: var(--space-4); }
+.reserva-page .reserva-reason { padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
 @media (max-width: 600px) { .reserva-context { grid-template-columns: minmax(0, 1fr); } .reserva-filters > .button { width: 100%; } }

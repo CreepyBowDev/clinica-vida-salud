@@ -6,11 +6,22 @@ import Icon from '../components/Icon';
 import Modal from '../components/Modal';
 import '../features/auth/styles/access.css';
 
+const guidance = {
+  '/registro': ['Tu cuenta, desde el primer paso.', 'Este registro es para pacientes nuevos. Si ya tienes una ficha, usa la autorización presencial de Recepción.'],
+  '/vincular-ficha': ['Tu ficha. El mismo historial.', 'Vincula tu ficha existente con el código de Recepción y verifica después tu correo. No necesitas crear otra ficha.'],
+  '/verificar-registro': ['Un paso para cuidar tu acceso.', 'Usa el código de tu correo. El código presencial de Recepción pertenece al paso anterior.'],
+  '/olvide-mi-contrasena': ['Vuelve a tu espacio de cuidado.', 'La recuperación usa un enlace enviado a tu correo de acceso, no un código de activación.'],
+  '/recuperar-clave': ['Un nuevo acceso, solo tuyo.', 'Establece una nueva contraseña. Después tendrás que volver a iniciar sesión.'],
+  '/activar-personal': ['Tu lugar en el equipo.', 'La invitación permite verificar tu correo y establecer tu primera contraseña.'],
+  '/clave-obligatoria': ['Completa tu acceso al equipo.', 'La credencial temporal permite únicamente establecer tu contraseña definitiva antes de ingresar al portal.'],
+};
+
 export default function AuthLayout() {
   const [help, setHelp] = useState(false);
   const { pathname } = useLocation();
   const main = useRef(null);
   const previousPath = useRef(pathname);
+  const context = guidance[pathname];
   useEffect(() => {
     document.documentElement.scrollTop = 0;
     if (previousPath.current !== pathname) main.current?.focus({ preventScroll: true });
@@ -23,8 +34,8 @@ export default function AuthLayout() {
     </Button></header>
     <main ref={main} id="contenido" className="auth-main" tabIndex="-1">
       <section className="auth-story" aria-labelledby="story-title">
-        <div className="story-copy"><h2 id="story-title">Cerca de ti.<br /> En cada paso.</h2>
-          <p>Un mismo espacio para pacientes y equipo médico. Una atención más conectada.</p>
+        <div className="story-copy"><h2 id="story-title">{context ? context[0] : <>Cerca de ti.<br /> En cada paso.</>}</h2>
+          <p>{context ? context[1] : 'Un mismo espacio para pacientes y equipo médico. Una atención más conectada.'}</p>
         </div>
         <div className="care-art" aria-hidden="true">
           <svg viewBox="0 0 520 330" fill="none">

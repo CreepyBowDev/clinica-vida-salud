@@ -48,6 +48,15 @@ const writes = () => calls.filter(c => c.method !== 'get');
 async function fill(user) { for (const [label, value] of Object.entries(fields)) await user.type(await screen.findByLabelText(label, { exact: true }), value); }
 
 describe('datos profesionales y alta CU-10 fase 3', () => {
+  it('edición separa identidad/contacto y acciones sin perder el borrador al validar', async () => {
+    const user = userEvent.setup(); mount(`${root}/${id}/editar`); await screen.findByLabelText('Nombres');
+    expect(within(screen.getByRole('group', { name: 'Datos profesionales' })).getByLabelText('Registro profesional')).toHaveValue('REG-ficticio');
+    expect(within(screen.getByRole('group', { name: 'Contacto profesional' })).getByLabelText('Correo de contacto')).toHaveValue('contacto@example.test');
+    await user.clear(screen.getByLabelText('Teléfono')); await user.click(screen.getByRole('button', { name: 'Guardar datos profesionales' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Revisa los campos'); expect(screen.getByLabelText('Nombres')).toHaveValue('Profesional');
+    expect(screen.getByLabelText('Teléfono')).toHaveFocus(); expect(writes()).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Guardar datos profesionales' }).parentElement).toHaveClass('form-actions');
+  });
   it.each(['Recepcionista', 'Médico', 'Paciente'])('protege las tres nuevas rutas frente a %s sin consultar datos', async rol => {
     consultarSesion.mockResolvedValue({ id_usuario: '2', nombre_visible: 'Persona Ficticia', correo_acceso: 'persona@example.test', rol });
     const router = mount(`${root}/nuevo`); await screen.findByRole('heading', { name: 'Acceso no permitido' });

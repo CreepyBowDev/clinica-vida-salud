@@ -23,6 +23,13 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockResolvedValue(admin);
 afterEach(() => vi.useRealTimers());
 
 describe('estado de acceso', () => {
+  it('la confirmación visual se puede abandonar sin escribir y restaura foco', async () => {
+    const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'Desactivar acceso' }));
+    expect(screen.getByRole('region', { name: 'Revisar estado de acceso' })).toHaveTextContent('Se cerrarán todas sus sesiones');
+    expect(cambiarEstadoCuenta).not.toHaveBeenCalled(); await user.click(screen.getByRole('button', { name: 'Volver' }));
+    expect(screen.queryByRole('region', { name: 'Revisar estado de acceso' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Desactivar acceso' })).toHaveFocus()); expect(cambiarEstadoCuenta).not.toHaveBeenCalled();
+  });
   it.each([['Activa', 'Desactivada', 'Desactivar acceso'], ['Desactivada', 'Activa', 'Reactivar acceso']])('cambia %s a %s con confirmación y reconsulta', async (from, to, name) => {
     consultarCuenta.mockResolvedValueOnce({ ...staff, rol: 'Paciente', estado_cuenta: from }).mockResolvedValue({ ...staff, rol: 'Paciente', estado_cuenta: to });
     cambiarEstadoCuenta.mockResolvedValue({ ...staff, estado_cuenta: to });
@@ -52,7 +59,7 @@ describe('estado de acceso', () => {
     expect(screen.getByText(/Estás modificando tu propia cuenta/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmar: desactivar acceso' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('sin un Administrador habilitado');
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
     expect(consultarSesion).toHaveBeenCalledTimes(1);
   });
   it('desactivación propia confirmada retira el área y exige login', async () => {
@@ -167,6 +174,8 @@ describe('credencial temporal', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar emisión' }));
     expect(await screen.findByRole('heading', { name: 'Credencial temporal emitida' })).toHaveFocus();
     expect(screen.getByLabelText('Credencial temporal para entrega presencial')).toHaveTextContent(secret);
+    expect(screen.getByText(/No es una contraseña definitiva ni una invitación/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Antes del vencimiento' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(emitirCredencialTemporal).toHaveBeenCalledWith(id, true);
     expect(localStorage.length + sessionStorage.length).toBe(0);

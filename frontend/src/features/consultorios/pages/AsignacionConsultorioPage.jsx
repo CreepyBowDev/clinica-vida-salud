@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
+import PageHeading from '../../../components/PageHeading';
+import WorkflowProgress from '../../../components/WorkflowProgress';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
+import ActionGroup from '../../../components/ActionGroup';
+import { PLANNING_STEPS } from '../../../constants/workflows';
 import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { describirError } from '../../../utils/httpError';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
@@ -33,8 +38,8 @@ export default function AsignacionConsultorioPage() {
 }
 function Load({ id }) {
   const query = useCatalogQuery(contexto, id, fields);
-  return <section className="workspace-page catalog-page"><Link to={`/administracion/medicos/${id}`}>Volver al médico</Link>
-    <header className="page-heading"><h1>Asignar consultorio</h1><p>Revisa la ocupación y los cambios de ubicación antes de confirmar la asignación fija.</p></header>
+  return <section className="workspace-page catalog-page"><Link className="back-link" to={`/administracion/medicos/${id}`}>Volver al médico</Link>
+    <PageHeading title="Asignar consultorio" description="Revisa la ocupación y los cambios de ubicación antes de confirmar la asignación fija." />
     {query.loading ? <p role="status">Consultando médico y asignación…</p> : query.failure ? <><ConsultorioFailure failure={query.failure} remaining={query.remaining} /><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></>
       : <Assignment id={id} initial={query.data} />}
   </section>;
@@ -126,28 +131,28 @@ function Assignment({ id, initial }) {
     finally { locked.current = false; if (mounted.current) setBusy(''); }
   }
   const sala = base.asignacion.consultorio;
-  return <form ref={form} className="catalog-panel assignment-form" aria-label="Asignar consultorio fijo" aria-busy={Boolean(busy)} onSubmit={save}>
-    <h2>{base.medico.nombres} {base.medico.apellidos}</h2>
+  return <form ref={form} className="catalog-panel assignment-form guided-form" aria-label="Asignar consultorio fijo" aria-busy={Boolean(busy)} onSubmit={save}>
+    <div className="guided-context"><h2>{base.medico.nombres} {base.medico.apellidos}</h2>
     <p>{base.medico.activo ? 'Médico activo' : 'Médico inactivo'} · {base.medico.codigo_medico}</p>
-    <dl className="catalog-data"><div><dt>Consultorio fijo actual</dt><dd>{sala ? `${sala.codigo_consultorio} — ${sala.nombre}${sala.activo ? '' : ' (inactivo)'}` : 'Sin consultorio asignado'}</dd></div></dl>
+    <dl className="catalog-data"><div><dt>Consultorio fijo actual</dt><dd>{sala ? `${sala.codigo_consultorio} — ${sala.nombre}${sala.activo ? '' : ' (inactivo)'}` : 'Sin consultorio asignado'}</dd></div></dl></div>
+    <WorkflowProgress label="Etapas de asignación" steps={PLANNING_STEPS} current={busy === 'write' || confirm ? 'confirmacion' : impacto || busy === 'preview' ? 'impacto' : 'propuesta'} />
     <p className="catalog-note">Los horarios activos reservan su franja incluso si el Médico está inactivo. Esta operación no activa médicos, cuentas ni horarios. No permite retirar la asignación ni cambiar fechas, duración o estado de citas.</p>
     {notice && <Alert variant="success">{notice}</Alert>}
     <ConsultorioFailure failure={failure} remaining={remaining} />
     <ConsultorioSelector value={destino} disabled={busy === 'write' || busy === 'refresh'} error={failure?.fields?.id_consultorio} onChange={value => {
       invalidate(); setDestino(value); setFailure(null); setNotice('');
     }} />
-    <div className="catalog-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto</Button>
-      <Button variant="quiet" disabled={Boolean(busy) || remaining > 0} onClick={refresh}>Consultar asignación actual</Button></div>
+    <ActionGroup className="form-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto</Button>
+      <Button variant="quiet" disabled={Boolean(busy) || remaining > 0} onClick={refresh}>Consultar asignación actual</Button></ActionGroup>
     {busy && <p role="status">{busy === 'write' ? 'Guardando asignación…' : busy === 'refresh' ? 'Consultando datos actuales…' : 'Consultando impacto…'}</p>}
     <div ref={review} tabIndex="-1">{impacto && <AsignacionImpacto impacto={impacto} disabled={Boolean(busy)} onPage={preview} />}</div>
-    {impacto?.data.puede_confirmar && <section className="catalog-confirm" aria-label="Confirmación de asignación">
-      <h2>Confirmar la propuesta revisada</h2>
+    {impacto?.data.puede_confirmar && <ConfirmationPanel label="Confirmación de asignación" title="Confirmar la propuesta revisada">
       <p>Destino: <strong>{destino.codigo_consultorio} — {destino.nombre}</strong>. La revisión comprende todas las páginas y no permite seleccionar solo algunas citas.</p>
       <p>Las citas pasadas y finales conservan su ubicación histórica. Solo se trasladan las citas futuras elegibles que el servidor haya identificado.</p>
       {necesitaConsentimiento && <label className="assignment-consent"><input type="checkbox" checked={aceptado} disabled={Boolean(busy)} onChange={event => { setAceptado(event.target.checked); setConfirm(false); }} />Acepto cambiar la ubicación de las {impacto.data.totales.citas_trasladadas} citas propuestas, conservando fecha, hora, duración, estado e historial.</label>}
       {confirm && <p role="status">Revisaste el destino y el impacto. Confirma para solicitar el guardado; el servidor volverá a validar toda la operación.</p>}
-      <div className="catalog-actions">{confirm ? <><Button type="submit" loading={busy === 'write'} disabled={!listo}>Guardar asignación</Button><Button variant="quiet" disabled={Boolean(busy)} onClick={() => setConfirm(false)}>Volver a revisar</Button></>
-        : <Button disabled={!listo} onClick={() => setConfirm(true)}>Revisar confirmación</Button>}</div>
-    </section>}
+      <ActionGroup className="form-actions">{confirm ? <><Button type="submit" loading={busy === 'write'} disabled={!listo}>Guardar asignación</Button><Button variant="quiet" disabled={Boolean(busy)} onClick={() => setConfirm(false)}>Volver a revisar</Button></>
+        : <Button disabled={!listo} onClick={() => setConfirm(true)}>Revisar confirmación</Button>}</ActionGroup>
+    </ConfirmationPanel>}
   </form>;
 }

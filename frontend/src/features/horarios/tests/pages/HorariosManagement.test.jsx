@@ -42,6 +42,23 @@ async function open(user, accion = 'EDITAR') {
 async function preview(user) { await user.click(screen.getByRole('button', { name: 'Consultar impacto del horario' })); await screen.findByRole('heading', { name: 'Impacto del horario' }); }
 async function save(user) { await user.click(screen.getByRole('button', { name: 'Revisar cambio de horario' })); await user.click(screen.getByRole('button', { name: 'Guardar horario' })); }
 
+it('etapas del editor no guardan ni eliminan el intervalo al volver a revisar', async () => {
+  const user = userEvent.setup(); mount(); await open(user);
+  const stages = screen.getByRole('list', { name: 'Etapas del horario' }); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Preparar propuesta');
+  await preview(user); await user.click(screen.getByRole('button', { name: 'Revisar cambio de horario' }));
+  expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Confirmar guardado'); expect(writes()).toHaveLength(0);
+  await user.click(screen.getByRole('button', { name: 'Volver a revisar' })); expect(screen.getByLabelText('Hora final')).toHaveValue('13:00:01');
+  expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');
+});
+
+it('paginación del selector enfoca resultados y conserva filtros sin escrituras', async () => {
+  pages = 3; const user = userEvent.setup(); mount('/administracion/horarios'); await screen.findByRole('table');
+  await user.type(screen.getByLabelText('Nombre del médico'), 'Ficticio'); await user.click(screen.getByRole('button', { name: 'Buscar médico' })); await screen.findByRole('table');
+  await user.click(screen.getByRole('button', { name: 'Siguiente' })); const table = await screen.findByRole('table');
+  expect(table.closest('[tabindex="-1"]')).toHaveFocus(); expect(table.parentElement).toHaveClass('query-table');
+  expect(calls.at(-1).params).toMatchObject({ nombre: 'Ficticio', page: 2 }); expect(writes()).toHaveLength(0);
+});
+
 it.each(['Recepcionista', 'Médico', 'Paciente'])('protege listado y detalle de %s sin llamadas', async rol => {
   consultarSesion.mockResolvedValue({ id_usuario: '2', nombre_visible: 'Persona', correo_acceso: 'persona@example.test', rol }); const router = mount('/administracion/horarios');
   await screen.findByRole('heading', { name: 'Acceso no permitido' }); await act(() => router.navigate(root)); expect(calls).toHaveLength(0);

@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import Button from '../../../components/Button';
+import PageHeading from '../../../components/PageHeading';
 import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { consultarConsultorio } from '../services/consultorio.service';
@@ -11,7 +12,7 @@ const fields = [];
 export default function ConsultorioEditorPage({ creating = false }) {
   const { id } = useParams();
   if (!creating && !esIdentificador(id)) return <section className="page-message"><h1>Consultorio no disponible</h1><Link to="/administracion/consultorios">Volver al catálogo</Link></section>;
-  return <section className="workspace-page catalog-page"><header className="page-heading"><h1>{creating ? 'Registrar consultorio' : 'Editar consultorio'}</h1><p>Identifica el espacio de atención sin alterar la ubicación histórica de las citas.</p></header>
+  return <section className="workspace-page catalog-page admin-form-page"><PageHeading title={creating ? 'Registrar consultorio' : 'Editar consultorio'} description="Identifica el espacio de atención sin alterar la ubicación histórica de las citas." />
     {creating ? <ConsultorioEditor /> : <LoadEditor key={id} id={id} />}
   </section>;
 }

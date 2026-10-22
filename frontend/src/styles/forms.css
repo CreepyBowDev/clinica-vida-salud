@@ -1,0 +1,39 @@
+/* Presentación compartida de formularios; cada flujo conserva sus estados y validaciones. */
+.admin-form { min-width: 0; max-width: 1000px; }
+.admin-form-page { max-width: var(--layout-content); }
+.form-section { min-width: 0; border: 0; margin: 0 0 var(--space-6); padding: 0; }
+.form-section > legend { padding: 0; margin-bottom: var(--space-5); color: var(--color-text); font-size: var(--text-section); font-weight: 600; overflow-wrap: anywhere; }
+.form-section + .form-section { padding-top: var(--space-6); border-top: 1px solid var(--color-border); }
+.form-section > .field:last-child { margin-bottom: 0; }
+.form-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: var(--space-5); }
+.form-field-grid > .field { margin: 0; }
+.form-field-grid > * { min-width: 0; }
+.form-actions { margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+.form-actions > .button { flex: 0 1 auto; }
+.admin-form .patient-form-fields > legend { font-size: var(--text-section); }
+.admin-form .patient-form-fields > .form-section > legend { font-size: 1.125rem; }
+.admin-form > .patient-review { padding: var(--panel-padding); background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+.admin-form :is(.catalog-review, .patient-version), .admin-action-form .patient-version { margin-block: var(--space-6); padding: var(--panel-padding); border: 1px solid var(--color-control-border); border-radius: var(--radius-control); background: var(--color-background); }
+.admin-form .catalog-review h2, .admin-form .patient-version h2 { font-size: var(--text-section); }
+.confirmation-panel { min-width: 0; margin-block: var(--space-6); padding: var(--panel-padding); background: var(--color-warning-bg); border: 1px solid var(--color-warning); border-radius: var(--radius-control); overflow-wrap: anywhere; }
+.confirmation-heading { display: flex; align-items: start; gap: var(--space-3); margin-bottom: var(--space-4); }
+.confirmation-heading svg { color: var(--color-warning); margin-top: 3px; }
+.confirmation-heading h2 { font-size: var(--text-section); color: var(--color-text); }
+.confirmation-panel p { max-width: var(--layout-readable); }
+.confirmation-panel p + p { margin-top: var(--space-3); }
+.confirmation-panel h3 { margin-block: var(--space-4) var(--space-2); }
+.confirmation-panel ul { padding-left: var(--space-5); }
+.confirmation-panel .accounts-actions { margin-top: var(--space-5); }
+.staff-form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, .6fr); gap: var(--space-6); align-items: start; }
+.staff-form-layout > .form-guidance { grid-column: 2; grid-row: 1; padding: var(--panel-padding); background: var(--color-story); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
+.staff-form-layout > form { grid-column: 1; grid-row: 1; }
+.form-guidance h2 { font-size: var(--text-section); margin-bottom: var(--space-4); }
+.form-guidance p { color: var(--color-muted); max-width: 48ch; }
+.form-guidance p + p { margin-top: var(--space-4); }
+@media (max-width: 1100px) {
+  .staff-form-layout { grid-template-columns: minmax(0, 1fr); }
+  .staff-form-layout > .form-guidance, .staff-form-layout > form { grid-column: auto; grid-row: auto; }
+}
+@media (max-width: 700px) {
+  .form-actions > .button { flex: 1 1 12rem; }
+}

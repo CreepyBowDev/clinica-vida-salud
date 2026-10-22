@@ -2,6 +2,9 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
+import PageHeading from '../../../components/PageHeading';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
+import ActionGroup from '../../../components/ActionGroup';
 import PatientForm from '../components/PatientForm';
 import PatientFailure from '../components/PatientFailure';
 import PatientVersionReview from '../components/PatientVersionReview';
@@ -14,8 +17,8 @@ import '../styles/patients.css';
 export default function MyProfilePage() {
   const { data, loading, failure, reload } = usePatientQuery('profile');
   const [notice, setNotice] = useState(false);
-  return <section className="workspace-page patients-page patient-editor-page">
-    <header className="page-heading"><h1>Mi perfil</h1><p>Tus datos de contacto y preferencias en Clínica Vida Salud.</p></header>
+  return <section className="workspace-page patients-page patient-editor-page admin-form-page">
+    <PageHeading title="Mi perfil" description="Tus datos de contacto y preferencias en Clínica Vida Salud." />
     {notice && <Alert variant="success"><p>Tu perfil se guardó correctamente.</p></Alert>}
     <div aria-busy={loading}>{loading ? <p role="status">Consultando tu perfil…</p> : failure ? <><PatientFailure failure={failure} /><Button onClick={reload}>Volver a consultar mi perfil</Button></> : <ProfileEditor initial={data} onSubmitting={() => setNotice(false)} onSaved={() => { setNotice(true); reload(); }} />}</div>
   </section>;
@@ -60,7 +63,7 @@ function ProfileEditor({ initial, onSubmitting, onSaved }) {
       <p className="patients-note">Para corregir tu identidad, acude a Recepción con tu documento.</p>
       {!base.activo && <p className="patients-note">Tu ficha está inactiva y no admite nuevas reservas. Puedes actualizar contacto, emergencia y preferencias; conservas tu historial y tus citas existentes.</p>}
     </section>
-    <form ref={form} className="patients-panel patient-form" aria-label="Actualizar mi perfil" aria-busy={busy} onSubmit={submit}>
+    <form ref={form} className="patients-panel patient-form admin-form" aria-label="Actualizar mi perfil" aria-busy={busy} onSubmit={submit}>
       <PatientFailure failure={failure} remaining={remaining} />
       <PatientForm contactOnly draft={draft} onChange={(name, value) => setDraft({ ...draft, [name]: value })} emergency={emergency} onEmergencyChange={setEmergency} busy={frozen} fields={failure?.fields} />
       <fieldset className="patient-identity-edit" disabled={frozen}><legend>Recordatorios internos</legend><div className="field">
@@ -69,9 +72,9 @@ function ProfileEditor({ initial, onSubmitting, onSaved }) {
           {base.recordatorios_habilitados == null && <option value="">Sin preferencia registrada</option>}<option value="true">Habilitados</option><option value="false">Deshabilitados</option>
         </select><p id="profile-reminders-help" className={failure?.fields.recordatorios_habilitados ? 'field-error' : 'field-hint'}>{failure?.fields.recordatorios_habilitados || 'Avisos dentro del portal; no se envían por correo ni SMS. Guardar esta preferencia no genera un aviso desde el navegador.'}</p>
       </div></fieldset>
-      {confirm && <p role="status" className="patients-note">Confirma los cambios.{base.contacto_emergencia && !emergency ? ' Se retirará tu contacto de emergencia.' : ''}{reminders === 'false' && base.recordatorios_habilitados !== false ? ' Se deshabilitarán tus recordatorios internos.' : ''}</p>}
+      {confirm && <ConfirmationPanel title="Revisar cambios de mi perfil"><p role="status">Confirma los cambios.{base.contacto_emergencia && !emergency ? ' Se retirará tu contacto de emergencia.' : ''}{reminders === 'false' && base.recordatorios_habilitados !== false ? ' Se deshabilitarán tus recordatorios internos.' : ''}</p></ConfirmationPanel>}
       {blocked && <PatientVersionReview profile onUse={adopt} />}
-      <div className="patients-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando perfil…' : remaining > 0 ? `Espera ${remaining} s` : confirm ? 'Confirmar cambios de mi perfil' : 'Guardar mi perfil'}</Button>{confirm && <Button variant="quiet" disabled={busy} onClick={() => setConfirm(false)}>Volver a revisar cambios</Button>}</div>
+      <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando perfil…' : remaining > 0 ? `Espera ${remaining} s` : confirm ? 'Confirmar cambios de mi perfil' : 'Guardar mi perfil'}</Button>{confirm && <Button variant="quiet" disabled={busy} onClick={() => setConfirm(false)}>Volver a revisar cambios</Button>}</ActionGroup>
     </form>
     <section className="patients-panel" aria-labelledby="profile-account"><h2 id="profile-account">Acceso a tu cuenta</h2><dl className="patients-data"><div><dt>Correo de acceso</dt><dd>{base.correo_acceso}</dd></div></dl>
       <p className="patients-note">Este es el correo con el que inicias sesión. Editar tu correo de contacto no lo modifica.</p><div className="patients-actions"><Link className="button button--secondary" to="/mi-perfil/correo">Cambiar correo de acceso</Link><Link className="button button--secondary" to="/mi-cuenta/contrasena">Cambiar contraseña</Link></div>

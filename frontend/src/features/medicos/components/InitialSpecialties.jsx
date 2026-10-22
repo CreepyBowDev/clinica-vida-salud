@@ -24,7 +24,7 @@ export default function InitialSpecialties({ selected, onChange, error, managing
         <div className="doctor-specialty-options">{query.data?.data.map(item => <label key={item.id_especialidad}><input type="checkbox" checked={selected.some(value => value.id_especialidad === item.id_especialidad)} onChange={event => onChange(event.target.checked ? [...selected, item] : selected.filter(value => value.id_especialidad !== item.id_especialidad))} />{item.nombre}{!item.activa && ' (catálogo inactivo)'}</label>)}</div>
       </CatalogResults>
     </div>
-    <section className="doctor-selected" aria-label="Especialidades seleccionadas"><h3>Selección actual ({selected.length})</h3>
+    <section className="doctor-selected" aria-label="Especialidades seleccionadas"><h2>Selección actual ({selected.length})</h2>
       {selected.length ? <ul>{selected.map(item => <li key={item.id_especialidad}><span>{item.nombre}{!item.activa && ' (catálogo inactivo)'}</span><Button variant="quiet" onClick={() => onChange(selected.filter(value => value.id_especialidad !== item.id_especialidad))} aria-label={`Quitar ${item.nombre}`}>Quitar</Button></li>)}</ul> : <p>No has seleccionado especialidades.</p>}
     </section>
   </fieldset>;

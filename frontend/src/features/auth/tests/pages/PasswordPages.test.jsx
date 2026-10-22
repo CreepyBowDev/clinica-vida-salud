@@ -31,6 +31,13 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockRejectedValue(error(4
 afterEach(() => { vi.useRealTimers(); });
 
 describe('cambio ordinario', () => {
+  it('separa comprobación de identidad y nueva contraseña sin enviar al mostrarlas', async () => {
+    consultarSesion.mockResolvedValue(person('Paciente')); mount('/mi-cuenta/contrasena');
+    await screen.findByLabelText('Contraseña actual');
+    expect(screen.getByRole('group', { name: 'Confirma tu identidad' })).toContainElement(screen.getByLabelText('Contraseña actual'));
+    expect(screen.getByRole('group', { name: 'Tu nueva contraseña' })).toContainElement(screen.getByLabelText('Confirmar nueva contraseña'));
+    expect(cambiarClave).not.toHaveBeenCalled();
+  });
   it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('cambia como %s y revalida conservando sesión normal', async rol => {
     consultarSesion.mockResolvedValue(person(rol));
     cambiarClave.mockResolvedValue(undefined);
@@ -45,7 +52,7 @@ describe('cambio ordinario', () => {
     expect(consultarSesion).toHaveBeenCalledTimes(2);
     expect(screen.getByLabelText('Contraseña actual')).toHaveValue('');
     expect(screen.getByLabelText('Nueva contraseña')).toHaveValue('');
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
   });
 
   it('no permite al contexto restringido usar el cambio ordinario', async () => {
@@ -99,7 +106,7 @@ describe('cambio ordinario', () => {
     await screen.findByRole('status');
     await act(async () => resolveOld({ acceso: 'cambio_clave', cambio_clave_obligatorio: true }));
     expect(screen.getByRole('heading', { name: 'Cambiar contraseña' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
   });
 });
 

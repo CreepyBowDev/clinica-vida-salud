@@ -1,5 +1,5 @@
 export default function DoctorData({ doctor }) {
-  return <><dl className="catalog-data">
+  return <><dl className="catalog-data record-data">
     <div><dt>Profesional</dt><dd>{doctor.nombres} {doctor.apellidos}</dd></div>
     <div><dt>Código profesional</dt><dd>{doctor.codigo_medico}</dd></div>
     <div><dt>Registro profesional</dt><dd>{doctor.registro_profesional}</dd></div>

@@ -3,6 +3,11 @@ import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
 import SelectField from '../../../components/SelectField';
+import WorkflowProgress from '../../../components/WorkflowProgress';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
+import { PLANNING_STEPS } from '../../../constants/workflows';
 import { crearHorario, actualizarHorario, cambiarEstadoHorario, consultarImpactoHorario } from '../services/horario.service';
 import { dias, diaSemana, horaLocal } from '../utils/horarioFormat';
 import { useHorarioSubmission } from '../hooks/useHorarioSubmission';
@@ -44,25 +49,26 @@ export default function HorarioEditor({ id, version, initial, accion, onClose, o
     const result = await execute('write', () => estado ? cambiarEstadoHorario(id, initial.id_horario, data) : initial ? actualizarHorario(id, initial.id_horario, data) : crearHorario(id, data));
     if (result?.data) onSaved();
   }
-  return <form ref={form} className="catalog-panel catalog-editor horario-editor" aria-label={title} aria-busy={Boolean(busy)} onSubmit={save} noValidate>
+  return <form ref={form} className="catalog-panel catalog-editor horario-editor guided-form" aria-label={title} aria-busy={Boolean(busy)} onSubmit={save} noValidate>
     <h2>{title}</h2>
+    <WorkflowProgress label="Etapas del horario" steps={PLANNING_STEPS} current={busy === 'write' || confirm ? 'confirmacion' : impacto || busy === 'preview' ? 'impacto' : 'propuesta'} />
     {failure && <Alert tabIndex="-1"><p>{failure.message}</p>{remaining > 0 && <p>Espera {remaining} segundos antes de volver a intentarlo.</p>}</Alert>}
     {estado ? <p>{diaSemana(initial.dia_semana)}, de {horaLocal(initial.hora_inicio)} a {horaLocal(initial.hora_fin)}. {initial.activo ? 'Desactivar libera la franja administrativa, pero no cancela ni mueve citas existentes.' : 'Reactivar exige compatibilidad con la sala, duración y ocupación actuales.'}</p>
-      : <fieldset className="catalog-editor-fields" disabled={busy === 'write' || blocked}><legend>Intervalo semanal de atención</legend>
+      : <FormSection title="Intervalo semanal de atención" disabled={busy === 'write' || blocked}>
         <SelectField label="Día de atención" value={draft.dia_semana} error={failure?.fields?.dia_semana} onChange={event => change('dia_semana', event.target.value)}>{dias.map((dia, index) => <option value={index + 1} key={dia}>{dia}</option>)}</SelectField>
         <div className="horario-hours">{[['hora_inicio', 'Hora inicial'], ['hora_fin', 'Hora final']].map(([key, label]) => <FormField key={key} label={label} type="text" inputMode="text" placeholder="08:00:00" maxLength={8} autoComplete="off" value={draft[key]} onChange={event => change(key, event.target.value)} error={failure?.fields?.[key]} hint="Hora local con segundos, HH:mm:ss." />)}</div>
-      </fieldset>}
+      </FormSection>}
     <p className="catalog-note">La actividad del Médico no cambia con esta operación. El servidor comprueba horarios compartidos y cobertura completa de citas vigentes; no se reprograman ni cancelan automáticamente.</p>
     {blocked && <p>El borrador sigue visible. Para continuar, descártalo explícitamente y consulta el listado actual.</p>}
-    <div className="catalog-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto del horario</Button>
-      <Button variant="quiet" disabled={Boolean(busy)} onClick={onClose}>{blocked ? 'Descartar borrador y consultar horarios actuales' : 'Volver al listado sin guardar'}</Button></div>
+    <ActionGroup className="form-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto del horario</Button>
+      <Button variant="quiet" disabled={Boolean(busy)} onClick={onClose}>{blocked ? 'Descartar borrador y consultar horarios actuales' : 'Volver al listado sin guardar'}</Button></ActionGroup>
     {busy && <p role="status">{busy === 'write' ? 'Guardando horario…' : 'Consultando impacto…'}</p>}
     <div ref={review} tabIndex="-1">{impacto && <HorarioImpacto impacto={impacto} onPage={preview} disabled={Boolean(busy) || remaining > 0} />}</div>
-    {impacto?.data.puede_confirmar && <section className="catalog-confirm" aria-label="Confirmación de horario"><h2>Confirmar propuesta de horario</h2>
+    {impacto?.data.puede_confirmar && <ConfirmationPanel label="Confirmación de horario" title="Confirmar propuesta de horario">
       <p>El diagnóstico comprende la propuesta completa, no solo esta página. No reserva la franja: el servidor volverá a validar al guardar.</p>
       {confirm && <p role="status">Revisa el cambio: {title.toLowerCase()}. Las citas existentes conservarán sus datos.</p>}
-      <div className="catalog-actions">{confirm ? <><Button type="submit" loading={busy === 'write'} disabled={Boolean(busy) || blocked || remaining > 0}>Guardar horario</Button><Button variant="quiet" disabled={Boolean(busy)} onClick={() => setConfirm(false)}>Volver a revisar</Button></>
-        : <Button disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => setConfirm(true)}>Revisar cambio de horario</Button>}</div>
-    </section>}
+      <ActionGroup className="form-actions">{confirm ? <><Button type="submit" loading={busy === 'write'} disabled={Boolean(busy) || blocked || remaining > 0}>Guardar horario</Button><Button variant="quiet" disabled={Boolean(busy)} onClick={() => setConfirm(false)}>Volver a revisar</Button></>
+        : <Button disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => setConfirm(true)}>Revisar cambio de horario</Button>}</ActionGroup>
+    </ConfirmationPanel>}
   </form>;
 }

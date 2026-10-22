@@ -33,6 +33,13 @@ async function ready() { await screen.findByLabelText('Nuevo correo de acceso');
 async function prepareRequest() { await ready(); field('Nuevo correo de acceso', 'nuevo@example.test'); field('Contraseña actual', 'Clave ficticia 123'); request(); }
 
 describe('cambio verificado de correo CU-08', () => {
+  it('presenta consecuencias de sustitución sin enviar ni habilitar verificación durante revisión', async () => {
+    mount(); await prepareRequest();
+    expect(screen.getByRole('region', { name: 'Revisa el nuevo correo' })).toHaveTextContent('El correo vigente no cambia');
+    expect(screen.getByRole('group', { name: 'Nuevo correo y comprobación de identidad' })).toContainElement(screen.getByLabelText('Contraseña actual'));
+    expect(screen.getByRole('button', { name: 'Verificar y cambiar mi correo' })).toBeDisabled();
+    expect(solicitarCambioCorreo).not.toHaveBeenCalled(); expect(verificarCambioCorreo).not.toHaveBeenCalled();
+  });
   it.each(['Administrador', 'Recepcionista', 'Médico'])('deniega %s sin llamadas al cambio', async rol => {
     consultarSesion.mockResolvedValue({ ...person, rol }); mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
     expect(solicitarCambioCorreo).not.toHaveBeenCalled(); expect(reenviarCambioCorreo).not.toHaveBeenCalled(); expect(verificarCambioCorreo).not.toHaveBeenCalled();

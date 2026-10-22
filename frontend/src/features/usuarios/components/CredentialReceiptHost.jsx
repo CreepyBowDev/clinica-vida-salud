@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { Outlet, useLocation } from 'react-router-dom';
 import Brand from '../../../components/Brand';
 import Button from '../../../components/Button';
+import Alert from '../../../components/Alert';
 import '../styles/accounts.css';
 
 const ReceiptContext = createContext(null);
@@ -38,8 +39,9 @@ export default function CredentialReceiptHost() {
     {current ? <div className="credential-delivery"><header><Brand /></header><main className="credential-receipt">
       <h1 ref={heading} tabIndex="-1">Credencial temporal emitida</h1>
       <p>Cuenta {current.id}. Comunica esta credencial presencialmente al trabajador. Al ocultarla no podrás volver a consultarla.</p>
+      <Alert variant="warning">Entrega presencial única. No es una contraseña definitiva ni una invitación por correo.</Alert>
       <output className="credential-secret" aria-label="Credencial temporal para entrega presencial">{current.secret}</output>
-      <p>Vence el <time dateTime={current.expires}>{new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(current.expires))} UTC</time>. Debe ingresar con su correo y esta credencial, y establecer la contraseña definitiva antes del vencimiento.</p>
+      <div className="credential-instructions"><h2>Antes del vencimiento</h2><p>Vence el <time dateTime={current.expires}>{new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(current.expires))} UTC</time>. Debe ingresar con su correo y esta credencial, y establecer la contraseña definitiva antes del vencimiento.</p></div>
       <p>Se revocaron sus sesiones y credenciales temporales anteriores. La cuenta conserva cualquier bloqueo de acceso vigente.</p>
       <Button onClick={() => setReceipt(null)}>Ya comuniqué la credencial; ocultar</Button>
     </main></div> : <Outlet />}

@@ -3,7 +3,7 @@
 .catalog-page a.button--primary { color: white; }
 .catalog-page a.button { text-decoration: none; }
 .catalog-page .page-heading > .button { margin-top: 20px; }
-.catalog-panel { max-width: 900px; padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
+.catalog-panel { max-width: 900px; padding: var(--panel-padding); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
 .catalog-editor-fields { border: 0; padding: 0; margin: 0 0 24px; min-width: 0; }
 .catalog-editor-fields legend { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
 .catalog-editor textarea { width: 100%; resize: vertical; }
@@ -26,13 +26,14 @@
 .doctor-specialty-options label { display: flex; gap: 12px; align-items: start; overflow-wrap: anywhere; }
 .doctor-specialty-options input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--color-primary); margin-top: 2px; }
 .doctor-selected { margin-top: 24px; }
-.doctor-selected h3 { font-size: 18px; }
+.doctor-selected h2 { font-size: 18px; }
 .doctor-selected ul { padding: 0; list-style: none; }
 .doctor-selected li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--color-border); }
 .doctor-selected li span { flex: 1 1 140px; overflow-wrap: anywhere; min-width: 0; }
 .doctor-selected li > .button { flex: 0 0 auto; }
 .catalog-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 24px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-panel); margin-bottom: 24px; }
 .catalog-filters .field { margin: 0; min-width: 0; }
+.catalog-filters > .action-group { grid-column: 1 / -1; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
 .catalog-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; }
 .catalog-specialty-filter { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--color-border); border-radius: var(--radius-control); }
 .catalog-specialty-filter legend { padding-inline: 8px; font-size: 18px; font-weight: 600; }
@@ -40,7 +41,7 @@
 .catalog-specialty-search { display: flex; align-items: end; gap: 16px; margin-bottom: 20px; }
 .catalog-specialty-search .field { flex: 1; }
 .catalog-specialty-search .button { flex-shrink: 0; }
-.catalog-specialty-filter .catalog-pagination { font-size: 14px; }
+.catalog-specialty-filter :is(.catalog-pagination, .pagination) { font-size: 14px; }
 .catalog-specialty-filter .catalog-empty { margin-top: 16px; padding: 20px; }
 .catalog-table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); overflow: clip; }
 .catalog-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
@@ -57,8 +58,12 @@
 .catalog-pagination, .catalog-pagination > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .catalog-pagination { justify-content: space-between; margin-top: 20px; }
 .catalog-pagination p, .catalog-note { color: var(--color-muted); }
-.catalog-empty { padding: 40px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
-.catalog-empty h2 { font-size: 22px; margin-bottom: 12px; }
+.catalog-empty { padding: var(--space-8) var(--panel-padding); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
+.catalog-empty h2 { font-size: var(--text-section); margin-bottom: var(--space-3); }
+.catalog-empty p { color: var(--color-muted); max-width: var(--layout-readable); }
+.catalog-loading { display: flex; align-items: center; gap: var(--space-3); color: var(--color-muted); }
+.catalog-failure { padding: var(--panel-padding); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
+.catalog-failure > .alert { margin-bottom: 0; }
 .catalog-note { margin-top: 20px; max-width: 75ch; }
 .catalog-failure > .button { margin-top: 16px; }
 @media (max-width: 700px) {

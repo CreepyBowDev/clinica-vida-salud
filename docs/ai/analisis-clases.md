@@ -1,5 +1,141 @@
 # Análisis de clases — Clínica Vida Salud
 
+## Rediseño frontend — fase 7: revisión transversal y cierre local (2026-10-22)
+
+**Cierre de las siete fases de presentación, no nuevo CU ni clase PHP.** Se revisan las fronteras ya documentadas en fases 1–6, conservando servicios/hooks, AuthContext, guards, contratos y procesos de negocio. No modifica persistencia ni requiere actualizar DER; el diagrama global/PHP permanece aplazado expresamente.
+
+| Participantes reales afectados | Corrección y colaboración |
+| --- | --- |
+| navigationTitle → navigationAtPath/NAVIGATION/AREAS | Cuando no hay función propia activa, distingue ruta ajena conocida de inexistente para presentar Acceso no permitido. Solo orientación; RoleRoute sigue denegando, sin peticiones al recurso ni nuevo permiso. |
+| MainLayout | Su listener de media query conserva cierre del menú y retorno de foco al botón en móvil. Añade recuperación del foco del botón ocultado al pasar a escritorio: enlace actual si es visible, o primer enlace. Ref local recuerda foco ante retirada anticipada del navegador; blur normal lo limpia. No mueve foco del formulario ni cambia expansión/ruta/blocker. |
+| workspace.css → ModuleNavigation/HomePage | Ajuste de palabras largas en etiquetas y enlaces, y distribución flexible de texto/distintivo de módulos pendientes. Conserva contenido y semántica de etapas, navegación y pendientes; no presenta estos últimos como enlaces operativos. |
+
+**Regresión final:** ocho pruebas nuevas (cuatro títulos por rol, cuatro transiciones de foco), **1040 pruebas/59 archivos correctos** en suite completa. Build correcto, aviso conocido 670,52 kB; diff comprobado. Chrome/CDP/API ficticia: repetición de arneses de fases 1–6 y variantes ampliadas, más inicio/menú de cuatro roles con nombre largo, todos los módulos abiertos, seis anchos y texto 100%/200%. Agregado de doce evidencias finales: **438 disposiciones sin desbordamiento, 224 axe sin infracciones detectadas, cero excepciones JS**; capturas representativas inspeccionadas. Acceso denegado conserva solo consulta de sesión sin cargar recurso ajeno; foco responsive comprobado. No nueva integración Laravel/PostgreSQL/correo real ni certificación exhaustiva de accesibilidad/producción/SLA.
+
+README/contexto §17.103 sincronizados. No se alteran requisitos/reglas/CU funcionales ni diagramas; no se cierra otro CU o módulo funcional por completar el rediseño. **Siete fases de rediseño completadas localmente; funcionalidades pendientes y validación real de producción conservan su alcance previo.**
+
+## Rediseño frontend — fase 6: fronteras de acceso y seguridad (2026-10-22)
+
+**Presentación de CU-01–CU-08 ya implementados; no nuevas clases PHP ni cierre de CU.** Se contrastaron Pages/Componentes, servicios, router y contratos del cliente existentes. No cambia autenticación, autorización, persistencia, plazos, transportes o reglas. Se conservan todas las modificaciones de fases anteriores.
+
+| Participantes reales | Responsabilidad de presentación |
+| --- | --- |
+| AuthLayout → Outlet/Modal | Mantiene marca, ilustración, ayuda, skip-link y foco por cambio de pathname. Orientación lateral específica por ruta, con texto estático sin secretos/identidades ni lectura adicional. Cabecera adaptable y tarea como superficie principal. |
+| LoginPage | Distingue registro nuevo/vinculación bajo enlaces existentes. Conserva login, comprobación de sesión, cuenta atrás indicada por backend, contraseña visible/oculta y limpieza tras envío. |
+| RegistrationProgress → WorkflowProgress | Reutiliza guía de dos etapas ordenadas, no interactiva. No decide el progreso del servidor ni permite saltos; verificación/éxito siguen los estados originales y el progreso se retira al completarse. |
+| RegisterPatientPage/RegistrationSession/VerifyRegistrationPage | FormSection agrupa datos personales/ficha, contacto y acceso sin cambiar campos o validaciones. CI obligatorio, código presencial solo en vinculación y código del correo en verificación. Contexto pendiente, mensajes neutros, reenvío, limpieza de secretos y bloqueo por sesión existente intactos. |
+| ResetPasswordPage/AcceptInvitationPage/RestrictedAccessPage | FormSection organiza nueva contraseña/confirmación sin cambiar captura/consumo del token, resultado o envío. Salida restringida agrupa acciones con ActionGroup y conserva advertencia de invalidación y logout real. Recuperación/invitación no autentican automáticamente. ForgotPasswordPage recibe los estilos compartidos sin cambiar código. |
+| ChangePasswordPage | PageHeading y grupos de identidad/nueva contraseña; ActionGroup delimita guardado. Conserva validación, invalidación de sesiones previas y renovación de la actual por AuthContext. |
+| ChangeEmailPage | PageHeading/FormSection/ConfirmationPanel/ActionGroup diferencian solicitud, consecuencias de sustituirla y verificación. Conserva current_password, destino vigente, sendRemaining/remaining, uncertain, readOnly/disabled, reenvío y reconciliación originales. |
+| ActivationCodePage | FormSection agrupa identidad y ficha; ConfirmationPanel presenta invalidación del código/procesos anteriores sin emitir hasta confirmar. Entrega distingue código presencial/correo e instrucciones siguientes, sin convertir emisión en activación de ficha o cuenta. |
+| CredentialReceiptHost | Conserva callback-only Context y secreto efímero local; la entrega sustituye Outlet privado. Advertencia de entrega única e instrucciones de vigencia/uso; output conserva nombre accesible y ocultación. CSS de credenciales compartido con código de Recepción, sin Web Storage/clipboard/descarga. |
+
+**Colaboraciones conservadas:** Page → servicio → Axios → API existentes; ningún componente nuevo realiza peticiones o concede permisos. Clases/contextos/hook funcionales y API sin cambios. El texto lateral no lleva datos del proceso; FormSection/ConfirmationPanel/ActionGroup solo reciben contenido. Los plazos y bloqueos se consumen del servidor como antes, sin nuevos contadores autoritativos ni reintentos. Se preservan la captura temprana del enlace fuera del router, limpieza de secretos, tokens fuera del DOM/historial/Web Storage y datos públicos separados de credenciales efímeras.
+
+**Verificación:** **1032 pruebas/59 archivos correctos**, cinco nuevas y aserciones adicionales de progreso/resultado/entrega. Cobertura regresiva de errores HTTP/red, privacidad, envío único, sesiones/reenvíos y enlaces existente conservada. Chrome/CDP con API ficticia: 27 escenarios × cuatro anchos y diez disposiciones con texto 200%: **118 sin desbordamiento, 64 axe sin infracciones detectadas, cero excepciones JS**; capturas inspeccionadas. Ayuda con Escape/retorno de foco, mensajes neutros, resultados de activación/recuperación/invitación, restricciones y entrega/ocultación comprobados. Sin escrituras al revisar, una emisión por entrega y sin Web Storage; no nueva integración Laravel/PostgreSQL o correo externo ni certificación integral/SLA. Build correcto con aviso conocido 670,09 kB; diff comprobado.
+
+README/contexto §17.102 sincronizados; sin DER/diagramas/reglas/CU funcionales/backend cambiados. Diagrama global/PHP sigue aplazado. **Fase 6 cerrada localmente; fase 7 requiere autorización.**
+
+## Rediseño frontend — fase 5: orientación de reserva y planificación (2026-10-22)
+
+**Fronteras de CU-11–CU-14 existentes, no nuevo CU o clase PHP.** Se verificaron previamente Pages/Componentes y reserva.service: búsqueda/disponibilidad/propuesta/confirmación/consulta de resultado ya implementadas, sin inventar funcionalidades o contratos. Controllers/Services/Repositories/Models/PostgreSQL y hooks/servicios del cliente permanecen intactos.
+
+| Participantes reales | Responsabilidad/cambio de presentación |
+| --- | --- |
+| `WorkflowProgress`, `PLANNING_STEPS` | Lista ordenada con aria-current=step y etapa actual textual. Solo recibe props; no links, callbacks de navegación, estado global o lógica de validación. Sus etapas no son estados de Cita ni acreditan guardado. PLANNING_STEPS evita duplicar etiquetas entre los tres flujos de planificación. |
+| ReservarCitaPage/ReservaFlujo → WorkflowProgress/PageHeading/ActionGroup | Conserva estados privados, claves de identidad/rol y blocker. Orienta siguiente tarea y etapa sin reordenar condiciones/montajes del flujo ni añadir lecturas. Solo Recepción selecciona ficha; Paciente reserva para sí. |
+| DisponibilidadTurnos, ReservaRegistro | Conservan consulta, selección nativa, motivo, resumen completo, foco por estado/error y acciones autorizadas. Secciones/acciones y rejillas adaptables. Resumen pendiente/incierto/consultado/ausente se identifica como propuesta, no prueba del registro; resultado confirmado conserva datos efectivos de Cita. |
+| AsignacionConsultorioPage/ConsultorioSelector/AsignacionImpacto | Contexto vigente/propuesta/impacto/consentimiento visualmente diferenciados. Retiene invalidación de selección, huella/versión/páginas, consentimiento total y listo/confirm como fuentes UI existentes; no se altera coordinación atómica del servidor. |
+| HorariosMedicoPage/HorarioEditor/HorarioImpacto | Contexto/tabla adaptables y editor con etapas presentacionales, propuesta, diagnóstico y confirmación. Conserva payload por accion, segundos, cobertura, bloqueo y descarte explícito. Impacto sigue calculado por API. |
+| ConfiguracionCitasPage/DurationEditor | Distingue duración actual/propuesta/impacto global/confirmación, sin recalcular compatibilidad o cambiar duración histórica. Su hook y key de versión conservan el comportamiento anterior. |
+| ConfirmationPanel/ActionGroup/FormSection/workflows.css | Reutilización de fronteras compartidas. label opcional mantiene nombres accesibles de confirmación de planificación. No altera los textos de consecuencias ni ejecuta acciones; los diagnósticos solo presentan puede_confirmar y totales que entrega el backend. |
+
+**Colaboraciones conservadas:** selección explícita → GET disponibilidad → POST propuesta → consentimiento del resumen → POST cita → resultado real o consulta explícita del mismo sobre. Desplegar navegación no desmonta selección/revisión, y los cambios de criterios/páginas mantienen su invalidación. No guardado por avanzar etapas; tokens continúan fuera de DOM/URL/Web Storage. En planificación, propuesta → impacto completo/paginado → revisión/consentimiento → confirmación original; cambios de campos/página/huella retiran la aprobación anterior. Resultado incierto no se reenvía automáticamente ni se considera rollback.
+
+**Verificación:** diez pruebas nuevas (cuatro componentes, seis flujos), suite completa **1027/59 correcta**; tras aclaración final de texto, **51 pruebas de registro correctas** sin repetir lo intacto. Chrome/API ficticia: 18 escenarios a cuatro tamaños + cuatro de texto 200%, **76 sin desbordamiento, 40 axe sin infracciones detectadas, cero excepciones JS**; capturas inspeccionadas. Revisión sin crear, un intento de creación ante guardado/incertidumbre/recuperación y consulta sin duplicar; planificación sin PUT/PATCH. Conflictos, ficha inactiva y permisos conservan controles previos. Build correcto, aviso conocido 667,93 kB. No integración Laravel/DB nueva ni certificación integral/SLA.
+
+README/contexto §17.101 sincronizados; sin contratos/RF/RN/reglas/CU funcionales/DER/diagramas/backend cambiados. Diagrama global/PHP aplazados. **Fase 5 cerrada localmente; fase 6 pendiente de autorización.**
+
+## Rediseño frontend — fase 4: fronteras de edición y confirmación (2026-10-22)
+
+**Incremento UI sobre CU-03/CU-07–CU-11 existentes; no nuevo CU ni clase PHP.** No se trasladan validaciones/reglas a componentes compartidos ni se cambia Page → hook/Service → Axios → API. Las operaciones y permisos son los anteriores; la intervención agrupa y presenta información.
+
+| Participantes efectivos | Responsabilidad y colaboración |
+| --- | --- |
+| `FormSection` | Componente fieldset/legend con children y disabled; agrupa cuenta/identidad/vínculo, datos de catálogos y contacto profesional/paciente. Conserva restricciones nativas e invalidación/foco de hooks existentes, sin enviar datos ni validarlos. |
+| `ConfirmationPanel` | Región con encabezado y etiqueta única por useId; contiene explicación/revisión proporcionada por la feature. Sin dialog, foco automático, botones o llamadas propios. Los anuncios role=status previos permanecen en sus consumidores. |
+| `PageHeading`, `ActionGroup`, `forms.css` | Header admite titleRef opcional y tabIndex para conservar enfoque al resultado confirmado. ActionGroup/form-actions separa acciones de campos/revisión, manteniendo orden/tipos/callbacks. Estilos comunes de rejillas, ayuda contextual, comparación de versiones y confirmaciones responsive. |
+| NewStaffPage/AccountActions/AccountDetailPage | Alta distingue cuenta/identidad/vínculo y guía; acciones de estado/rol/credencial y reenvío de invitación conservan autorización, comprobación presencial, confirmación, sesión, incertidumbre y recibos. Solo reorganización visual de entrada/revisión, no nuevo flujo de seguridad. |
+| PatientForm/NewPatientPage/EditPatientPage/MyProfilePage/PatientStateAction | Agrupan identidad/contacto/emergencia y pies de acciones. Conservan detección/revisión de duplicados sin CI, motivo/identidad para corrección, confirmación de cambios sensibles, restricciones del perfil, flags frozen/busy/blocked y adopción explícita de versión. |
+| DoctorEditor/DoctorEditorPage/DoctorSpecialtiesPage/DoctorActivity/InitialSpecialties | Separan identidad profesional/contacto/habilitación, conservan selección completa/revisión y actividad independiente del acceso. Selección actual pasa a h2 por jerarquía accesible, sin modificar selección o peticiones. |
+| SpecialtyEditor/ConsultorioEditor y sus Pages/Details | Secciones y acciones comunes; revisión de estado diferenciada. Mantienen validación, versión original, bloqueo tras incertidumbre, comparaciones y límites de desactivación que decide Laravel. |
+
+**Flujo conservado:** Page/Editor mantiene borrador y validación → presenta errores/foco con hook propietario → muestra revisión solo donde el flujo ya la exigía → acción explícita ejecuta Service original → resultado real/navegación/reconsulta. FormSection no reautoriza; ConfirmationPanel no consume confirmaciones ni guarda. Estado obsoleto/incertidumbre mantiene borrador y controles bloqueados; revisión de datos actuales conserva acción explícita de descarte, sin reenvío automático. Variantes danger no cambian transiciones ni disponibilidad de acciones.
+
+**Evidencia:** ocho pruebas nuevas (cinco componentes y tres colaboración de editores/confirmación/foco), suite completa **1017/58 correcta**; tras ajustes semánticos, cinco archivos afectados con **84 pruebas correctas**. Chrome/API ficticia: 18 escenarios × cuatro tamaños y cuatro revisiones de texto 200%, **76 sin desbordamiento, 40 axe sin infracciones detectadas, cero excepciones JS**, capturas inspeccionadas. Sin escrituras durante revisiones; un intento en 422/409/guardado, borrador conservado/bloqueo observado. Build correcto, aviso conocido 666,37 kB. No integración backend/DB nueva ni certificación integral.
+
+**Hallazgos UI:** guía de alta dentro de main cambia de aside a sección etiquetada; h2 en selección de especialidades evita salto de nivel. Ajustes del arnés para esperas/selector/CSRF no alteran el producto ni relajan aserciones; escenarios válidos no se repiten. README/contexto §17.100 sincronizados; sin RF/RN/reglas/CU funcionales/DER/backend/diagramas cambiados. Diagrama global/PHP sigue aplazado. **Fase 4 cerrada localmente; fase 5 pendiente de autorización.**
+
+## Rediseño frontend — fase 3: fronteras de consulta uniformes (2026-10-22)
+
+**Incremento de presentación de CU-03, CU-07, CU-09–CU-12 y CU-30 ya implementados, no cierre de nuevos CU.** No nuevas clases PHP, modelos, servicios o reglas. Se conserva separación Page → hook/Service → Axios → API existente; el rediseño no decide permisos ni transforma payloads.
+
+| Participantes efectivos | Responsabilidad/colaboración conservada o ampliada |
+| --- | --- |
+| AccountsPage, PatientsPage, DoctorsPage, HorariosPage, BitacoraPage | Adoptan PageHeading/ActionGroup ya compartidos; SpecialtiesPage/ConsultoriosPage conservan el piloto. Pages siguen gestionando borrador/filtros/aplicación/limpieza/consulta. PatientsPage delega Pagination; HorariosPage añade referencia y foco de resultados al paginar sin alterar solicitud. |
+| `QueryMessage` | Nueva frontera presentacional mínima: carga textual con role=status o vacío con h2/orientación, sin petición, reintento o acceso al contexto. Reutilizada por CatalogResults, Cuentas/Pacientes y cargas de los seis detalles. |
+| CatalogResults y componentes Failure propietarios | Mantienen selección de carga/error/vacío/datos, mensajes seguros, remaining y reconsulta manual. Cuentas/Pacientes conservan sus Failure específicos, sin imponer contrato/error del catálogo. |
+| AccountsTable, PatientsTable, BitacoraTable y tablas inline de Médicos/Especialidades/Consultorios/Horarios | Conservan columnas, datos autorizados, labels y destinos. Clase query-table activa adaptación por ancho útil mediante container queries; todas las celdas siguen disponibles y se conservan roles de tabla/encabezados. Bitácora continúa solo lectura; Cuentas no incorpora nombre de Paciente. |
+| AccountDetailPage, PatientDetailPage, DoctorDetailPage, SpecialtyDetailPage, ConsultorioDetailPage, BitacoraDetailPage | Header/retorno/carga/error consistentes. Preservan datos y confirmaciones; `query-detail` delimita presentación de lectura. Accesos de consultorio fijo/horarios del Médico separados del panel de datos. |
+| DoctorData, SpecialtyData, ConsultorioData; estilos de consultas | Marca record-data para rejilla de lectura dentro de detalles exclusivamente. No cambia presentación funcional/estado de editores o revisión de versiones. Se conservan los grupos de identidad/contacto/emergencia, cuenta/actividad, asociaciones y metadatos ya existentes. |
+
+**Flujo:** restauración/rol y consulta existentes → PageHeading/filtros → carga/error o datos autorizados → tabla adaptada al contenedor sin ocultar celdas → Pagination emite número al callback original → consulta y foco. Abrir detalle conserva guards, validación de ID y mensajes 404/permiso; no traslada acciones con IDs al sidebar ni crea destinos ficticios. Las acciones administrativas/versiones/confirmaciones existentes no se reimplementan por esta fase.
+
+**Ajuste compartido de accesibilidad:** la revisión al 200% mostró un fragmento del skip-link por ocultación fija de 100px. CSS lo desplaza según su propia altura, restableciéndolo al foco; handler de MainLayout sin cambios. Chrome adicional comprueba ocultación/foco visible/salto a main/hash vacío. No se retira la protección de navegación de reservas.
+
+**Verificación:** nueve pruebas nuevas (tres QueryMessage y seis de presentación integrada), **1009/57 correctas** en suite completa, incluidos filtros/paginación/roles/acciones/sesión/HTTP/reserva previos. Chrome/API ficticia: siete listados, seis detalles, vacío/error/carga y dos denegaciones Médico/Paciente, cuatro tamaños; 72 disposiciones más cuatro de texto al 200%. **76 sin desbordamientos/celdas ocultas, 40 axe sin infracciones detectadas, cero excepciones JS**, capturas inspeccionadas; alineación de acceso de ficha ajustada en móvil. Build correcto, aviso conocido 666,23 kB. No certificación integral ni nueva integración Laravel/DB.
+
+README/contexto §17.99 sincronizados; sin contratos/RF/RN/reglas/CU funcionales/DER/diagramas/backend cambiados. Diagrama global/PHP mantiene aplazamiento aprobado. **Fase 3 cerrada localmente; fase 4 pendiente de autorización.**
+
+## Rediseño frontend — fase 2: componentes compartidos de presentación (2026-10-22)
+
+**Incremento transversal, no cierre de nuevos CU ni clases PHP.** Componentes React presentacionales, sin datos globales nuevos, acceso directo a Axios, reglas o decisiones de permisos. Se mantienen fronteras y colaboraciones funcionales previas de CU-01–CU-14/CU-30.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `PageHeading` → `ActionGroup` | Presenta h1, descripción opcional y acciones proporcionadas; no genera rutas. Piloto compartido en SpecialtiesPage y ConsultoriosPage. |
+| `ActionGroup` | Agrupa children en orden con ajuste de espacio y ancho responsive; usado también en filtros piloto y Pagination. No impone envío, confirmación ni roles ARIA de menú. |
+| `Pagination` → `ActionGroup`/`Button` | Consume `meta.total/current_page/last_page` y `onPage`, presenta resumen y límites; no calcula totales/páginas ni consulta servicios. Reutilizada por CatalogResults y AccountsPage, que conservan filtro/foco/consulta. |
+| `CatalogResults` → `Alert`/`Pagination` | Conserva contrato de carga/fallo/espera/datos/vacío; cambia solo presentación y delegación de paginación. Reconsulta continúa siendo explícita y bloqueada durante `remaining`. |
+| `FormField`, `SelectField` | Controles con etiqueta/ayuda/error asociados; IDs generados por defecto o explícitos, descripciones externas combinadas. Mantienen props nativas/eventos. Ayuda opcional de SelectField consumida sin atributo DOM arbitrario. |
+| `Button`, `Alert`, `Modal` | Button conserva tipos/callbacks/loading con estilo común. Alert mantiene semántica y clases base aun con className del consumidor. Modal mantiene contrato y etiqueta de cierre previa; closeLabel opcional, Tab contempla select/textarea y excluye ocultos/deshabilitados; scroll interno por CSS. |
+
+**Colaboración:** Page obtiene datos con sus hooks/servicios sin cambios → header/grupos presentan acciones reales → CatalogResults selecciona estado existente → Pagination presenta meta y emite número al callback de Page → Page conserva filtros, foco y consulta. La nueva base de tokens/CSS sirve también a consumidores no migrados sin reorganizarlos. Solo adopción piloto de header/filtros en dos listados; no se anticipa la fase 3 completa ni se alteran contratos HTTP.
+
+**Evidencia:** 30 pruebas nuevas (27 de primitivas/composición/consulta y tres de modal); regresión completa **1000/56 correcta**. Casos de variantes, submit, disabled/loading, IDs/ayudas/errores, callbacks, límites/espera sin retry, foco y cancel nativo. Chrome con API ficticia: seis estados a cuatro tamaños y cuatro revisiones adicionales de texto al 200%, **28 sin desbordamiento, 16 axe sin infracciones detectadas**, cero excepciones JS; Escape/restauración y capturas inspeccionados. Build correcto, aviso conocido 667,18 kB. No certificación integral ni nueva integración backend/DB. Ajustes iniciales del arnés/fixtures no se atribuyen a reglas de negocio.
+
+README/contexto §17.98 sincronizados; backend/DER/RF/RN/reglas/CU funcionales/diagramas sin cambios. Diagrama global/PHP siguen aplazados. **Fase 2 cerrada localmente; fase 3 pendiente de autorización.**
+
+## Rediseño frontend — fase 1: fronteras de navegación modular (2026-10-22)
+
+**Incremento transversal de presentación, no nuevo CU ni clase de dominio.** Se conserva la implementación de CU-01–CU-14 y CU-30 descrita debajo. CU-15–CU-29 siguen pendientes de pantallas operativas, excepto la consulta de bitácora CU-30 ya existente. Las responsabilidades siguientes son funciones/componentes JavaScript, no clases PHP inventadas.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| `src/constants/navigation.js`: `NAVIGATION`, `ACCESS_FLOWS` | Metadata descriptiva de módulos/funcionalidades, roles visuales, patrones exactos registrados y trazabilidad CU-01–CU-30. CU-13/CU-14 comparten acceso por actor; CU-01/04/06 públicos y CU-02 acción existente fuera del árbol protegido. Pendientes sin `to` ni patrones. |
+| `navigationForRole`, `navigationAtPath`, `navigationTitle` | Filtran opciones visuales, reconocen rutas completas por responsabilidad y producen orientación sin identificadores o datos de registros. Asignación fija corresponde a CU-11 aunque su URL esté bajo Médicos. No autorizan operaciones ni sustituyen `RoleRoute` o Laravel. |
+| `MainLayout` | Consume usuario público de `useAuth`, consulta metadata y conserva Outlet/guards/logout. Coordina encabezado, ubicación actual, título documental, salto/foco, menú responsive y cierre por navegación/Escape/breakpoint. No cambia rutas o HTTP. |
+| `ModuleNavigation` | Componente de layout con props explícitas y estado local de expansión; admite varios módulos, abre el activo al cambiar pathname y permite contraerlo manualmente. Clave identidad/rol impide heredar expansión entre personas. Renderiza enlaces solo para páginas existentes y texto para pendientes; no monta/desmonta la página del Outlet al desplegar. |
+| `HomePage` | Frontera de inicio/áreas; reutiliza la metadata filtrada para accesos actuales y próximos módulos sin prometer funciones inexistentes. Conserva identidad pública y rutas de áreas existentes. |
+
+**Flujo:** sesión restaurada por los mecanismos existentes → layout filtra catálogo por rol → ruta conocida identifica módulo y funcionalidad → despliegue automático/enlace activo/contexto. Enter/Espacio alternan un módulo sin navegar ni tocar formularios; navegar mantiene guards y blockers de React Router. Escape móvil cierra y devuelve foco al botón; navegar enfoca main, incluida selección de la misma ruta. Cambio de identidad/rol remonta únicamente el estado de navegación. No persistencia de expansión ni datos privados en Web Storage.
+
+**Trazabilidad pendiente correcta:** CU-15/16 solo Recepción; CU-17/18 llegada/inasistencia Recepción y CU-19 Atendida Médico. CU-20 Administrador/Recepción/Médico; CU-21 Recepción/Paciente; CU-22 Médico/Paciente y CU-23 Médico; CU-24/26 Médico, CU-25 Administrador y CU-27 Médico/Paciente; CU-28 Paciente y CU-29 Administrador. Estos rótulos no acreditan implementación. Acciones por registro y detalles conservan accesos reales desde sus listados, sin identificadores de ejemplo en enlaces del sidebar.
+
+**Evidencia:** 41 pruebas nuevas (18 metadata/rutas/CU, 12 layout, ocho inicio/áreas y tres reserva). Suite completa 966/54 correcta, seguida de 60 pruebas correctas de los dos archivos afectados al añadir cuatro regresiones adicionales; inventario final 970. Reserva real del cliente conserva selección/motivo/revisión para Recepción/Paciente y resultado incierto sin nuevas solicitudes, blocker o envíos al desplegar. Chrome con transporte ficticio: 16 disposiciones de cuatro roles a 320/390/768/1440 px, ocho axe sin infracciones detectadas, cero excepciones JS; capturas inspeccionadas. Build correcto (667,04 kB, aviso conocido >500 kB). No nueva integración Laravel/DB ni certificación integral.
+
+README/contexto §17.97 sincronizados; RF/RN/reglas/CU funcionales/DER/backend intactos. Diagrama global y PHP siguen aplazados expresamente. Se cierra solo fase 1 del plan de siete; fase 2 pendiente de autorización.
+
 ## CU-13/CU-14 — frontend fase 5: cierre integrado local (2026-10-22)
 
 **Estado:** fases frontend 1–5 completadas, participantes productivos y colaboraciones de fases 2–4 contrastados con Laravel real. Page/selector/turnos → service/Axios/sessionBound/CSRF → rutas/guards/controller/service/repository/modelos/PostgreSQL; propuesta cifrada/UUID/auditoría y exclusiones sin cambios PHP. No nuevas clases de dominio, rutas API, persistencia o dependencias por esta fase.

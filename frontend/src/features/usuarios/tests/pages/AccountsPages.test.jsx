@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,15 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockResolvedValue(person(
 afterEach(() => vi.useRealTimers());
 
 describe('consulta administrativa', () => {
+  it('presentación responsive conserva columnas, privacidad y enlaces de cuentas', async () => {
+    const email = 'cuenta-con-correo-extenso-de-prueba@example.test';
+    listarCuentas.mockResolvedValue(listing([{ ...staff, correo_acceso: email, rol: 'Paciente', nombre_visible: 'NOMBRE_NO_AUTORIZADO' }]));
+    mount(); const table = await screen.findByRole('table');
+    expect(table.parentElement).toHaveClass('query-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(4);
+    expect(within(table).getByRole('link', { name: `Ver cuenta ${email}` })).toHaveAttribute('href', '/administracion/cuentas/17');
+    expect(table).not.toHaveTextContent('NOMBRE_NO_AUTORIZADO'); expect(table).toHaveTextContent('Paciente'); expect(table).toHaveTextContent('Pendiente');
+    expect(screen.getByRole('heading', { name: 'Cuentas de usuario' }).closest('header')).toHaveClass('page-heading--actions'); expect(listarCuentas).toHaveBeenCalledTimes(1);
+  });
   it.each(['Recepcionista', 'Médico', 'Paciente'])('deniega rutas y navegación a %s sin consultar la API', async rol => {
     consultarSesion.mockResolvedValue(person(rol));
     mount();

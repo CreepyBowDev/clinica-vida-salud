@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
 import { useConsultorioSubmission } from '../hooks/useConsultorioSubmission';
 import { actualizarConsultorio, crearConsultorio } from '../services/consultorio.service';
 import ConsultorioFailure from './ConsultorioFailure';
@@ -28,17 +30,17 @@ export default function ConsultorioEditor({ initial }) {
     if (result?.data) navigate(`/administracion/consultorios/${result.data.id_consultorio}`, { replace: true, state: { consultorioNotice: base ? 'Cambios guardados. Se consultó nuevamente el consultorio.' : 'Consultorio registrado. Se consultó nuevamente el registro.' } });
     if (result?.failure?.stale || result?.failure?.uncertain) setBlocked(true);
   }
-  return <form ref={form} className="catalog-panel catalog-editor" aria-label={initial ? 'Editar consultorio' : 'Registrar consultorio'} aria-busy={busy} onSubmit={submit} noValidate>
+  return <form ref={form} className="catalog-panel catalog-editor admin-form" aria-label={initial ? 'Editar consultorio' : 'Registrar consultorio'} aria-busy={busy} onSubmit={submit} noValidate>
     <ConsultorioFailure failure={failure} remaining={remaining} />
-    <fieldset className="catalog-editor-fields" disabled={busy || blocked}><legend>Datos del consultorio</legend>
+    <FormSection title="Datos del consultorio" disabled={busy || blocked}>
       <FormField label="Código" required maxLength={50} autoComplete="off" value={draft.codigo_consultorio} onChange={event => setDraft({ ...draft, codigo_consultorio: event.target.value })} error={failure?.fields.codigo_consultorio} hint="Identifica el consultorio dentro de la sede. Se conserva la escritura del código." />
       <FormField label="Nombre" required maxLength={120} autoComplete="off" value={draft.nombre} onChange={event => setDraft({ ...draft, nombre: event.target.value })} error={failure?.fields.nombre} />
-    </fieldset>
+    </FormSection>
     <p className="catalog-note">Cambiar el código o nombre no modifica la ubicación guardada en las citas. Los cambios de asignación se gestionan por separado.</p>
     {blocked && base && <ConsultorioVersionReview id={base.id_consultorio} onUse={current => {
       setBase(current); setDraft({ codigo_consultorio: current.codigo_consultorio, nombre: current.nombre }); setBlocked(false); report(null);
     }} />}
-    <div className="catalog-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Registrar consultorio'}</Button>
-      <Link to={base ? `/administracion/consultorios/${base.id_consultorio}` : '/administracion/consultorios'} className="button button--secondary">{blocked && !base ? 'Consultar catálogo' : 'Volver sin guardar'}</Link></div>
+    <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Registrar consultorio'}</Button>
+      <Link to={base ? `/administracion/consultorios/${base.id_consultorio}` : '/administracion/consultorios'} className="button button--secondary">{blocked && !base ? 'Consultar catálogo' : 'Volver sin guardar'}</Link></ActionGroup>
   </form>;
 }

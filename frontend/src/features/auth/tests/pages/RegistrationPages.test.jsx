@@ -30,6 +30,16 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockRejectedValue(error(4
 afterEach(() => vi.useRealTimers());
 
 describe('registro y vinculación', () => {
+  it.each([false, true])('agrupa el registro %s sin volver interactivos los pasos ni mezclar códigos', async linking => {
+    mount(linking ? '/vincular-ficha' : '/registro'); await screen.findByLabelText('CI');
+    expect(screen.getByRole('group', { name: linking ? 'Tu ficha en la clínica' : 'Datos personales' })).toContainElement(screen.getByLabelText('CI'));
+    expect(screen.getByRole('group', { name: 'Acceso al portal' })).toContainElement(screen.getByLabelText('Contraseña'));
+    expect(screen.queryByRole('group', { name: 'Datos de contacto' }) !== null).toBe(!linking);
+    const progress = screen.getByRole('list', { name: 'Pasos del registro web' });
+    expect(progress.querySelectorAll('[aria-current="step"]')).toHaveLength(1);
+    expect(progress.querySelector('[aria-current="step"]')).toHaveTextContent('Datos y acceso');
+    expect(progress.querySelector('a,button')).toBeNull(); expect(registrarPaciente).not.toHaveBeenCalled(); expect(vincularPaciente).not.toHaveBeenCalled();
+  });
   it.each([false, true])('solicitud %s continúa con mensaje neutro y sin persistencia', async linking => {
     const service = linking ? vincularPaciente : registrarPaciente;
     service.mockResolvedValue(undefined);
@@ -91,6 +101,7 @@ describe('verificación compartida', () => {
   it('204 activa, limpia código y exige login sin autenticación automática', async () => {
     verificarRegistro.mockResolvedValue(undefined);
     mount('/verificar-registro'); await screen.findByLabelText('Código del correo');
+    expect(screen.getByRole('list', { name: 'Pasos del registro web' }).querySelector('[aria-current="step"]')).toHaveTextContent('Verificar correo');
     field('Código del correo', '001234'); fireEvent.submit(screen.getByRole('form'));
     await screen.findByRole('heading', { name: 'Tu cuenta está activada' });
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Tu cuenta está activada' })).toHaveFocus());
@@ -98,6 +109,7 @@ describe('verificación compartida', () => {
     expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/login');
     expect(iniciarSesion).not.toHaveBeenCalled();
     expect(screen.queryByLabelText('Código del correo')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Pasos del registro web' })).not.toBeInTheDocument();
   });
   it('código inválido/vencido/agotado se presenta igual sin deducir existencia', async () => {
     verificarRegistro.mockRejectedValue(error(422, 'REGISTRO_VERIFICACION_INVALIDA'));

@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Button from '../../../components/Button';
+import PageHeading from '../../../components/PageHeading';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
 import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { cambiarEspecialidadesMedico, consultarMedico } from '../services/medico.service';
@@ -18,8 +22,8 @@ export default function DoctorSpecialtiesPage() {
 }
 function LoadSpecialties({ id }) {
   const query = useCatalogQuery(consultarMedico, id, fields);
-  return <section className="workspace-page catalog-page"><Link to={`/administracion/medicos/${id}`}>Volver al detalle de médico</Link>
-    <header className="page-heading"><h1>Gestionar habilitaciones</h1><p>Conserva al menos una especialidad habilitada y todas las asociaciones históricas.</p></header>
+  return <section className="workspace-page catalog-page admin-form-page"><Link className="back-link" to={`/administracion/medicos/${id}`}>Volver al detalle de médico</Link>
+    <PageHeading title="Gestionar habilitaciones" description="Conserva al menos una especialidad habilitada y todas las asociaciones históricas." />
     {query.loading ? <p role="status">Consultando médico…</p> : query.failure ? <><DoctorFailure failure={query.failure} remaining={query.remaining} /><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></> : <SpecialtyEditor initial={query.data} />}
   </section>;
 }
@@ -44,21 +48,21 @@ function SpecialtyEditor({ initial }) {
     if (result?.data) navigate(`/administracion/medicos/${base.id_medico}`, { replace: true, state: { doctorNotice: 'Habilitaciones guardadas. Se consultó nuevamente el registro.' } });
     if (result?.failure) { setConfirm(false); if (result.failure.stale || result.failure.uncertain) setBlocked(true); }
   }
-  return <form ref={form} className="catalog-panel catalog-editor" aria-label="Editar habilitaciones" aria-busy={busy} onSubmit={submit}>
+  return <form ref={form} className="catalog-panel catalog-editor admin-form" aria-label="Editar habilitaciones" aria-busy={busy} onSubmit={submit}>
     <p><strong>{base.nombres} {base.apellidos}</strong> · {base.codigo_medico}</p>
     <p className="catalog-note">Retirar conserva el par histórico y las citas. El servidor rechaza todo el cambio si un par que se quiere retirar tiene citas futuras Programadas o Confirmadas. No se cancelan ni reprograman citas desde aquí. Rehabilitar reutiliza la asociación; no activa médico, catálogo ni cuenta.</p>
     <DoctorFailure failure={failure} remaining={remaining} />
-    <fieldset className="catalog-editor-fields" disabled={busy || blocked || confirm}><legend>Conjunto de habilitaciones</legend>
+    <FormSection title="Conjunto de habilitaciones" disabled={busy || blocked || confirm}>
       <InitialSpecialties managing selected={selected} onChange={setSelected} error={failure?.fields.especialidades} />
-    </fieldset>
-    {confirm && <section className="catalog-confirm" aria-labelledby="doctor-specialties-confirm"><h2 id="doctor-specialties-confirm">Revisar cambios de habilitaciones</h2>
+    </FormSection>
+    {confirm && <ConfirmationPanel title="Revisar cambios de habilitaciones">
       <h3>Habilitar o rehabilitar</h3>{added.length ? <ul>{added.map(item => <li key={item.id_especialidad}>{item.nombre}{!item.activa && ' (catálogo inactivo)'}</li>)}</ul> : <p>Ninguna.</p>}
       <h3>Retirar para nuevos turnos</h3>{removed.length ? <ul>{removed.map(item => <li key={item.id_especialidad}>{item.nombre}</li>)}</ul> : <p>Ninguna.</p>}
       <p>Se enviarán las {selected.length} especialidades del conjunto completo seleccionado. La validación definitiva corresponde al servidor.</p>
-    </section>}
+    </ConfirmationPanel>}
     {blocked && <DoctorVersionReview id={base.id_medico} onUse={current => { setBase(current); setSelected(current.especialidades.filter(item => item.habilitada)); setBlocked(false); setConfirm(false); report(null); }} />}
-    <div className="catalog-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando habilitaciones…' : confirm ? 'Confirmar habilitaciones' : 'Revisar cambios'}</Button>
+    <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando habilitaciones…' : confirm ? 'Confirmar habilitaciones' : 'Revisar cambios'}</Button>
       {confirm && <Button variant="quiet" disabled={busy} onClick={() => setConfirm(false)}>Volver a la selección</Button>}
-      <Link className="button button--secondary" to={`/administracion/medicos/${base.id_medico}`}>Volver sin guardar</Link></div>
+      <Link className="button button--secondary" to={`/administracion/medicos/${base.id_medico}`}>Volver sin guardar</Link></ActionGroup>
   </form>;
 }

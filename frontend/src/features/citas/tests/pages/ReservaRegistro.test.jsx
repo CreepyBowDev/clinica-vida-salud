@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -50,6 +50,47 @@ async function elegir(user, motivo = '0') {
 }
 async function revisar(user) { await user.click(screen.getByRole('button', { name: 'Revisar cita' })); await screen.findByRole('heading', { name: 'Revisar cita' }); }
 async function confirmar(user) { await user.click(screen.getByRole('button', { name: role === 'Paciente' ? 'Reservar cita' : 'Programar cita' })); }
+it.each(['Paciente', 'Recepcionista'])('guía de %s conserva revisión, resultado y payload sin navegación ficticia', async rol => {
+  role = rol; const user = userEvent.setup(); mount(); await elegir(user);
+  const progress = screen.getByRole('list', { name: 'Etapas de la reserva' });
+  expect(progress.querySelector('[aria-current="step"]')).toHaveTextContent('Buscar turno'); expect(within(progress).queryByRole('button')).not.toBeInTheDocument();
+  await revisar(user); expect(progress.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar y registrar'); expect(posts('/citas')).toHaveLength(0);
+  await confirmar(user); await screen.findByRole('heading', { name: 'Cita registrada' });
+  expect(progress.querySelector('[aria-current="step"]')).toHaveTextContent('Resultado de la reserva'); expect(posts('/citas')).toHaveLength(1);
+  expect(JSON.parse(posts('/citas')[0].data)).toEqual({ propuesta: propuesta.propuesta, motivo_breve: '0' });
+});
+it('la etapa de resultado incierto no declara éxito ni permite otra creación', async () => {
+  confirmTask = config => { throw fail(config, 500); }; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
+  await screen.findByRole('button', { name: 'Consultar resultado' });
+  expect(screen.getByRole('list', { name: 'Etapas de la reserva' }).querySelector('[aria-current="step"]')).toHaveTextContent('Resultado de la reserva');
+  expect(screen.queryByRole('heading', { name: 'Cita registrada' })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
+  expect(screen.getByText(/Este resumen es una propuesta; no acredita/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument();
+});
+it.each(['Paciente', 'Recepcionista'])('navegación modular conserva selección y revisión de %s sin nuevas peticiones', async rol => {
+  role = rol; const user = userEvent.setup(); const router = mount(); await elegir(user, 'Motivo ficticio');
+  const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
+  const count = calls.length;
+  await user.click(navigation.getByRole('button', { name: 'Búsqueda y reserva de citas' }));
+  await user.click(navigation.getByRole('button', { name: 'Usuarios y autenticación' }));
+  expect(screen.getByRole('radio', { name: '08:00:01' })).toBeChecked();
+  expect(screen.getByLabelText('Fecha de atención')).toHaveValue(seleccion.fecha);
+  expect(screen.getByLabelText('Motivo breve (opcional)')).toHaveValue('Motivo ficticio'); expect(calls).toHaveLength(count);
+  await revisar(user); const reviewCount = calls.length;
+  await user.click(navigation.getByRole('button', { name: 'Búsqueda y reserva de citas' }));
+  expect(screen.getByRole('heading', { name: 'Revisar cita' })).toBeInTheDocument();
+  expect(calls).toHaveLength(reviewCount); expect(posts('/reservas/propuesta')).toHaveLength(1); expect(posts('/citas')).toHaveLength(0);
+  expect([...router.state.blockers.values()].every(blocker => blocker.state === 'unblocked')).toBe(true);
+});
+it('desplegar durante resultado incierto no activa salida ni reenvía la reserva', async () => {
+  confirmTask = config => { throw fail(config, 500); }; const user = userEvent.setup(); const router = mount();
+  await elegir(user); await revisar(user); await confirmar(user); await screen.findByRole('button', { name: 'Consultar resultado' });
+  const count = calls.length;
+  await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('button', { name: 'Usuarios y autenticación' }));
+  expect(screen.getByRole('heading', { name: 'Consultar resultado de la reserva' })).toBeInTheDocument();
+  expect(calls).toHaveLength(count); expect(posts('/citas')).toHaveLength(1);
+  expect([...router.state.blockers.values()].every(blocker => blocker.state === 'unblocked')).toBe(true);
+});
 it.each(['Paciente', 'Recepcionista'])('revisión explícita y registro correcto para %s con resumen real', async rol => {
   role = rol; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user);
   expect(posts('/citas')).toHaveLength(0); expect(screen.getByText('Dirección ficticia')).toBeInTheDocument();

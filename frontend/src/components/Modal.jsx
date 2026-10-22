@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import Icon from './Icon';
 
-export default function Modal({ open, onClose, title, children }) {
+export default function Modal({ open, onClose, title, children, closeLabel = 'Cerrar ayuda' }) {
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
@@ -19,7 +19,8 @@ export default function Modal({ open, onClose, title, children }) {
 
   function containFocus(event) {
     if (event.key !== 'Tab') return;
-    const controls = [...ref.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]')];
+    const controls = [...ref.current.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')]
+      .filter(control => !control.matches(':disabled') && control.tabIndex >= 0 && control.type !== 'hidden' && !control.closest('[hidden]'));
     const first = controls[0];
     const last = controls.at(-1);
     if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
@@ -32,7 +33,7 @@ export default function Modal({ open, onClose, title, children }) {
     onKeyDown={containFocus}
     onCancel={(event) => { event.preventDefault(); onClose(); }} onClose={onClose}>
     <div className="modal-heading"><h2 id={titleId}>{title}</h2>
-      <button type="button" className="icon-button" aria-label="Cerrar ayuda" onClick={onClose}><Icon name="close" /></button>
+      <button type="button" className="icon-button" aria-label={closeLabel} onClick={onClose}><Icon name="close" /></button>
     </div>
     {children}
   </dialog>;

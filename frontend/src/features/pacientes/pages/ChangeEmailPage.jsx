@@ -4,6 +4,10 @@ import { useAuth } from '../../../hooks/useAuth';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
+import PageHeading from '../../../components/PageHeading';
+import ConfirmationPanel from '../../../components/ConfirmationPanel';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
 import PatientFailure from '../components/PatientFailure';
 import { useEmailChangeSubmission } from '../hooks/useEmailChangeSubmission';
 import { solicitarCambioCorreo, reenviarCambioCorreo, verificarCambioCorreo } from '../services/cambioCorreo.service';
@@ -56,7 +60,7 @@ export default function ChangeEmailPage() {
   }
   return <section ref={root} className="workspace-page patients-page email-change-page">
     <Link className="patients-back" to="/mi-perfil">Volver a mi perfil</Link>
-    <header className="page-heading"><h1>Cambiar correo de acceso</h1><p>Verifica tu nuevo correo antes de utilizarlo para iniciar sesión.</p></header>
+    <PageHeading title="Cambiar correo de acceso" description="Verifica tu nuevo correo antes de utilizarlo para iniciar sesión." />
     <div className="patients-panel"><dl className="patients-data"><div><dt>Correo de acceso vigente</dt><dd>{usuario.correo_acceso}</dd></div></dl>
       <p className="patients-note">Tu correo anterior se conserva hasta confirmar el código. El cambio no modifica tu correo de contacto, contraseña, ficha ni historial. Al completarlo se cerrarán todas tus sesiones y tendrás que volver a iniciar sesión.</p>
       <PatientFailure failure={failure} remaining={remaining} />
@@ -68,11 +72,13 @@ export default function ChangeEmailPage() {
     </div>
     <div className="email-change-grid"><form className="patients-panel patient-form" aria-label="Solicitar cambio de correo" aria-busy={busy === 'request'} onSubmit={submitRequest}>
       <h2>Nueva solicitud</h2><p className="patients-note">Iniciar otra solicitud sustituye la anterior y su código, respetando los límites de envío.</p>
+      <FormSection title="Nuevo correo y comprobación de identidad">
       <FormField name="correo_acceso" label="Nuevo correo de acceso" type="email" autoComplete="email" required maxLength={254} value={email} readOnly={disabled || confirm} error={failure?.fields.correo_acceso} onChange={event => setEmail(event.target.value)} />
       <FormField name="current_password" label="Contraseña actual" type="password" autoComplete="current-password" required maxLength={1024} value={password} readOnly={disabled || confirm} error={failure?.fields.current_password} onChange={event => setPassword(event.target.value)} />
-      {confirm && <p role="status" className="patients-note">¿Solicitar el cambio a {email.trim().toLowerCase()}? Se sustituirá cualquier solicitud pendiente. El correo vigente no cambia hasta verificar el nuevo código.</p>}
-      <div className="patients-actions"><Button type="submit" loading={busy === 'request'} disabled={disabled || sendRemaining > 0}>{busy === 'request' ? 'Solicitando cambio…' : sendRemaining ? `Espera ${sendRemaining} s para solicitar` : confirm ? 'Confirmar solicitud de cambio' : 'Revisar cambio'}</Button>
-        {confirm && <Button variant="quiet" disabled={Boolean(busy)} onClick={() => { setConfirm(false); setPassword(''); }}>Volver a revisar solicitud</Button>}</div>
+      </FormSection>
+      {confirm && <ConfirmationPanel title="Revisa el nuevo correo"><p role="status" className="patients-note">¿Solicitar el cambio a {email.trim().toLowerCase()}? Se sustituirá cualquier solicitud pendiente. El correo vigente no cambia hasta verificar el nuevo código.</p></ConfirmationPanel>}
+      <ActionGroup className="form-actions"><Button type="submit" loading={busy === 'request'} disabled={disabled || sendRemaining > 0}>{busy === 'request' ? 'Solicitando cambio…' : sendRemaining ? `Espera ${sendRemaining} s para solicitar` : confirm ? 'Confirmar solicitud de cambio' : 'Revisar cambio'}</Button>
+        {confirm && <Button variant="quiet" disabled={Boolean(busy)} onClick={() => { setConfirm(false); setPassword(''); }}>Volver a revisar solicitud</Button>}</ActionGroup>
     </form>
     <section className="patients-panel" aria-labelledby="email-verification"><h2 id="email-verification" ref={heading} tabIndex="-1">Verificar solicitud vigente</h2>
       {delivery && <Alert variant={delivery.envio === 'fallido' ? 'error' : 'info'}><p>{deliveryMessages[delivery.envio]}</p><p>Vencimiento del código emitido: <time dateTime={delivery.expira_en}>{new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(delivery.expira_en))} UTC</time>.</p></Alert>}
@@ -85,12 +91,12 @@ export default function ChangeEmailPage() {
         const result = await run('verify', async () => { try { await completeEmailChange(() => verificarCambioCorreo({ codigo: code })); } finally { setCode(''); setPassword(''); } });
         handleResult(result);
       }}>
-        <FormField name="codigo" label="Código de cambio de correo" type="text" inputMode="numeric" autoComplete="one-time-code" required minLength={6} maxLength={6} value={code} readOnly={disabled || confirm} error={failure?.fields.codigo} onChange={event => setCode(event.target.value)} />
-        <div className="patients-actions"><Button type="submit" loading={busy === 'verify'} disabled={disabled || remaining > 0 || confirm || delivery?.envio === 'fallido'}>{busy === 'verify' ? 'Verificando cambio…' : 'Verificar y cambiar mi correo'}</Button>
+        <div className="verification-code"><FormField name="codigo" label="Código de cambio de correo" type="text" inputMode="numeric" autoComplete="one-time-code" required minLength={6} maxLength={6} value={code} readOnly={disabled || confirm} error={failure?.fields.codigo} onChange={event => setCode(event.target.value)} /></div>
+        <ActionGroup className="form-actions"><Button type="submit" loading={busy === 'verify'} disabled={disabled || remaining > 0 || confirm || delivery?.envio === 'fallido'}>{busy === 'verify' ? 'Verificando cambio…' : 'Verificar y cambiar mi correo'}</Button>
           <Button variant="secondary" disabled={disabled || sendRemaining > 0 || confirm} onClick={async () => {
             setCode(''); setPassword(''); setDelivery(null); setChecked(false);
             handleResult(await run('resend', () => reenviarCambioCorreo()));
-          }}>{busy === 'resend' ? 'Solicitando otro código…' : sendRemaining ? `Reenvío en ${sendRemaining} s` : 'Solicitar otro código de cambio'}</Button></div>
+          }}>{busy === 'resend' ? 'Solicitando otro código…' : sendRemaining ? `Reenvío en ${sendRemaining} s` : 'Solicitar otro código de cambio'}</Button></ActionGroup>
       </form>
     </section></div>
   </section>;

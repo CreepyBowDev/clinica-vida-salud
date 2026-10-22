@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -31,7 +31,9 @@ afterEach(() => { api.defaults.adapter = original; });
 describe('rutas y navegación CU-30 fase 1', () => {
   it('Administrador abre Bitácora desde el menú, con título, foco y enlace activo', async () => {
     const user = userEvent.setup(); const router = mount('/inicio');
-    await user.click(await screen.findByRole('link', { name: 'Bitácora del Sistema' }));
+    const navigation = await screen.findByRole('navigation', { name: 'Navegación principal' });
+    await user.click(within(navigation).getByRole('button', { name: 'Bitácora del Sistema' }));
+    await user.click(within(navigation).getByRole('link', { name: 'Bitácora del Sistema' }));
     await screen.findByRole('heading', { name: 'Bitácora del Sistema' });
     expect(router.state.location.pathname).toBe(root);
     expect(screen.getByRole('link', { name: 'Bitácora del Sistema' })).toHaveAttribute('aria-current', 'page');

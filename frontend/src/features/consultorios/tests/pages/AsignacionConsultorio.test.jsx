@@ -56,6 +56,16 @@ async function confirm(user) {
   await user.click(screen.getByRole('button', { name: 'Revisar confirmación' })); await user.click(screen.getByRole('button', { name: 'Guardar asignación' }));
 }
 
+it('la guía acompaña impacto y consentimiento sin autorizar un traslado', async () => {
+  const user = userEvent.setup(); mount(); await screen.findByText('Médico Ficticio');
+  const stages = screen.getByRole('list', { name: 'Etapas de asignación' }); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Preparar propuesta');
+  await preview(user); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');
+  expect(screen.getByRole('button', { name: 'Revisar confirmación' })).toBeDisabled();
+  await user.click(screen.getByRole('checkbox')); await user.click(screen.getByRole('button', { name: 'Revisar confirmación' }));
+  expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Confirmar guardado'); expect(writes()).toHaveLength(0);
+  await user.click(screen.getByRole('button', { name: 'Volver a revisar' })); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');
+});
+
 it.each(['Recepcionista', 'Médico', 'Paciente'])('rechaza ruta directa de %s sin peticiones de planificación', async rol => {
   consultarSesion.mockResolvedValue({ id_usuario: '2', nombre_visible: 'Persona', correo_acceso: 'persona@example.test', rol }); mount();
   await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);

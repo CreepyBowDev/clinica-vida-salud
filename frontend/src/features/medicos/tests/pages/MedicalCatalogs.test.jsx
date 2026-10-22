@@ -30,6 +30,14 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockResolvedValue(person(
 afterEach(() => { api.defaults.adapter = original; vi.useRealTimers(); });
 
 describe('consulta de Médicos y Especialidades, fase 1', () => {
+  it.each(paths)('tabla adaptable de %s conserva semántica y datos autorizados', async path => {
+    mount(path); const table = await screen.findByRole('table');
+    expect(table.parentElement).toHaveClass('query-table');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(path.endsWith('/medicos') ? 4 : 3);
+    expect(table).toHaveTextContent('Geriatría ficticia'); expect(table).not.toHaveTextContent('NO MOSTRAR');
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByRole('heading', { level: 1 }).closest('header')).toHaveClass('page-heading--actions');
+  });
   it.each(['Recepcionista', 'Médico', 'Paciente'])('deniega ambas rutas a %s antes de consultar datos', async rol => {
     consultarSesion.mockResolvedValue(person(rol)); const router = mount();
     await screen.findByRole('heading', { name: 'Acceso no permitido' });
@@ -47,12 +55,14 @@ describe('consulta de Médicos y Especialidades, fase 1', () => {
   });
   it('navega desde menú, actualiza título, muestra estados independientes y no ofrece acciones futuras', async () => {
     const user = userEvent.setup(); mount('/administracion');
-    await user.click(await screen.findByRole('link', { name: 'Especialidades' })); await screen.findByRole('table');
-    expect(document.title).toBe('Especialidades | Clínica Vida Salud');
-    expect(screen.getByRole('link', { name: 'Especialidades' })).toHaveAttribute('aria-current', 'page');
+    const navigation = await screen.findByRole('navigation', { name: 'Navegación principal' });
+    await user.click(within(navigation).getByRole('button', { name: 'Médicos y especialidades' }));
+    await user.click(within(navigation).getByRole('link', { name: 'Gestionar especialidades' })); await screen.findByRole('table');
+    expect(document.title).toBe('Gestionar especialidades | Clínica Vida Salud');
+    expect(screen.getByRole('link', { name: 'Gestionar especialidades' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('Sin descripción')).toBeInTheDocument(); expect(within(screen.getByRole('table')).getByText('Inactiva')).toBeInTheDocument();
-    await user.click(screen.getByRole('link', { name: 'Médicos' })); await screen.findByRole('table');
-    expect(document.title).toBe('Médicos | Clínica Vida Salud'); expect(within(screen.getByRole('table')).getByText('Inactivo')).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Gestionar médicos' })); await screen.findByRole('table');
+    expect(document.title).toBe('Gestionar médicos | Clínica Vida Salud'); expect(within(screen.getByRole('table')).getByText('Inactivo')).toBeInTheDocument();
     expect(screen.getByText('(catálogo inactivo)')).toBeInTheDocument(); expect(screen.getByText('MED-ficticio')).toBeInTheDocument();
     expect(screen.queryByText('NO MOSTRAR')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /crear|editar|activar|eliminar|reservar/i })).not.toBeInTheDocument();

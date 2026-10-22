@@ -26,6 +26,16 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockRejectedValue(httpErr
 afterEach(() => { vi.useRealTimers(); });
 
 describe('inicio de sesión', () => {
+  it('separa las dos entradas de Paciente y orienta la vinculación sin iniciar sesión', async () => {
+    const user = userEvent.setup(); const router = await renderLogin();
+    expect(screen.getByRole('region', { name: '¿Es tu primer acceso?' })).toHaveTextContent('sin ficha previa');
+    expect(screen.getByRole('link', { name: 'Crear cuenta de Paciente' })).toHaveAttribute('href', '/registro');
+    await user.click(screen.getByRole('link', { name: 'Ya tengo un código de activación' }));
+    await screen.findByLabelText('Código de Recepción');
+    expect(router.state.location.pathname).toBe('/vincular-ficha');
+    expect(screen.getByRole('heading', { name: 'Tu ficha. El mismo historial.' })).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus(); expect(iniciarSesion).not.toHaveBeenCalled();
+  });
   it('requiere campos y permite mostrar la contraseña mediante un control accesible', async () => {
     const user = userEvent.setup();
     await renderLogin();

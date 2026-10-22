@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import CatalogResults from '../../../components/CatalogResults';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
+import ActionGroup from '../../../components/ActionGroup';
 import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { consultarDisponibilidad } from '../services/reserva.service';
 import { normalizarMotivo } from '../services/reserva.service';
@@ -55,12 +56,12 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
         onRevisar({ ...criterios, hora_inicio: turno.hora_inicio, revision_turno: turno.revision_turno, motivo_breve, inicioEsperado: turno.inicio_at });
       } catch { setErrorMotivo('Introduce hasta 500 caracteres, sin saltos de línea ni caracteres de control.'); }
     }}>
-      <label htmlFor="reserva-motivo">Motivo breve (opcional)</label>
+      <div className="field"><label htmlFor="reserva-motivo">Motivo breve (opcional)</label>
       <input id="reserva-motivo" type="text" autoComplete="off" value={motivo} aria-invalid={Boolean(errorMotivo)}
         aria-describedby={errorMotivo ? 'reserva-motivo-error' : 'reserva-motivo-ayuda'} onChange={e => { setMotivo(e.target.value); setErrorMotivo(''); }} />
       <p id="reserva-motivo-ayuda" className="field-hint">Hasta 500 caracteres. Se mostrará antes de registrar la cita.</p>
-      {errorMotivo && <p id="reserva-motivo-error" className="field-error" role="alert">{errorMotivo}</p>}
-      <Button type="submit">Revisar cita</Button>
+      {errorMotivo && <p id="reserva-motivo-error" className="field-error" role="alert">{errorMotivo}</p>}</div>
+      <ActionGroup className="form-actions"><Button type="submit">Revisar cita</Button></ActionGroup>
     </form>}
   </section>;
 }

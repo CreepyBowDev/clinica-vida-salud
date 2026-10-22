@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
+import PageHeading from '../../../components/PageHeading';
+import QueryMessage from '../../../components/QueryMessage';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { usePatientQuery } from '../hooks/usePatientQuery';
 import PatientFailure from '../components/PatientFailure';
@@ -20,11 +22,11 @@ function PatientDetail({ id }) {
   const { data: patient, loading, failure, reload } = usePatientQuery('detail', id);
   const location = useLocation();
   const [notice, setNotice] = useState(location.state?.patientNotice ? 'Cambios administrativos guardados. Consulta los datos actuales de la ficha.' : '');
-  return <section className="workspace-page patients-page">
-    <Link className="patients-back" to="/recepcion/pacientes">Volver a pacientes</Link>
-    <header className="page-heading"><h1>Ficha administrativa</h1><p>Identidad y datos de contacto del paciente.</p></header>
+  return <section className="workspace-page patients-page query-detail">
+    <Link className="back-link" to="/recepcion/pacientes">Volver a pacientes</Link>
+    <PageHeading title="Ficha administrativa" description="Identidad y datos de contacto del paciente." />
     {notice && <Alert variant="success"><p>{notice}</p></Alert>}
-    <div className={!loading && !failure ? 'patient-detail-sections' : undefined} aria-busy={loading}>{loading ? <p className="patients-empty" role="status">Consultando ficha…</p> : failure ? <><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></> : <>
+    <div className={!loading && !failure ? 'patient-detail-sections' : undefined} aria-busy={loading}>{loading ? <QueryMessage loading title="Consultando ficha…" /> : failure ? <div className="query-failure"><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div> : <>
       <section className="patients-panel" aria-labelledby="patient-identity"><h2 id="patient-identity">{patient.nombres} {patient.apellidos}</h2>
         <dl className="patients-data"><Datum label="Código de ficha">{patient.codigo_paciente}</Datum><Datum label="Identificador interno">{patient.id_paciente}</Datum>
           <Datum label="CI">{patient.documento_identidad || 'Sin CI registrado'}</Datum><Datum label="Estado de ficha">{patient.activo ? 'Activa' : 'Inactiva'}</Datum>

@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import CatalogResults from '../../../components/CatalogResults';
+import PageHeading from '../../../components/PageHeading';
 import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { listarBitacora } from '../services/bitacora.service';
 import BitacoraFilters from '../components/BitacoraFilters';
@@ -16,7 +17,7 @@ export default function BitacoraPage() {
   const query = useCatalogQuery(listarBitacora, filters, fields);
   const results = useRef(null);
   return <section className="workspace-page catalog-page">
-    <header className="page-heading"><h1>Bitácora del Sistema</h1><p>Consulta administrativa del historial de eventos del sistema, en solo lectura.</p></header>
+    <PageHeading title="Bitácora del Sistema" description="Consulta administrativa del historial de eventos del sistema, en solo lectura." />
     <BitacoraFilters draft={draft} onChange={setDraft} errors={query.failure?.fields} disabled={query.remaining > 0}
       onApply={() => { setFilters({ ...draft, page: 1 }); query.reload(); }}
       onClear={() => { clear(); query.reload(); }} />

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
 import SelectField from '../../../components/SelectField';
+import ActionGroup from '../../../components/ActionGroup';
 
 const advancedFields = ['id_usuario_responsable', 'id_usuario_objetivo', 'tipo_actor', 'operacion',
   'tipo_evento', 'direccion_ip', 'entidad_referida', 'registro_referido'];
@@ -40,6 +41,6 @@ export default function BitacoraFilters({ draft, onChange, onApply, onClear, err
       </div>
     </details>
     <SelectField label="Eventos por página" {...field('per_page')}>{[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}</SelectField>
-    <div className="catalog-actions"><Button type="submit" disabled={disabled}>Aplicar filtros</Button><Button variant="quiet" disabled={disabled} onClick={onClear}>Limpiar filtros</Button></div>
+    <ActionGroup><Button type="submit" disabled={disabled}>Aplicar filtros</Button><Button variant="quiet" disabled={disabled} onClick={onClear}>Limpiar filtros</Button></ActionGroup>
   </form>;
 }

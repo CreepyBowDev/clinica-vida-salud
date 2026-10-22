@@ -38,6 +38,15 @@ async function change(user, value = '20') {
 async function preview(user) { await user.click(screen.getByRole('button', { name: 'Consultar impacto de duración' })); await screen.findByRole('heading', { name: 'Impacto de duración global' }); }
 async function confirm(user) { await user.click(screen.getByRole('button', { name: 'Revisar cambio global' })); await user.click(screen.getByRole('button', { name: 'Guardar duración global' })); }
 
+it('la guía de duración no sustituye impacto y retira confirmación al editar propuesta', async () => {
+  const user = userEvent.setup(); mount(); await change(user);
+  const stages = screen.getByRole('list', { name: 'Etapas de duración global' }); await preview(user);
+  expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');
+  await user.click(screen.getByRole('button', { name: 'Revisar cambio global' })); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Confirmar guardado');
+  await change(user, '25'); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Preparar propuesta');
+  expect(screen.queryByRole('button', { name: 'Guardar duración global' })).not.toBeInTheDocument(); expect(writes()).toHaveLength(0);
+});
+
 it.each(['Recepcionista', 'Médico', 'Paciente'])('impide lectura y edición a %s sin HTTP de configuración', async rol => {
   consultarSesion.mockResolvedValue({ id_usuario: '2', nombre_visible: 'Persona', correo_acceso: 'persona@example.test', rol }); mount();
   await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);

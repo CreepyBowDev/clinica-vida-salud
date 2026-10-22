@@ -1,8 +1,8 @@
 import '../styles/registration.css';
+import WorkflowProgress from '../../../components/WorkflowProgress';
+
+const steps = [{ id: 'datos', label: 'Datos y acceso' }, { id: 'correo', label: 'Verificar correo' }];
 
 export default function RegistrationProgress({ verification = false }) {
-  return <ol className="registration-progress" aria-label="Pasos del registro web">
-    <li aria-current={!verification ? 'step' : undefined}><span aria-hidden="true">1</span>Datos y acceso</li>
-    <li aria-current={verification ? 'step' : undefined}><span aria-hidden="true">2</span>Verificar correo</li>
-  </ol>;
+  return <WorkflowProgress label="Pasos del registro web" steps={steps} current={verification ? 'correo' : 'datos'} />;
 }

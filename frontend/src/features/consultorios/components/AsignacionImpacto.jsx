@@ -14,8 +14,8 @@ export default function AsignacionImpacto({ impacto, onPage, disabled }) {
   const { data, meta } = impacto;
   return <section className="catalog-review" aria-label="Impacto de asignación">
     <h2>Revisa el impacto completo</h2>
-    <p>{data.totales.conflictos} conflictos · {data.totales.citas_trasladadas} citas con cambio de ubicación propuesto.</p>
-    <p>{data.puede_confirmar ? 'La propuesta es compatible según la última consulta. El servidor volverá a comprobarla al guardar.' : 'No se puede guardar esta propuesta. Resuelve los conflictos por las operaciones autorizadas o selecciona otro consultorio.'}</p>
+    <div className={`impact-outcome${data.puede_confirmar ? '' : ' is-conflict'}`}><p className="impact-count">{data.totales.conflictos} conflictos · {data.totales.citas_trasladadas} citas con cambio de ubicación propuesto.</p>
+    <p>{data.puede_confirmar ? 'La propuesta es compatible según la última consulta. El servidor volverá a comprobarla al guardar.' : 'No se puede guardar esta propuesta. Resuelve los conflictos por las operaciones autorizadas o selecciona otro consultorio.'}</p></div>
     <p className="catalog-note">Horarios de la sede: America/La_Paz. Las referencias son identificadores administrativos, sin datos de pacientes. Un conflicto y un traslado pueden referirse a la misma cita.</p>
     {data.elementos.length ? <ul className="assignment-impact-list">{data.elementos.map((item, index) => <li key={`${meta.current_page}-${index}`}>
       <strong>{Object.hasOwn(labels, item.codigo) ? labels[item.codigo] : 'Conflicto de asignación'}</strong>

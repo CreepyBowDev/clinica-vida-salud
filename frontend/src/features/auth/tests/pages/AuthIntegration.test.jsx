@@ -121,7 +121,7 @@ describe('integración HTTP del frontend de autenticación', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Contraseña definitiva establecida');
     expect(calls.filter(c => c.url === '/auth/login')).toHaveLength(1);
     await login(); await screen.findByRole('heading', { name: 'Hola, Persona Ficticia' });
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
   });
 
   it('403 de cuentas conserva sesión; 401 posterior retira todo el área mediante el interceptor real', async () => {
@@ -132,7 +132,7 @@ describe('integración HTTP del frontend de autenticación', () => {
     });
     const { router } = mount('/administracion/cuentas');
     await screen.findByRole('alert');
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/administracion/cuentas');
     status = 401;
     await act(async () => { await router.navigate('/inicio'); });

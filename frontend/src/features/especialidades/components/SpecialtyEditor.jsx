@@ -2,6 +2,8 @@ import { useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
 import { useSpecialtySubmission } from '../hooks/useSpecialtySubmission';
 import { actualizarEspecialidad, crearEspecialidad } from '../services/especialidad.service';
 import SpecialtyFailure from './SpecialtyFailure';
@@ -31,9 +33,9 @@ export default function SpecialtyEditor({ initial }) {
     if (result?.data) navigate(`/administracion/especialidades/${result.data.id_especialidad}`, { replace: true, state: { specialtyNotice: base ? 'Cambios guardados. Se consultó nuevamente la especialidad.' : 'Especialidad registrada. Se consultó nuevamente el registro.' } });
     if (result?.failure?.stale || result?.failure?.uncertain) setBlocked(true);
   }
-  return <form ref={form} className="catalog-panel catalog-editor" aria-label={initial ? 'Editar especialidad' : 'Registrar especialidad'} aria-busy={busy} onSubmit={submit} noValidate>
+  return <form ref={form} className="catalog-panel catalog-editor admin-form" aria-label={initial ? 'Editar especialidad' : 'Registrar especialidad'} aria-busy={busy} onSubmit={submit} noValidate>
     <SpecialtyFailure failure={failure} remaining={remaining} />
-    <fieldset className="catalog-editor-fields" disabled={frozen}><legend>Datos de la especialidad</legend>
+    <FormSection title="Datos de la especialidad" disabled={frozen}>
       <FormField label="Nombre" required maxLength={120} value={draft.nombre} onChange={event => setDraft({ ...draft, nombre: event.target.value })} error={failure?.fields.nombre} autoComplete="off" />
       <div className="field"><label htmlFor={descriptionId}>Descripción (opcional)</label>
         <textarea id={descriptionId} rows={4} maxLength={2000} value={draft.descripcion} onChange={event => setDraft({ ...draft, descripcion: event.target.value })}
@@ -41,12 +43,12 @@ export default function SpecialtyEditor({ initial }) {
         <p id={`${descriptionId}-hint`} className="field-hint">Hasta 2000 caracteres, en un solo párrafo sin saltos de línea.</p>
         {failure?.fields.descripcion && <p id={`${descriptionId}-error`} className="field-error">{failure.fields.descripcion}</p>}
       </div>
-    </fieldset>
+    </FormSection>
     {blocked && base && <SpecialtyVersionReview id={base.id_especialidad} onUse={current => {
       setBase(current); setDraft({ nombre: current.nombre, descripcion: current.descripcion || '' }); setBlocked(false); report(null);
     }} />}
     {blocked && !base && <p className="catalog-note">Conservamos los datos escritos. Revisa los registros antes de decidir si necesitas comenzar una nueva alta.</p>}
-    <div className="catalog-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Registrar especialidad'}</Button>
-      <Link to={base ? `/administracion/especialidades/${base.id_especialidad}` : '/administracion/especialidades'} className="button button--secondary">{blocked && !base ? 'Consultar catálogo' : 'Volver sin guardar'}</Link></div>
+    <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={blocked || remaining > 0}>{busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Registrar especialidad'}</Button>
+      <Link to={base ? `/administracion/especialidades/${base.id_especialidad}` : '/administracion/especialidades'} className="button button--secondary">{blocked && !base ? 'Consultar catálogo' : 'Volver sin guardar'}</Link></ActionGroup>
   </form>;
 }

@@ -4,6 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { usePasswordSubmission } from '../hooks/usePasswordSubmission';
 import { validarNuevaClave } from '../utils/passwordValidation';
 import PasswordField from '../../../components/PasswordField';
+import FormSection from '../../../components/FormSection';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
 import Icon from '../../../components/Icon';
@@ -58,10 +59,12 @@ export default function ResetPasswordPage({ enlace }) {
       <p className="login-intro">Usa una contraseña de al menos 12 caracteres para recuperar el acceso a tu cuenta.</p>
       <form ref={form} className="recovery-form" aria-label="Establecer nueva contraseña" aria-busy={busy} onSubmit={submit}>
         <PasswordFailure failure={failure} remaining={remaining} />
+        <FormSection title="Nueva contraseña de acceso">
         <PasswordField label="Nueva contraseña" name="password" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase."
           value={password} busy={busy} onChange={e => setPassword(e.target.value)} error={failure?.fields.password} />
         <PasswordField label="Confirmar nueva contraseña" name="password_confirmation" autoComplete="new-password" value={confirmation}
           busy={busy} onChange={e => setConfirmation(e.target.value)} error={failure?.fields.password_confirmation} />
+        </FormSection>
         <Button type="submit" className="full-width" loading={busy} disabled={remaining > 0}>{busy ? 'Guardando contraseña…' : remaining > 0 ? `Espera ${remaining} s` : 'Guardar nueva contraseña'}</Button>
       </form>
     </>}

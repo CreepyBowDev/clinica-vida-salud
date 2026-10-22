@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
 import PasswordField from '../../../components/PasswordField';
+import FormSection from '../../../components/FormSection';
+import ActionGroup from '../../../components/ActionGroup';
 import Icon from '../../../components/Icon';
 import LogoutButton from '../components/LogoutButton';
 import PasswordFailure from '../components/PasswordFailure';
@@ -37,10 +39,12 @@ export default function RestrictedAccessPage() {
     <p className="auth-guidance">Debes completar este paso antes de que venza la credencial temporal. Al guardar se cerrará esta sesión y tendrás que ingresar con tu nueva contraseña.</p>
     <form ref={form} className="recovery-form" aria-label="Establecer contraseña definitiva" aria-busy={busy} onSubmit={submit}>
       <PasswordFailure failure={failure} remaining={remaining} />
+      <FormSection title="Contraseña definitiva">
       <PasswordField label="Nueva contraseña" name="password" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase."
         value={password} busy={busy} onChange={event => setPassword(event.target.value)} error={failure?.fields.password} />
       <PasswordField label="Confirmar nueva contraseña" name="password_confirmation" autoComplete="new-password" value={confirmation}
         busy={busy} onChange={event => setConfirmation(event.target.value)} error={failure?.fields.password_confirmation} />
+      </FormSection>
       <Button type="submit" className="full-width" loading={busy} disabled={checking || remaining > 0}>{busy ? 'Guardando contraseña…' : remaining > 0 ? `Espera ${remaining} s` : 'Establecer contraseña definitiva'}</Button>
     </form>
     {failure && <Button variant="secondary" disabled={busy} loading={checking} onClick={async () => {
@@ -48,7 +52,7 @@ export default function RestrictedAccessPage() {
     }}>Comprobar vigencia de sesión</Button>}
     <div className="restricted-exit">
       {exit ? <><Alert variant="warning">Cerrar sin completar invalida la credencial temporal. Necesitarás otra emisión de Administración para ingresar; no se restaura tu contraseña anterior.</Alert>
-        <LogoutButton /><Button variant="quiet" onClick={() => setExit(false)}>Continuar con el cambio</Button></>
+        <ActionGroup><LogoutButton /><Button variant="quiet" onClick={() => setExit(false)}>Continuar con el cambio</Button></ActionGroup></>
         : <Button variant="quiet" disabled={busy || checking} onClick={() => setExit(true)}>Cerrar sin completar el cambio</Button>}
     </div>
   </div>;

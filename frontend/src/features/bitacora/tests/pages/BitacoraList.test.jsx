@@ -36,6 +36,13 @@ const apply = () => screen.getByRole('button', { name: 'Aplicar filtros' });
 async function advanced(user) { await user.click(screen.getByText('Filtros avanzados', { selector: 'summary' })); }
 
 describe('listado, filtros y paginación CU-30 fase 2', () => {
+  it('tabla adaptable conserva las seis columnas y el acceso de solo lectura', async () => {
+    mount(); const table = await screen.findByRole('table'); expect(table.parentElement).toHaveClass('query-table');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
+    expect(table).toHaveTextContent('CUENTA_DESACTIVADA'); expect(table).toHaveTextContent('9007199254740993'); expect(table).toHaveTextContent('Cuenta #7');
+    expect(within(table).getByRole('link', { name: `Ver evento ${id}` })).toHaveAttribute('href', `${'/administracion/bitacora'}/${id}`);
+    expect(within(table).queryByRole('button')).not.toBeInTheDocument(); expect(calls.every(call => call.method === 'get')).toBe(true);
+  });
   it('presenta cabecera segura, fecha de sede y roles históricos distintos, sin escrituras', async () => {
     const router = mount(); const user = userEvent.setup();
     const table = await screen.findByRole('table');

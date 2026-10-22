@@ -1,5 +1,5 @@
 export default function ConsultorioData({ consultorio }) {
-  return <dl className="catalog-data">
+  return <dl className="catalog-data record-data">
     <div><dt>Código</dt><dd>{consultorio.codigo_consultorio}</dd></div>
     <div><dt>Nombre</dt><dd>{consultorio.nombre}</dd></div>
     <div><dt>Estado</dt><dd><span className={`catalog-status${consultorio.activo ? '' : ' catalog-status--inactive'}`}>{consultorio.activo ? 'Activo' : 'Inactivo'}</span></dd></div>

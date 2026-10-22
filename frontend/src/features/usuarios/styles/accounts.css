@@ -6,6 +6,7 @@
 .accounts-heading > a { flex-shrink: 0; }
 .accounts-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr); gap: 20px; padding: 24px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-panel); margin-bottom: 24px; }
 .accounts-filters .field { margin: 0; min-width: 0; }
+.accounts-filters > .action-group { grid-column: 1 / -1; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
 .accounts-filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; }
 .accounts-table-scroll { overflow: clip; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
 .accounts-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
@@ -53,7 +54,11 @@
 .credential-delivery > header { max-width: 900px; margin: 0 auto 40px; }
 .credential-receipt { max-width: 680px; margin: auto; padding: clamp(20px, 4vw, 32px); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
 .credential-receipt > p { color: var(--color-muted); margin-block: 24px; }
-.credential-secret { display: block; padding: 24px 16px; border: 1px solid var(--color-border); background: var(--color-story); font-family: monospace; font-size: 25px; letter-spacing: .03em; overflow-wrap: anywhere; user-select: all; }
+.credential-secret { display: block; max-width: 100%; padding: var(--space-6) var(--space-4); border: 2px solid var(--color-primary); border-radius: var(--radius-control); background: var(--color-story); color: var(--color-primary-hover); font-family: monospace; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 600; letter-spacing: .06em; overflow-wrap: anywhere; user-select: all; }
+.credential-instructions { margin-block: var(--space-6); padding-block: var(--space-5); border-block: 1px solid var(--color-border); }
+.credential-instructions > h2 { font-size: var(--text-section); margin-bottom: var(--space-3); }
+.credential-instructions > p { color: var(--color-muted); max-width: 65ch; }
+.credential-receipt { overflow-wrap: anywhere; }
 .restricted-exit { margin-top: 24px; border-top: 1px solid var(--color-border); padding-top: 24px; }
 .restricted-exit > p { margin-bottom: 16px; color: var(--color-muted); }
 @media (min-width: 1280px) { .accounts-panel.account-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -66,7 +71,6 @@
 @media (max-width: 700px) {
   .credential-delivery { padding-block: 24px; }
   .credential-receipt > .button { width: 100%; }
-  .credential-secret { font-size: 20px; }
   .accounts-heading { align-items: stretch; gap: 20px; }
   .accounts-filters, .accounts-panel { padding: 20px; }
   .accounts-filters, .accounts-panel.account-summary, .staff-name-fields { grid-template-columns: minmax(0, 1fr); }

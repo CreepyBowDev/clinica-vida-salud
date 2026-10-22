@@ -1,0 +1,32 @@
+/* Mensajes compartidos; el rediseño de tablas/datos se limita a elementos marcados. */
+.query-message, .query-failure { padding: var(--space-8) var(--panel-padding); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); overflow-wrap: anywhere; }
+.query-message h2 { font-size: var(--text-section); margin-bottom: var(--space-3); }
+.query-message p { color: var(--color-muted); max-width: var(--layout-readable); }
+.query-message--loading { display: flex; align-items: center; gap: var(--space-3); color: var(--color-muted); }
+.query-failure > .alert { margin-bottom: var(--space-4); }
+.query-failure > .button { margin-top: var(--space-3); }
+.back-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: var(--space-4); font-weight: 600; text-underline-offset: 4px; }
+.detail-links { margin-bottom: var(--space-6); }
+.query-detail .catalog-panel { max-width: none; }
+.query-detail .record-data { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0 var(--space-6); }
+.query-detail .record-data > div { min-width: 0; }
+.query-detail .record-data dd { font-weight: 600; }
+.query-detail .catalog-panel > form { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--color-border); }
+.query-detail .catalog-panel .catalog-actions { gap: var(--space-3); }
+.query-table { container: records / inline-size; }
+.query-table table td { vertical-align: top; }
+.query-table td > a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }
+.query-table table tbody tr:focus-within { background: var(--color-story); }
+/* El ancho útil y el tamaño del texto, no el dispositivo, deciden el apilado. */
+@container records (max-width: 56rem) {
+  .query-table table, .query-table table caption, .query-table table tbody { display: block; width: 100%; }
+  .query-table table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .query-table table tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--space-4) var(--space-6); padding: var(--panel-padding); border-bottom: 1px solid var(--color-border); align-items: start; }
+  .query-table table tbody tr:last-child { border-bottom: 0; }
+  .query-table table tbody td { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
+  .query-table table tbody td:first-child { grid-column: 1 / -1; font-size: 1.125rem; }
+  .query-table table tbody .query-table-action { grid-column: 1 / -1; text-align: left; }
+  .query-table table .query-table-action a { min-width: min(100%, 10rem); }
+  .query-table table :is(.catalog-cell-label, .account-cell-label, .patient-cell-label) { display: block; margin-bottom: var(--space-1); color: var(--color-muted); font-size: var(--text-small); }
+  .query-table table caption { padding: var(--space-4) var(--panel-padding); }
+}

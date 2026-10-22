@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,6 +25,13 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockResolvedValue(person(
 afterEach(() => { api.defaults.adapter = original; });
 
 describe('consulta administrativa de pacientes CU-07', () => {
+  it('tabla adaptable conserva CI ausente, código, estado y destino de ficha', async () => {
+    mount(); const table = await screen.findByRole('table');
+    expect(table.parentElement).toHaveClass('query-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
+    expect(table).toHaveTextContent('Sin CI registrado'); expect(table).toHaveTextContent('PAC-001'); expect(table).toHaveTextContent('Inactiva');
+    expect(within(table).getByRole('link', { name: 'Ver ficha de Persona Ficticia' })).toHaveAttribute('href', `/recepcion/pacientes/${patient.id_paciente}`);
+    expect(screen.getByRole('navigation', { name: 'Paginación de pacientes' })).toHaveClass('pagination'); expect(listarPacientes).toHaveBeenCalledTimes(1);
+  });
   it.each(['Administrador', 'Médico', 'Paciente'])('deniega listado y detalle a %s sin consultar pacientes', async rol => {
     consultarSesion.mockResolvedValue(person(rol));
     const router = mount();
@@ -49,7 +56,7 @@ describe('consulta administrativa de pacientes CU-07', () => {
     const user = userEvent.setup();
     mount();
     await screen.findByRole('table');
-    expect(screen.getByRole('link', { name: 'Pacientes' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Gestionar pacientes' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     await user.type(screen.getByLabelText('CI'), ' 1234 ');
     await user.type(screen.getByLabelText('Nombres'), ' Persona ');

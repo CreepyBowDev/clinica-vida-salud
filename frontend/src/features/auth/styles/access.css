@@ -49,3 +49,48 @@
   .auth-shell--flow .auth-main { margin-block: 0 24px; }
   .auth-task-panel > .button, .auth-task-panel .restricted-exit .button, .auth-task-panel > .recovery-guidance .button { width: 100%; }
 }
+
+/* Acceso: orientación lateral tranquila y una única superficie de tarea. */
+.auth-header { flex-wrap: wrap; }
+.auth-header > .brand { min-width: 0; max-width: 100%; }
+.auth-header .brand > :last-child { min-width: 0; overflow-wrap: anywhere; }
+.auth-header > .button { flex-shrink: 0; }
+.auth-story, .auth-content { min-width: 0; overflow-wrap: anywhere; }
+.auth-shell--flow .auth-story { min-height: 0; gap: var(--space-8); }
+.auth-shell--flow .story-copy h2 { font-size: clamp(2rem, 3vw, 2.75rem); }
+.auth-shell--flow .story-copy p { max-width: 34ch; font-size: 1.0625rem; }
+.auth-story .story-caption { font-size: var(--text-small); }
+.auth-content .login-panel { max-width: 28rem; }
+.auth-content .registration-panel { max-width: 42.5rem; }
+.auth-content .auth-task-panel, .auth-content .session-gate { max-width: 32rem; }
+.auth-content .login-heading { margin-bottom: var(--space-6); }
+.auth-content .login-intro { font-size: 1.0625rem; max-width: 65ch; }
+.auth-content .recovery-form { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--color-border); }
+.auth-content .form-section { margin-bottom: var(--space-6); }
+.auth-content .form-section > legend { font-size: 1.125rem; }
+.auth-content .form-section .field:last-child { margin-bottom: 0; }
+.auth-content .workflow-progress { gap: var(--space-4); }
+.auth-content .workflow-progress li { flex-basis: 10rem; }
+.auth-content .first-access { text-align: left; font-size: var(--text-body); }
+.first-access > h2 { font-size: 1.125rem; }
+.auth-content .first-access-options { gap: var(--space-5); }
+.auth-content .first-access-options a { justify-content: start; text-align: left; border-color: var(--color-control-border); }
+.first-access-options p { color: var(--color-muted); font-size: var(--text-small); font-weight: 400; margin-top: var(--space-2); }
+.auth-content .forgot-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: var(--space-3); }
+.auth-content .auth-guidance { border-color: var(--color-primary); background: var(--color-story); font-size: var(--text-body); }
+.auth-content .auth-guidance p, .auth-content .recovery-note { max-width: 65ch; }
+.auth-content .auth-back-link.button { margin-top: var(--space-6); }
+.verification-code .field input { font-size: 1.625rem; letter-spacing: .15em; }
+.security-page .security-form > .form-actions { margin-top: var(--space-6); }
+.security-page .security-form > .form-actions > .button { width: 100%; }
+@media (max-width: 960px) {
+  .auth-shell--flow .auth-main { width: min(46rem, calc(100% - 2 * var(--layout-gutter))); }
+  .auth-shell--flow .auth-content .login-panel { max-width: none; }
+}
+@media (max-width: 700px) {
+  .auth-header { gap: var(--space-3); }
+  .auth-header > .button { margin-left: auto; }
+  .auth-content .login-panel { max-width: none; }
+  .auth-content .recovery-form { padding-top: var(--space-5); }
+  .auth-content .auth-panel-heading { margin-bottom: var(--space-6); }
+}

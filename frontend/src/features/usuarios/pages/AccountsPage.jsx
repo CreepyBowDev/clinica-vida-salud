@@ -4,6 +4,10 @@ import { ROLES } from '../../../constants/roles';
 import Button from '../../../components/Button';
 import FormField from '../../../components/FormField';
 import SelectField from '../../../components/SelectField';
+import Pagination from '../../../components/Pagination';
+import PageHeading from '../../../components/PageHeading';
+import ActionGroup from '../../../components/ActionGroup';
+import QueryMessage from '../../../components/QueryMessage';
 import AccountsTable from '../components/AccountsTable';
 import AccountFailure from '../components/AccountFailure';
 import { useAccountQuery } from '../hooks/useAccountQuery';
@@ -19,22 +23,19 @@ export default function AccountsPage() {
   const paginate = page => { setFilters({ ...filters, page }); results.current?.focus(); };
 
   return <section className="workspace-page accounts-page">
-    <header className="page-heading accounts-heading"><div><h1>Cuentas de usuario</h1><p>Consulta el acceso del personal y las cuentas verificadas de pacientes.</p></div>
-      <Link className="button button--primary" to="/administracion/cuentas/nueva">Crear cuenta del personal</Link></header>
+    <PageHeading title="Cuentas de usuario" description="Consulta el acceso del personal y las cuentas verificadas de pacientes." actions={<Link className="button button--primary" to="/administracion/cuentas/nueva">Crear cuenta del personal</Link>} />
     <form className="accounts-filters" aria-label="Filtrar cuentas" onSubmit={event => {
       event.preventDefault(); setFilters({ ...draft, correo_acceso: draft.correo_acceso.trim(), page: 1 });
     }}>
       <SelectField label="Rol" {...field('rol')}><option value="">Todos los roles</option>{Object.values(ROLES).map(rol => <option key={rol}>{rol}</option>)}</SelectField>
       <SelectField label="Estado de cuenta" {...field('estado_cuenta')}><option value="">Todos los estados</option>{['Pendiente', 'Activa', 'Desactivada'].map(state => <option key={state}>{state}</option>)}</SelectField>
       <FormField label="Correo de acceso exacto" type="email" maxLength={254} autoComplete="off" {...field('correo_acceso')} />
-      <div className="accounts-filter-actions"><Button type="submit">Aplicar filtros</Button><Button variant="quiet" onClick={() => { setDraft(empty); setFilters({ ...empty, page: 1 }); reload(); }}>Limpiar</Button></div>
+       <ActionGroup><Button type="submit">Aplicar filtros</Button><Button variant="quiet" onClick={() => { setDraft(empty); setFilters({ ...empty, page: 1 }); reload(); }}>Limpiar</Button></ActionGroup>
     </form>
     <div ref={results} tabIndex="-1" className="accounts-results" aria-busy={loading}>
-      {loading ? <p role="status" className="accounts-empty">Consultando cuentas…</p> : failure ? <><AccountFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></>
-        : <>{data.data.length ? <AccountsTable accounts={data.data} /> : <div className="accounts-empty"><h2>No hay cuentas para estos filtros</h2><p>Prueba otro rol, estado o correo exacto.</p></div>}
-          <nav className="accounts-pagination" aria-label="Paginación de cuentas"><p>{data.meta.total} cuentas · página {data.meta.current_page} de {data.meta.last_page}</p>
-            <div><Button variant="secondary" disabled={data.meta.current_page <= 1} onClick={() => paginate(data.meta.current_page - 1)}>Anterior</Button>
-              <Button variant="secondary" disabled={data.meta.current_page >= data.meta.last_page} onClick={() => paginate(data.meta.current_page + 1)}>Siguiente</Button></div></nav>
+      {loading ? <QueryMessage loading title="Consultando cuentas…" /> : failure ? <div className="query-failure"><AccountFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div>
+        : <>{data.data.length ? <AccountsTable accounts={data.data} /> : <QueryMessage title="No hay cuentas para estos filtros" description="Prueba otro rol, estado o correo exacto." />}
+          <Pagination meta={data.meta} label="cuentas" onPage={paginate} />
         </>}
     </div>
     <p className="accounts-footnote">El estado de acceso es independiente de la ficha del paciente, del registro profesional y de cualquier bloqueo temporal.</p>

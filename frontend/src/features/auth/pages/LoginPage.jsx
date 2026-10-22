@@ -92,6 +92,9 @@ export default function LoginPage() {
     {failure && (!failure.status || failure.status === 409) && <Button variant="secondary" className="full-width"
       loading={busy} onClick={() => run(refreshSession)}>Comprobar mi sesión</Button>}
     <div className="login-assistance"><Icon name="lock" /><p>Acceso personal para pacientes<br className="desktop-break" /> y equipo de la clínica.</p></div>
-    <div className="first-access"><p>¿Es tu primer acceso?</p><div className="first-access-options"><Link to="/registro">Crear cuenta de Paciente</Link><Link to="/vincular-ficha">Ya tengo un código de activación</Link></div></div>
+    <section className="first-access" aria-labelledby="first-access-title"><h2 id="first-access-title">¿Es tu primer acceso?</h2><div className="first-access-options">
+      <div><Link to="/registro">Crear cuenta de Paciente</Link><p>Para pacientes nuevos, sin ficha previa en la clínica.</p></div>
+      <div><Link to="/vincular-ficha">Ya tengo un código de activación</Link><p>Para vincular tu ficha con la autorización de Recepción.</p></div>
+    </div></section>
   </div>;
 }

@@ -32,6 +32,15 @@ beforeEach(() => {
 });
 
 describe('edición administrativa CU-07', () => {
+  it('revisar y volver conserva corrección de identidad y no escribe sin confirmar', async () => {
+    const user = userEvent.setup(); mount(); await screen.findByLabelText('Nombres');
+    field('Nombres', 'Nombre corregido'); field('Motivo de la corrección', 'Comprobación administrativa ficticia');
+    await user.click(screen.getByRole('checkbox', { name: /He comprobado presencialmente/ })); submitEdit();
+    expect(screen.getByRole('region', { name: 'Revisar cambios administrativos' })).toBeInTheDocument(); expect(screen.getByLabelText('Nombres')).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Volver a revisar cambios' }));
+    expect(screen.getByLabelText('Nombres')).toBeEnabled(); expect(screen.getByLabelText('Nombres')).toHaveValue('Nombre corregido');
+    expect(screen.getByLabelText('Motivo de la corrección')).toHaveValue('Comprobación administrativa ficticia'); expect(actualizarPaciente).not.toHaveBeenCalled();
+  });
   it.each(['Administrador', 'Médico', 'Paciente'])('deniega edición y activación a %s sin consultar ni escribir', async rol => {
     consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona', correo_acceso: 'persona@example.test', rol }); const router = mount();
     await screen.findByRole('heading', { name: 'Acceso no permitido' }); await act(() => router.navigate(`/recepcion/pacientes/${id}/activacion`));

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
+import PageHeading from '../../../components/PageHeading';
+import ActionGroup from '../../../components/ActionGroup';
 import PatientForm from '../components/PatientForm';
 import PatientDuplicateReview from '../components/PatientDuplicateReview';
 import PatientFailure from '../components/PatientFailure';
@@ -49,13 +51,13 @@ export default function NewPatientPage() {
     if (response?.data) { setResult(response.data); setDraft(empty); setReview(null); }
     if (response?.failure?.uncertain) { setUncertain(true); setReview(null); setReviewComplete(false); setReviewed(false); }
   }
-  return <section className="workspace-page patients-page">
+  return <section className="workspace-page patients-page admin-form-page">
     <Link className="patients-back" to="/recepcion/pacientes">Volver a pacientes</Link>
-    <header className="page-heading"><h1 ref={heading} tabIndex="-1">{result ? 'Ficha de paciente creada' : 'Registrar paciente'}</h1><p>{result ? 'El registro administrativo fue confirmado por el servidor.' : 'Registra la ficha administrativa después de revisar posibles registros previos.'}</p></header>
+    <PageHeading titleRef={heading} title={result ? 'Ficha de paciente creada' : 'Registrar paciente'} description={result ? 'El registro administrativo fue confirmado por el servidor.' : 'Registra la ficha administrativa después de revisar posibles registros previos.'} />
     {result ? <div className="patients-panel"><Alert variant="success"><p>Se creó la ficha de {result.nombres} {result.apellidos}.</p></Alert><dl className="patients-data"><div><dt>Código de ficha</dt><dd>{result.codigo_paciente}</dd></div><div><dt>CI</dt><dd>{result.documento_identidad || 'Sin CI registrado'}</dd></div></dl>
       <p className="patients-note">Esta operación no crea una cuenta web ni genera un código de activación.</p>
       <Link className="button button--primary" to={`/recepcion/pacientes/${result.id_paciente}`}>Ver ficha creada</Link></div>
-      : <form ref={form} className="patients-panel patient-form" aria-label="Registrar paciente" aria-busy={busy} onSubmit={submit}>
+      : <form ref={form} className="patients-panel patient-form admin-form" aria-label="Registrar paciente" aria-busy={busy} onSubmit={submit}>
         <PatientFailure failure={failure} remaining={remaining} />
         <PatientForm draft={draft} onChange={change} emergency={emergency} onEmergencyChange={setEmergency} busy={busy} fields={failure?.fields} />
         <section className="patient-review" aria-labelledby="patient-review-heading"><h2 id="patient-review-heading">Revisar posibles fichas previas</h2>
@@ -66,7 +68,7 @@ export default function NewPatientPage() {
             <p id="patient-review-help" className={failure?.fields.posibles_duplicados_revisados ? 'field-error' : 'field-hint'}>{failure?.fields.posibles_duplicados_revisados || 'Primero consulta las posibles fichas. Si encuentras la ficha del paciente, utiliza ese mismo registro.'}</p></div>}
         </section>
         {uncertain && <p className="patients-note" role="status">El resultado del envío anterior sigue sin confirmarse. Revisa las fichas encontradas; si ya existe la del paciente, ábrela y evita otra alta. Debes volver a consultar antes de habilitar un nuevo envío.</p>}
-        <div className="patients-actions"><Button type="submit" loading={busy} disabled={remaining > 0 || (uncertain && !reviewComplete)}>{busy ? 'Registrando paciente…' : remaining > 0 ? `Espera ${remaining} s` : 'Crear ficha administrativa'}</Button></div>
+        <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={remaining > 0 || (uncertain && !reviewComplete)}>{busy ? 'Registrando paciente…' : remaining > 0 ? `Espera ${remaining} s` : 'Crear ficha administrativa'}</Button></ActionGroup>
         <p className="patients-note">El CI es obligatorio para el registro o vinculación web. Una ficha administrativa sin CI conserva las operaciones presenciales autorizadas; el documento podrá incorporarse después a esa misma ficha.</p>
       </form>}
   </section>;

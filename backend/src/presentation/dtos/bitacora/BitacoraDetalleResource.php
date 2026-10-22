@@ -14,6 +14,8 @@ class BitacoraDetalleResource extends BitacoraListadoResource
 
     private const CAMPOS_ESPECIALIDAD = ['nombre', 'descripcion', 'activa'];
 
+    private const CAMPOS_CONSULTORIO = ['codigo_consultorio', 'nombre', 'activo'];
+
     public function toArray(Request $request): array
     {
         return [...parent::toArray($request),
@@ -33,6 +35,28 @@ class BitacoraDetalleResource extends BitacoraListadoResource
             return (object) [];
         }
         $salida = [];
+        if ($this->tipo_evento === 'DURACION_CITAS_CAMBIADA') {
+            foreach (['antes', 'despues'] as $clave) {
+                $duracion = $origen->{$clave}->duracion_turno_minutos ?? null;
+                if (is_int($duracion) && $duracion > 0 && $duracion <= 2147483647) {
+                    $salida[$clave] = (object) ['duracion_turno_minutos' => $duracion];
+                }
+            }
+        }
+        if ($this->tipo_evento === 'MEDICO_CONSULTORIO_CAMBIADO') {
+            foreach (['antes', 'despues'] as $clave) {
+                $estado = $origen->{$clave} ?? null;
+                if (is_object($estado) && property_exists($estado, 'id_consultorio')) {
+                    $id = ReferenciasBitacora::id($estado->id_consultorio);
+                    if ($id !== null || $estado->id_consultorio === null) {
+                        $salida[$clave] = (object) ['id_consultorio' => $id];
+                    }
+                }
+            }
+            if (is_int($origen->citas_trasladadas ?? null) && $origen->citas_trasladadas >= 0) {
+                $salida['citas_trasladadas'] = $origen->citas_trasladadas;
+            }
+        }
         if ($this->tipo_evento === 'PACIENTE_CREADO' && is_bool($origen->sin_documento ?? null)) {
             $salida['sin_documento'] = $origen->sin_documento;
         }
@@ -40,6 +64,8 @@ class BitacoraDetalleResource extends BitacoraListadoResource
             'PACIENTE_ACTUALIZADO', 'PACIENTE_ESTADO_CAMBIADO' => self::CAMPOS_PACIENTE,
             'MEDICO_CREADO', 'MEDICO_ACTUALIZADO', 'MEDICO_ESTADO_CAMBIADO', 'MEDICO_ESPECIALIDADES_CAMBIADAS' => self::CAMPOS_MEDICO,
             'ESPECIALIDAD_CREADA', 'ESPECIALIDAD_ACTUALIZADA', 'ESPECIALIDAD_ESTADO_CAMBIADO' => self::CAMPOS_ESPECIALIDAD,
+            'CONSULTORIO_CREADO', 'CONSULTORIO_ACTUALIZADO', 'CONSULTORIO_ESTADO_CAMBIADO' => self::CAMPOS_CONSULTORIO,
+            'HORARIO_CREADO', 'HORARIO_ACTUALIZADO', 'HORARIO_ESTADO_CAMBIADO' => ['dia_semana', 'hora_inicio', 'hora_fin', 'activo'],
             default => null,
         };
         if ($campos !== null) {

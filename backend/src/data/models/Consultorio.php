@@ -13,13 +13,15 @@ class Consultorio extends Model
 
     public $timestamps = false;
 
+    protected $dateFormat = 'Y-m-d H:i:s.uP';
+
     protected $fillable = ['codigo_consultorio', 'nombre'];
 
     protected $attributes = ['activo' => true];
 
     protected function casts(): array
     {
-        return ['activo' => 'boolean'];
+        return ['activo' => 'boolean', 'actualizado_en' => 'immutable_datetime'];
     }
 
     public function medicos(): HasMany

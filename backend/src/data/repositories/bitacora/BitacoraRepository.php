@@ -4,6 +4,7 @@ namespace Clinica\data\repositories\bitacora;
 
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Bitacora;
+use Clinica\data\models\Consultorio;
 use Clinica\data\models\Especialidad;
 use Clinica\data\models\Medico;
 use Clinica\data\models\Paciente;
@@ -61,7 +62,8 @@ class BitacoraRepository
                 });
             }
             $clave = match ($entidad) {
-                'Paciente' => 'id_paciente', 'Medico' => 'id_medico', 'Especialidad' => 'id_especialidad', default => null,
+                'Paciente' => 'id_paciente', 'Medico' => 'id_medico', 'Especialidad' => 'id_especialidad', 'Consultorio' => 'id_consultorio',
+                'HorarioAtencion' => 'id_horario', 'ConfiguracionClinica' => 'id_configuracion', default => null,
             };
             if ($clave !== null) {
                 $recursos->orWhere(function (Builder $referencia) use ($clave, $registro): void {
@@ -101,6 +103,42 @@ class BitacoraRepository
             'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
             'referencias' => ['id_medico' => (string) $medico->getKey()],
             'cambios_seguros' => ['campos' => $campos, ...($habilitaciones === [] ? [] : ['habilitaciones' => $habilitaciones])]])->saveOrFail();
+    }
+
+    public function planificacionModificada(Usuario $actor, array $contexto, string $tipo, array $referencias, array $cambios): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => $tipo, 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'HORARIOS', 'operacion' => $tipo, 'resultado' => 'EXITO',
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => $referencias, 'cambios_seguros' => $cambios])->saveOrFail();
+    }
+
+    public function asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'MEDICO_CONSULTORIO_CAMBIADO', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CONSULTORIOS', 'operacion' => 'MEDICO_CONSULTORIO_CAMBIADO', 'resultado' => 'EXITO',
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_medico' => (string) $medico->getKey(), 'id_consultorio' => (string) $medico->id_consultorio],
+            'cambios_seguros' => ['antes' => ['id_consultorio' => $anterior],
+                'despues' => ['id_consultorio' => (string) $medico->id_consultorio], 'citas_trasladadas' => $trasladadas]])->saveOrFail();
+    }
+
+    public function consultorioModificado(Consultorio $consultorio, Usuario $actor, array $contexto, string $tipo, array $campos): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => $tipo, 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CONSULTORIOS', 'operacion' => $tipo, 'resultado' => 'EXITO',
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_consultorio' => (string) $consultorio->getKey()],
+            'cambios_seguros' => ['campos' => $campos]])->saveOrFail();
     }
 
     public function especialidadModificada(Especialidad $especialidad, Usuario $actor, array $contexto, string $tipo, array $campos): void

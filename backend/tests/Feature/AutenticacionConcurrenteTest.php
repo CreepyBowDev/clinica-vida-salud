@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
+use Clinica\data\repositories\horarios\PlanificacionRepository;
 use Clinica\data\repositories\usuarios\RegistroPacienteRepository;
 use Clinica\data\repositories\usuarios\SesionRepository;
 use Clinica\data\repositories\usuarios\UsuarioRepository;
@@ -46,6 +47,7 @@ class AutenticacionConcurrenteTest extends TestCase
         (require base_path('src/data/database/migrations/2026_10_19_000017_create_medico_especialidad_table.php'))->up();
         (require base_path('src/data/database/migrations/2026_10_21_000031_add_actualizado_en_to_medicos.php'))->up();
         (require base_path('src/data/database/migrations/2026_10_21_000032_add_habilitada_to_medico_especialidad.php'))->up();
+        (require base_path('src/data/database/migrations/2026_10_21_000033_add_actualizado_en_to_consultorios.php'))->up();
         // La migración productiva fija public; la prueba usa exclusivamente su esquema efímero.
         DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$this->schema.'", public, pg_temp');
         config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
@@ -105,7 +107,7 @@ class AutenticacionConcurrenteTest extends TestCase
         fflush($this->workers[$worker]['pipes'][0]);
     }
 
-    private function line(int $worker): string
+    private function line(int $worker, bool $permitirError = false): string
     {
         $deadline = microtime(true) + 15;
         $line = '';
@@ -114,7 +116,7 @@ class AutenticacionConcurrenteTest extends TestCase
             if ($chunk !== false) {
                 $line .= $chunk;
                 if (str_ends_with($line, "\n")) {
-                    if (str_contains($line, '"status":500')) {
+                    if (! $permitirError && str_contains($line, '"status":500')) {
                         throw new RuntimeException('Fallo HTTP del proceso: '.$line);
                     }
 
@@ -510,6 +512,491 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertSame([$operacion === 'crear' ? 201 : 200, 409], $statuses);
         $this->assertSame(1, DB::table('especialidades')->whereRaw('lower(btrim(nombre)) = ?', ['objetivo ficticio'])->count());
         $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', $operacion === 'crear' ? 'ESPECIALIDAD_CREADA' : 'ESPECIALIDAD_ACTUALIZADA')->count());
+    }
+
+    private function prepararAsignaciones(): void
+    {
+        foreach (['000018_create_horarios_atencion', '000019_create_citas', '000020_create_cambios_cita',
+            '000021_create_recordatorios', '000022_create_consultas_medicas'] as $name) {
+            (require base_path('src/data/database/migrations/2026_10_19_'.$name.'_table.php'))->up();
+        }
+    }
+
+    private function prepararHorarios(): void
+    {
+        $this->prepararAsignaciones();
+        (require base_path('src/data/database/migrations/2026_10_19_000005_create_configuracion_clinica_table.php'))->up();
+        DB::table('configuracion_clinica')->insert(['id_configuracion' => 1, 'nombre_sede' => 'Sede ficticia']);
+    }
+
+    public static function revocacionesPlanificacion(): array
+    {
+        $casos = [];
+        foreach (['consultorio', 'asignacion-impacto', 'asignacion', 'horarios', 'horario-crear', 'duracion'] as $operacion) {
+            foreach (['estado', 'rol', 'sesion', 'clave'] as $revocacion) {
+                $casos[$operacion.'-'.$revocacion] = [$operacion, $revocacion];
+            }
+        }
+
+        return $casos;
+    }
+
+    #[DataProvider('revocacionesPlanificacion')]
+    public function test_planning_operations_revalidate_actor_and_persisted_session_after_middleware(string $operacion, string $revocacion): void
+    {
+        $this->prepararHorarios();
+        $r = $this->citaResources();
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $base = '/api/medicos/'.$r['doctors'][0];
+        $version = $this->navegador($cookies, 'GET', $base.'/horarios')->assertOk()->json('data.actualizado_en');
+        $propuesta = ['id_consultorio' => (string) $r['rooms'][1], 'actualizado_en_original' => $version];
+        $huella = $this->navegador($cookies, 'POST', $base.'/consultorio/impacto', $propuesta)->assertOk()->json('data.huella_impacto');
+        $configuracion = $this->navegador($cookies, 'GET', '/api/configuracion-citas')->assertOk()->json('data');
+        [$metodo, $ruta, $payload] = match ($operacion) {
+            'consultorio' => ['GET', '/api/consultorios/'.$r['rooms'][0], []],
+            'asignacion-impacto' => ['POST', $base.'/consultorio/impacto', $propuesta],
+            'asignacion' => ['PUT', $base.'/consultorio', [...$propuesta, 'huella_impacto' => $huella, 'confirmar_traslados' => false]],
+            'horarios' => ['GET', $base.'/horarios', []],
+            'horario-crear' => ['POST', $base.'/horarios', ['dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00', 'actualizado_en_original' => $version]],
+            'duracion' => ['PATCH', '/api/configuracion-citas', ['duracion_turno_minutos' => 20, 'actualizado_en_original' => $configuracion['actualizado_en']]],
+        };
+        $antes = $this->estadoPlanificacion();
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
+        $worker = $this->worker('', '', mode: 'consultorio-lectura', extra: compact('cookies', 'metodo', 'ruta', 'payload'));
+        $this->signal($worker, 'INICIAR');
+        // El worker ya atravesó los middlewares y espera dentro del Service.
+        $this->blocked($worker);
+        match ($revocacion) {
+            'estado' => DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']),
+            'rol' => DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['id_rol' => DB::table('roles')->where('nombre', 'Recepcionista')->value('id_rol')]),
+            'sesion' => DB::table('sessions')->where('user_id', $actor->getKey())->delete(),
+            'clave' => DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['password_hash' => Hash::make('Nueva frase ficticia para la prueba 567')]),
+        };
+        DB::commit();
+        $resultado = json_decode($this->line($worker), true);
+        $this->assertSame(401, $resultado['status']);
+        $this->assertSame('AUTH_NO_AUTENTICADO', $resultado['code']);
+        $this->assertSame($antes, $this->estadoPlanificacion());
+    }
+
+    private function estadoPlanificacion(): array
+    {
+        $estado = [];
+        foreach (['medicos', 'consultorios', 'horarios_atencion', 'configuracion_clinica', 'citas', 'cambios_cita', 'recordatorios'] as $tabla) {
+            $estado[$tabla] = DB::table($tabla)->get()->toJson();
+        }
+        $estado['eventos'] = DB::table('bitacora')->whereIn('modulo', ['CONSULTORIOS', 'HORARIOS'])->count();
+
+        return $estado;
+    }
+
+    public static function ordenesHorarioPlanificacion(): array
+    {
+        $casos = [];
+        foreach (['asignacion', 'duracion', 'version_medico'] as $tipo) {
+            foreach ([true, false] as $horarioPrimero) {
+                foreach ([true, false] as $confirmar) {
+                    $casos[] = [$tipo, $horarioPrimero, $confirmar];
+                }
+            }
+        }
+
+        return $casos;
+    }
+
+    #[DataProvider('ordenesHorarioPlanificacion')]
+    public function test_real_schedule_against_assignment_or_duration_in_both_orders_with_commit_or_rollback(string $tipo, bool $horarioPrimero, bool $confirmar): void
+    {
+        $this->prepararHorarios();
+        $r = $this->citaResources();
+        $peticiones = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $peticiones[$i] = ['cookies' => $cookies, 'ahora' => '2026-10-21T12:00:00Z'];
+        }
+        if ($tipo !== 'duracion') {
+            DB::table('horarios_atencion')->insert(['id_medico' => $r['doctors'][0], 'dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00']);
+            $c = $peticiones[0]['cookies'];
+            $base = '/api/medicos/'.$r['doctors'][0].'/consultorio';
+            $version = $this->navegador($c, 'GET', $base)->assertOk()->json('data.actualizado_en');
+            $payload = ['id_consultorio' => (string) $r['rooms'][1], 'actualizado_en_original' => $version];
+            $huella = $this->navegador($c, 'POST', $base.'/impacto', $payload)->assertOk()->json('data.huella_impacto');
+            $otra = [...$peticiones[0], 'mode' => 'consultorio-asignar', 'id_objetivo' => $r['doctors'][0],
+                'payload' => [...$payload, 'huella_impacto' => $huella, 'confirmar_traslados' => false]];
+        } else {
+            $c = $peticiones[0]['cookies'];
+            $version = $this->navegador($c, 'GET', '/api/configuracion-citas')->assertOk()->json('data.actualizado_en');
+            $otra = [...$peticiones[0], 'mode' => 'configuracion-citas', 'payload' => ['duracion_turno_minutos' => 20, 'actualizado_en_original' => $version]];
+        }
+        $c = $peticiones[1]['cookies'];
+        $medicoHorario = $r['doctors'][$tipo === 'version_medico' ? 0 : 1];
+        $version = $this->navegador($c, 'GET', '/api/medicos/'.$medicoHorario.'/horarios')->assertOk()->json('data.actualizado_en');
+        $horario = [...$peticiones[1], 'mode' => 'horario-crear', 'id_objetivo' => $medicoHorario,
+            'payload' => ['dia_semana' => $tipo === 'version_medico' ? 1 : 7, 'hora_inicio' => '08:00:00', 'hora_fin' => $tipo === 'duracion' ? '08:15:00' : '12:00:00', 'actualizado_en_original' => $version]];
+        [$primera, $segunda] = $horarioPrimero ? [$horario, $otra] : [$otra, $horario];
+        $w1 = $this->worker('', '', mode: $primera['mode'], extra: [...$primera, 'pausar_planificacion' => true]);
+        $this->signal($w1, 'INICIAR');
+        $this->assertSame('ESCRITURA_PENDIENTE', $this->line($w1));
+        $w2 = $this->worker('', '', mode: $segunda['mode'], extra: $segunda);
+        $this->signal($w2, 'INICIAR');
+        $this->blocked($w2);
+        $this->signal($w1, $confirmar ? 'CONFIRMAR' : 'REVERTIR');
+        $r1 = json_decode($this->line($w1, permitirError: ! $confirmar), true);
+        $r2 = json_decode($this->line($w2), true);
+        $this->assertSame($confirmar ? ($horarioPrimero ? 201 : 200) : 500, $r1['status']);
+        $this->assertSame($confirmar ? 409 : ($horarioPrimero ? 200 : 201), $r2['status']);
+        $esperado = match ($tipo) {
+            'duracion' => 'DURACION_INCOMPATIBLE', 'version_medico' => 'MEDICO_EDICION_OBSOLETA',
+            default => $horarioPrimero ? 'ASIGNACION_IMPACTO_OBSOLETO' : 'PLANIFICACION_CONFLICTO',
+        };
+        $this->assertSame($confirmar ? $esperado : null, $r2['code']);
+        $ganaHorario = $confirmar === $horarioPrimero;
+        $this->assertSame(($tipo === 'version_medico' ? 1 : 0) + ($ganaHorario ? 1 : 0), DB::table('horarios_atencion')->where('id_medico', $medicoHorario)->count());
+        if ($tipo === 'duracion') {
+            $this->assertSame($ganaHorario ? 15 : 20, DB::table('configuracion_clinica')->value('duracion_turno_minutos'));
+        } else {
+            $this->assertSame($r['rooms'][$ganaHorario ? 0 : 1], DB::table('medicos')->where('id_medico', $r['doctors'][0])->value('id_consultorio'));
+        }
+        $this->assertSame(1, DB::table('bitacora')->whereIn('modulo', ['CONSULTORIOS', 'HORARIOS'])->count());
+    }
+
+    public static function ordenesProtocoloTraslado(): array
+    {
+        $casos = [];
+        foreach (['reserva', 'atencion'] as $tipo) {
+            foreach ([true, false] as $trasladoPrimero) {
+                foreach ([true, false] as $confirmar) {
+                    $casos[] = [$tipo, $trasladoPrimero, $confirmar];
+                }
+            }
+        }
+
+        return $casos;
+    }
+
+    #[DataProvider('ordenesProtocoloTraslado')]
+    public function test_transfer_and_future_reservation_or_care_protocol_in_both_orders_and_rollback(string $tipo, bool $trasladoPrimero, bool $confirmar): void
+    {
+        $this->prepararHorarios();
+        $r = $this->citaResources();
+        DB::table('horarios_atencion')->insert(['id_medico' => $r['doctors'][0], 'dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00']);
+        $id = DB::table('citas')->insertGetId($this->citaRow($r), 'id_cita');
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $base = '/api/medicos/'.$r['doctors'][0].'/consultorio';
+        $version = $this->navegador($cookies, 'GET', $base)->assertOk()->json('data.actualizado_en');
+        $propuesta = ['id_consultorio' => (string) $r['rooms'][1], 'actualizado_en_original' => $version];
+        $huella = $this->navegador($cookies, 'POST', $base.'/impacto', $propuesta)->assertOk()->json('data.huella_impacto');
+        $traslado = ['mode' => 'consultorio-asignar', 'cookies' => $cookies, 'id_objetivo' => $r['doctors'][0], 'ahora' => '2026-10-21T12:00:00Z',
+            'payload' => [...$propuesta, 'huella_impacto' => $huella, 'confirmar_traslados' => true]];
+        $protocolo = ['mode' => 'planificacion-protocolo', 'tipo' => $tipo, 'id_medico' => $r['doctors'][0], 'id_cita' => $id,
+            'fila_cita' => $this->citaRow($r, ['inicio_at' => '2026-11-08T12:00:00Z', 'fin_at' => '2026-11-08T12:15:00Z'])];
+        [$primera, $segunda] = $trasladoPrimero ? [$traslado, $protocolo] : [$protocolo, $traslado];
+        $w1 = $this->worker('', '', mode: $primera['mode'], extra: [...$primera, $trasladoPrimero ? 'pausar_planificacion' : 'pausar_protocolo' => true]);
+        $this->signal($w1, 'INICIAR');
+        $this->assertSame($trasladoPrimero ? 'ESCRITURA_PENDIENTE' : 'PROTOCOLO_PENDIENTE', $this->line($w1));
+        $w2 = $this->worker('', '', mode: $segunda['mode'], extra: $segunda);
+        $this->signal($w2, 'INICIAR');
+        $this->blocked($w2);
+        $this->signal($w1, $confirmar ? 'CONFIRMAR' : 'REVERTIR');
+        $r1 = json_decode($this->line($w1, permitirError: ! $confirmar), true);
+        $r2 = json_decode($this->line($w2), true);
+        $this->assertSame($confirmar ? ($trasladoPrimero ? 200 : 201) : 500, $r1['status']);
+        $conflicto = $confirmar && (! $trasladoPrimero || $tipo === 'reserva');
+        $this->assertSame($conflicto ? 409 : ($trasladoPrimero ? 201 : 200), $r2['status']);
+        $trasladado = $trasladoPrimero ? $confirmar : ! $confirmar;
+        $this->assertSame($r['rooms'][$trasladado ? 1 : 0], DB::table('citas')->where('id_cita', $id)->value('id_consultorio'));
+        $this->assertSame($trasladado ? 1 : 0, DB::table('cambios_cita')->count());
+        $this->assertSame($trasladado ? 1 : 0, DB::table('bitacora')->where('tipo_evento', 'MEDICO_CONSULTORIO_CAMBIADO')->count());
+        $escrito = $trasladoPrimero ? ! $conflicto : $confirmar;
+        $this->assertSame($tipo === 'atencion' && $escrito ? 1 : 0, DB::table('consultas_medicas')->count());
+        $this->assertSame($tipo === 'reserva' && $escrito ? 2 : 1, DB::table('citas')->count());
+    }
+
+    public function test_simultaneous_shared_room_schedules_cannot_both_be_created(): void
+    {
+        $this->prepararHorarios();
+        $r = $this->citaResources();
+        DB::table('medicos')->where('id_medico', $r['doctors'][1])->update(['id_consultorio' => $r['rooms'][0]]);
+        $requests = [];
+        foreach ($r['doctors'] as $doctor) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $version = $this->navegador($cookies, 'GET', '/api/medicos/'.$doctor.'/horarios')->assertOk()->json('data.actualizado_en');
+            $requests[] = ['cookies' => $cookies, 'id_objetivo' => $doctor, 'payload' => ['dia_semana' => 7,
+                'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00', 'actualizado_en_original' => $version]];
+        }
+        DB::beginTransaction();
+        $this->app->make(PlanificacionRepository::class)->coordinar();
+        $workers = [];
+        foreach ($requests as $data) {
+            $worker = $this->worker('', '', mode: 'horario-crear', extra: $data);
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+            $workers[] = $worker;
+        }
+        DB::commit();
+        $results = array_map(fn ($worker) => json_decode($this->line($worker), true), $workers);
+        $statuses = array_column($results, 'status');
+        sort($statuses);
+        $this->assertSame([201, 409], $statuses);
+        $this->assertSame('PLANIFICACION_CONFLICTO', array_values(array_filter($results, fn ($r) => $r['status'] === 409))[0]['code']);
+        $this->assertSame(1, DB::table('horarios_atencion')->count());
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'HORARIO_CREADO')->count());
+    }
+
+    public function test_concurrent_short_schedule_and_longer_duration_never_commit_incompatible_configuration(): void
+    {
+        $this->prepararHorarios();
+        $r = $this->citaResources();
+        $actor1 = $this->usuarioAuth();
+        $c1 = $this->csrfAuth();
+        $this->loginAuth($c1, $actor1)->assertOk();
+        $version = $this->navegador($c1, 'GET', '/api/medicos/'.$r['doctors'][0].'/horarios')->assertOk()->json('data.actualizado_en');
+        $actor2 = $this->usuarioAuth();
+        $c2 = $this->csrfAuth();
+        $this->loginAuth($c2, $actor2)->assertOk();
+        $config = $this->navegador($c2, 'GET', '/api/configuracion-citas')->assertOk()->json('data');
+        DB::beginTransaction();
+        $this->app->make(PlanificacionRepository::class)->coordinar();
+        $w1 = $this->worker('', '', mode: 'horario-crear', extra: ['cookies' => $c1, 'id_objetivo' => $r['doctors'][0],
+            'payload' => ['dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '08:15:00', 'actualizado_en_original' => $version]]);
+        $this->signal($w1, 'INICIAR');
+        $this->blocked($w1);
+        $w2 = $this->worker('', '', mode: 'configuracion-citas', extra: ['cookies' => $c2,
+            'payload' => ['duracion_turno_minutos' => 20, 'actualizado_en_original' => $config['actualizado_en']]]);
+        $this->signal($w2, 'INICIAR');
+        $this->blocked($w2);
+        DB::commit();
+        $results = [json_decode($this->line($w1), true), json_decode($this->line($w2), true)];
+        $this->assertSame(1, count(array_filter($results, fn ($r) => in_array($r['status'], [200, 201], true))));
+        $this->assertSame(1, count(array_filter($results, fn ($r) => $r['status'] === 409 && $r['code'] === 'DURACION_INCOMPATIBLE')));
+        $count = DB::table('horarios_atencion')->count();
+        $this->assertSame($count === 1 ? 15 : 20, DB::table('configuracion_clinica')->value('duracion_turno_minutos'));
+    }
+
+    public static function confirmarReservaHorario(): array
+    {
+        return [[true], [false]];
+    }
+
+    #[DataProvider('confirmarReservaHorario')]
+    public function test_disabling_schedule_rechecks_coverage_after_concurrent_reservation_commit_or_rollback(bool $confirmar): void
+    {
+        $this->prepararHorarios();
+        $r = $this->citaResources();
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $ruta = '/api/medicos/'.$r['doctors'][0].'/horarios';
+        $version = $this->navegador($cookies, 'GET', $ruta)->assertOk()->json('data.actualizado_en');
+        $h = $this->navegador($cookies, 'POST', $ruta, ['dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00', 'actualizado_en_original' => $version])->assertCreated()->json('data');
+        DB::beginTransaction();
+        // Escritor CU-14 simulado: coordinación antes de configuración/Médico/sala/cita.
+        $this->app->make(PlanificacionRepository::class)->coordinar();
+        DB::table('configuracion_clinica')->where('id_configuracion', 1)->lockForUpdate()->first();
+        DB::table('medicos')->where('id_medico', $r['doctors'][0])->lockForUpdate()->first();
+        DB::table('consultorios')->where('id_consultorio', $r['rooms'][0])->lockForUpdate()->first();
+        DB::table('citas')->insert($this->citaRow($r));
+        $worker = $this->worker('', '', mode: 'horario-estado', extra: ['cookies' => $cookies, 'id_objetivo' => $r['doctors'][0], 'id_horario' => $h['id_horario'],
+            'payload' => ['activo' => false, 'actualizado_en_original' => $h['actualizado_en']]]);
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        $confirmar ? DB::commit() : DB::rollBack();
+        $result = json_decode($this->line($worker), true);
+        $this->assertSame($confirmar ? 409 : 200, $result['status']);
+        $this->assertSame($confirmar ? 'HORARIO_CITAS_SIN_COBERTURA' : null, $result['code']);
+        $this->assertSame($confirmar, DB::table('horarios_atencion')->where('id_horario', $h['id_horario'])->value('activo'));
+    }
+
+    public function test_two_professionals_cannot_confirm_simultaneous_conflicting_room_assignments(): void
+    {
+        $this->prepararAsignaciones();
+        $r = $this->citaResources();
+        $destination = DB::table('consultorios')->insertGetId(['codigo_consultorio' => 'DESTINO-NUEVO', 'nombre' => 'Destino ficticio'], 'id_consultorio');
+        $requests = [];
+        for ($i = 0; $i < 2; $i++) {
+            DB::table('horarios_atencion')->insert(['id_medico' => $r['doctors'][$i], 'dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00']);
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $path = '/api/medicos/'.$r['doctors'][$i].'/consultorio';
+            $f = $this->navegador($cookies, 'GET', $path)->assertOk()->json('data');
+            $payload = ['id_consultorio' => (string) $destination, 'actualizado_en_original' => $f['actualizado_en']];
+            $impacto = $this->navegador($cookies, 'POST', $path.'/impacto', $payload)->assertOk()->assertJsonPath('data.puede_confirmar', true)->json('data');
+            $requests[] = ['cookies' => $cookies, 'id_objetivo' => $r['doctors'][$i],
+                'payload' => [...$payload, 'huella_impacto' => $impacto['huella_impacto'], 'confirmar_traslados' => false]];
+        }
+        DB::beginTransaction();
+        $this->app->make(PlanificacionRepository::class)->coordinar();
+        $workers = [];
+        foreach ($requests as $data) {
+            $worker = $this->worker('', '', mode: 'consultorio-asignar', extra: $data);
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+            $workers[] = $worker;
+        }
+        DB::commit();
+        $responses = array_map(fn ($worker) => json_decode($this->line($worker), true), $workers);
+        $statuses = array_column($responses, 'status');
+        sort($statuses);
+        $this->assertSame([200, 409], $statuses);
+        $this->assertSame('ASIGNACION_IMPACTO_OBSOLETO', array_values(array_filter($responses, fn ($r) => $r['status'] === 409))[0]['code']);
+        $this->assertSame(1, DB::table('medicos')->where('id_consultorio', $destination)->count());
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'MEDICO_CONSULTORIO_CAMBIADO')->count());
+    }
+
+    public static function cambiosConcurrentesAsignacion(): array
+    {
+        return [['reserva', true], ['reserva', false], ['consulta', true], ['consulta', false]];
+    }
+
+    #[DataProvider('cambiosConcurrentesAsignacion')]
+    public function test_room_transfer_revalidates_reservation_or_documented_care_after_concurrent_commit_or_rollback(string $tipo, bool $confirmar): void
+    {
+        $this->prepararAsignaciones();
+        $r = $this->citaResources();
+        DB::table('horarios_atencion')->insert(['id_medico' => $r['doctors'][0], 'dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '12:00:00']);
+        $appointment = DB::table('citas')->insertGetId($this->citaRow($r), 'id_cita');
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $path = '/api/medicos/'.$r['doctors'][0].'/consultorio';
+        $f = $this->navegador($cookies, 'GET', $path)->assertOk()->json('data');
+        $payload = ['id_consultorio' => (string) $r['rooms'][1], 'actualizado_en_original' => $f['actualizado_en']];
+        $impacto = $this->navegador($cookies, 'POST', $path.'/impacto', $payload)->assertOk()->assertJsonPath('data.puede_confirmar', true)->json('data');
+        DB::beginTransaction();
+        // Protocolo simulado de futuros CU-14/CU-23; no acredita esos endpoints.
+        $this->app->make(PlanificacionRepository::class)->coordinar();
+        if ($tipo === 'reserva') {
+            DB::table('medicos')->where('id_medico', $r['doctors'][1])->lockForUpdate()->first();
+            DB::table('consultorios')->where('id_consultorio', $r['rooms'][1])->lockForUpdate()->first();
+            DB::table('citas')->insert($this->citaRow($r, ['id_medico' => $r['doctors'][1], 'id_consultorio' => $r['rooms'][1]]));
+        } else {
+            DB::table('medicos')->where('id_medico', $r['doctors'][0])->lockForUpdate()->first();
+            DB::table('citas')->where('id_cita', $appointment)->lockForUpdate()->first();
+            DB::table('consultas_medicas')->insert(['codigo_consulta' => 'FICTICIA', 'id_cita' => $appointment]);
+        }
+        $worker = $this->worker('', '', mode: 'consultorio-asignar', extra: ['cookies' => $cookies, 'id_objetivo' => $r['doctors'][0],
+            'payload' => [...$payload, 'huella_impacto' => $impacto['huella_impacto'], 'confirmar_traslados' => true]]);
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        $confirmar ? DB::commit() : DB::rollBack();
+        $result = json_decode($this->line($worker), true);
+        $this->assertSame($confirmar ? 409 : 200, $result['status']);
+        $this->assertSame($confirmar ? 'ASIGNACION_IMPACTO_OBSOLETO' : null, $result['code']);
+        $this->assertSame($r['rooms'][$confirmar ? 0 : 1], DB::table('citas')->where('id_cita', $appointment)->value('id_consultorio'));
+        $this->assertSame($confirmar ? 0 : 1, DB::table('cambios_cita')->count());
+        $this->assertSame($confirmar ? 0 : 1, DB::table('bitacora')->where('tipo_evento', 'MEDICO_CONSULTORIO_CAMBIADO')->count());
+    }
+
+    public function test_consultorio_distinct_administrators_edit_one_version_only_once(): void
+    {
+        $requests = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            if ($i === 0) {
+                $f = $this->navegador($cookies, 'POST', '/api/consultorios', ['codigo_consultorio' => 'CONCURRENTE', 'nombre' => 'Original ficticio'])->assertCreated()->json('data');
+            }
+            $requests[] = ['cookies' => $cookies, 'id_objetivo' => $f['id_consultorio'],
+                'payload' => ['actualizado_en_original' => $f['actualizado_en'], 'nombre' => 'Borrador '.$i]];
+        }
+        DB::beginTransaction();
+        DB::table('consultorios')->where('id_consultorio', $f['id_consultorio'])->lockForUpdate()->first();
+        $workers = [];
+        foreach ($requests as $data) {
+            $worker = $this->worker('', '', mode: 'consultorio-editar', extra: $data);
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+            $workers[] = $worker;
+        }
+        DB::commit();
+        $responses = array_map(fn ($worker) => json_decode($this->line($worker), true), $workers);
+        $statuses = array_column($responses, 'status');
+        sort($statuses);
+        $this->assertSame([200, 409], $statuses);
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'CONSULTORIO_ACTUALIZADO')->count());
+        $this->assertContains(DB::table('consultorios')->value('nombre'), ['Borrador 0', 'Borrador 1']);
+    }
+
+    public function test_consultorio_same_code_concurrent_creations_commit_only_one(): void
+    {
+        $requests = [];
+        for ($i = 0; $i < 2; $i++) {
+            $actor = $this->usuarioAuth();
+            $cookies = $this->csrfAuth();
+            $this->loginAuth($cookies, $actor)->assertOk();
+            $requests[] = ['cookies' => $cookies, 'payload' => ['codigo_consultorio' => 'MISMO-CODIGO', 'nombre' => 'Ficticio '.$i]];
+        }
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
+        $workers = [];
+        foreach ($requests as $data) {
+            $worker = $this->worker('', '', mode: 'consultorio-crear', extra: $data);
+            $this->signal($worker, 'INICIAR');
+            $this->blocked($worker);
+            $workers[] = $worker;
+        }
+        DB::commit();
+        $responses = array_map(fn ($worker) => json_decode($this->line($worker), true), $workers);
+        $statuses = array_column($responses, 'status');
+        sort($statuses);
+        $this->assertSame([201, 409], $statuses);
+        $this->assertSame('CONSULTORIO_CODIGO_DUPLICADO', array_values(array_filter($responses, fn ($r) => $r['status'] === 409))[0]['code']);
+        $this->assertSame(1, DB::table('consultorios')->count());
+        $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'CONSULTORIO_CREADO')->count());
+    }
+
+    public function test_consultorio_deactivation_rechecks_assignment_committed_while_waiting_for_planning(): void
+    {
+        (require base_path('src/data/database/migrations/2026_10_19_000019_create_citas_table.php'))->up();
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        $f = $this->navegador($cookies, 'POST', '/api/consultorios', ['codigo_consultorio' => 'DESTINO', 'nombre' => 'Destino ficticio'])->assertCreated()->json('data');
+        $r = $this->citaResources();
+        DB::beginTransaction();
+        $this->app->make(PlanificacionRepository::class)->coordinar();
+        // Simula el protocolo del futuro escritor CU-11; no acredita su endpoint.
+        DB::table('medicos')->where('id_medico', $r['doctors'][0])->lockForUpdate()->first();
+        $worker = $this->worker('', '', mode: 'consultorio-estado', extra: ['cookies' => $cookies,
+            'id_objetivo' => $f['id_consultorio'], 'payload' => ['actualizado_en_original' => $f['actualizado_en'], 'activo' => false]]);
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        DB::table('medicos')->where('id_medico', $r['doctors'][0])->update(['id_consultorio' => $f['id_consultorio']]);
+        DB::commit();
+        $result = json_decode($this->line($worker), true);
+        $this->assertSame(409, $result['status']);
+        $this->assertSame('CONSULTORIO_CON_ASIGNACIONES', $result['code']);
+        $this->assertTrue(DB::table('consultorios')->where('id_consultorio', $f['id_consultorio'])->value('activo'));
+        $this->assertSame(0, DB::table('bitacora')->where('tipo_evento', 'CONSULTORIO_ESTADO_CAMBIADO')->count());
+    }
+
+    public function test_consultorio_creation_revalidates_actor_revoked_during_administrative_coordination(): void
+    {
+        $actor = $this->usuarioAuth();
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $actor)->assertOk();
+        DB::beginTransaction();
+        $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
+        $worker = $this->worker('', '', mode: 'consultorio-crear', extra: ['cookies' => $cookies,
+            'payload' => ['codigo_consultorio' => 'NO', 'nombre' => 'No autorizado']]);
+        $this->signal($worker, 'INICIAR');
+        $this->blocked($worker);
+        DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['estado_cuenta' => 'Desactivada']);
+        DB::commit();
+        $this->assertSame(401, json_decode($this->line($worker), true)['status']);
+        $this->assertSame(0, DB::table('consultorios')->count());
+        $this->assertSame(0, DB::table('bitacora')->where('tipo_evento', 'CONSULTORIO_CREADO')->count());
     }
 
     public function test_specialty_data_and_state_race_rejects_stale_writer(): void

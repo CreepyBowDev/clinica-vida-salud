@@ -1,7 +1,128 @@
 # Análisis de clases — Clínica Vida Salud
 
+## CU-11/CU-12 — fase 6: integración backend (2026-10-22)
+
+**Alcance:** backend administrativo de ambos CU terminado, integrado y verificado localmente, fases 1–6 completadas. RF05, RN05/RN07/RN08/RN12/RN14 y VS-HOR-01–11. No nuevas clases de producción: se contrastan colaboraciones reales descritas en fases 2–5. Diagrama global aplazado por solicitud expresa; disponibilidad/reservas/frontend/producción no se acreditan por este cierre.
+
+**Flujos contrastados por PlanificacionIntegracionTest:** tres recorridos, 183 aserciones correctas. Especialidad/MedicoController y sus Services/Repositories crean recursos; ConsultorioController/AsignacionConsultorioController y HorarioController/ConfiguracionCitasController coordinan catálogo/asignación/horario/duración con versiones compartidas, impacto y auditoría. PacienteController registra ficha real por Recepción; citas/avisos posteriores son fixtures. Recordatorio.cita obtiene ubicación vigente sin reescritura del aviso. BitacoraController/Service/Repository y Resources proyectan los ocho productores reales con responsable/referencias seguras. Logout y nuevo login reconstruyen sesión y recuperan estado persistido.
+
+**Historia y estados:** Médico y HorarioAtencion mantienen actividad independiente; liberar franja requiere operación expresa, compartir sala no reactiva intervalos previos. ConsultaMedica existente con inicio desconocido impide traslado; cambio posterior válido de asignación conserva filas históricas de Cita, ConsultaMedica, VersionConsulta, VersionAntecedente, SolicitudLaboratorio, DocumentoLaboratorio, VersionResultado y RevisionResultado. No se crean versiones clínicas ni CambioCita sobre atención histórica. Los endpoints clínicos/documentales no se ejecutan ni se dan por implementados.
+
+**Entorno/evidencia final:** kernel HTTP de Laravel con cookies/CSRF/origen y sesiones PostgreSQL cifradas, guard/Store nuevos por petición; sin actingAs ni mock de autenticación. No equivale a navegador, frontend ni producción. Fixtures de datos de CU pendientes aislados en tests, sin archivos médicos reales. **Suite completa 1188 pruebas/13798 aserciones correctas**; tres pruebas nuevas en esta fase y 201 acumuladas del módulo. Formato/sintaxis/Composer/autoload/rutas/diff correctos. Contrato/evidencia en backend/README.md y contexto §17.81; esquema sin cambios y DER conservado. No quedan funcionalidades administrativas backend pendientes de CU-11/CU-12.
+
+## CU-11/CU-12 — fase 5: garantías transversales y rendimiento (2026-10-21)
+
+**Alcance real:** conserva clases/contratos de fases 2–4 y añade evidencia de seguridad/concurrencia/rendimiento. RF05/RF07, RN05/RN07/RN08/RN12/RN14; operaciones administrativas exclusivas de Administrador normal, semántica funcional sin cambios. Integración/cierre del módulo conserva fase 6 y diagrama global aplazado.
+
+**Clase de producción modificada:** AsignacionConsultorioService agrega conflictosDeTraslado: proyección de ocupación de sala destino/Médico con todas las citas relevantes, mapa de IDs trasladados, conversión UTC una vez e inicios ordenados con conjunto de intervalos abiertos. Comprueba pares que incluyan al menos una cita trasladada y retira fin <= inicio, manteniendo límites semiabiertos y conflictos completos sin consultas por cita. Continúa delegando recuperación/escritura a AsignacionConsultorioRepository y auditoría a BitacoraRepository; sin entidades, relaciones o índices nuevos. La huella sigue vinculada a todos los recursos/actor y no depende de la página.
+
+**Colaboradores existentes contrastados:** AutenticacionService/ContinuidadAdministrativaService/SesionRepository revalidan actor y contexto persistido después de coordinar, antes de negocio; versiones de Médico/configuración se releen bajo locks. Services mantienen orden administración → actor → planificación → recursos; errores GiST reconocidos se traducen centralmente por AppError, fallos SQL inesperados mantienen 500 seguro. La transacción conserva unidad de datos/versiones/historial/bitácora ante rollback posterior al evento.
+
+**Clases exclusivas de prueba:** PlanificacionGarantiasTest (matriz de 16 operaciones, errores reales PostgreSQL, semántica de barrido y medición 30/300 citas); AutenticacionConcurrenteTest (24 revocaciones tras middleware, 12 carreras horario/asignación/duración/versión compartida y 8 traslado/protocolo de reserva/atención); PausarEscrituraPlanificacionRepository deriva de BitacoraRepository solo en el worker de pruebas para detenerse después de auditoría antes de commit/fallo; EscritorPlanificacionSimulado reproduce únicamente coordinación/relectura de futuros CU-14/CU-23 y no define permisos clínicos ni endpoints. Fixtures no se registran en aplicación.
+
+**Resultados/cierre local de fase 5:** revocación de estado/rol/clave/sesión rechaza todas las operaciones probadas tras espera; ambos órdenes/rollback conservan al escritor válido y sus eventos, sin ubicaciones parciales. GiST real → 409 y SQL inesperado → 500, sin detalles internos. Medición local redujo impacto con 300 citas de 12407,93 a 222,49 ms HTTP, manteniendo 24 consultas; dentro de la regresión final dio 238,15 ms HTTP y ocupación SQL 0,131 ms/310 bloques. Barrera era cálculo en PHP, sin índices nuevos ni SLA supuesto. **53 pruebas nuevas (9 garantías/44 concurrentes); suite completa 1185 pruebas/13615 aserciones correctas**, formato/sintaxis/Composer/autoload/rutas/diff correctos; evidencia en contexto §17.80/README. Sin cambios de esquema ni avance acreditado de CU-14/CU-23/CU-28; integración/cierre del módulo mantiene fase 6 y diagrama global/PHP aplazados.
+
+## CU-12 — fase 4: horarios y duración (2026-10-21)
+
+**Implementado:** administración de horarios semanales/actividad, consulta previa de impacto y duración global. Actor Administrador con sesión normal. RF05, RN05/RN07/RN08/RN12/RN14, VS-HOR-01–04/07/09/11. Revisión transversal/integración del módulo conserva fases 5/6; búsqueda/reserva CU-13/CU-14 y scheduler CU-28 siguen sus incrementos. Contrato HTTP real en backend/README.md fase 4.
+
+| Clase real | Responsabilidad y colaboración |
+| --- | --- |
+| HorarioController | Frontera HTTP de listado, alta, edición, actividad e impacto; delega datos validados/actor implícito/contexto al Service |
+| ConfiguracionCitasController | Frontera HTTP de lectura, impacto y cambio de duración global |
+| HorarioRequest (deriva de CuentaRequest) | Lista cerrada según operación/acción: ID Médico de ruta, ID horario de ruta o propuesta de impacto, versión, horas/día/actividad y filtros. Rechaza suplantación de ruta y edición vacía |
+| ConfiguracionCitasRequest | Entrada cerrada de configuración y límites INTEGER, versión/fechas reales y paginación del impacto |
+| PlanificacionResource | Recibe proyecciones administrativas explícitas de los Services; data/links/meta y paginación de listado/diagnósticos completos |
+| HorarioService | Control de compatibilidad: versión de Médico, sala activa, duración, franjas propias/compartidas, ocupación real y cobertura de citas vigentes; evalúa también impacto, coordina persistencia/versión/auditoría atómicas |
+| ConfiguracionCitasService | Control de versión global, comprueba duración en todos los intervalos activos, coordina escritura/evento; no cambia citas previas |
+| HorarioRepository | Consulta/bloqueo de horarios propios y citas relevantes, franjas compartidas, guardado de HorarioAtencion sin reglas de autorización |
+| ConfiguracionCitasRepository | Singleton bloqueado, consulta de intervalos activos ordenados y guardado con versión monotónica |
+| IntervalosAtencion | Validador existente ampliado con conversión de horas a segundos y cálculo entero de turnos completos; reutiliza solapamiento/cobertura local de fase 3 |
+| PlanificacionRepository / MedicoRepository / ConsultorioRepository | Coordinación común, bloqueo y versión monotónica del Médico, lectura/bloqueo de sala. AutenticacionService/ContinuidadAdministrativaService revalidan actor antes de planificación |
+| HorarioAtencion / ConfiguracionClinica / Medico / Consultorio / Cita | Entidades existentes, sin columnas nuevas; solo se persisten horario/versión profesional o configuración. Cita aporta intervalo/estado/referencias administrativas mínimos |
+| BitacoraRepository / ReferenciasBitacora / BitacoraDetalleResource / RespuestaError | Eventos de horario/duración y proyecciones/filtros explícitos CU-30; errores de edición/conflicto normalizados |
+
+**Colaboración:** Route/middleware → Controller/Request → Service → Repository → Eloquent/PostgreSQL. Coordinación administrativa/actor → planificación → configuración → Médico → sala → horarios → citas. El cambio de duración solo necesita configuración y lecturas protegidas por planificación. Vista previa usa las mismas reglas y devuelve diagnóstico completo paginado; no exige huella para estos cambios y no sustituye revalidación de la escritura. Los cambios efectivos avanzan versión/evento; no-op exige versión vigente y conserva ambas cosas. Rollback posterior a auditoría preserva todo el estado previo.
+
+**Alternativos:** otro Médico inactivo con horario activo sigue reservando franja. Cita de otro Médico ocupa sala aunque su asignación actual sea distinta. Horario propio no puede perder cobertura entera de una Programada/Confirmada con fin futuro, aunque esté transcurriendo; puede desactivarse un intervalo redundante con cobertura alternativa válida. Finales/pasadas/canceladas preservan datos. Duración incompatible con cualquier intervalo activo se rechaza íntegra, incluidos Médicos inactivos; intervalos desactivados no bloquean, pero reactivarlos exige duración vigente. Horas no canónicas/IDs/campos extra → 422; horario ajeno → 404; reglas → 409. Los diagnósticos no contienen datos de Paciente o clínica.
+
+**Verificación/cierre local de fase 4:** **55 pruebas nuevas: 51 funcionales** en HorariosTest y **4 carreras** independientes PostgreSQL. Suite completa **1132 pruebas/12506 aserciones correctas**; formato/sintaxis/Composer/autoload/rutas/diff correctos, evidencia en contexto §17.79/README. Reserva concurrente usa protocolo simulado, sin acreditar CU-14. Sin cambios de esquema; DER conserva 28 entidades/243 atributos/43 relaciones. Fases 5/6 pendientes de revisión ampliada/integración; diagrama global y actualización PHP aplazados.
+
+## CU-11 — fase 3: asignación y traslado administrativo (2026-10-21)
+
+**Estado:** operaciones backend CU-11 implementadas, revisión integrada del módulo en fases 5/6. Actor Administrador normal; RF03/RF05, RN05/RN07/RN12/RN14 y VS-HOR-01/05/06/09/10. No completa CU-12 ni los flujos futuros de citas/atención/avisos. Contrato y efectos exactos en backend/README.md fase 3.
+
+| Clase real | Responsabilidad / relación |
+| --- | --- |
+| AsignacionConsultorioController | Frontera GET de asignación, POST de impacto y PUT de confirmación; delega sin Eloquent/negocio |
+| ImpactoAsignacionConsultorioRequest / ConfirmarAsignacionConsultorioRequest | DTO de entrada derivados de CuentaRequest; propuesta/versión, paginación o huella/consentimiento, campos cerrados |
+| AsignacionConsultorioResource / ImpactoAsignacionConsultorioResource | Proyección de asignación/versión y diagnóstico seguro; pagina presentación sin recortar el impacto evaluado |
+| AsignacionConsultorioService | Control del CU: actor, versiones, compatibilidad, cálculo/comparación de huella, elegibilidad/consentimiento y transacción de asignación/traslados/auditoría |
+| IntervalosAtencion | Validador de negocio puro reutilizable: solapamiento semiabierto, cobertura completa y ocupación de franja semanal local por un intervalo real incluso multidía |
+| AsignacionConsultorioRepository | Consultas de horarios/ocupación/solo existencia de consulta, bloqueo de citas, persistencia de ubicación y CambioCita por cita; sin decisión de autorización clínica |
+| PlanificacionRepository / MedicoRepository / ConsultorioRepository | Existentes de fases previas: coordinación, filas/versión de Médico y salas bloqueadas en orden |
+| Cita / CambioCita / HorarioAtencion / Medico / Consultorio | Entidades existentes; no columnas nuevas. Cita preserva versión temporal y actualiza solo ubicación/actualizada_en; CambioCita añade historia inmutable |
+| ConsultaMedica / Recordatorio | Consulta existente deniega traslado sin leer clínica; aviso obtiene ubicación desde Cita sin copiarla ni generar nueva versión/lectura |
+| BitacoraRepository / ReferenciasBitacora / BitacoraDetalleResource | Evento MEDICO_CONSULTORIO_CAMBIADO y proyección explícita de referencias/antes/despues/cantidad, sin valores clínicos |
+
+**Flujo principal:** actor → Controller/Request → AsignacionConsultorioService → repositorios/modelos/PostgreSQL. Previsualización y confirmación comparten evaluación bajo coordinación administrativa/actor → planificación → Médico → salas por ID → citas por ID. El diagnóstico puede paginarse, pero su huella incorpora todo el estado relevante y está vinculada al actor/destino. Confirmar exige versión/huella vigentes, ausencia de conflictos y consentimiento si se trasladan citas. Se persisten todos los cambios y el evento juntos; un fallo revierte Médico, ubicaciones, CambioCita y bitácora.
+
+**Alternativos:** destino inactivo/conflictos → diagnóstico 200 no confirmable; escritura 409. Un Médico inactivo conserva horarios activos reservados. Citas de otros médicos ocupan sala incluso si la asignación actual ya es distinta. Cita futura fuera de cobertura o atención iniciada/documentada impide cambio; iniciada_en NULL no autoriza traslado. Pasadas/finales no se modifican. No-op con huella/versión vigentes no avanza versión ni reescribe snapshots por renombrado. Nueva cita/consulta/cambio de sala/horario u otra elegibilidad temporal invalidan la huella. No se registra información clínica en salida, huella o bitácora.
+
+**Verificación/cierre local de fase 3:** 42 pruebas funcionales y 5 carreras PostgreSQL independientes nuevas; cobertura de intervalos contiguos/multidía, páginas, historia/avisos, rollback y límites de autorización. Suite completa **1077 pruebas/11943 aserciones correctas**; formato/sintaxis/autoload/rutas/diff correctos, evidencia en contexto §17.78/README. Reserva y atención concurrentes usan escritores de protocolo simulados, sin acreditar sus endpoints. Sin cambios físicos/DER de atributos; efectos de persistencia documentados. Diagrama global y actualización PHP siguen aplazados.
+
+## CU-11 — fase 2: catálogo administrativo de consultorios (2026-10-21)
+
+**Implementado parcialmente:** Administrador normal mantiene catálogo/estado; asignación/traslado conservan fase 3. RF03/RF05, RN12/RN14, VS-HOR-10. API y límites en backend/README.md fase 2. No se declara CU-11 completo ni CU-12 implementado.
+
+| Clase real | Capa y colaboración |
+| --- | --- |
+| ConsultorioController | Frontera HTTP; cinco acciones con DI del Service, sin consultas/negocio |
+| CrearConsultorioRequest / ListarConsultoriosRequest | DTO/FormRequest; validación estructural y listas cerradas de datos/filtros |
+| ActualizarConsultorioRequest / CambiarEstadoConsultorioRequest | DTO derivados de CuentaRequest real de usuarios; ID de ruta, versión original y campos permitidos |
+| ConsultorioResource | Proyección explícita de ID textual/código/nombre/activo/versión y cantidades cuando están cargadas; sin expandir entidades clínicas |
+| ConsultorioService | Autorización revalidada, transacciones, comparación de versión/no-op, reglas de desactivación, traducción de unicidad conocida y auditoría |
+| ConsultorioRepository | Listado literal/paginación, locks, resumen de asignaciones/citas vigentes y guardado con versión monotónica |
+| PlanificacionRepository (horarios/) | Coordinación PostgreSQL (736201,2) concreta reutilizable; no implementa reglas de CU-12 |
+| Consultorio | Entidad existente con nuevo cast/versionado actualizado_en; relaciones medicos/citas existentes |
+| AutenticacionService / ContinuidadAdministrativaService | Se reutilizan desde usuarios para actor/sesión normal y coordinación antes de planificación |
+| BitacoraRepository / ReferenciasBitacora / BitacoraDetalleResource / RespuestaError | Colaboradores existentes ampliados para eventos/referencias/campos Consultorio y errores 409 específicos |
+
+**Flujo:** Administrador → Route/middleware → Controller/Request → ConsultorioService → ConsultorioRepository → Consultorio/PostgreSQL. Dentro de DB::transaction: coordinación administrativa → actor bloqueado/revalidado → planificación → consultorio. Versión antigua falla incluso en no-op. Desactivar consulta asignaciones de cualquier Médico y citas Programadas/Confirmadas con fin_at > ahora, incluido intervalo en curso aunque su Médico ya esté asignado a otro consultorio. No basta comprobar medicos.activo ni la asignación actual. Errores centralizados, sin try/catch de reenvío en Controller.
+
+**Efectos:** cambios efectivos avanzan versión/auditoría atómicos; no-op no duplica eventos. Código único exacto, nombre no único. Catálogo no modifica ubicación histórica ni futura de citas, estado de Médico/horario, recordatorios o cuenta; traslado requiere fase 3. Datos de auditoría: responsable/contexto, id_consultorio y nombres de campos, sin texto libre del catálogo. CU-30 filtra/proyecta explícitamente Consultorio.
+
+**Persistencia/verificación:** migración 000033 aditiva, DER §§3.12/6.19 actualizado a 243 atributos. 39 pruebas funcionales y 4 concurrentes nuevas en base/esquemas aislados; suite completa **1030 pruebas/11417 aserciones correctas**, formato/sintaxis/Composer/rutas/diff correctos. Escenarios y resultados finales en README/contexto §17.77; fase 2 cerrada localmente. Sin frontend, despliegue ni aplicación a base habitual. Diagrama global continúa aplazado.
+
+## CU-11/CU-12 — fase 1: análisis de diseño backend (2026-10-21)
+
+**Estado:** participantes y colaboraciones **previstos**, no clases ni endpoints nuevos implementados. Actor Administrador con sesión normal. Objetivo: consultorios/asignación fija compatible, horarios semanales y duración global sin alterar historia ni invalidar citas. RF03/RF05/RF07; RN05/RN07/RN08/RN12/RN14 y VS-HOR-01–11. Contrato técnico completo y fases 1–6 en `backend/README.md`, apartado «Consultorios y horarios CU-11/CU-12 — fase 1».
+
+| Participante | Existencia / responsabilidad |
+| --- | --- |
+| ConsultorioController y Requests/Resources de consultorios | Previstos: frontera HTTP del catálogo/estado y asignación/impacto; entrada cerrada, datos mínimos |
+| ConsultorioService / AsignacionConsultorioService | Previstos: reglas de estado, consulta de impacto y confirmación de ubicación atómica |
+| ConsultorioRepository | Previsto: catálogo, bloqueos, asignaciones y persistencia de ubicación/historial administrativo |
+| HorarioController / ConfiguracionCitasController y Requests/Resources | Previstos: frontera HTTP de intervalos/actividad/impacto y duración global |
+| HorarioService / ConfiguracionCitasService | Previstos: compatibilidad semanal, cobertura de citas vigentes, independencia de actividades y duración compatible con todos los intervalos activos |
+| HorarioRepository / ConfiguracionCitasRepository | Previstos: intervalos, configuración singleton, ocupación real y coordinación transaccional de planificación |
+| AutenticacionService / ContinuidadAdministrativaService | Existentes: sesión normal, actor revalidado y coordinación administrativa; se reutilizan |
+| MedicoRepository / BitacoraRepository / RespuestaError | Existentes: bloqueo/versión del Médico, eventos y errores centralizados. Ampliaciones específicas de eventos/proyecciones/códigos pendientes |
+| Consultorio / Medico / HorarioAtencion / ConfiguracionClinica | Modelos existentes: asignación/intervalos y duración; solo Consultorio requiere atributo de versión nuevo previsto |
+| Cita / CambioCita / ConsultaMedica / Recordatorio | Modelos existentes: intervalos/ubicación almacenada, historia inmutable, impedimento por atención documentada y avisos ligados a cita |
+
+**CU-11:** Route/middleware → Controller/Request → Service → Repositories → modelos/PostgreSQL. La vista previa pagina cambios/conflictos mínimos pero calcula huella sobre el conjunto completo. Confirmación exige huella/versión y consentimiento de traslados; bajo locks revalida impacto y atención documentada, actualiza asignación/ubicación de citas elegibles, historial y bitácora en una transacción. No devuelve información clínica ni concede reprogramación. Consultorio con cualquier Médico asignado u obligación futura no se desactiva. No-op vigente no duplica eventos.
+
+**CU-12:** Service valida intervalos locales, duración y ocupación de ambos recursos. Un Médico inactivo conserva horarios; todo horario activo reserva franja hasta cambio explícito compatible con citas. Reactivar Médico no reactiva horarios. Las escrituras de horarios avanzan la versión del Médico; duración global usa la versión existente de configuración y debe caber en todos los intervalos activos, sin exigir múltiplos exactos. No modifica duraciones previas. Consultar impacto no modifica datos.
+
+**Coordinación diseñada:** lock administrativo existente → actor → lock compartido de planificación → configuración → Médicos → consultorios → demás recursos ordenados. Complementa exclusiones GiST de citas existentes; los CHECK/índice actuales de HorarioAtencion no protegen ocupación semanal entre médicos. Futuras reservas/reprogramaciones/atenciones deben respetar el mismo protocolo antes de bloquear recursos; se verificarán como integraciones reales al implementarlas. Hoy no se atribuyen esas garantías a endpoints inexistentes.
+
+**Persistencia/avisos:** migración aditiva de consultorios.actualizado_en prevista para fase 2, no creada/aplicada. Horarios usan versión del Médico sin columna extra. Cambio solo de ubicación conserva version_programacion y avisos existentes, cuyos lectores obtendrán ubicación mediante Cita; la tabla Recordatorio no guarda texto de ubicación. Mantiene datos históricos y estados; no implementa scheduler CU-28.
+
+**Cierre de fase 1:** revisión documental/estática, sin pruebas funcionales nuevas porque aún no hay código nuevo. CU-11/CU-12 continúan pendientes de implementación; DER físico sin cambios y diagrama global expresamente aplazado.
+
 > **Ruta canónica:** `docs/ai/analisis-clases.md`  
-> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo y frontend fases 1–5 implementados con integración local); Bitácora (`CU-30`, backend fases 1–5 completado/verificado localmente, frontend/producción pendientes). Consultorios/horarios/agenda posteriores y diagrama global aplazado.
+> **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo y frontend fases 1–5 implementados con integración local); Bitácora (`CU-30`, backend fases 1–5 completado/verificado localmente, frontend/producción pendientes); Consultorios y horarios (`CU-11`/`CU-12`, backend administrativo fases 1–6 completado, integrado y verificado localmente; frontend/producción pendientes). Agenda posterior y diagrama global aplazado.
 > **Avance:** Usuarios backend fases 0–8, incluidas 7A/7B; Pacientes backend/frontend fases 1–6 revisados el 2026-10-20. Plan frontend de gestión administrativa, perfil y correo completado con integración real local. Consulta histórica de citas conserva dependencia de CU-21; no se acredita RF02 íntegro ni producción/Brevo real.
 > **Estado:** backend de Usuarios y autenticación cerrado con revisión integrada de fase 8. React fases 1–6 implementadas, revisión del cliente con 213 pruebas y AUT-21 local aprobada en Chrome/Laravel/PostgreSQL reales (§17.34 del contexto). Incluye sesión, contraseñas, cuentas y registro/vinculación con emisión presencial de Recepción. Correo capturado localmente: aceptación/entrega real Brevo y comprobación de producción pendientes. `diagrama-clases.md` aplazado por solicitud expresa del usuario.
 > **Presentación aprobada:** ACTOR → BOUNDARY → CONTROL → ENTITY; un bloque CONTROL por diagrama, métodos principales sin clase, parámetros ni retorno, y atributos seleccionados por procedimiento.

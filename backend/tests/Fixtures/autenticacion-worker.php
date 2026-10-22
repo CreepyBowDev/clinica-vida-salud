@@ -11,8 +11,10 @@ use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Tests\Fixtures\EscritorPlanificacionSimulado;
 use Tests\Fixtures\PausarCambioClave;
 use Tests\Fixtures\PausarConsultaBitacora;
+use Tests\Fixtures\PausarEscrituraPlanificacionRepository;
 use Tests\Fixtures\PausarLecturaBitacoraRepository;
 use Tests\Fixtures\PausarRespuestaAutenticacion;
 
@@ -80,13 +82,16 @@ try {
     if ($data['mode'] === 'bitacora-lectura') {
         $app->instance(BitacoraRepository::class, new PausarLecturaBitacoraRepository);
     }
+    if ($data['pausar_planificacion'] ?? false) {
+        $app->instance(BitacoraRepository::class, new PausarEscrituraPlanificacionRepository);
+    }
     echo json_encode(['ready' => DB::selectOne('SELECT pg_backend_pid() AS pid')->pid]), "\n";
     fflush(STDOUT);
     if (trim(fgets(STDIN)) !== 'INICIAR') {
         throw new RuntimeException('Falta barrera de inicio.');
     }
     $cookies = $data['cookies'] ?? [];
-    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-') || str_starts_with($data['mode'], 'especialidad-') || str_starts_with($data['mode'], 'medico-') || $data['mode'] === 'invitacion-aceptar') {
+    if (str_starts_with($data['mode'], 'password') || str_starts_with($data['mode'], 'personal') || str_starts_with($data['mode'], 'cuenta-') || str_starts_with($data['mode'], 'recuperacion-') || str_starts_with($data['mode'], 'temporal-') || str_starts_with($data['mode'], 'registro-') || str_starts_with($data['mode'], 'paciente-') || str_starts_with($data['mode'], 'especialidad-') || str_starts_with($data['mode'], 'medico-') || str_starts_with($data['mode'], 'consultorio-') || str_starts_with($data['mode'], 'horario-') || $data['mode'] === 'configuracion-citas' || $data['mode'] === 'invitacion-aceptar') {
         // Ya se validó la identidad PostgreSQL aislada; ejercitar ahora CSRF real.
         $app['env'] = 'local';
     }
@@ -126,6 +131,7 @@ try {
         });
     };
     $response = match (true) {
+        $data['mode'] === 'planificacion-protocolo' => EscritorPlanificacionSimulado::ejecutar($data),
         str_starts_with($data['mode'], 'bitacora-') => $send('GET', $data['ruta']),
         $data['mode'] === 'medico-reserva-protocolo' => $reservaMedico(),
         $data['mode'] === 'medico-crear' => $send('POST', '/api/medicos', $data['payload']),
@@ -133,6 +139,15 @@ try {
         $data['mode'] === 'medico-estado' => $send('PATCH', '/api/medicos/'.$data['id_objetivo'].'/estado', $data['payload']),
         $data['mode'] === 'medico-especialidades' => $send('PUT', '/api/medicos/'.$data['id_objetivo'].'/especialidades', $data['payload']),
         $data['mode'] === 'especialidad-crear' => $send('POST', '/api/especialidades', $data['payload']),
+        $data['mode'] === 'consultorio-crear' => $send('POST', '/api/consultorios', $data['payload']),
+        $data['mode'] === 'consultorio-editar' => $send('PATCH', '/api/consultorios/'.$data['id_objetivo'], $data['payload']),
+        $data['mode'] === 'consultorio-estado' => $send('PATCH', '/api/consultorios/'.$data['id_objetivo'].'/estado', $data['payload']),
+        $data['mode'] === 'consultorio-asignar' => $send('PUT', '/api/medicos/'.$data['id_objetivo'].'/consultorio', $data['payload']),
+        $data['mode'] === 'consultorio-lectura' => $send($data['metodo'], $data['ruta'], $data['payload'] ?? []),
+        $data['mode'] === 'horario-crear' => $send('POST', '/api/medicos/'.$data['id_objetivo'].'/horarios', $data['payload']),
+        $data['mode'] === 'horario-estado' => $send('PATCH', '/api/medicos/'.$data['id_objetivo'].'/horarios/'.$data['id_horario'].'/estado', $data['payload']),
+        $data['mode'] === 'horario-editar' => $send('PATCH', '/api/medicos/'.$data['id_objetivo'].'/horarios/'.$data['id_horario'], $data['payload']),
+        $data['mode'] === 'configuracion-citas' => $send('PATCH', '/api/configuracion-citas', $data['payload']),
         $data['mode'] === 'especialidad-editar' => $send('PATCH', '/api/especialidades/'.$data['id_objetivo'], $data['payload']),
         $data['mode'] === 'especialidad-estado' => $send('PATCH', '/api/especialidades/'.$data['id_objetivo'].'/estado', $data['payload']),
         in_array($data['mode'], ['paciente-correo', 'paciente-correo-pausa'], true) => $send('POST', '/api/mi-perfil/correo', $data['payload']),
@@ -158,6 +173,9 @@ try {
         default => $send('POST', '/api/auth/login', ['correo_acceso' => $data['correo'], 'password' => $data['password']]),
     };
     $result = ['status' => $response->getStatusCode()];
+    if (str_starts_with($data['mode'], 'consultorio-') || str_starts_with($data['mode'], 'horario-') || in_array($data['mode'], ['configuracion-citas', 'planificacion-protocolo'], true)) {
+        $result['code'] = json_decode($response->getContent(), true)['error']['code'] ?? null;
+    }
     if (str_starts_with($data['mode'], 'paciente-correo')) {
         $result['envio'] = json_decode($response->getContent(), true)['data']['envio'] ?? null;
     }

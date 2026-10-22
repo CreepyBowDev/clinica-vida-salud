@@ -4,7 +4,7 @@
 > **Proyecto:** Sistema Web para la Gestión de Citas Médicas para la Clínica Vida Salud  
 > **Fuente estructural primaria:** `DER_Clinica_Vida_Salud_Reorganizado_Corregido(2).drawio` (archivo recibido, **dos pestañas**, **28 entidades**, **239 atributos** y **43 relaciones gráficas**)  
 > **Referencia académica:** `Clinica_Vida_Salud_Coherencia_Actualizada(2).pdf` (117 páginas) y enunciado oficial del Segundo Parcial de Ingeniería de Requisitos  
-> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.18. Esquema con migraciones 000030–000032: **28 entidades, 242 atributos y 43 relaciones**; la fuente original de 239 atributos se conserva como antecedente.
+> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.19. Esquema con migración 000033: **28 entidades, 243 atributos y 43 relaciones**; la fuente original de 239 atributos se conserva como antecedente.
 
 ## 1. Propósito, precedencia y reglas de uso
 
@@ -248,6 +248,7 @@ Exactamente uno, compatible con `proposito`: `ActivacionPaciente` exige `id_regi
 | UQ | `codigo_consultorio` | `String` | No | — | — |
 | — | `nombre` | `String` | No | — | — |
 | — | `activo` | `Boolean` | No | — | — |
+| — | `actualizado_en` | `TimestampTZ(6)` | No | — | Extensión técnica CU-11 fase 2, migración 000033: versión de edición con avance monotónico; no modifica ubicación de citas. |
 
 ### 3.13. `Medico`
 
@@ -686,6 +687,8 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Medico.id_consultorio admite NULL durante el alta por CU-10. CU-11 asigna un consultorio fijo válido antes de horarios reservables o nuevas citas. Varios Médicos pueden compartirlo solo con horarios compatibles.
 - HorarioAtencion admite varios intervalos por Médico; dia_semana utiliza 1=lunes a 7=domingo y hora_fin debe ser posterior a hora_inicio.
 - ConfiguracionClinica tiene una sola fila (id_configuracion=1), zona America/La_Paz y duración inicial de quince minutos, configurable y siempre positiva.
+- **Concreción aprobada 2026-10-21 (CU-11/CU-12):** Medico.activo y HorarioAtencion.activo son independientes. Inactivar al profesional no altera horarios; cada horario activo sigue reservando franja administrativa hasta modificación/desactivación expresa compatible con citas vigentes. Desactivarlo no libera ocupación de citas existentes; reactivar al Médico no reactiva horarios. Desactivar Consultorio se rechaza con Médicos asignados u obligaciones futuras. La duración global debe caber en todos los intervalos activos, sin exigir múltiplo exacto y sin cambiar citas existentes. Reglas a implementar en Services/transacciones; las columnas booleanas existentes no garantizan su cumplimiento.
+- **Persistencia CU-11/CU-12:** consultorios.actualizado_en TIMESTAMPTZ(6) NOT NULL implementado en fase 2 mediante migración aditiva 000033 con inicialización de existentes (§6.19). Horarios/asignaciones usarán medicos.actualizado_en y duración usará configuracion_clinica.actualizado_en ya existentes. No se añade versión a cada horario ni se duplica consultorio en él. El inventario con 000033 tiene 28 entidades/243 atributos/43 relaciones.
 - No se inventa una dirección física: direccion_sede es opcional hasta contar con información real. No existe un catálogo de sedes múltiples.
 - Un cambio de horario se rechaza íntegramente si perjudica citas futuras. No reprograma ni cancela citas automáticamente.
 - Cambiar consultorio fijo valida horarios compartidos y citas futuras. Solo actualiza ubicación de Programadas o Confirmadas sin atención iniciada, en una operación atómica. Una ConsultaMedica que documenta atención real impide ese cambio aunque iniciada_en sea NULL; aplicar §5.7, sin inferir ausencia de atención del estado de Cita.
@@ -707,6 +710,7 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Cancelada no ocupa disponibilidad. Los registros Atendida e Inasistencia no se reutilizan para reservar su intervalo; no se elimina ni altera su atención histórica.
 - Diseño físico: transacciones coordinadas y restricciones para RF07/RN07/RN13; una consulta previa o transacción sin coordinación no basta. Se evaluarán exclusiones de rangos temporales por Médico y consultorio, con intervalos [inicio,fin).
 - CambioCita conserva autor, fecha, operación, estados y valores administrativos anteriores/nuevos. No guarda diagnósticos ni sustituye las versiones clínicas.
+- **Implementado en CU-11 fase 3 (2026-10-21):** el traslado de ubicación actualiza id_consultorio/consultorio_atencion/actualizada_en de citas elegibles y añade CambioCita sin cambiar sus tiempos/estado. Conserva version_programacion en este cambio exclusivamente de ubicación; Recordatorio referencia Cita sin texto materializado de ubicación, por lo que el lector obtiene ubicación vigente desde esa relación, sin duplicar avisos. Contrato y revalidación concurrente en backend/README.md; esquema sin cambios adicionales.
 - No se eliminan pacientes, médicos, especialidades, consultorios ni horarios referidos por historia; se desactivan y se restringen eliminaciones en cascada.
 - Las restricciones de exclusión, si se adoptan, usarán tipos y operadores compatibles con PostgreSQL y excluirán Cancelada de la ocupación. Horario completo, vigencia de catálogos y cambios concurrentes requieren coordinación adicional; no se declaran implementadas.
 
@@ -1327,7 +1331,23 @@ Service conserva mínimo un par habilitado y compara versión bajo lock de Médi
 
 **Integración fase 5 (2026-10-21), sin cambios estructurales:** MedicosEspecialidadesIntegracionTest verifica alta administrativa con asociaciones y vinculación posterior por invitación CU-03 sin duplicar Médico, y mantenimiento de ficha con cita/consulta/versiones/antecedentes/laboratorio conservados. Dos recorridos/140 aserciones correctos con todas las migraciones en esquemas aislados; no se migró base habitual/Railway. Se confirma separación de Usuario/Medico/Especialidad/MedicoEspecialidad y preservación de pares/FK al retirar/rehabilitar. Esquema final de este backend: 28 entidades/242 atributos/43 relaciones. Evidencia global final en contexto §17.59/README; agenda/reserva mantienen sus desarrollos posteriores.
 
+### 6.19. Consultorios CU-11 — catálogo/versionado, fase 2 (2026-10-21)
+
+Migración `2026_10_21_000033_add_actualizado_en_to_consultorios.php`: agrega actualizado_en TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, conserva PK/UQ exacta de código, atributos/FK y asignaciones/instantáneas de citas existentes. Verificada inicialización de filas previas y precisión/default/nullabilidad en PostgreSQL aislado. Modelo Consultorio conserva timestamps=false y añade cast immutable_datetime/formato de microsegundos; el Repository actualiza versión explícita y monotónicamente.
+
+Catálogo/estado exclusivos de Administrador normal implementados: rechazo atómico por cualquier Médico asignado (activo o inactivo) o cita Programada/Confirmada con fin_at posterior al instante del servidor. ConsultorioRepository consulta cantidades sin expandir clínica. Código/nombre editables no reescriben citas/historial/avisos. Bitácora almacena referencia y campos modificados, no valores libres; consulta CU-30 incorpora Consultorio en sus listas permitidas. PlanificacionRepository usa advisory lock transaccional compartido (736201,2), después de actor/coordinación administrativa y antes de consultorio.
+
+Esquema con 000033: **28 entidades/243 atributos/43 relaciones**. No se creó tabla, relación ni índice extra. Migración probada solo en base/esquemas aislados; aplicación en base habitual/Railway pendiente. Asignación/traslados de CU-11, horarios/duración CU-12 y consumidores futuros conservan sus fases posteriores; no se acredita módulo completo.
+
+**CU-11 fase 3 (2026-10-21), sin cambios estructurales adicionales:** AsignacionConsultorioService/Repository reutilizan filas/relaciones existentes y coordinación de planificación para GET/impacto/confirmación. Validan horarios activos y citas reales no Canceladas con fin_at > ahora; consulta existente bloquea traslado incluso con inicio desconocido. Confirmación actualiza asignación/versión de Médico y ubicación/actualizada_en de todas las citas futuras elegibles, preserva version_programacion y recordatorios, y añade CambioCita/bitácora atómicos. Huella del impacto completo detecta cambios entre consulta/confirmación sin tabla de reserva. Historia final/pasada conservada. Pruebas de preservación/rollback y procesos independientes; reserva/consulta concurrentes son simulaciones del protocolo de futuros CU-14/CU-23. Continúan 28 entidades/243 atributos/43 relaciones; evidencia final en contexto §17.78.
+
 ## 7. Validaciones de aceptación antes de implementar casos de uso
+
+**CU-11/CU-12 fase 6 (2026-10-22), sin cambios estructurales:** integración real de API/cookies/sesiones y productores CU-30 con fixtures aislados de citas/avisos/clínica. Traslado efectivo modifica solo ubicación/actualizada_en y crea CambioCita; cambio exclusivamente de catálogo/no-op no reescribe instantáneas. Recordatorio.cita devuelve ubicación vigente sin duplicar aviso/versión/lectura. Cambio administrativo posterior a atención histórica conserva byte a byte filas de consulta/versiones/antecedentes/laboratorio/documentos/revisión; no acredita sus endpoints. Persisten 28 entidades/243 atributos/43 relaciones con 000033 previa. Evidencia/regresión en contexto §17.81/README; base habitual/Railway no comprobadas.
+
+**CU-11/CU-12 fase 5 (2026-10-21), esquema conservado:** pruebas de revocación del actor/sesión y escrituras concurrentes/rollback verifican el protocolo de bloqueo, las versiones existentes y la atomicidad de ubicación/CambioCita/bitácora. Inyección tardía de ocupación ejerce exclusión GiST real, sin restricciones nuevas. EXPLAIN de 300 citas ficticias mostró ~0,125 ms/310 bloques; el coste observado estaba en el cálculo del Service, optimizado mediante barrido de intervalos, sin índices/migraciones nuevos. Continúan 28 entidades/243 atributos/43 relaciones. Reserva/atención concurrentes son fixtures de protocolo, no endpoints implementados. Evidencia y regresión en contexto §17.80/README.
+
+**CU-12 fase 4 (2026-10-21), sin cambios estructurales:** HorarioRepository/ConfiguracionCitasRepository reutilizan horarios_atencion y singleton configuracion_clinica; cada cambio efectivo de horario avanza medicos.actualizado_en, duración usa configuracion_clinica.actualizado_en monotónico. Se consulta Cita solo con proyección administrativa mínima para ocupación/cobertura, sin modificarla ni cambiar CambioCita/Recordatorio. Eventos de horario/duración y versiones se confirman en la misma transacción; impacto no persiste reservas. Coordinación común de planificación protege lecturas semanales entre tablas y duración frente a horarios nuevos. Duración debe caber en cada horario activo, incluido Médico inactivo; desactivar requiere cobertura completa de citas vigentes. Continúan 28 entidades/243 atributos/43 relaciones, sin migraciones adicionales. Contratos/pruebas/resultados de fase en backend/README.md y contexto §17.79.
 
 Esta matriz sirve para revisar **migraciones**, **modelos**, **servicios** y **pruebas** cuando existan. No implica que hoy se hayan ejecutado.
 
@@ -1393,7 +1413,7 @@ RN01–RN14 permanecen como reglas **oficiales**, sin renumeración; las demás 
 
 ## 10. Control de integridad final de esta documentación
 
-- **28 entidades**, **239 atributos originales** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada. Las extensiones técnicas CU-09/CU-10 (§§3.13–3.15 y 6.16–6.18) agregan actualizado_en a Especialidad/Medico y habilitada al pivote: **242 atributos en el esquema con migraciones 000030–000032**, sin nuevas entidades/relaciones.
+- **28 entidades**, **239 atributos originales** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada. Las extensiones técnicas CU-09/CU-10 (§§3.13–3.15 y 6.16–6.18) agregan actualizado_en a Especialidad/Medico y habilitada al pivote (242 atributos con 000030–000032). CU-11 fase 2 (§§3.12/6.19) agrega actualizado_en a Consultorio: **243 atributos con 000033**, sin nuevas entidades/relaciones.
 - Se conservan todos los identificadores, FK simples y compuestas, restricciones UQ y atributos opcionales indicados en el Draw.io. Las listas cerradas se conservan salvo la ampliación expresamente aprobada de `TokenAcceso.proposito` con `CredencialTemporal`, identificada en §§3.4 y 6.15; no se presenta como parte del original.
 - La documentación distingue los datos fuente de las **orientaciones propuestas para Laravel/PostgreSQL**.
 - La elaboración inicial del diccionario no generó código ni migraciones. La infraestructura de fase 0 (§6.6.5) y las migraciones verificadas de fases 1–7 (§6.7–§6.13) completan la preparación de datos, diferenciada de los CU/módulos funcionales pendientes.

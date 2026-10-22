@@ -32,7 +32,7 @@ class CatalogosInicialesTest extends TestCase
         $columns = [
             'roles' => ['id_rol', 'nombre'],
             'controles_intentos' => ['id_control', 'clave_ambito_hash', 'inicio_ventana', 'cantidad_intentos', 'bloqueado_hasta', 'actualizado_en'],
-            'consultorios' => ['id_consultorio', 'codigo_consultorio', 'nombre', 'activo'],
+            'consultorios' => ['id_consultorio', 'codigo_consultorio', 'nombre', 'activo', 'actualizado_en'],
             // CU-09 incorpora versionado mediante la migración aditiva 000030.
             'especialidades' => ['id_especialidad', 'nombre', 'descripcion', 'activa', 'actualizado_en'],
             'configuracion_clinica' => ['id_configuracion', 'nombre_sede', 'direccion_sede', 'zona_horaria', 'duracion_turno_minutos', 'actualizado_en'],

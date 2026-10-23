@@ -46,6 +46,12 @@ import HorariosPage from '../features/horarios/pages/HorariosPage';
 import HorariosMedicoPage from '../features/horarios/pages/HorariosMedicoPage';
 import ConfiguracionCitasPage from '../features/horarios/pages/ConfiguracionCitasPage';
 import ReservarCitaPage from '../features/citas/pages/ReservarCitaPage';
+import CitaDetallePage from '../features/agenda/pages/CitaDetallePage';
+import AgendaPage from '../features/agenda/pages/AgendaPage';
+import AgendaWorkspace from '../features/agenda/components/AgendaWorkspace';
+import HistorialCitasPage from '../features/agenda/pages/HistorialCitasPage';
+import MisCitasPage from '../features/agenda/pages/MisCitasPage';
+import SeleccionarPacienteHistorialPage from '../features/agenda/pages/SeleccionarPacienteHistorialPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -68,8 +74,21 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
     children: [{ element: <MainLayout />, children: [
       { path: '/inicio', element: <HomePage /> },
       { path: '/mi-cuenta/contrasena', element: <ChangePasswordPage /> },
+      { element: <AgendaWorkspace />, children: [
+        { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA, ROLES.MEDICO]} />, children: [{ path: '/agenda', element: <AgendaPage /> }] },
+        { element: <RoleRoute roles={Object.values(ROLES)} />, children: [{ path: '/citas/:id', element: <CitaDetallePage /> }] },
+        { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [
+          { path: '/mis-citas', element: <MisCitasPage /> },
+          { path: '/mis-citas/:id', element: <CitaDetallePage origin="mis-citas" /> },
+        ] },
+        { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [
+          { path: '/recepcion/pacientes/:id/citas', element: <HistorialCitasPage /> },
+          { path: '/recepcion/historial-citas/:id', element: <CitaDetallePage origin="historial" /> },
+        ] },
+      ] },
       { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [{ path: '/reservar-cita', element: <ReservarCitaPage /> }, { path: '/mi-perfil', element: <MyProfilePage /> }, { path: '/mi-perfil/correo', element: <ChangeEmailPage /> }] },
       { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [
+        { path: '/recepcion/historial-citas', element: <SeleccionarPacienteHistorialPage /> },
         { path: '/recepcion/citas/nueva', element: <ReservarCitaPage /> },
         { path: '/recepcion/activacion-web', element: <ActivationCodePage /> },
         { path: '/recepcion/pacientes', element: <PatientsPage /> },

@@ -10,7 +10,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     const patterns = NAVIGATION.flatMap(module => module.items.flatMap(item => item.patterns ?? []));
     expect(patterns.every(pattern => actual.includes(pattern))).toBe(true);
     const roots = ['/inicio', ...Object.values(AREAS).map(area => area.path)];
-    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita)(\/|$)/.test(path));
+    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|citas|mis-citas)(\/|$)/.test(path));
     expect([...patterns].sort()).toEqual(protectedPaths.sort());
   });
   it('conserva los treinta CU sin convertir acciones o flujos públicos en páginas protegidas', () => {
@@ -37,6 +37,12 @@ describe('catálogo de navegación por responsabilidad', () => {
     [ROLES.RECEPCIONISTA, '/recepcion/citas/nueva', 'reserva', 'programar', 'Programar cita'],
     [ROLES.PACIENTE, '/mi-perfil/correo', 'pacientes', 'perfil', 'Cambiar correo de acceso'],
     [ROLES.PACIENTE, '/reservar-cita', 'reserva', 'reservar', 'Reservar cita'],
+    [ROLES.MEDICO, '/agenda', 'agenda', 'agenda', 'Consultar agenda médica'],
+    [ROLES.RECEPCIONISTA, '/recepcion/historial-citas', 'agenda', 'historial', 'Consultar historial de citas'],
+    [ROLES.RECEPCIONISTA, '/recepcion/pacientes/42/citas', 'agenda', 'historial', 'Historial de citas'],
+    [ROLES.RECEPCIONISTA, '/recepcion/historial-citas/42', 'agenda', 'historial', 'Detalle de cita'],
+    [ROLES.PACIENTE, '/mis-citas', 'agenda', 'mis-citas', 'Mis citas'],
+    [ROLES.PACIENTE, '/mis-citas/42', 'agenda', 'mis-citas', 'Detalle de cita'],
   ])('%s: %s reconoce módulo, función y contexto', (role, path, moduleId, itemId, title) => {
     const active = navigationAtPath(navigationForRole(role), path);
     expect(active.module.id).toBe(moduleId); expect(active.item.id).toBe(itemId);
@@ -52,6 +58,12 @@ describe('catálogo de navegación por responsabilidad', () => {
     const items = NAVIGATION.flatMap(module => module.items);
     expect(items.find(item => item.cases.includes('CU-18'))).toMatchObject({ id: 'inasistencia', roles: [ROLES.RECEPCIONISTA] });
     expect(items.find(item => item.cases.includes('CU-19'))).toMatchObject({ id: 'atendida', roles: [ROLES.MEDICO] });
+  });
+  it.each(Object.values(ROLES))('%s reconoce detalle directo sin duplicar enlaces', role => {
+    const active = navigationAtPath(navigationForRole(role), '/citas/17');
+    expect(active.module.id).toBe('agenda'); expect(active.item.kind).toBe(role === ROLES.PACIENTE ? 'context' : 'page');
+    expect(navigationTitle('/citas/17', active, AREAS[role])).toBe('Detalle de cita');
+    expect(NAVIGATION.find(module => module.id === 'agenda').items.find(item => item.id === 'historial').kind).toBe('page');
   });
   it.each([
     [ROLES.MEDICO, '/administracion/cuentas'],

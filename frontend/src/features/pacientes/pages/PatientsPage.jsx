@@ -14,7 +14,7 @@ import { usePatientQuery } from '../hooks/usePatientQuery';
 import '../styles/patients.css';
 
 const empty = { documento_identidad: '', nombres: '', apellidos: '', activo: '' };
-export default function PatientsPage() {
+export default function PatientsPage({ historial = false }) {
   const [draft, setDraft] = useState(empty);
   const [filters, setFilters] = useState({ ...empty, page: 1 });
   const { data, failure, loading, reload } = usePatientQuery('list', filters);
@@ -22,7 +22,9 @@ export default function PatientsPage() {
   const field = name => ({ value: draft[name], onChange: event => setDraft({ ...draft, [name]: event.target.value }), error: failure?.fields[name] });
   const paginate = page => { setFilters({ ...filters, page }); results.current?.focus(); };
   return <section className="workspace-page patients-page">
-    <PageHeading title="Pacientes" description="Busca y consulta las fichas administrativas de la clínica." actions={<Link className="button button--primary" to="/recepcion/pacientes/nuevo"><Icon name="user" />Registrar paciente</Link>} />
+    <PageHeading title={historial ? 'Seleccionar paciente para consultar historial' : 'Pacientes'}
+      description={historial ? 'Busca al paciente, abre su ficha y selecciona Consultar historial de citas. También puedes consultar fichas inactivas o sin cuenta web.' : 'Busca y consulta las fichas administrativas de la clínica.'}
+      actions={!historial && <Link className="button button--primary" to="/recepcion/pacientes/nuevo"><Icon name="user" />Registrar paciente</Link>} />
     <form className="patients-filters" aria-label="Buscar pacientes" onSubmit={event => {
       event.preventDefault();
       setFilters({ documento_identidad: draft.documento_identidad.trim(), nombres: draft.nombres.trim(), apellidos: draft.apellidos.trim(), activo: draft.activo, page: 1 });

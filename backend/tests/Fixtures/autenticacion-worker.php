@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\Fixtures\EscritorPlanificacionSimulado;
 use Tests\Fixtures\PausarCambioClave;
+use Tests\Fixtures\PausarConsultaAgenda;
 use Tests\Fixtures\PausarConsultaBitacora;
 use Tests\Fixtures\PausarEscrituraPlanificacionRepository;
 use Tests\Fixtures\PausarLecturaBitacoraRepository;
@@ -77,6 +78,14 @@ try {
         $app['events']->listen(RouteMatched::class, function (RouteMatched $event): void {
             if (str_starts_with($event->route->uri(), 'api/bitacora')) {
                 $event->route->middleware(PausarConsultaBitacora::class);
+            }
+        });
+    }
+    if ($data['mode'] === 'agenda-antes') {
+        $app['env'] = 'local';
+        $app['events']->listen(RouteMatched::class, function (RouteMatched $event): void {
+            if (in_array($event->route->uri(), ['api/agenda', 'api/agenda/medicos', 'api/mis-citas', 'api/pacientes/{id}/citas', 'api/citas/{id}'], true)) {
+                $event->route->middleware(PausarConsultaAgenda::class);
             }
         });
     }
@@ -153,6 +162,7 @@ try {
         $app['env'] = 'local';
     }
     $response = match (true) {
+        $data['mode'] === 'agenda-antes' => $send('GET', $data['ruta']),
         $data['mode'] === 'reserva-confirmar' => $send('POST', '/api/citas', $data['payload']),
         $data['mode'] === 'reserva-resultado' => $send('POST', '/api/reservas/resultado', $data['payload']),
         $data['mode'] === 'planificacion-protocolo' => EscritorPlanificacionSimulado::ejecutar($data),
@@ -197,7 +207,7 @@ try {
         default => $send('POST', '/api/auth/login', ['correo_acceso' => $data['correo'], 'password' => $data['password']]),
     };
     $result = ['status' => $response->getStatusCode()];
-    if (str_starts_with($data['mode'], 'reserva-')) {
+    if (str_starts_with($data['mode'], 'reserva-') || $data['mode'] === 'agenda-antes') {
         $result['body'] = json_decode($response->getContent(), true);
     }
     if (str_starts_with($data['mode'], 'consultorio-') || str_starts_with($data['mode'], 'horario-') || in_array($data['mode'], ['configuracion-citas', 'planificacion-protocolo'], true)) {

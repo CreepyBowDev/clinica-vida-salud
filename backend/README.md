@@ -1,5 +1,212 @@
 # Backend — Clínica Vida Salud
 
+## Agenda e historial CU-20/CU-21 — fase 6: integración y cierre backend (2026-10-22)
+
+**Fase 6 y backend CU-20/CU-21 cerrados localmente.** AgendaIntegracionTest añade **tres pruebas/394 aserciones correctas**, 1,836 s/72 MB. No se necesitaron cambios productivos. Las secciones de fases 1–5 que siguen son historial de desarrollo: sus contratos previstos están implementados y sus pendientes de integración se resuelven en esta fase. No se declara implementado el frontend.
+
+### Contratos vigentes para el frontend posterior
+
+| GET /api | Roles | Uso y entrada principal |
+| --- | --- | --- |
+| /agenda/medicos | Administrador, Recepcionista | Selector mínimo, incluidos inactivos; nombre literal opcional, page/per_page |
+| /agenda | Administrador, Recepcionista, Médico | id_medico requerido solo para Admin/Recepción; Médico propio desde sesión, fecha local/estado opcionales, page/per_page |
+| /mis-citas | Paciente | Ficha propia desde sesión; periodo=proximas por defecto, estado opcional, page/per_page |
+| /pacientes/{id}/citas | Recepcionista | Ficha seleccionada; periodo=todas por defecto, estado opcional, page/per_page |
+| /citas/{id} | Cuatro roles | ID canónico de ruta, sin query/body; Médico/Paciente restringidos a citas propias |
+
+Se mantienen los campos, límites, metadata, zona America/La_Paz, UTC, orden fijo, matriz de detalle y errores de fases 1–4. Los listados nunca incluyen motivo/CI/teléfono/nacimiento; detalle Admin sin motivo, Recepción motivo/CI/teléfono, Médico responsable motivo/nacimiento, Paciente motivo propio. Claves prohibidas omitidas, no null. Citas ajenas/inexistentes mismo 404 para Médico/Paciente. Sin rutas nuevas de escritura ni cambios a reserva/autenticación. CitasCollection no fue necesaria: se usa AnonymousResourceCollection nativa y metadata explícita.
+
+### Evidencia de aceptación acumulada
+
+| Área | Evidencia real |
+| --- | --- |
+| Reserva → consultas de cuatro roles | Dos recorridos de AgendaIntegracionTest: disponibilidad/propuesta/POST /citas reales, reservante Recepción o Paciente, misma cita e intervalo/duración/ubicación/estado en agenda/historial/detalle |
+| Sesión y aislamiento | Logout/401/nuevo login/restauración por cookies/DB, historial por ficha solo Recepción; otro Paciente sin citas y detalle ajeno/inexistente indistinguibles; fases 2–5 cubren resto de matriz y sesión restringida |
+| Historia e inactividad | Fin exactamente t pasa de Próximas a Anteriores sin cambiar Programada; inactividad de ficha/profesional y consultorio actual distinto no eliminan lectura ni ubicación conservada |
+| Navegación completa | Tercer recorrido sigue links.next reales con período/estado/per_page; tres fechas 2000/2026/2099, sin omisiones/duplicados y detalle de cada elemento |
+| Privacidad y consulta sin efectos | Proyección mínima por rol, dominio idéntico tras lecturas y logout/login; una cita/un evento CITA_PROGRAMADA, sin cambios/recordatorios/consultas creados por consultar. Autenticación conserva su auditoría nativa |
+| Límites/errores/concurrencia | AgendaTest, HistorialCitasTest, ConsultaCitaTest, AgendaSeguridadTest y AgendaConcurrenteTest: 229/2421 de fase 5, incluidos 56 escenarios multiproceso y errores privados |
+| Paginación/volumen | Fases 2/3: 30/300 filas, una consulta proyectada de página/count, total/contexto también en página vacía; no SLA ni índice nuevo sin evidencia |
+
+Identidades ya verificadas y planificación se preparan como fixtures aislados: no acredita alta/activación/invitación ni administración real en los nuevos recorridos. Solo la reserva se registra mediante su flujo HTTP real; la inactividad/cambio actual de consultorio son datos de prueba, no nuevas acciones CU-15–CU-19. Kernel HTTP, cookies/CSRF/sesiones y PostgreSQL en base/rol aislados clinica_vida_salud_test, HTTP externo bloqueado; no navegador/Brevo/Railway/HTTPS productivos.
+
+**Verificaciones:** regresión backend completa final **1612 pruebas/19176 aserciones correctas**, 12 min 20,196 s/200 MB, límite CLI 512 MB solo para PHPUnit. Resultado propio de fase 6, distinto de 1609/18782 de fase 5. Pint de código acumulado y pruebas, sintaxis de 23 PHP, Composer validate/autoload PSR-4/ambigüedad estrictos, 72 rutas/cinco GET del módulo sin duplicados y diff correctos. README/análisis/CU/reglas/requerimientos propios/contexto §17.109 sincronizados con el cierre local.
+
+**Pendientes y límites:** frontend en etapa separada no iniciada, CU-15–CU-19 permanecen pendientes y obligatorios. Sin cambios de RF/RN oficiales, modelos/esquema/migraciones/índices/DER (28/244/43), dependencias o autenticación; base habitual/Railway intactas. Diagrama global y actualización PHP expresamente aplazados, no se presentan como terminados. Sin commit/push/despliegue ni aceptación integral de producción.
+
+## Agenda e historial CU-20/CU-21 — fase 5: seguridad y casos límite (2026-10-22)
+
+**Refuerzo de fase 5 implementado; sin cambios productivos nuevos.** Se añaden AgendaSeguridadTest (45 casos) y AgendaConcurrenteTest (56 casos) y se amplía exclusivamente el arnés de pruebas compartido autenticacion-worker.php con modo agenda-antes y middleware fixture PausarConsultaAgenda. No rutas/comandos de aplicación, dependencias, migraciones/índices/modelos, cambios de permisos/reglas/contratos ni frontend. Ningún fallo observado exigió modificar producción; integración/cierre integral conserva fase 6.
+
+**Concurrencia real:** 56 combinaciones de selector/agenda propia/Mis citas/historial por ficha/detalle Médico/detalle Paciente frente a estado/rol/sesión/hash y pérdida de vínculo cuando corresponde; commit/rollback. Kernel HTTP con sesiones/cookies reales en procesos PHP y PID PostgreSQL distintos. Barrera explícita después de middleware de sesión/rol, luego actor bloqueado por otro proceso; se verifica wait_event_type=Lock mediante pg_stat_activity antes de resolver la transacción. Commit de revocación → 401 sin data ni motivo; rollback → 200 con proyección autorizada (motivo solo en detalle). Cita/estado/cambios/recordatorios preservados. No temporizadores usados como prueba de serialización. Fixtures usan un esquema efímero prueba_auth_* dentro de base/rol clinica_vida_salud_test, todas las migraciones y search_path acotado (incluida función de bitácora); guard del worker y limpieza del esquema propio, nunca base habitual/remota.
+
+Estas carreras verifican revocación confirmada **antes de que el Service complete la revalidación tras esperar al actor**. No prometen retirar bytes ya entregados o impedir que una revocación posterior a una lectura autorizada afecte la siguiente petición. El modo del worker solo se aplica a los cinco patrones GET del módulo; ramas anteriores de otros módulos permanecen intactas. No se implementan los CU de escritura pospuestos para construir estas pruebas.
+
+**Seguridad/límites:** cinco rutas rechazan POST/PUT/PATCH/DELETE sin mutar dominio; POST /citas de reserva sigue independiente. GET/HEAD con sesión/origen correctos no exigen cabecera CSRF de escritura; HEAD vacío/no-store. Fallos inyectados de Repository devuelven 500 genérico sin SQL/rutas/motivo/hash ni cambios persistidos. Búsquedas SQL/LIKE hostiles se tratan literalmente; arrays/notación exponencial/selección de rol/campos/orden no autorizados se rechazan. Fechas civiles válidas 0001-01-01, 2000-02-29 y 9999-12-31 sin horizonte arbitrario; zona PostgreSQL Pacific/Auckland no cambia día local/instantes UTC. Snapshot de una respuesta se mantiene si se inserta otra cita al terminar su SQL; la siguiente petición ve el cambio. Esta última intercalación es un callback en la misma conexión, no una carrera de escritores independientes.
+
+**Verificación dirigida:** nuevos casos **101 pruebas/1129 aserciones** (56/756 concurrentes, 45/373 seguridad); ejecución conjunta de cinco clases del módulo **229 pruebas/2421 aserciones correctas**, 1 min 20,925 s/94 MB, PostgreSQL/base/rol aislados, HTTP externo bloqueado. Pint/sintaxis de cuatro PHP de esta fase y Composer validate/autoload PSR-4/ambigüedad estrictos correctos; 72 rutas/cinco GET del módulo conservados. Regresión backend completa en ejecución por ampliación del worker compartido; resultado final pendiente de consignar, no se atribuye la global anterior de fase 2 a esta fase.
+
+**Cierre de regresión:** la ejecución completa por ampliación del worker compartido terminó correctamente: **1609 pruebas/18782 aserciones**, 10 min 44,239 s/198 MB, límite CLI 512 MB solo para PHPUnit. Este resultado sustituye el pendiente del párrafo anterior y corresponde al inventario acumulado hasta fase 5.
+
+**Documentación/límites:** README/análisis/CU/reglas/requerimientos propios/contexto §17.108 sincronizados. RF/RN oficiales, código productivo de fases 2–4, esquema/DER (28/244/43), base habitual/Railway y React sin cambios nuevos. Diagrama global/PHP mantiene aplazamiento; sin dependencias/correos/commit/push/despliegue o certificación de producción/SLA. **Fase 5 cerrada localmente; fase 6 no iniciada y módulo integral aún pendiente de cierre.**
+
+## Detalle autorizado CU-20/CU-21 — fase 4 (2026-10-22)
+
+**Fase 4 implementada y verificada localmente:** GET `/api/citas/{id}` para los cuatro roles con sesión normal, sin cambiar POST /citas ni añadir escrituras CU-15–CU-19. Completa los cinco GET diseñados del módulo; robustez ampliada/carreras e integración/cierre conservan fases 5/6, no se declara todavía cerrado el módulo integral. Las secciones siguientes son historial de fases anteriores y sus pendientes de detalle quedan sustituidos por esta entrega.
+
+**Capas:** ConsultaCitaController + ConsultaCitaRequest + CitaDetalleResource en presentation/dtos/controllers de agenda, ConsultaCitaService en business/services/agenda y método detalle en AgendaRepository. Request acepta únicamente ID canónico de ruta (BIGINT positivo), sin query/body; Service revalida sesión normal/actor/rol/vínculo bajo lock en transacción corta y decide scope/columnas. Repository aplica id_cita y scope propio en SQL antes de materializar; no recupera una cita ajena para autorizarla después. Datos planos materializados dentro de la transacción, sin Eloquent completo ni lazy-load clínico. CitaDetalleResource compone los campos comunes de CitaListadoResource y añade una allowlist según rol **devuelto por Service**, no un parámetro HTTP.
+
+| Rol | Scope de lectura | Datos adicionales solo en detalle |
+| --- | --- | --- |
+| Administrador | Cita administrativa por CU-20 | Ninguno: motivo_breve y campos adicionales de Paciente completamente omitidos, incluso cuando tienen valor |
+| Recepcionista | Cita de gestión administrativa autorizada | motivo_breve; paciente.documento_identidad (null si no existe) y paciente.telefono |
+| Médico | id_medico derivado de su vínculo vigente de sesión | motivo_breve y paciente.fecha_nacimiento para identificar al Paciente dentro del detalle |
+| Paciente | id_paciente derivado de su ficha vinculada de sesión | motivo_breve de la propia cita; sin otros datos personales adicionales |
+
+**Minimización efectiva:** las columnas adicionales solo se seleccionan para el rol autorizado. Administrador ni siquiera selecciona motivo_breve; ningún listado lo incorpora. Resource vuelve a limitar claves incluso ante una fila interna con campos extra. Valores autorizados ausentes se conservan null, sin sustituir la omisión de campos prohibidos. No contacto personal del Médico, CI/teléfono/nacimiento fuera de su matriz, creador, UUID/sobre, diagnósticos, antecedentes, consultas o resultados clínicos. Conserva código/intervalo/duración/estado/modalidad/fecha de registro/ubicación efectiva e identidades mínimas acordadas. Sin snapshot nominal nuevo ni reconstrucción desde el consultorio fijo actual.
+
+**Errores y consulta histórica:** cita ajena e inexistente devuelven exactamente el mismo 404 RECURSO_NO_ENCONTRADO para Médico/Paciente; ID no canónico/query/body inválidos 422; sesión inválida/expirada/revocada 401 y restringida/rol no autorizado 403, no-store privado/origen/HEAD existentes. Cuenta válida con ficha/profesional inactivos conserva lectura autorizada, sin exigir actividad/habilitación actual ni estado específico de Cita. Ningún cambio de estado o efecto de negocio/auditoría/correo por consultar.
+
+**Pruebas:** ConsultaCitaTest incorpora **37 casos nuevos**. Módulo agenda/historial/detalle: **128 pruebas/1292 aserciones correctas**. Regresión final de ocho clases (esas tres, ReservaTest, ReservaIntegracionTest, MiPerfilTest, PacienteAdministrativoTest y PacienteActualizacionTest): **257 pruebas/2753 aserciones correctas**, 1 min 17,993 s/80 MB, kernel HTTP/sesiones/cookies/CSRF y PostgreSQL/base/rol aislados clinica_vida_salud_test, HTTP externo bloqueado. Cubre matriz de cuatro roles con motivo presente/null y columnas SQL exactas, omisión real/null permitido, scoped 404 indistinguibles, invocación directa/ID ajeno, ficha sin CI/cuenta, cinco estados/historia/ubicación/inactividad, motivo «0», BIGINT, entradas/privilegios inyectados, body, huésped/origen/HEAD/expiración/sesión temporal, revalidación tardía y allowlist de Resource ante campos extra. Tablas de dominio intactas; inyecciones tardías en misma conexión, no nuevas pruebas multiproceso (fase 5).
+
+**Cierre técnico/documental:** Pint/sintaxis de 18 PHP acumulados, Composer validate/autoload PSR-4/ambigüedad estrictos, 72 rutas totales/cinco GET del módulo sin duplicados y diff correctos. No suite completa repetida en esta fase; última global 1423/16794 corresponde a fase 2, regresión de esta fase es 257/2753. README/análisis/fichas/reglas/requerimientos propios y contexto §17.107 sincronizados. RF/RN oficiales, frontend, modelos/migraciones/índices/DER (28/244/43), base habitual/Railway sin cambios. Diagrama global/PHP aplazados; sin dependencias/commit/push/despliegue/aceptación productiva. **Se detiene antes de fase 5.**
+
+## Historial y Mis citas CU-21 — fase 3 (2026-10-22)
+
+**Fase 3 implementada/verificada localmente:** GET `/api/mis-citas` exclusivo del Paciente y GET `/api/pacientes/{id}/citas` exclusivo de Recepción. Administrador/Médico no obtienen historial por Paciente; mantienen la agenda autorizada de CU-20. GET /citas/{id} y su matriz de detalle permanecen para fase 4, sin adelantarlos ni añadir acciones CU-15–CU-19.
+
+**Capas:** HistorialCitasController/HistorialCitasRequest/HistorialCitasService en agenda de cada capa, con AgendaRepository/CitaListadoResource existentes. El repositorio extrae una proyección privada compartida por agenda/historial sin ampliar campos: lista mínima sin motivo/CI/teléfono/nacimiento/creador/UUID/contacto médico o contenido clínico. Continúa la CTE parametrizada de página/count en un snapshot de sentencia, sin cargar todas las filas a PHP. Rutas en agenda.php ya incorporado por el puente, sin duplicar definiciones.
+
+**Permisos:** Service exige sesión normal vigente con bloqueo/revalidación de actor y vínculo. Paciente deriva su propia ficha (incluida inactiva), rechaza ID explícito incluso en invocación directa. Recepción selecciona ficha de ruta validada, también sin CI/cuenta o inactiva; recurso desconocido 404, ficha existente sin citas 200 vacío con contexto mínimo. Body/campos extra/ID de filtros/arrays/enum/paginación inválidos 422; rol ajeno 403, sesión inválida 401, private/no-store. No cambios a autenticación, origen/CSRF o endpoints administrativos.
+
+**Clasificación:** t capturado una sola vez después de revalidar sesión/vínculo. Próximas (default Paciente) = Programada/Confirmada y fin_at > t, incluidas en curso, inicio/id ASC. Anteriores = fin_at <= t con cualquier estado; Todas (default Recepción) sin tiempo; ambas inicio/id DESC. Estado combina por AND, sin inferencia automática; Programada pasada conserva Programada, Cancelada futura solo en Todas, Cancelada pasada también en Anteriores. Combinación válida sin coincidencias devuelve vacío. Paginación conserva período/estado efectivos, zona/instante/contexto y total fuera de rango; no truncamiento por antigüedad ni filtros adicionales de fechas/Médico/especialidad. Ubicación/duración son de Cita, no de asignación vigente ni reglas de reserva activa.
+
+**Pruebas:** HistorialCitasTest añade **48 casos**. Regresión final AgendaTest, HistorialCitasTest, ReservaTest, ReservaIntegracionTest, MiPerfilTest, PacienteAdministrativoTest y PacienteActualizacionTest: **220 pruebas/2273 aserciones correctas**, 1 min 20,732 s/80 MB. Kernel HTTP/sesiones/cookies/CSRF y PostgreSQL/base/rol aislados clinica_vida_salud_test, HTTP externo bloqueado. Defaults/aislamiento de otra ficha, estados/períodos/microsegundos/fin=t/en curso, antigüedad/cancelación/inactividad/ubicación, vacío/404, BIGINT/desempates/páginas/links, privacidad/body/IDs/negaciones/expiración/HEAD/origen, invocación directa, revalidación tardía de estado/rol/vínculo/sesión y ausencia de efectos de negocio comprobados. Inyecciones tardías en misma conexión, no carreras multiproceso (fase 5). 300 citas/per_page=1 mantienen una consulta proyectada de filas/count y un elemento devuelto, sin SLA.
+
+**Resultado recibido de fase 2:** regresión completa previa **1423 pruebas/16794 aserciones correctas**, 9 min 1,466 s/180 MB. Sustituye el pendiente de la sección inferior; corresponde al inventario de fase 2, no a fase 3. Aquí se ejecutó la regresión dirigida de 220 casos; suite completa final conserva fase 6 o cambios transversales que la requieran. AgendaTest adapta la comprobación de rutas a los dos GET ahora disponibles y mantiene ausencia de detalle/escrituras futuras.
+
+**Cierre técnico/documental:** Pint/sintaxis de 13 PHP acumulados, Composer validate/autoload PSR-4/ambigüedad estrictos y 71 rutas totales/cuatro de agenda-historial sin duplicados correctos. README/análisis/fichas/reglas/requerimientos propios/contexto §17.106 sincronizados. RF/RN oficiales, modelos/migraciones/índices/DER (28/244/43), frontend y base habitual/Railway sin cambios. Sin dependencias/correo real/commit/push/despliegue/aceptación de producción; diagrama global/actualización PHP aplazados. **Se detiene antes de fase 4; módulo integral/detalle no cerrados.**
+
+## Agenda médica CU-20 — fase 2: selector y consulta diaria (2026-10-22)
+
+**Implementado solo el alcance de fase 2:** GET `/api/agenda/medicos` (Administrador/Recepcionista) y GET `/api/agenda` (Administrador/Recepcionista/Médico). Se mantienen los contratos de fase 1; el Médico deriva su profesional desde la sesión y no puede enviar id_medico aunque sea el propio. CU-21 y GET /citas/{id} siguen pendientes de fases 3/4; no acciones CU-15–CU-19 ni frontend nuevo.
+
+**Capas reales:** AgendaController/AgendaRequest/MedicoAgendaResource/CitaListadoResource en presentation/agenda, AgendaService en business/services/agenda y AgendaRepository en data/repositories/agenda; rutas en agenda.php registradas una sola vez por el puente routes/api.php. No se necesitó CitasCollection propia en esta fase: la colección paginada nativa de JsonResource combina links/meta estándar con metadata explícita, evitando una clase sin responsabilidad adicional. Datos materializados antes de abandonar la transacción, sin lazy-load ni serialización de modelos completos.
+
+**Selector mínimo:** devuelve únicamente ID textual/código/nombres/apellidos/activo, con búsqueda literal por nombre/apellidos/código y orden apellidos/nombres/id ascendente. Incluye Médicos inactivos sin cuenta/sala/horarios, sin conceder a Recepción acceso al catálogo `/medicos` administrativo. Paginación cerrada y respuesta vacía legítima.
+
+**Agenda:** id_medico requerido para Admin/Recepción; Médico propio y vínculo revalidado en servidor. Fecha local por defecto capturada después de exigir sesión normal vigente, fecha pasada permitida; estado opcional entre los cinco existentes, sin transiciones. Intersección semiabierta con el día local (también intervalos históricos multidía), orden inicio_at/id_cita ascendente. Contexto mínimo del profesional, zona America/La_Paz, instante UTC y filtros efectivos, incluso sin citas. Links de Médico no contienen id_medico para que sigan siendo entradas válidas. Duración/ubicación son de la Cita; no se requiere disponibilidad activa, habilitación actual, cuenta web de la ficha ni actividad de ficha/profesional para leer historia autorizada.
+
+**Privacidad/sesión:** proyección SQL cerrada de listado, sin motivo, CI, teléfono/nacimiento, contacto del Médico, creador o UUID/sobre de reserva. Requests rechazan body no vacío, campos extra, arrays/formato/enums fuera de contrato; límites/IDs y errores centralizados existentes. Service revalida rol/sesión/identidad con AutenticacionService bajo lock del actor en transacción corta, no se limita al middleware. Se conserva `private, no-store`, origen/HEAD y distinción de vacío/404/403/401/422; sin mutar dominio, emitir correo o crear eventos de negocio por leer.
+
+**Consistencia de página implementada:** AgendaRepository usa Eloquent/Query Builder para filtros/joins/proyección y una sentencia PostgreSQL parametrizada con CTE materializada, página ordenada y total unidos mediante LEFT JOIN. Count y filas comparten el mismo snapshot de sentencia, incluso para conjunto vacío/página posterior a la última. No establecer aislamiento snapshot antiguo antes de revalidar al actor ni bloquear todas las Citas/planificación. Orden/columnas de paginación son constantes internas, nunca entrada interpolada. Se devuelve solo la página al proceso PHP; no se promete snapshot durable entre peticiones. Sin índices ni esquema nuevos.
+
+**Pruebas dirigidas:** AgendaTest añade **43 pruebas/433 aserciones correctas**, 11,904 s/74 MB, kernel HTTP/sesiones/cookies/CSRF reales sobre base/rol aislados clinica_vida_salud_test. Incluye tres roles permitidos, negación de Paciente/selector médico/huésped/origen/sesión restringida/expirada; revalidación de estado/rol/sesión/vínculo después del middleware; entradas cerradas; BIGINT textual; paginación/orden/desempates/vacío/404; cinco estados; límites locales/microsegundos/multidía; identidad propia/links; historia con actividad/habilitación/consultorio cambiados; snapshot de tablas de negocio intacto. Cambios tardíos se inyectan en la misma conexión de prueba: no acreditan todavía carreras multiproceso (fase 5).
+
+**Volumen:** con 30 y 300 citas ficticias, per_page=1 conserva un único SQL proyectado para página+count, total correcto y un solo elemento transferido a PHP; se comprueba ausencia de columnas sensibles en la consulta. No benchmark de carga ni SLA. Los estados de casos pendientes se preparan como fixtures aislados y no acreditan CU-15–CU-19. La primera ejecución de la prueba de sesión temporal esperaba erróneamente 200 de emisión; se corrigió a su contrato 201, sin tocar esa funcionalidad.
+
+**Comprobaciones técnicas:** Pint/sintaxis de los nueve PHP afectados, Composer validate y autoload optimizado PSR-4/ambigüedad estrictos correctos. Registro efectivo: 69 rutas totales, dos de agenda, sin duplicados; tres GET de historial/detalle previstos todavía no registrados. Regresión backend completa en ejecución; resultado final pendiente de consignar. No se repite frontend intacto ni se afirma producción/correo real/integración de fase 6.
+
+**Documentación/límites:** análisis CU-20, fichas/reglas/requerimientos propios y contexto §17.105 sincronizados; RF/RN oficiales sin cambios. Sin modelos/migraciones/índices/DER nuevos: 28 entidades/244 atributos/43 relaciones, sin migración a base habitual/Railway. Diagrama global/PHP siguen aplazados. Sin dependencias, commit/push/despliegue. Fase 2 no cierra el módulo ni el detalle de CU-20; **se detiene antes de fase 3**.
+
+## Agenda e historial CU-20/CU-21 — fase 1: diseño y contratos (2026-10-22)
+
+**Solo diseño documentado, no implementación.** Se inicia el módulo después de CU-13/CU-14 por decisión del usuario; CU-15–CU-19 se posponen, no se eliminan del alcance. Plan: 1 diseño/contratos; 2 agenda CU-20; 3 historial CU-21; 4 detalle autorizado; 5 seguridad/casos límite; 6 integración/cierre backend. Cada fase requiere autorización. Frontend tendrá etapa posterior: no se habilitan ahora sus módulos pendientes.
+
+**Base contrastada:** PHP 8.5.11, Laravel 13.37.0, Composer 2.10.3, Sanctum/sesiones y cuatro capas existentes. `routes/api.php` registra los archivos de `src/presentation/routes/`; hay 67 rutas actuales (65 API y dos de infraestructura), sin duplicados y ninguna de agenda/historial/detalle GET de Cita. Cita conserva inicio_at/fin_at, duracion_minutos, sede_atencion, consultorio_atencion y creada_en; FK a Paciente/Médico/especialidad/consultorio. Motivo/UUID de propuesta ocultos en serialización genérica, que no sustituye proyecciones explícitas. No nuevas tablas, columnas, índices, modelos, migraciones o dependencias previstas para estas consultas; índices y FK existentes se evaluarán con evidencia antes de plantear optimizaciones. Esquema documental existente: 28 entidades/244 atributos/43 relaciones; no conexión ni modificación de base habitual/remota en fase 1.
+
+### Decisiones funcionales aprobadas y límites
+
+- CU-20: Administrador/Recepción seleccionan Médico; el Médico consulta exclusivamente su propia agenda derivada de sesión. Consulta diaria America/La_Paz, fecha actual por defecto, filtros Médico/fecha/estado y orden inicio ascendente. Ningún listado expone motivo, CI, teléfono o nacimiento.
+- CU-21: Paciente consulta solo su ficha vinculada, por defecto Próximas y más cercana primero; Recepción abre la ficha seleccionada y por defecto Todas, más recientes primero. Filtros iniciales únicamente período temporal y estado, con paginación del servidor que permite recorrer todo el historial autorizado; no filtros adicionales por fechas/Médico/especialidad en esta entrega.
+- Con un único instante `t` capturado por el servidor en cada respuesta después de validar sesión/vínculo: Próximas = estado Programada/Confirmada y fin_at > t, incluidas en curso; Anteriores = fin_at <= t, cualquiera sea el estado; Todas = sin restricción temporal. Estado es otro filtro, combinado por AND. Cancelada futura queda en Todas, filtrable por estado; no pertenece ni a Próximas ni a Anteriores. No son tres conjuntos que particionen todas las citas. Una combinación válida sin coincidencias devuelve vacío, no cambia automáticamente de período.
+- Mantener los cinco estados reales. El paso del tiempo no convierte Programada en Inasistencia ni exige Atendida para consultar. Fin exactamente igual a t pertenece a Anteriores. Cuenta válida y ficha/profesional inactivos conservan consulta autorizada; no exigir las condiciones de nueva reserva (actividad, horario, habilitación actual o consultorio fijo vigente).
+- La ubicación mostrada procede de `citas.consultorio_atencion`/`sede_atencion`, nunca del consultorio fijo actual del Médico ni del nombre actual del consultorio relacionado. Duración/intervalo/estado/fecha de registro proceden de la Cita guardada. Nombres de personas/especialidad se consultan de relaciones existentes; no se prometen snapshots nominales que el esquema no guarda. No incluir versiones de CambioCita, clínica o laboratorio en este módulo.
+- Detalle con motivo solo para Recepción autorizada, Médico responsable o Paciente titular. Administrador no recibe la clave motivo_breve, ni siquiera null. Sin contenido clínico, contacto personal del Médico, credenciales, creador, UUID/token de propuesta o datos de otra cita.
+
+### Contrato HTTP previsto — prefijo /api, aún no registrado
+
+Solo GET (HEAD implícito de Laravel), con `auth:sanctum`, VerificarCuentaHabilitada, ExigirSesionNormal y ExigirRol por operación; se conserva ExigirOrigenSpa/grupo API y protección de sesión nativa, sin exigir un POST CSRF previo a cada GET. Respuestas `Cache-Control: no-store, private`. No modificar rutas administrativas existentes, POST /citas o /reservas/*.
+
+| Método/ruta **previstos** | Roles | Entrada cerrada | Resultado 200 previsto / fase |
+| --- | --- | --- | --- |
+| GET /agenda/medicos | Administrador, Recepcionista | nombre opcional, page/per_page | Selector paginado mínimo de profesionales, incluidos inactivos; fase 2 |
+| GET /agenda | Administrador, Recepcionista, Médico | id_medico obligatorio solo Admin/Recepción; fecha opcional YYYY-MM-DD; estado opcional; page/per_page | Agenda diaria de un Médico; fase 2 |
+| GET /mis-citas | Paciente | periodo opcional, estado opcional, page/per_page | Historial propio, periodo=proximas por defecto; fase 3 |
+| GET /pacientes/{id}/citas | Recepcionista | id de ruta; periodo opcional, estado opcional, page/per_page | Historial de la ficha seleccionada, periodo=todas por defecto; fase 3 |
+| GET /citas/{id} | Administrador, Recepcionista, Médico, Paciente | Solo id de ruta, sin query/body | Detalle autorizado con proyección por rol; fase 4 |
+
+**Selector de agenda:** no reutilizar `/medicos` administrativo para Recepción ni `/reservas/medicos`, que exige especialidad/actividad y no representa historia. El nuevo selector devuelve solo id_medico/codigo_medico/nombres/apellidos/activo, con nombre como búsqueda literal sobre nombres/apellidos y código, sin contacto/cuenta/registro profesional. Orden apellidos, nombres, id_medico ascendentes; no filtrar por actividad ni por disponer hoy de horarios/citas. Recurso inexistente difiere de profesional existente sin citas (200 vacío). El Médico no necesita este selector ni puede usarlo.
+
+**Validación y orden:**
+
+- Campos desconocidos, arrays donde se esperan escalares y body no vacío se rechazan con 422. Sin sort libre, include, campos, IDs de actor ni parámetros clínicos. Ids de ruta/query enteros positivos canónicos hasta BIGINT 9223372036854775807; respuestas de todos los IDs como strings para evitar pérdida en JavaScript.
+- page entero 1–1000000, per_page entero 1–100; defaults 1/20, conforme al patrón actual. No devolver todo el conjunto sin paginar. Página posterior a la última devuelve 200 data[] vacío con meta del conjunto, sin redirección implícita. Selector nombre no vacío, máximo 120 y sin caracteres de control, búsqueda literal sin comodines aportados por usuario.
+- fecha civil real YYYY-MM-DD con año de cuatro dígitos distinto de 0000; pasadas permitidas y sin horizonte de reserva. Si se omite, usar fecha de t en America/La_Paz. Agenda incluye intersección `[inicio_at,fin_at)` con el día local `[00:00,00:00 del siguiente día)`, sin duplicar una cita dentro de esa respuesta; permite conservar intervalos históricos que crucen medianoche. Orden inicio_at ASC, id_cita ASC como desempate.
+- Médico: id_medico no se acepta aunque coincida con el propio (422); se deriva de la cuenta revalidada y se comprueba vínculo recíproco. Paciente: id_paciente no es entrada de /mis-citas; se deriva de la sesión, sin tomar un ID de React. Intento de seleccionar otro recurso mediante campo no permitido → 422; acceso a detalle ajeno/inexistente → el mismo 404 genérico.
+- estado opcional con uno de Programada, Confirmada, Atendida, Cancelada, Inasistencia; omitido = todos. periodo opcional con proximas/anteriores/todas en minúsculas. Próximas orden inicio_at ASC/id_cita ASC; Anteriores/Todas inicio_at DESC/id_cita DESC. Estos órdenes son fijos, no un filtro extra. No usar fecha de creación para ordenar la atención.
+
+### Respuestas y minimización previstas
+
+Selector: `data: [medico_minimo]`, `links: {first,last,prev,next}`, `meta: {current_page,last_page,per_page,total,from,to}`. Agenda/historial: `data: [cita_listada]`, mismos links/meta y dentro de meta `zona_horaria: America/La_Paz`, `consultado_en` (t UTC ISO-8601 con seis decimales y Z) y `filtros` efectivos. Filtros de agenda: id_medico/fecha/estado; historial: periodo/estado. Contexto adicional en meta: agenda `medico` mínimo sin activo; historial `paciente` mínimo solo con id_paciente/codigo_paciente/nombres/apellidos, siempre del recurso autorizado; útil incluso con lista vacía. En /mis-citas no expone ningún dato ajeno. Links conservan únicamente filtros permitidos/efectivos y per_page, no cuerpos ni secretos. Detalle: `data: cita_detalle`, sin paginación.
+
+`cita_listada` (lista cerrada): id_cita, codigo_cita, inicio_at, fin_at, duracion_minutos, estado, modalidad, sede_atencion, consultorio_atencion, creada_en; medico {id_medico,codigo_medico,nombres,apellidos}; especialidad {id_especialidad,nombre}; paciente {id_paciente,codigo_paciente,nombres,apellidos}. Solo se incluyen relaciones mínimas del recurso autorizado; sin contactos/CI/nacimiento/motivo. Instantes UTC ISO-8601 con seis decimales y Z; no crear columnas de fecha/hora duplicadas. La UI derivará fecha/hora en zona de sede indicada por API, no UTC local del dispositivo.
+
+`cita_detalle` parte de los mismos campos mínimos y aplica esta matriz estricta. Rol y titularidad se determinan en Service, no con un parámetro del cliente:
+
+| Campo adicional **solo en detalle** | Administrador | Recepcionista | Médico responsable | Paciente titular |
+| --- | --- | --- | --- | --- |
+| motivo_breve | Clave omitida | Permitido | Permitido | Permitido |
+| paciente.documento_identidad | Omitido | Permitido, null si no existe | Omitido | Omitido |
+| paciente.telefono | Omitido | Permitido | Omitido | Omitido |
+| paciente.fecha_nacimiento | Omitido | Omitido | Permitido para identificar al Paciente en el detalle | Omitido |
+
+Campos permitidos sin dato conservan null; campo no autorizado no aparece. El nacimiento se limita al detalle médico para identificación, no al listado ni a una consulta clínica; no crear historial/diagnóstico ni añadir edad calculada. Paciente ve los mínimos de su propia ficha asociados a su cita, sin endpoint de consulta de otra ficha. Administrador accede a detalle administrativo por CU-20, no a /pacientes/{id}/citas CU-21. Recepción puede consultar citas de fichas sin CI/cuenta o inactivas, sin que ello autorice reservarles citas nuevas.
+
+**Ejemplo ilustrativo de listado (datos ficticios; no respuesta disponible todavía):**
+
+```json
+{
+  "data": [{
+    "id_cita": "17", "codigo_cita": "CIT-FICTICIA", "inicio_at": "2026-11-01T12:00:00.000000Z",
+    "fin_at": "2026-11-01T12:15:00.000000Z", "duracion_minutos": 15, "estado": "Programada",
+    "modalidad": "Presencial", "sede_atencion": "Sede ficticia", "consultorio_atencion": "Sala original ficticia",
+    "creada_en": "2026-10-22T12:00:00.000000Z",
+    "medico": {"id_medico": "2", "codigo_medico": "MED-FICTICIO", "nombres": "Profesional", "apellidos": "Ficticio"},
+    "especialidad": {"id_especialidad": "1", "nombre": "General ficticia"},
+    "paciente": {"id_paciente": "3", "codigo_paciente": "PAC-FICTICIO", "nombres": "Paciente", "apellidos": "Ficticio"}
+  }],
+  "links": {"first": "/api/mis-citas?periodo=proximas&per_page=20&page=1", "last": "/api/mis-citas?periodo=proximas&per_page=20&page=1", "prev": null, "next": null},
+  "meta": {"current_page": 1, "last_page": 1, "per_page": 20, "total": 1, "from": 1, "to": 1,
+    "zona_horaria": "America/La_Paz", "consultado_en": "2026-10-22T13:00:00.000000Z",
+    "filtros": {"periodo": "proximas", "estado": null},
+    "paciente": {"id_paciente": "3", "codigo_paciente": "PAC-FICTICIO", "nombres": "Paciente", "apellidos": "Ficticio"}}
+}
+```
+
+Links del ejemplo relativos solo para no inventar un dominio de despliegue; la implementación usará el paginador Laravel y la URL de la petición confiable. No depender de posición de campos ni de un nombre ficticio de sede.
+
+### Autorización, consistencia y errores previstos
+
+Service vuelve a exigir sesión normal vigente, rol y vínculo de recurso aunque el middleware ya haya pasado. Reutilizar `AutenticacionService::exigirSesionNormal(bloquear: true)` dentro de una transacción corta como en BitacoraService: actor y sesión revalidados después de esperar, sin exigir continuidad del último Administrador para leer ni coordinar planificación de reservas. Vínculo propio Médico/Paciente derivado de relaciones persistidas y comprobado contra el actor; falta/incompatibilidad rechaza acceso, nunca devuelve historial global/vacío como si fuera válido. Repository aplica el scope autorizado en SQL antes de proyectar/contar/paginar; el detalle ajeno no se carga primero sin scope. No lazy-load de relaciones clínicas ni modelos completos en Resources.
+
+Listado y conteo deben observar la misma lectura de citas mediante snapshot de lectura consistente para la paginación de esa petición (p. ej. consulta única con total o snapshot local a la lectura); no mantener locks de Cita/planificación para toda la navegación. Reutilizar un único t para todos los predicados/metadata de una respuesta. La revalidación de sesión y la captura del snapshot deben coordinarse para no aceptar una revocación confirmada durante la espera del actor: no fijar snapshot antiguo antes de revalidarlo. La elección concreta de SQL se verificará en fase 2 antes de dar por acreditada esta garantía. Entre páginas/peticiones hay lectura actual, no snapshot durable: nuevas reservas o cambios autorizados pueden cambiar totales/orden; ningún dato consultado autoriza una escritura posterior. Serialización con datos materializados dentro del ámbito autorizado y recursos explícitos, sin consultas diferidas tras salir de él.
+
+Errores uniformes existentes `success:false,error:{code,message,details?}`: 401 AUTH_NO_AUTENTICADO (sesión ausente/caducada/revocada), 403 ACCESO_DENEGADO o AUTH_CAMBIO_CLAVE_OBLIGATORIO (rol/restricción), 403 ORIGEN_NO_PERMITIDO, 404 RECURSO_NO_ENCONTRADO (ID inexistente o detalle ajeno con idéntica respuesta), 422 VALIDACION_ERROR (campos/IDs/formato/enums), 429 si aplica infraestructura de límites, 500 ERROR_INTERNO seguro. 419 se conserva si lo produce la infraestructura de sesión/CSRF; estos GET no mutan para renovarlo ni reenvían escrituras. No nuevos códigos 409 por ficha/Médico inactivos: no son errores de estas lecturas. Vacío legítimo = 200, nunca 404; falta de vínculo legítimo = 403, no lista global. Las lecturas no crean Cita/CambioCita/Recordatorio/eventos de negocio nuevos ni envían correo; escrituras técnicas normales de sesión no equivalen a mutar el dominio. No cuerpos completos/CI/motivo en logs, ni caché persistente de respuestas protegidas.
+
+### Clases previstas y verificación por fases
+
+No crear archivos/carpetas vacías ahora. Propiedad del módulo `agenda/` dentro de controllers/dtos/services/repositories, sin mover modelos ni clases de citas de CU-13/CU-14:
+
+- AgendaController, AgendaRequest, MedicoAgendaResource (selector), AgendaService (CU-20) y AgendaRepository (lecturas proyectadas del módulo, reutilizable por CU-21/detalle).
+- HistorialCitasController/HistorialCitasRequest/HistorialCitasService para CU-21; ConsultaCitaController/ConsultaCitaRequest/ConsultaCitaService para detalle compartido. Recursos CitaListadoResource, CitaDetalleResource y CitasCollection para proyecciones/contexto/paginación; no reutilizar respuestas de reserva que contienen motivo/sobre o requieren disponibilidad activa.
+- Cita/Paciente/Medico/Especialidad existentes, AutenticacionService y middleware/RespuestaError existentes. No nueva entidad Agenda/Historial, repositorio genérico, caché clínica o modificación de CitaRepository de escritura por comodidad.
+- Archivo futuro `src/presentation/routes/agenda.php`, registrado una sola vez por `routes/api.php`; GET /citas/{id} puede convivir con POST /citas sin cambiarlo. Sin ruta de actualización/cancelación/Atendida ni exportación/reportes.
+
+Matriz de aceptación pendiente: roles/sesión normal/restringida/expirada; cambios de rol/cuenta/vínculo entre middleware y Service y mientras espera; listados sin motivo ni datos adicionales y detalles con claves omitidas por rol; IDs ajenos/inexistentes indistinguibles; Médico/Paciente inactivos con cuenta activa; profesional histórico sin horarios/par habilitado/sala actual; ficha sin CI/cuenta y paciente sin citas; fecha local vs UTC/microsegundos/fin=t/en curso/cancelada futura y Programada pasada; cinco estados sin transición automática; paginación/desempates/total/contexto vacío/consulta sin efectos; preservar consultorio_atencion tras cambio de asignación/nombre. Fixtures de estados pendientes serán sintéticos aislados, no evidencia de CU-15–CU-19 implementados. Pruebas de cada fase desde su implementación; refuerzo ampliado fase 5 y sesiones reales/kernel/PostgreSQL aislado/regresión en fase 6. No cambiar el estado de citas reales para preparar ejemplos.
+
+**Verificación de fase 1:** versiones y registro real de rutas inspeccionados, decisiones contrastadas con RF11/RF12 y RN10–RN12/RN14; revisión documental/JSON ilustrativo y diff. No suites funcionales ejecutadas ni garantías nuevas acreditadas porque solo cambia documentación. Sin migraciones/SQL/correos/servidores/despliegue, PHP productivo o React modificados. README, reglas/CU y análisis previsto/contexto sincronizados; RF/RN oficiales intactos, DER contrastado sin cambios y diagrama global ausente/aplazado. **Se detiene antes de fase 2.**
+
 ## Integración y cierre backend CU-13/CU-14 — fase 5 (2026-10-22)
 
 **Backend de búsqueda y reserva terminado y verificado localmente:** fases 1–5 completadas. Las secciones posteriores conservan evidencia histórica; sus indicaciones de funcionalidades pendientes de fases anteriores quedan sustituidas por este cierre. Se conservan las seis operaciones y contratos documentados, sin endpoints/dependencias/migraciones/índices adicionales en fase 5. No frontend, reprogramación/cancelación, asistencia, scheduler, feriados ni bloqueos opcionales.

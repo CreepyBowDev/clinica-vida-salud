@@ -34,7 +34,8 @@ function PatientDetail({ id }) {
           <Datum label="Cuenta web">{patient.cuenta_vinculada ? 'Vinculada' : 'Sin cuenta vinculada'}</Datum></dl>
         <p className="patients-note">El vínculo con una cuenta no indica si su acceso está activo ni si tiene un bloqueo temporal.</p>
         {!patient.activo && <p className="patients-note">La ficha inactiva no admite nuevas citas. Conserva su historial y las citas existentes.</p>}
-        <div className="patients-actions"><Link className="button button--primary" to={`/recepcion/pacientes/${id}/editar`}>Editar ficha administrativa</Link>
+        <div className="patients-actions"><Link className="button button--secondary" to={`/recepcion/pacientes/${id}/citas`}>Consultar historial de citas</Link>
+          <Link className="button button--primary" to={`/recepcion/pacientes/${id}/editar`}>Editar ficha administrativa</Link>
           {patient.documento_identidad?.trim() && !patient.cuenta_vinculada && <Link className="button button--secondary" to={`/recepcion/pacientes/${id}/activacion`}>Emitir código de activación</Link>}</div>
         {!patient.documento_identidad?.trim() && <p className="patients-note">Para iniciar la vinculación web, incorpora primero el CI a esta misma ficha.</p>}
         {patient.cuenta_vinculada && <p className="patients-note">La ficha ya tiene una cuenta vinculada; no admite un nuevo código de activación.</p>}

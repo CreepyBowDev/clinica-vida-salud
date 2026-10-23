@@ -40,7 +40,9 @@ export const NAVIGATION = [
     pending('atendida', 'Marcar cita atendida', [M], ['CU-19']),
   ] },
   { id: 'agenda', label: 'Agenda e historial', icon: 'calendar', items: [
-    pending('agenda', 'Consultar agenda médica', [A, R, M], ['CU-20']), pending('historial', 'Consultar historial de citas', [R, P], ['CU-21']),
+    page('agenda', 'Consultar agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
+    page('historial', 'Consultar historial de citas', '/recepcion/historial-citas', [R], ['CU-21'], ['/recepcion/pacientes/:id/citas', '/recepcion/historial-citas/:id']),
+    page('mis-citas', 'Mis citas', '/mis-citas', [P], ['CU-21'], ['/mis-citas/:id']),
   ] },
   { id: 'historia', label: 'Historia clínica y consultas', icon: 'people', items: [
     pending('historia', 'Consultar historia clínica', [M, P], ['CU-22']), pending('consulta', 'Registrar consulta médica', [M], ['CU-23']),
@@ -72,10 +74,18 @@ export function navigationAtPath(modules, pathname) {
     const item = module.items.find(item => item.patterns?.some(pattern => matchPath(pattern, pathname)));
     if (item) return { module, item };
   }
+  // El detalle compartido directo no concede acceso a la agenda del Médico.
+  const agenda = modules.find(module => module.id === 'agenda');
+  if (agenda && matchPath('/citas/:id', pathname)) return { module: agenda,
+    item: { id: 'detalle-cita', label: 'Detalle de cita', to: pathname, kind: 'context' } };
   return null;
 }
 
 const contextPages = [
+  ['/citas/:id', 'Detalle de cita'],
+  ['/mis-citas/:id', 'Detalle de cita'],
+  ['/recepcion/historial-citas/:id', 'Detalle de cita'],
+  ['/recepcion/pacientes/:id/citas', 'Historial de citas'],
   ['/administracion/medicos/:id/consultorio', 'Asignar consultorio'],
   ['/administracion/horarios/configuracion', 'Duración de citas'],
   ['/administracion/horarios/medicos/:id', 'Horarios del médico'],

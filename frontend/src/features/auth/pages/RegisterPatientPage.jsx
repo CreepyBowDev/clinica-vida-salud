@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import FormField from '../../../components/FormField';
-import PasswordField from '../../../components/PasswordField';
+import PasswordCreationFields from '../components/PasswordCreationFields';
 import Button from '../../../components/Button';
 import FormSection from '../../../components/FormSection';
 import PasswordFailure from '../components/PasswordFailure';
@@ -69,8 +69,8 @@ function RegistrationForm({ linking }) {
       </div></FormSection>}
       <FormSection className="registration-section" title="Acceso al portal"><div className="registration-grid">
         <div className="registration-wide">{input('correo_acceso', 'Correo de acceso', { required: true, type: 'email', maxLength: 254, autoComplete: 'username', hint: 'Usa un correo propio al que puedas acceder para verificarlo.' })}</div>
-        <PasswordField name="password" label="Contraseña" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase." value={values.password} busy={busy} onChange={change} error={failure?.fields.password} />
-        <PasswordField name="password_confirmation" label="Confirmar contraseña" autoComplete="new-password" value={values.password_confirmation} busy={busy} onChange={change} error={failure?.fields.password_confirmation} />
+        <PasswordCreationFields label="Contraseña" confirmationLabel="Confirmar contraseña" password={values.password} confirmation={values.password_confirmation}
+          busy={busy} fields={failure?.fields} onPasswordChange={change} onConfirmationChange={change} />
       </div></FormSection>
       <Button type="submit" className="full-width" loading={busy} disabled={remaining > 0}>{busy ? 'Enviando solicitud…' : remaining > 0 ? `Espera ${remaining} s` : 'Continuar a verificación de correo'}</Button>
     </form>

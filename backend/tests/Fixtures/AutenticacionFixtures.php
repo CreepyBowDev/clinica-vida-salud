@@ -10,7 +10,7 @@ use Illuminate\Testing\TestResponse;
 
 trait AutenticacionFixtures
 {
-    private const PASSWORD = '  Frase Ficticia Segura 123  ';
+    private const PASSWORD = '  Frase Ficticia Segura 123!  ';
 
     private function usuarioAuth(string $rol = 'Administrador', array $datos = [], bool $vincular = true): Usuario
     {

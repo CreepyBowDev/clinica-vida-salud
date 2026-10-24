@@ -1132,7 +1132,7 @@ class AutenticacionConcurrenteTest extends TestCase
             $this->navegador($cookies, 'POST', '/api/mi-perfil/correo', ['correo_acceso' => 'segundo@example.test', 'current_password' => self::PASSWORD])->assertStatus(202);
         } elseif ($cambio === 'password') {
             $this->navegador($cookies, 'PUT', '/api/auth/password', ['current_password' => self::PASSWORD,
-                'password' => 'Otra frase segura ficticia 123', 'password_confirmation' => 'Otra frase segura ficticia 123'])->assertNoContent();
+                'password' => 'Otra frase segura ficticia 123!', 'password_confirmation' => 'Otra frase segura ficticia 123!'])->assertNoContent();
         } else {
             $admin = $this->usuarioAuth();
             $administrativas = $this->csrfAuth();
@@ -1469,7 +1469,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $segundo = $this->csrfAuth();
         $this->loginAuth($primero, $usuario)->assertOk();
         $this->loginAuth($segundo, $usuario)->assertOk();
-        $nueva = 'Nueva frase ficticia concurrente 456';
+        $nueva = 'Nueva frase ficticia concurrente 456!';
         $workers = [];
         foreach ([$primero, $segundo] as $cookies) {
             $workers[] = $this->worker($usuario->correo_acceso, self::PASSWORD, mode: 'password', extra: compact('cookies', 'nueva'));
@@ -1503,7 +1503,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $usuario = $this->usuarioAuth();
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $usuario)->assertOk();
-        $nueva = 'Nueva frase ficticia concurrente 456';
+        $nueva = 'Nueva frase ficticia concurrente 456!';
         $worker = $this->worker($usuario->correo_acceso, self::PASSWORD, mode: 'password-before', extra: compact('cookies', 'nueva'));
         $this->signal($worker, 'INICIAR');
         $this->assertSame('VALIDADA', $this->line($worker));
@@ -1533,7 +1533,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $worker = $this->worker($usuario->correo_acceso, self::PASSWORD, mode: 'login-pause');
         $this->signal($worker, 'INICIAR');
         $this->assertSame('GUARDADA', $this->line($worker));
-        $nueva = 'Nueva frase ficticia concurrente 456';
+        $nueva = 'Nueva frase ficticia concurrente 456!';
         $this->navegador($cookies, 'PUT', '/api/auth/password', [
             'current_password' => self::PASSWORD, 'password' => $nueva, 'password_confirmation' => $nueva,
         ])->assertNoContent();
@@ -1550,7 +1550,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $usuario = $this->usuarioAuth();
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $usuario)->assertOk();
-        $nueva = 'Nueva frase ficticia concurrente 456';
+        $nueva = 'Nueva frase ficticia concurrente 456!';
         $worker = $this->worker($usuario->correo_acceso, self::PASSWORD, mode: 'password-pause', extra: compact('cookies', 'nueva'));
         $this->signal($worker, 'INICIAR');
         $this->assertSame('GUARDADA', $this->line($worker));
@@ -1840,7 +1840,7 @@ class AutenticacionConcurrenteTest extends TestCase
     public function test_parallel_recovery_consumers_cannot_change_password_twice_with_one_token(): void
     {
         [$usuario, $token] = $this->recuperacionPendiente();
-        $nueva = 'Nueva clave de recuperacion 456';
+        $nueva = 'Nueva clave de recuperacion 456!';
         $workers = [];
         for ($i = 0; $i < 2; $i++) {
             $cookies = $this->csrfAuth();
@@ -1914,9 +1914,9 @@ class AutenticacionConcurrenteTest extends TestCase
         [$usuario, $token] = $this->recuperacionPendiente();
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $usuario)->assertOk();
-        $cambio = $this->worker('', self::PASSWORD, mode: 'password', extra: ['cookies' => $cookies, 'nueva' => 'Clave ordinaria nueva 123']);
+        $cambio = $this->worker('', self::PASSWORD, mode: 'password', extra: ['cookies' => $cookies, 'nueva' => 'Clave ordinaria nueva 123!']);
         $cookies = $this->csrfAuth();
-        $reset = $this->worker('', 'Clave recuperada nueva 456', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
+        $reset = $this->worker('', 'Clave recuperada nueva 456!', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
         DB::beginTransaction();
         DB::table('usuarios')->where('id_usuario', $usuario->getKey())->lockForUpdate()->first();
         foreach ([$cambio, $reset] as $worker) {
@@ -1927,7 +1927,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $statusCambio = json_decode($this->line($cambio), true)['status'];
         $statusReset = json_decode($this->line($reset), true)['status'];
         $this->assertContains([$statusCambio, $statusReset], [[204, 422], [401, 204]]);
-        $this->assertTrue(Hash::check($statusCambio === 204 ? 'Clave ordinaria nueva 123' : 'Clave recuperada nueva 456', $usuario->fresh()->password_hash));
+        $this->assertTrue(Hash::check($statusCambio === 204 ? 'Clave ordinaria nueva 123!' : 'Clave recuperada nueva 456!', $usuario->fresh()->password_hash));
         $this->assertSame($statusCambio === 204 ? 1 : 0, DB::table('sessions')->where('user_id', $usuario->getKey())->count());
     }
 
@@ -1940,7 +1940,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $desactivar = $this->worker('', '', mode: 'cuenta-estado', extra: ['cookies' => $cookies,
             'id_objetivo' => (string) $usuario->getKey(), 'payload' => ['estado_cuenta' => 'Desactivada']]);
         $cookies = $this->csrfAuth();
-        $reset = $this->worker('', 'Clave recuperada nueva 456', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
+        $reset = $this->worker('', 'Clave recuperada nueva 456!', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
         DB::beginTransaction();
         DB::table('usuarios')->where('id_usuario', $usuario->getKey())->lockForUpdate()->first();
         foreach ([$desactivar, $reset] as $worker) {
@@ -1963,7 +1963,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertSame('GUARDADA', $this->line($worker));
         $cookies = $this->csrfAuth();
         $this->navegador($cookies, 'POST', '/api/auth/password/reset', ['token' => $token,
-            'password' => 'Clave recuperada nueva 456', 'password_confirmation' => 'Clave recuperada nueva 456'])->assertNoContent();
+            'password' => 'Clave recuperada nueva 456!', 'password_confirmation' => 'Clave recuperada nueva 456!'])->assertNoContent();
         $this->signal($worker, 'CONTINUAR');
         $resultado = json_decode($this->line($worker), true);
         $this->assertSame(200, $resultado['status']);
@@ -2079,7 +2079,7 @@ class AutenticacionConcurrenteTest extends TestCase
         [$usuario, $cookies] = $this->temporalPendiente();
         $workers = [];
         for ($i = 0; $i < 2; $i++) {
-            $workers[] = $this->worker('', 'Clave definitiva nueva 123', mode: 'temporal-completar', extra: compact('cookies'));
+            $workers[] = $this->worker('', 'Clave definitiva nueva 123!', mode: 'temporal-completar', extra: compact('cookies'));
         }
         DB::beginTransaction();
         DB::table('usuarios')->where('id_usuario', $usuario->getKey())->lockForUpdate()->first();
@@ -2092,7 +2092,7 @@ class AutenticacionConcurrenteTest extends TestCase
         sort($statuses);
         $this->assertSame([204, 401], $statuses);
         $this->assertFalse($usuario->fresh()->cambio_clave_obligatorio);
-        $this->assertTrue(Hash::check('Clave definitiva nueva 123', $usuario->fresh()->password_hash));
+        $this->assertTrue(Hash::check('Clave definitiva nueva 123!', $usuario->fresh()->password_hash));
         $this->assertSame(1, DB::table('tokens_acceso')->whereNotNull('consumido_en')->count());
         $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'CREDENCIAL_TEMPORAL_COMPLETADA')->where('resultado', 'EXITO')->count());
         $this->assertSame(0, DB::table('sessions')->whereNotNull('user_id')->count());
@@ -2102,7 +2102,7 @@ class AutenticacionConcurrenteTest extends TestCase
     {
         [, $adminCookies] = $this->adminTemporal();
         [$usuario, $cookies] = $this->temporalPendiente();
-        $completar = $this->worker('', 'Clave definitiva nueva 123', mode: 'temporal-completar', extra: compact('cookies'));
+        $completar = $this->worker('', 'Clave definitiva nueva 123!', mode: 'temporal-completar', extra: compact('cookies'));
         $emitir = $this->worker('', '', mode: 'temporal-emitir', extra: ['cookies' => $adminCookies, 'id_objetivo' => $usuario->getKey()]);
         DB::beginTransaction();
         DB::table('usuarios')->where('id_usuario', $usuario->getKey())->lockForUpdate()->first();
@@ -2115,7 +2115,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertContains($status, [204, 401]);
         $this->assertSame(201, json_decode($this->line($emitir), true)['status']);
         $this->assertTrue($usuario->fresh()->cambio_clave_obligatorio);
-        $this->assertTrue(Hash::check($status === 204 ? 'Clave definitiva nueva 123' : self::PASSWORD, $usuario->fresh()->password_hash));
+        $this->assertTrue(Hash::check($status === 204 ? 'Clave definitiva nueva 123!' : self::PASSWORD, $usuario->fresh()->password_hash));
         $this->assertSame(1, DB::table('tokens_acceso')->whereNull('consumido_en')->whereNull('invalidado_en')->count());
         $this->assertSame(0, DB::table('sessions')->where('user_id', $usuario->getKey())->count());
     }
@@ -2126,7 +2126,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $usuario = $this->usuarioAuth('Recepcionista');
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $usuario)->assertOk();
-        $worker = $this->worker('', self::PASSWORD, mode: 'password-before', extra: ['cookies' => $cookies, 'nueva' => 'Clave ordinaria nueva 123']);
+        $worker = $this->worker('', self::PASSWORD, mode: 'password-before', extra: ['cookies' => $cookies, 'nueva' => 'Clave ordinaria nueva 123!']);
         $this->signal($worker, 'INICIAR');
         $this->assertSame('VALIDADA', $this->line($worker));
         $this->emisionTemporal($adminCookies, $usuario->getKey());
@@ -2141,7 +2141,7 @@ class AutenticacionConcurrenteTest extends TestCase
         [, $adminCookies] = $this->adminTemporal();
         [$usuario, $token] = $this->recuperacionPendiente();
         $cookies = $this->csrfAuth();
-        $reset = $this->worker('', 'Clave recuperada nueva 456', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
+        $reset = $this->worker('', 'Clave recuperada nueva 456!', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
         $emitir = $this->worker('', '', mode: 'temporal-emitir', extra: ['cookies' => $adminCookies, 'id_objetivo' => $usuario->getKey()]);
         DB::beginTransaction();
         DB::table('usuarios')->where('id_usuario', $usuario->getKey())->lockForUpdate()->first();
@@ -2154,7 +2154,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertContains($status, [204, 422]);
         $this->assertSame(201, json_decode($this->line($emitir), true)['status']);
         $this->assertTrue($usuario->fresh()->cambio_clave_obligatorio);
-        $this->assertTrue(Hash::check($status === 204 ? 'Clave recuperada nueva 456' : self::PASSWORD, $usuario->fresh()->password_hash));
+        $this->assertTrue(Hash::check($status === 204 ? 'Clave recuperada nueva 456!' : self::PASSWORD, $usuario->fresh()->password_hash));
         $recuperacion = DB::table('tokens_acceso')->where('proposito', 'RecuperacionClave')->sole();
         $this->assertTrue($recuperacion->consumido_en !== null || $recuperacion->invalidado_en !== null);
         $this->assertSame(0, DB::table('sessions')->where('user_id', $usuario->getKey())->count());
@@ -2170,7 +2170,7 @@ class AutenticacionConcurrenteTest extends TestCase
     {
         [, $adminCookies] = $this->adminTemporal();
         [$usuario, $cookies] = $this->temporalPendiente();
-        $worker = $this->worker('', 'Clave definitiva nueva 123', mode: 'temporal-completar-before', extra: compact('cookies'));
+        $worker = $this->worker('', 'Clave definitiva nueva 123!', mode: 'temporal-completar-before', extra: compact('cookies'));
         $this->signal($worker, 'INICIAR');
         $this->assertSame('VALIDADA', $this->line($worker));
         match ($cambio) {
@@ -2220,8 +2220,8 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertSame(200, $result['status']);
         $this->assertSame(401, $result['me_status']);
         $this->assertSame(1, DB::table('sessions')->where('user_id', $usuario->getKey())->count());
-        $this->navegador($cookies, 'PUT', '/api/auth/password/temporal', ['password' => 'Clave definitiva nueva 123',
-            'password_confirmation' => 'Clave definitiva nueva 123'])->assertNoContent();
+        $this->navegador($cookies, 'PUT', '/api/auth/password/temporal', ['password' => 'Clave definitiva nueva 123!',
+            'password_confirmation' => 'Clave definitiva nueva 123!'])->assertNoContent();
     }
 
     private function datosRegistro(): array

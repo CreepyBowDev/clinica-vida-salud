@@ -24,8 +24,8 @@ class PoblacionDatosTest extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertSuccessful();
         Storage::fake('local');
         config([
-            'seeders.demo_password' => 'Contraseña ficticia para prueba 123',
-            'seeders.administrador' => ['correo' => 'instalacion@clinica.invalid', 'nombres' => 'Persona ficticia', 'apellidos' => 'De prueba', 'password' => 'Contraseña ficticia de instalación 123'],
+            'seeders.demo_password' => 'Contraseña ficticia para prueba 123!',
+            'seeders.administrador' => ['correo' => 'instalacion@clinica.invalid', 'nombres' => 'Persona ficticia', 'apellidos' => 'De prueba', 'password' => 'Contraseña ficticia de instalación 123!'],
         ]);
     }
 
@@ -63,7 +63,7 @@ class PoblacionDatosTest extends TestCase
         $this->assertStringNotContainsString($admin->correo_acceso, json_encode($event));
         DB::table('usuarios')->where('id_usuario', $admin->id_usuario)->update(['estado_cuenta' => 'Desactivada', 'password_hash' => Hash::make('Contraseña ficticia anterior')]);
         $before = $this->snapshot();
-        config(['seeders.administrador.password' => 'Otra contraseña ficticia distinta 123']);
+        config(['seeders.administrador.password' => 'Otra contraseña ficticia distinta 123!']);
         $this->seed(AdministradorInicialSeeder::class);
         $this->assertSame($before, $this->snapshot());
     }

@@ -11,7 +11,7 @@ import { aceptarInvitacion } from '../../services/invitation.service';
 vi.mock('../../services/auth.service', () => ({ consultarSesion: vi.fn(), iniciarSesion: vi.fn(), cerrarSesion: vi.fn() }));
 vi.mock('../../services/invitation.service', () => ({ aceptarInvitacion: vi.fn() }));
 const token = 'b'.repeat(64);
-const password = ' Frase ficticia del equipo 123 ';
+const password = ' Frase ficticia del equipo 123! ';
 const error = (status, code, details, headers = {}) => ({ response: { status, headers, data: { error: { code, details, message: 'SQL secreto' } } } });
 function mount(envelope = { token }, strict = false) {
   const router = createMemoryRouter(crearRutas({ token: null }, envelope), { initialEntries: ['/activar-personal'] });

@@ -2,7 +2,7 @@
 
 namespace Clinica\presentation\dtos\usuarios;
 
-use Closure;
+use Clinica\business\validators\PoliticaClave;
 use Illuminate\Foundation\Http\FormRequest;
 
 abstract class ClaveRequest extends FormRequest
@@ -15,11 +15,7 @@ abstract class ClaveRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'password' => ['bail', 'required', 'string', 'min:12', 'max:1024', 'confirmed', function (string $attribute, mixed $value, Closure $fail): void {
-                if (config('hashing.driver') === 'bcrypt' && (strlen($value) > 72 || str_contains($value, "\0"))) {
-                    $fail('La contraseña admite hasta 72 bytes y no admite caracteres nulos con el algoritmo actual.');
-                }
-            }],
+            'password' => [...PoliticaClave::reglas(), 'confirmed'],
             'password_confirmation' => ['required', 'string', 'max:1024'],
         ];
     }

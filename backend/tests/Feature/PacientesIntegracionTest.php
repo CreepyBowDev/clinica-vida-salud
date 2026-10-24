@@ -136,7 +136,7 @@ class PacientesIntegracionTest extends TestCase
         $this->navegador($publico, 'POST', '/api/mi-perfil/correo/verificar', ['codigo' => $correo])->assertNoContent();
         $this->navegador($publico, 'GET', '/api/mi-perfil')->assertUnauthorized();
         $this->navegador($otraSesion, 'GET', '/api/auth/me')->assertUnauthorized();
-        $nuevaClave = 'Frase integrada recuperada 123';
+        $nuevaClave = 'Frase integrada recuperada 123!';
         $this->navegador($anonimas, 'POST', '/api/auth/password/reset', ['token' => $recuperacionAnterior, 'password' => $nuevaClave,
             'password_confirmation' => $nuevaClave])->assertUnprocessable();
         $usuario->correo_acceso = 'acceso.nuevo@example.test';

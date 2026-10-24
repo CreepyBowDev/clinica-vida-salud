@@ -10,7 +10,7 @@ import { completarClaveTemporal } from '../../services/password.service';
 vi.mock('../../services/auth.service', () => ({ consultarSesion: vi.fn(), iniciarSesion: vi.fn(), cerrarSesion: vi.fn() }));
 vi.mock('../../services/password.service', () => ({ completarClaveTemporal: vi.fn(), cambiarClave: vi.fn(), restablecerClave: vi.fn(), solicitarRecuperacion: vi.fn() }));
 const restricted = { acceso: 'cambio_clave', cambio_clave_obligatorio: true };
-const password = ' Nueva definitiva ficticia 123 ';
+const password = ' Nueva definitiva ficticia 123! ';
 const error = (status, details, headers = {}) => ({ response: { status, headers, data: { error: { code: 'VALIDACION_ERROR', details, message: 'SQL secreto' } } } });
 function mount(path = '/clave-obligatoria') {
   const router = createMemoryRouter(crearRutas(), { initialEntries: [path] });

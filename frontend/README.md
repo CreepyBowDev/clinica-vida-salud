@@ -1,5 +1,13 @@
 # Frontend — Clínica Vida Salud
 
+## Contraseñas nuevas — política y ayuda en vivo (2026-10-23)
+
+Registro nuevo/vinculación, invitación del personal, cambio propio, recuperación y contraseña definitiva tras credencial temporal comparten `PasswordCreationFields` y `passwordValidation.js`. Se exigen 12 caracteres, mayúscula, minúscula, número decimal y puntuación/símbolo Unicode. La lista muestra Cumplido/Pendiente con iconos mientras se escribe y revierte al borrar; la confirmación informa coincidencia o diferencia. Se conserva diseño, orden, Source Sans 3 y tokens existentes, sin dependencias nuevas. No se modifica login ni contraseña actual.
+
+Los seis flujos bloquean el envío inválido también por submit programático; se conservan los errores del servidor, limpieza de secretos, carga y controles de mostrar/ocultar. Se valida el máximo común de 1024 caracteres; los límites dependientes del hash (bcrypt: 72 bytes/sin NUL) siguen siendo definitivos del backend, sin asumir su algoritmo en React. Sin cambios de endpoints, servicios HTTP, Context o esquema.
+
+**Verificado:** `pnpm test --maxWorkers=2`: **1262 pruebas/67 archivos correctos**, 154,61 s (47 casos nuevos); `pnpm build` correcto, aviso conocido de bundle >500 kB (699,07 kB). Pruebas de requisitos/Unicode/límites, ayuda accesible y rechazo por cada requisito en seis flujos; regresiones de login, errores y transportes simulados. No lint configurado. No se realizaron capturas ni revisión visual en navegador en esta tarea; responsive conservado mediante rejilla existente y estilos flexibles. Integración Laravel/PostgreSQL real sigue pendiente del servidor disponible, sin atribuirla a los mocks.
+
 ## Agenda e historial — fase 4: revisión integral (2026-10-23)
 
 **Fase 4 y las cuatro fases frontend CU-20/CU-21 completadas localmente.** Las tres fases funcionales previas mantienen sus contratos/estructura y no se añade funcionalidad de negocio en esta fase. La revisión no reprodujo un defecto que exigiera cambios productivos. Se amplían HistorialCitas.test.jsx (nueve casos) y navigation.test.js (seis contextos), **15 pruebas nuevas**.

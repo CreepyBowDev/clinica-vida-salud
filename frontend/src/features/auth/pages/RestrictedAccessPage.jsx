@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
-import PasswordField from '../../../components/PasswordField';
+import PasswordCreationFields from '../components/PasswordCreationFields';
 import FormSection from '../../../components/FormSection';
 import ActionGroup from '../../../components/ActionGroup';
 import Icon from '../../../components/Icon';
@@ -40,10 +40,8 @@ export default function RestrictedAccessPage() {
     <form ref={form} className="recovery-form" aria-label="Establecer contraseña definitiva" aria-busy={busy} onSubmit={submit}>
       <PasswordFailure failure={failure} remaining={remaining} />
       <FormSection title="Contraseña definitiva">
-      <PasswordField label="Nueva contraseña" name="password" autoComplete="new-password" minLength={12} hint="Mínimo 12 caracteres. Puedes usar una frase."
-        value={password} busy={busy} onChange={event => setPassword(event.target.value)} error={failure?.fields.password} />
-      <PasswordField label="Confirmar nueva contraseña" name="password_confirmation" autoComplete="new-password" value={confirmation}
-        busy={busy} onChange={event => setConfirmation(event.target.value)} error={failure?.fields.password_confirmation} />
+      <PasswordCreationFields password={password} confirmation={confirmation} busy={busy} fields={failure?.fields}
+        onPasswordChange={event => setPassword(event.target.value)} onConfirmationChange={event => setConfirmation(event.target.value)} />
       </FormSection>
       <Button type="submit" className="full-width" loading={busy} disabled={checking || remaining > 0}>{busy ? 'Guardando contraseña…' : remaining > 0 ? `Espera ${remaining} s` : 'Establecer contraseña definitiva'}</Button>
     </form>

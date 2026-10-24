@@ -16,7 +16,7 @@ class CambioClaveTest extends TestCase
 {
     use AutenticacionFixtures;
 
-    private const NUEVA = '  Nueva frase ficticia 456  ';
+    private const NUEVA = '  Nueva frase ficticia 456!  ';
 
     protected function setUp(): void
     {
@@ -109,6 +109,10 @@ class CambioClaveTest extends TestCase
             'actual array' => [['current_password' => []], 'current_password'],
             'actual excesiva' => [['current_password' => str_repeat('a', 1025)], 'current_password'],
             'minimo' => [['password' => '12345678901', 'password_confirmation' => '12345678901'], 'password'],
+            'sin mayuscula' => [['password' => 'frase ficticia 123!', 'password_confirmation' => 'frase ficticia 123!'], 'password'],
+            'sin minuscula' => [['password' => 'FRASE FICTICIA 123!', 'password_confirmation' => 'FRASE FICTICIA 123!'], 'password'],
+            'sin numero' => [['password' => 'Frase ficticia larga!', 'password_confirmation' => 'Frase ficticia larga!'], 'password'],
+            'sin simbolo' => [['password' => ' Frase ficticia 123 ', 'password_confirmation' => ' Frase ficticia 123 '], 'password'],
             'confirmacion' => [['password_confirmation' => 'otra clave distinta'], 'password'],
             'confirmacion ausente' => [['password_confirmation' => null], 'password_confirmation'],
             'nueva array' => [['password' => []], 'password'],
@@ -132,7 +136,7 @@ class CambioClaveTest extends TestCase
 
     public static function limitesValidos(): array
     {
-        return [[str_repeat('a', 12)], [str_repeat('a', 72)], [str_repeat('á', 12)]];
+        return [['Aa1!'.str_repeat('a', 8)], ['Aa1!'.str_repeat('a', 68)], ['Áa1!'.str_repeat('á', 8)]];
     }
 
     #[DataProvider('limitesValidos')]

@@ -1,5 +1,13 @@
 # Backend — Clínica Vida Salud
 
+## Política de nuevas contraseñas — 2026-10-23
+
+Se conserva mínimo 12 caracteres y se exige al menos una mayúscula, una minúscula, un número decimal y un carácter especial. Unicode permitido; espacios conservados, sin contar como especial. `src/business/validators/PoliticaClave.php` centraliza las reglas para ClaveRequest y los tres seeders de instalación/pruebas/demostración. Se mantiene confirmación y máximo 1024 caracteres; bcrypt limita a 72 bytes y rechaza NUL. No cambia login/contraseña actual, códigos o credencial temporal, ni se invalidan cuentas existentes.
+
+Se aplica a registro/vinculación, invitación, cambio, recuperación y contraseña definitiva tras credencial temporal. No cambian endpoints, respuestas de éxito, esquema ni hash. Fallo de política devuelve 422/VALIDACION_ERROR por el contrato existente, con mensaje seguro en password. Las claves privadas suministradas a seeders deben cumplir la misma regla; nunca se sobreescriben credenciales existentes al repetir. Frontend sin modificar y pendiente de alinear textos/validación.
+
+**Pruebas ejecutadas:** `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit tests/Feature/PoliticaClaveTest.php --filter "all_new_password_flows|non_bcrypt_driver|seeders_reject|login_and_current" --colors=never`: **98 pruebas/330 aserciones correctas**. Validadores, reglas de login/contraseña actual históricas y seeders con DB simulada, no integración PostgreSQL. Pint y sintaxis de los 17 PHP afectados correctos. El caso de login histórico/cambio por HTTP requiere PostgreSQL/base/rol aislados disponibles; al intentarlo, localhost:5432 rechazó la conexión (08006). Primera ejecución completa interrumpida por timeout de 120 s; la regresión HTTP/concurrente/global queda pendiente. Para reejecutarla con la base aislada iniciada: `php -d memory_limit=512M vendor/phpunit/phpunit/phpunit --colors=never`. No se ejecutaron migraciones contra la base habitual ni se inició PostgreSQL automáticamente.
+
 ## Agenda e historial CU-20/CU-21 — fase 6: integración y cierre backend (2026-10-22)
 
 **Fase 6 y backend CU-20/CU-21 cerrados localmente.** AgendaIntegracionTest añade **tres pruebas/394 aserciones correctas**, 1,836 s/72 MB. No se necesitaron cambios productivos. Las secciones de fases 1–5 que siguen son historial de desarrollo: sus contratos previstos están implementados y sus pendientes de integración se resuelven en esta fase. No se declara implementado el frontend.

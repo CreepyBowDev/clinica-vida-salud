@@ -13,7 +13,7 @@ vi.mock('../../services/password.service', () => ({ cambiarClave: vi.fn(), solic
 const person = rol => ({ id_usuario: '25', nombre_visible: 'Persona Ficticia', correo_acceso: 'persona@example.test', rol });
 const error = (status, code, details, headers = {}) => ({ response: { status, headers, data: { error: { code, message: 'SQL privado', details } } } });
 const token = 'a'.repeat(64);
-const password = '  Nueva frase ficticia 123  ';
+const password = '  Nueva frase ficticia 123!  ';
 
 function mount(path, link = { token }, strict = false) {
   const router = createMemoryRouter(crearRutas(link), { initialEntries: [path] });
@@ -226,7 +226,7 @@ describe('restablecer por enlace', () => {
     const field = screen.getByLabelText('Nueva contraseña');
     await waitFor(() => expect(field).toHaveFocus());
     expect(field).toHaveValue('');
-    expect(field).toHaveAccessibleDescription('Mínimo 12 caracteres. Puedes usar una frase. La contraseña no es válida.');
+    expect(field).toHaveAccessibleDescription(/Los espacios no cuentan como carácter especial\. La contraseña no es válida\./);
     expect(screen.queryByRole('heading', { name: 'Enlace no disponible' })).not.toBeInTheDocument();
   });
 
@@ -237,7 +237,7 @@ describe('restablecer por enlace', () => {
     fireEvent.change(screen.getByLabelText('Confirmar nueva contraseña'), { target: { value: 'corta' } });
     fireEvent.submit(screen.getByRole('form'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Revisa los campos');
-    expect(screen.getByLabelText('Nueva contraseña')).toHaveAccessibleDescription('Mínimo 12 caracteres. Puedes usar una frase. La contraseña debe tener al menos 12 caracteres.');
+    expect(screen.getByLabelText('Nueva contraseña')).toHaveAccessibleDescription(/Los espacios no cuentan como carácter especial\. La contraseña debe tener al menos 12 caracteres\./);
     expect(restablecerClave).not.toHaveBeenCalled();
   });
 

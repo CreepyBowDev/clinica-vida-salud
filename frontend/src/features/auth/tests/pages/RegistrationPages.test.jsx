@@ -11,7 +11,7 @@ import { emitirCodigoActivacion } from '../../../pacientes/services/activation.s
 vi.mock('../../services/auth.service', () => ({ consultarSesion: vi.fn(), cerrarSesion: vi.fn(), iniciarSesion: vi.fn() }));
 vi.mock('../../services/registration.service', () => ({ registrarPaciente: vi.fn(), vincularPaciente: vi.fn(), reenviarCodigoRegistro: vi.fn(), verificarRegistro: vi.fn() }));
 vi.mock('../../../pacientes/services/activation.service', () => ({ emitirCodigoActivacion: vi.fn() }));
-const password = 'Frase ficticia larga 123';
+const password = 'Frase ficticia larga 123!';
 const error = (status, code = '', details = {}, headers = {}) => ({ response: { status, headers, data: { error: { code, details, message: 'SQL interno secreto' } } } });
 const userData = rol => ({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'persona@example.test', rol });
 const receipt = { id_paciente: '17', codigo_activacion: 'Ab1234567890', expira_en: '2026-10-21T20:00:00Z' };

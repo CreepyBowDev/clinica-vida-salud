@@ -3,11 +3,13 @@
 namespace Clinica\data\database\seeders;
 
 use Carbon\CarbonImmutable;
+use Clinica\business\validators\PoliticaClave;
 use DateTimeInterface;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -27,10 +29,10 @@ class DemostracionSeeder extends Seeder
             throw new RuntimeException('La demostración requiere la base y el rol locales configurados para este proyecto.');
         }
         $password = config('seeders.demo_password');
-        if ($password !== null && $password !== '' && (! is_string($password) || mb_strlen($password) < 12)) {
-            throw new RuntimeException('CLINICA_DEMO_PASSWORD debe tener al menos 12 caracteres.');
+        if ($password !== null && $password !== '' && Validator::make(['password' => $password], ['password' => PoliticaClave::reglas()])->fails()) {
+            throw new RuntimeException('CLINICA_DEMO_PASSWORD debe tener al menos 12 caracteres, mayúscula, minúscula, número y carácter especial, respetando los límites del hash.');
         }
-        $hash = Hash::make($password ?: Str::random(64));
+        $hash = Hash::make($password ?: Str::random(60).'aA1!');
 
         DB::transaction(function () use ($hash): void {
             DB::select('SELECT pg_advisory_xact_lock(19026, 1)');

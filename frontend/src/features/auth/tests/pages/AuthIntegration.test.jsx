@@ -11,7 +11,7 @@ import { api, csrfURL } from '../../../../api/api';
 // Solo se sustituye el transporte HTTP. No acredita cookies/CSRF ni reglas de Laravel.
 const originalAdapter = api.defaults.adapter;
 afterEach(() => { api.defaults.adapter = originalAdapter; });
-const password = 'Frase ficticia de prueba 123';
+const password = 'Frase ficticia de prueba 123!';
 const persona = rol => ({ id_usuario: '17', nombre_visible: 'Persona Ficticia', correo_acceso: 'persona@example.test', rol });
 const restricted = { acceso: 'cambio_clave', cambio_clave_obligatorio: true };
 function transport(handler) {
@@ -79,7 +79,7 @@ describe('integración HTTP del frontend de autenticación', () => {
       if (config.url === (linking ? '/auth/registro/vincular' : '/auth/registro')) return { status: 202, data: { data: { message: 'Solicitud recibida.' } } };
       if (config.url === '/auth/registro/verificar') { expect(body).toEqual({ codigo: '001234' }); activated = true; return { status: 204 }; }
       if (config.url === '/auth/login') { expect(activated).toBe(true); session = persona('Paciente'); return { data: { data: session } }; }
-      if (config.url === '/auth/password') { expect(body).toEqual({ current_password: password, password: 'Nueva frase ficticia 456', password_confirmation: 'Nueva frase ficticia 456' }); return { status: 204 }; }
+      if (config.url === '/auth/password') { expect(body).toEqual({ current_password: password, password: 'Nueva frase ficticia 456!', password_confirmation: 'Nueva frase ficticia 456!' }); return { status: 204 }; }
       if (config.url === '/auth/logout') { session = null; return { status: 204 }; }
     });
     const { router } = mount(linking ? '/vincular-ficha' : '/registro');
@@ -96,7 +96,7 @@ describe('integración HTTP del frontend de autenticación', () => {
     await login(); await screen.findByRole('heading', { name: 'Hola, Persona Ficticia' });
     await userEvent.click(screen.getByRole('link', { name: 'Cambiar contraseña' }));
     await screen.findByLabelText('Contraseña actual');
-    field('Contraseña actual', password); field('Nueva contraseña', 'Nueva frase ficticia 456'); field('Confirmar nueva contraseña', 'Nueva frase ficticia 456');
+    field('Contraseña actual', password); field('Nueva contraseña', 'Nueva frase ficticia 456!'); field('Confirmar nueva contraseña', 'Nueva frase ficticia 456!');
     fireEvent.submit(screen.getByRole('form'));
     expect(await screen.findByRole('status')).toHaveTextContent('Contraseña actualizada');
     expect(screen.getByLabelText('Nueva contraseña')).toHaveValue('');

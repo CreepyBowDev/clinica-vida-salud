@@ -25,7 +25,7 @@ class RecuperacionClaveTest extends TestCase
 {
     use AutenticacionFixtures;
 
-    private const NUEVA = '  Nueva frase de recuperacion 456  ';
+    private const NUEVA = '  Nueva frase de recuperacion 456!  ';
 
     private const RESPUESTA = ['data' => ['message' => 'Si corresponde, recibirás un enlace para recuperar tu contraseña.']];
 
@@ -304,7 +304,9 @@ class RecuperacionClaveTest extends TestCase
 
     public static function clavesInvalidas(): array
     {
-        return [['corta', 'corta'], [str_repeat('a', 73), str_repeat('a', 73)], ["Clave\0ficticia 123", "Clave\0ficticia 123"], [self::NUEVA, 'otra confirmacion']];
+        return [['corta', 'corta'], [str_repeat('a', 73), str_repeat('a', 73)], ["Clave\0ficticia 123", "Clave\0ficticia 123"], [self::NUEVA, 'otra confirmacion'],
+            ['Frase ficticia 123', 'Frase ficticia 123'], ['frase ficticia 123!', 'frase ficticia 123!'],
+            ['FRASE FICTICIA 123!', 'FRASE FICTICIA 123!'], ['Frase ficticia larga!', 'Frase ficticia larga!']];
     }
 
     #[DataProvider('clavesInvalidas')]

@@ -2,9 +2,11 @@
 
 namespace Clinica\data\database\seeders;
 
+use Clinica\business\validators\PoliticaClave;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -16,8 +18,8 @@ class CuentasPruebaSeeder extends Seeder
             throw new RuntimeException('Habilita CLINICA_CUENTAS_PRUEBA_HABILITADAS solo en el entorno de demostración.');
         }
         $password = config('seeders.demo_password');
-        if (! is_string($password) || mb_strlen($password) < 12) {
-            throw new RuntimeException('Configura CLINICA_DEMO_PASSWORD con al menos 12 caracteres en el entorno privado.');
+        if (Validator::make(['password' => $password], ['password' => PoliticaClave::reglas()])->fails()) {
+            throw new RuntimeException('Configura CLINICA_DEMO_PASSWORD con al menos 12 caracteres, mayúscula, minúscula, número y carácter especial; respeta los límites del hash en el entorno privado.');
         }
         if (DB::connection()->getDriverName() !== 'pgsql') {
             throw new RuntimeException('Las cuentas de prueba requieren PostgreSQL.');

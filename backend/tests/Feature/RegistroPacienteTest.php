@@ -179,8 +179,8 @@ class RegistroPacienteTest extends TestCase
         $this->iniciar($cookies)->assertStatus(202);
         $antes = DB::table('registros_paciente_pendientes')->sole();
         $this->travel(1)->minutes();
-        $this->iniciar($cookies, ['nombres' => 'Intento cambiado', 'password' => 'Otra frase segura nueva 456',
-            'password_confirmation' => 'Otra frase segura nueva 456'])->assertStatus(202);
+        $this->iniciar($cookies, ['nombres' => 'Intento cambiado', 'password' => 'Otra frase segura nueva 456!',
+            'password_confirmation' => 'Otra frase segura nueva 456!'])->assertStatus(202);
         $this->assertEquals($antes, DB::table('registros_paciente_pendientes')->sole());
         $ajeno = $this->csrfAuth();
         $this->iniciar($ajeno)->assertStatus(202);

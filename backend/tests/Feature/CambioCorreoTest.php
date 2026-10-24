@@ -209,7 +209,7 @@ class CambioCorreoTest extends TestCase
         $this->solicitar($cookies)->assertStatus(202);
         $codigo = $this->codigo();
         $this->navegador($cookies, 'PUT', '/api/auth/password', ['current_password' => self::PASSWORD,
-            'password' => 'Otra frase segura ficticia 123', 'password_confirmation' => 'Otra frase segura ficticia 123'])->assertNoContent();
+            'password' => 'Otra frase segura ficticia 123!', 'password_confirmation' => 'Otra frase segura ficticia 123!'])->assertNoContent();
         $this->travel(60)->seconds();
         $this->verificar($cookies, $codigo)->assertUnprocessable();
         $this->navegador($cookies, 'POST', '/api/mi-perfil/correo/reenviar')->assertUnprocessable();
@@ -240,10 +240,10 @@ class CambioCorreoTest extends TestCase
         $this->assertNull(DB::table('verificaciones_correo')->value('invalidado_en'));
         $anonimas = $this->csrfAuth();
         $this->navegador($anonimas, 'POST', '/api/auth/password/reset', ['token' => $secreto,
-            'password' => 'Frase recuperada ficticia 123', 'password_confirmation' => 'Frase recuperada ficticia 123'])->assertNoContent();
+            'password' => 'Frase recuperada ficticia 123!', 'password_confirmation' => 'Frase recuperada ficticia 123!'])->assertNoContent();
         $this->assertNotNull(DB::table('verificaciones_correo')->value('invalidado_en'));
         $this->navegador($cookies, 'GET', '/sanctum/csrf-cookie')->assertNoContent();
-        $this->loginAuth($cookies, $usuario, 'Frase recuperada ficticia 123')->assertOk();
+        $this->loginAuth($cookies, $usuario, 'Frase recuperada ficticia 123!')->assertOk();
         $this->travel(60)->seconds();
         $this->navegador($cookies, 'POST', '/api/mi-perfil/correo/reenviar')->assertUnprocessable();
         $this->verificar($cookies, $this->codigo())->assertUnprocessable();

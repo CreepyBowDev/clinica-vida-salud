@@ -200,7 +200,7 @@ class VinculacionPacienteTest extends TestCase
         $this->iniciar($ajeno, $principal, ['correo_acceso' => 'ajeno@example.test'])->assertStatus(202);
         $this->verificar($ajeno)->assertStatus(422);
         $this->travel(1)->minutes();
-        $this->iniciar($cookies, $principal, ['password' => 'Otra frase ficticia 123', 'password_confirmation' => 'Otra frase ficticia 123'])->assertStatus(202);
+        $this->iniciar($cookies, $principal, ['password' => 'Otra frase ficticia 123!', 'password_confirmation' => 'Otra frase ficticia 123!'])->assertStatus(202);
         $this->assertEquals($antes, DB::table('registros_paciente_pendientes')->sole());
         $this->assertSame(0, DB::table('codigos_activacion_paciente')->sole()->intentos_fallidos);
         $this->verificar($cookies)->assertNoContent();

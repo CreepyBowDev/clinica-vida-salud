@@ -20,7 +20,7 @@ class CredencialTemporalTest extends TestCase
 {
     use AutenticacionFixtures;
 
-    private const NUEVA = '  Definitiva ficticia segura 456  ';
+    private const NUEVA = '  Definitiva ficticia segura 456!  ';
 
     private const RESTRINGIDA = ['data' => ['acceso' => 'cambio_clave', 'cambio_clave_obligatorio' => true]];
 

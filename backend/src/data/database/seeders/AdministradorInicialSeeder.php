@@ -2,6 +2,7 @@
 
 namespace Clinica\data\database\seeders;
 
+use Clinica\business\validators\PoliticaClave;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -19,9 +20,9 @@ class AdministradorInicialSeeder extends Seeder
             'correo' => ['required', 'email:rfc', 'max:254'],
             'nombres' => ['required', 'string', 'max:120', 'regex:/\S/u'],
             'apellidos' => ['required', 'string', 'max:120', 'regex:/\S/u'],
-            'password' => ['required', 'string', 'min:12'],
+            'password' => PoliticaClave::reglas(),
         ])->fails()) {
-            throw new RuntimeException('Completa CLINICA_ADMIN_CORREO, CLINICA_ADMIN_NOMBRES, CLINICA_ADMIN_APELLIDOS y CLINICA_ADMIN_PASSWORD (mínimo 12 caracteres) en el entorno privado.');
+            throw new RuntimeException('Completa CLINICA_ADMIN_CORREO, CLINICA_ADMIN_NOMBRES, CLINICA_ADMIN_APELLIDOS y CLINICA_ADMIN_PASSWORD (mínimo 12 caracteres, mayúscula, minúscula, número y carácter especial; respeta los límites del hash) en el entorno privado.');
         }
         if (str_ends_with($data['correo'], '@example.test')) {
             throw new RuntimeException('Reserva example.test para demostración; configura el correo del Administrador de instalación.');

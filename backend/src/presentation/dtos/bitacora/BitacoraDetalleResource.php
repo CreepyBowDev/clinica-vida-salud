@@ -36,7 +36,7 @@ class BitacoraDetalleResource extends BitacoraListadoResource
         }
         $salida = [];
         if ($this->tipo_evento === 'CITA_PROGRAMADA') {
-            if (in_array($origen->origen ?? null, ['PROPIA', 'RECEPCION'], true)) {
+            if (in_array($origen->origen ?? null, ['PROPIA', 'RECEPCION', 'ADMINISTRACION'], true)) {
                 $salida['origen'] = $origen->origen;
             }
             if (($origen->estado ?? null) === 'Programada') {

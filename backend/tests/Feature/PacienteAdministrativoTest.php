@@ -16,6 +16,8 @@ class PacienteAdministrativoTest extends TestCase
 {
     use AutenticacionFixtures;
 
+    protected const ROL_OPERADOR = 'Recepcionista';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -28,7 +30,7 @@ class PacienteAdministrativoTest extends TestCase
 
     private function recepcion(): array
     {
-        $actor = $this->usuarioAuth('Recepcionista');
+        $actor = $this->usuarioAuth(static::ROL_OPERADOR);
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $actor)->assertOk();
 
@@ -58,6 +60,8 @@ class PacienteAdministrativoTest extends TestCase
         $this->assertNull(DB::table('pacientes')->where('id_paciente', $id)->value('id_usuario'));
         $this->navegador($cookies, 'GET', '/api/pacientes/'.$id)->assertOk()->assertExactJson($r->json());
         $evento = DB::table('bitacora')->where('tipo_evento', 'PACIENTE_CREADO')->first();
+        $this->assertSame(DB::table('usuarios')->sole()->id_usuario, $evento->id_usuario_responsable);
+        $this->assertSame(static::ROL_OPERADOR, $evento->rol_responsable);
         $this->assertSame('PACIENTES', $evento->modulo);
         $this->assertSame(['id_paciente' => $id], json_decode($evento->referencias, true));
         foreach (['001-A', 'Contacto Ficticio', '71111111', 'contacto@example.test'] as $privado) {
@@ -89,6 +93,7 @@ class PacienteAdministrativoTest extends TestCase
             ->assertConflict()->assertJsonPath('error.code', 'PACIENTE_DOCUMENTO_NO_DISPONIBLE');
         $this->navegador($cookies, 'POST', '/api/pacientes/'.$uno->json('data.id_paciente').'/codigo-activacion',
             ['identidad_verificada' => true])->assertCreated()->assertJsonStructure(['data' => ['codigo_activacion', 'expira_en']]);
+        $this->assertSame(DB::table('usuarios')->sole()->id_usuario, DB::table('codigos_activacion_paciente')->sole()->id_recepcionista);
         $this->assertSame(1, DB::table('pacientes')->where('documento_identidad', '001-A')->count());
     }
 
@@ -113,7 +118,7 @@ class PacienteAdministrativoTest extends TestCase
 
     public static function rolesNoPermitidos(): array
     {
-        return [['Administrador'], ['Médico'], ['Paciente']];
+        return [['Médico'], ['Paciente']];
     }
 
     #[DataProvider('rolesNoPermitidos')]

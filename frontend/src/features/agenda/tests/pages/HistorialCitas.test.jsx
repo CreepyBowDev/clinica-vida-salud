@@ -70,16 +70,16 @@ it('Mis citas inicia Próximas por contrato, sin consultar perfil/actividad ni e
   expect(table).not.toHaveTextContent('NO-LISTAR'); expect(table).not.toHaveTextContent('70000000');
   expect(screen.getByRole('link', { name: 'Mis citas' })).toHaveAttribute('aria-current', 'page');
 });
-it('Recepción inicia Todas descendente, con contexto mínimo aunque la ficha esté inactiva/sin CI/cuenta', async () => {
-  role = 'Recepcionista'; mount('/recepcion/pacientes/31/citas'); const table = await screen.findByRole('table');
+it.each(['Administrador', 'Recepcionista'])('%s inicia Todas descendente, con contexto mínimo aunque la ficha esté inactiva/sin CI/cuenta', async operador => {
+  role = operador; mount('/recepcion/pacientes/31/citas'); const table = await screen.findByRole('table');
   expect(calls).toHaveLength(1); expect(calls[0]).toMatchObject({ url: '/pacientes/31/citas', params: { page: 1, per_page: 20 } });
   expect(screen.getByLabelText('Período de citas')).toHaveValue('todas');
   expect(within(table).getAllByRole('link').map(link => link.textContent)).toEqual(orden.todas.map(id => `CIT-${id}`));
   expect(screen.getByRole('region', { name: 'Paciente del historial' })).toHaveTextContent('PAC-FICTICIO');
   expect(screen.getByRole('link', { name: 'Volver a la ficha del paciente' })).toHaveAttribute('href', '/recepcion/pacientes/31');
 });
-it('entrada de sidebar reutiliza búsqueda → ficha → historial sin crear historial global', async () => {
-  role = 'Recepcionista'; mount('/recepcion/historial-citas'); const user = userEvent.setup();
+it.each(['Administrador', 'Recepcionista'])('%s: entrada de sidebar reutiliza búsqueda → ficha → historial sin crear historial global', async operador => {
+  role = operador; mount('/recepcion/historial-citas'); const user = userEvent.setup();
   await screen.findByRole('heading', { name: 'Seleccionar paciente para consultar historial' });
   expect(screen.queryByRole('link', { name: 'Registrar paciente' })).not.toBeInTheDocument();
   await user.click(await screen.findByRole('link', { name: 'Ver ficha de Paciente De prueba' }));
@@ -110,7 +110,7 @@ it.each(['Programada', 'Confirmada', 'Atendida', 'Cancelada', 'Inasistencia'])('
   expect(historyCalls().at(-1).params).toEqual({ page: 1, per_page: 20, periodo: 'todas', estado });
   expect(within(screen.getByRole('table')).getAllByRole('row').slice(1).every(row => row.textContent.includes(estado))).toBe(true);
 });
-it.each(['Paciente', 'Recepcionista'])('%s pagina y vuelve del detalle conservando criterios, sin guardar citas', async rol => {
+it.each(['Administrador', 'Paciente', 'Recepcionista'])('%s pagina y vuelve del detalle conservando criterios, sin guardar citas', async rol => {
   role = rol; override = Array.from({ length: 21 }, (_, i) => ({ ...rows[0], id_cita: String(i + 1), codigo_cita: `PAG-${i + 1}` }));
   mount(role === 'Paciente' ? '/mis-citas' : '/recepcion/pacientes/31/citas'); const user = userEvent.setup();
   await screen.findByRole('table'); await user.click(within(screen.getByRole('navigation', { name: 'Paginación de citas' })).getByRole('button', { name: 'Siguiente' }));
@@ -124,7 +124,7 @@ it.each(['Paciente', 'Recepcionista'])('%s pagina y vuelve del detalle conservan
   expect(historyCalls().at(-1).params.periodo).toBe(role === 'Paciente' ? 'proximas' : 'todas');
   expect(screen.getByRole('main')).not.toHaveTextContent('MOTIVO-FICTICIO'); expect(localStorage.length + sessionStorage.length).toBe(0);
 });
-it.each(['Paciente', 'Recepcionista'])('%s aplica filtros/cantidad solo al enviar y restablece su período inicial', async rol => {
+it.each(['Administrador', 'Paciente', 'Recepcionista'])('%s aplica filtros/cantidad solo al enviar y restablece su período inicial', async rol => {
   role = rol; mount(role === 'Paciente' ? '/mis-citas' : '/recepcion/pacientes/31/citas'); await screen.findByRole('table'); const user = userEvent.setup();
   await user.selectOptions(screen.getByLabelText('Período de citas'), 'anteriores'); await user.selectOptions(screen.getByLabelText('Citas por página'), '10');
   expect(historyCalls()).toHaveLength(1); await user.click(screen.getByRole('button', { name: 'Consultar historial', exact: true }));
@@ -135,16 +135,16 @@ it.each(['Paciente', 'Recepcionista'])('%s aplica filtros/cantidad solo al envia
 });
 it.each([
   ['Administrador', '/mis-citas'], ['Médico', '/mis-citas'], ['Recepcionista', '/mis-citas'],
-  ['Administrador', '/recepcion/pacientes/31/citas'], ['Médico', '/recepcion/pacientes/31/citas'], ['Paciente', '/recepcion/pacientes/31/citas'],
-  ['Administrador', '/recepcion/historial-citas'], ['Paciente', '/recepcion/historial-citas/1'], ['Recepcionista', '/mis-citas/1'],
+  ['Médico', '/recepcion/pacientes/31/citas'], ['Paciente', '/recepcion/pacientes/31/citas'],
+  ['Paciente', '/recepcion/historial-citas/1'], ['Recepcionista', '/mis-citas/1'],
 ])('%s no consulta ruta ajena %s', async (rol, path) => {
   role = rol; mount(path); await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);
 });
-it.each(['0', '01', '9223372036854775808', 'texto'])('ficha %s inválida no genera HTTP', async id => {
-  role = 'Recepcionista'; mount(`/recepcion/pacientes/${id}/citas`); await screen.findByRole('heading', { name: 'Historial no disponible' }); expect(calls).toHaveLength(0);
+it.each(['Administrador', 'Recepcionista'].flatMap(rol => ['0', '01', '9223372036854775808', 'texto'].map(id => [rol, id])))('%s: ficha %s inválida no genera HTTP', async (rol, id) => {
+  role = rol; mount(`/recepcion/pacientes/${id}/citas`); await screen.findByRole('heading', { name: 'Historial no disponible' }); expect(calls).toHaveLength(0);
 });
-it('cambiar de ficha descarta solicitud/filas anteriores y reinicia sus criterios', async () => {
-  role = 'Recepcionista'; let complete, signal;
+it.each(['Administrador', 'Recepcionista'])('%s: cambiar de ficha descarta solicitud/filas anteriores y reinicia sus criterios', async operador => {
+  role = operador; let complete, signal;
   respond = config => config.url === '/pacientes/31/citas' ? new Promise(resolve => { signal = config.signal; complete = () => resolve(server(config)); }) : server(config);
   const router = mount('/recepcion/pacientes/31/citas'); await waitFor(() => expect(complete).toBeTypeOf('function'));
   await act(async () => router.navigate('/recepcion/pacientes/99/citas'));
@@ -190,12 +190,12 @@ it('otra identidad empieza con filtros limpios y sin datos del usuario anterior'
   await waitFor(() => expect(historyCalls().at(-1).params).toEqual({ page: 1, per_page: 20 }));
   expect(screen.getByLabelText('Estado de cita')).toHaveValue('');
 });
-it('respuesta vinculada a otra ficha o malformada no se presenta como historial válido', async () => {
-  role = 'Recepcionista'; respond = config => { const result = server(config); result.data.meta.paciente.id_paciente = '999'; return result; };
+it.each(['Administrador', 'Recepcionista'])('%s no presenta como válido un historial de otra ficha', async operador => {
+  role = operador; respond = config => { const result = server(config); result.data.meta.paciente.id_paciente = '999'; return result; };
   mount('/recepcion/pacientes/31/citas'); await screen.findByRole('alert'); expect(screen.queryByRole('table')).not.toBeInTheDocument();
 });
 
-it.each(['Paciente', 'Recepcionista'])('%s atrás/adelante reconsulta listado y detalle sin restaurar objetos privados de history', async rol => {
+it.each(['Administrador', 'Paciente', 'Recepcionista'])('%s atrás/adelante reconsulta listado y detalle sin restaurar objetos privados de history', async rol => {
   role = rol; const root = role === 'Paciente' ? '/mis-citas' : '/recepcion/pacientes/31/citas';
   const router = mount(root); await screen.findByRole('table'); await apply('todas', 'Cancelada');
   await userEvent.click(screen.getByRole('link', { name: 'Ver cita CIT-4' }));
@@ -208,16 +208,16 @@ it.each(['Paciente', 'Recepcionista'])('%s atrás/adelante reconsulta listado y 
   expect(calls.filter(call => call.url === '/citas/4')).toHaveLength(2);
   expect(historyCalls()).toHaveLength(3); expect(calls.every(call => call.method === 'get')).toBe(true);
 });
-it.each(['/mis-citas/1', '/recepcion/historial-citas/1'])('detalle directo %s ofrece retorno real sin exigir navegación previa', async path => {
-  role = path.startsWith('/recepcion') ? 'Recepcionista' : 'Paciente'; mount(path);
+it.each([['Paciente', '/mis-citas/1'], ['Recepcionista', '/recepcion/historial-citas/1'], ['Administrador', '/recepcion/historial-citas/1']])('%s: detalle directo %s ofrece retorno real sin exigir navegación previa', async (rol, path) => {
+  role = rol; mount(path);
   await screen.findByRole('region', { name: 'Paciente' });
   const back = screen.getByRole('link', { name: role === 'Paciente' ? 'Volver a Mis citas' : 'Volver al historial del paciente' });
   expect(back).toHaveAttribute('href', role === 'Paciente' ? '/mis-citas' : '/recepcion/pacientes/31/citas');
   await userEvent.click(back); await screen.findByRole('table');
   expect(historyCalls()[0].params).toEqual({ page: 1, per_page: 20 });
 });
-it('404 de detalle administrativo directo no revela ficha y vuelve a selección segura', async () => {
-  role = 'Recepcionista'; respond = config => config.url.startsWith('/citas/') ? Promise.reject(fail(config, 404)) : server(config);
+it.each(['Administrador', 'Recepcionista'])('%s: 404 de detalle administrativo directo no revela ficha y vuelve a selección segura', async operador => {
+  role = operador; respond = config => config.url.startsWith('/citas/') ? Promise.reject(fail(config, 404)) : server(config);
   mount('/recepcion/historial-citas/1'); await screen.findByRole('alert');
   expect(screen.getByRole('link', { name: 'Volver a seleccionar paciente' })).toHaveAttribute('href', '/recepcion/historial-citas');
   expect(screen.getByRole('main')).not.toHaveTextContent('PAC-FICTICIO');
@@ -251,8 +251,8 @@ it('respuesta rechazada al reconsultar retira la tabla anterior sin afirmar que 
   expect(screen.queryByRole('region', { name: 'Paciente del historial' })).not.toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'No hay citas para este período y estado' })).not.toBeInTheDocument();
 });
-it('selector de historial cancela y oculta fichas al abandonar página, restaura con consulta nueva', async () => {
-  role = 'Recepcionista'; let complete, signal;
+it.each(['Administrador', 'Recepcionista'])('%s: selector de historial cancela y oculta fichas al abandonar página, restaura con consulta nueva', async operador => {
+  role = operador; let complete, signal;
   respond = config => new Promise(resolve => { signal = config.signal; complete = () => resolve(server(config)); });
   mount('/recepcion/historial-citas'); await waitFor(() => expect(complete).toBeTypeOf('function'));
   const old = complete;
@@ -260,4 +260,33 @@ it('selector de historial cancela y oculta fichas al abandonar página, restaura
   await act(async () => old()); expect(screen.queryByRole('table')).not.toBeInTheDocument();
   respond = server; await act(async () => window.dispatchEvent(new Event('pageshow')));
   await screen.findByRole('table'); expect(calls).toHaveLength(2);
+});
+it.each(['Administrador', 'Recepcionista'].flatMap(rol => [401, 403, 404, 419, 422, 429, 500, undefined].map(status => [rol, status])))('%s: historial con error %s no conserva datos anteriores ni reintenta solo', async (rol, status) => {
+  role = rol; const router = mount('/recepcion/pacientes/31/citas'); await screen.findByRole('table');
+  respond = config => Promise.reject(fail(config, status));
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar historial', exact: true }));
+  if (status === 401) await screen.findByRole('heading', { name: 'Bienvenido de nuevo' });
+  else {
+    expect(await screen.findByRole('alert')).not.toHaveTextContent('SQL-PRIVADO');
+    expect(router.state.location.pathname).toBe('/recepcion/pacientes/31/citas');
+    if (status === 429) expect(screen.getByRole('button', { name: 'Consultar historial', exact: true })).toBeDisabled();
+  }
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Paciente del historial' })).not.toBeInTheDocument();
+  expect(calls).toHaveLength(2); expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it.each(['rol', 'identidad'])('historial administrativo cambia %s sin reutilizar criterios ni publicar respuesta anterior', async tipo => {
+  role = 'Recepcionista'; mount('/recepcion/pacientes/31/citas'); await screen.findByRole('table');
+  await apply('anteriores', 'Atendida');
+  let complete;
+  respond = config => new Promise(resolve => { complete = () => resolve(server(config)); });
+  role = tipo === 'rol' ? 'Administrador' : 'Recepcionista';
+  consultarSesion.mockResolvedValue(sesion(role, tipo === 'identidad' ? '2' : '1'));
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  await waitFor(() => expect(complete).toBeTypeOf('function'));
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Estado de cita')).toHaveValue('');
+  expect(historyCalls().at(-1).params).toEqual({ page: 1, per_page: 20 });
+  await act(async () => complete()); await screen.findByRole('table');
+  expect(screen.getByLabelText('Período de citas')).toHaveValue('todas');
 });

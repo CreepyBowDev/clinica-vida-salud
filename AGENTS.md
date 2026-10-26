@@ -177,12 +177,16 @@ No crear automáticamente una entidad, tabla, carpeta frontend o endpoint por ca
 
 ## 8. Roles, permisos y relaciones de identidad
 
-- **Administrador:** gestiona cuentas del personal y el estado de acceso de cuentas web de Pacientes existentes y previamente verificadas, además de médicos, especialidades, consultorios, horarios, reportes y bitácora. Sobre cuentas de Pacientes solo consulta datos administrativos mínimos y desactiva/reactiva el acceso; no crea cuentas, cambia contraseñas, correo, rol o vinculación ni omite verificaciones. En laboratorio puede cargar/corregir documentos y sus asociaciones, **no** interpretar ni alterar contenido clínico.
+**Decisión definitiva aprobada el 2026-10-24:** Administrador autorizado en **28/30 CU: CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30**. CU-04 y CU-08 siguen siendo personales del Paciente. Esta política sustituye las exclusiones administrativas anteriores; no modifica RF01–RF13/RN01–RN14 ni amplía los permisos de los otros roles. Estado y matriz en `docs/ai/casos-de-us.md` §3.1 y contexto §17.117: autorización aprobada no significa implementación terminada.
+
+- **Administrador:** ejecuta las operaciones de los 28 CU autorizados reutilizando los flujos existentes. Incluye gestión de fichas y emisión administrativa de códigos por CU-07 (no registro/vinculación personal CU-04), programación para pacientes e historial administrativo. Incluye, cuando se implementen sus CU, asistencia, historia clínica, consultas, solicitudes/revisión/publicación de laboratorio y consulta administrativa de recordatorios. Mantener estados, integridad, versiones y controles por recurso; no permitir una excepción global que omita validaciones. CU-03 conserva sus límites sobre cuentas de Pacientes: no crea cuentas ni cambia contraseña, correo, rol o vínculo ni omite verificaciones. CU-05/CU-06 siguen siendo credenciales propias, no suplantación.
 - **Recepcionista:** registra pacientes; verifica identidad y emite códigos de activación; programa, reprograma y cancela citas; confirma llegadas e inasistencias.
-- **Médico:** consulta su agenda y la historia autorizada de pacientes que le corresponden; registra consultas y, durante una atención real y autorizada, registra, completa o corrige los antecedentes clínicos de esos pacientes con trazabilidad; solicita estudios, revisa y autoriza resultados. **Solo el Médico responsable** puede marcar sus citas como `Atendida`.
+- **Médico:** consulta su agenda y la historia autorizada de pacientes que le corresponden; registra consultas y, durante una atención real y autorizada, registra, completa o corrige los antecedentes clínicos de esos pacientes con trazabilidad; solicita estudios, revisa y autoriza resultados. Puede marcar como `Atendida` solo sus citas; la autorización adicional del Administrador no amplía la del Médico.
 - **Paciente:** registra/activa su propia cuenta, actualiza su perfil permitido, reserva únicamente sus propias citas y consulta su información clínica autorizada, sin edición directa de antecedentes. **No** reprograma ni cancela sus citas.
 
 Los cuatro roles y sus permisos son **fijos**. El Administrador asigna roles existentes al personal, pero no crea roles ni configura permisos dinámicos. Aplicar autorización **en el servidor**, incluyendo relación con el paciente, cita, médico y documento solicitado.
+
+Separar siempre **usuario ejecutor, Paciente afectado y Médico responsable**. Registrar fecha, resultado y versiones cuando corresponda. El Administrador actúa con su propia identidad; no cambiar su rol a Médico/Recepcionista ni atribuir al Médico lo que ejecutó Administración. No anticipar funcionalidades del Ciclo 2 por esta política. No duplicar métodos, Services, Controllers, endpoints o páginas por rol cuando sean reutilizables.
 
 Diferenciar cuenta de acceso, ficha de Paciente y registro profesional del Médico. Sus estados pueden estar relacionados, pero **no son el mismo estado**.
 
@@ -217,12 +221,12 @@ Nunca confirmar públicamente si un CI o correo pertenece a una cuenta o a una f
 - Cada Médico tiene un consultorio fijo asignado; pueden compartir un mismo consultorio en **horarios no superpuestos**. Solo el Administrador gestiona las asignaciones.
 - Duración inicial de cita: **15 minutos**, configurable. Ninguna cita puede quedar fuera del horario habilitado ni en fecha pasada.
 - Toda reserva o reprogramación debe verificar en el **servidor** paciente, médico activo, especialidad, horario, duración y disponibilidad simultánea de **Médico y consultorio**. Proteger también la concurrencia de peticiones.
-- Paciente únicamente reserva para sí mismo; Recepción programa para un Paciente registrado. Solo Recepción reprograma y cancela.
+- Paciente únicamente reserva para sí mismo; Administrador y Recepción programan para un Paciente registrado y pueden reprogramar/cancelar por sus CU autorizados cuando estén implementados.
 - Los cinco estados de cita son: **Programada, Confirmada, Atendida, Cancelada e Inasistencia**. No agregar otros.
-- Alta inicial → `Programada`. Recepción verifica llegada: `Programada → Confirmada`.
-- Médico responsable después de atender: `Programada → Atendida` o `Confirmada → Atendida`.
-- Recepción cancela antes de la atención: `Programada/Confirmada → Cancelada`.
-- Recepción registra ausencia comprobada tras terminar el turno: `Programada → Inasistencia`.
+- Alta inicial → `Programada`. Administrador o Recepción verifican llegada: `Programada → Confirmada`.
+- Médico responsable o Administrador, tras comprobar atención real: `Programada → Atendida` o `Confirmada → Atendida`; conservar Médico responsable y ejecutor separados.
+- Administrador o Recepción cancelan antes de la atención: `Programada/Confirmada → Cancelada`.
+- Administrador o Recepción registran ausencia comprobada tras terminar el turno: `Programada → Inasistencia`.
 - Reprogramar `Programada` conserva `Programada`; reprogramar `Confirmada` vuelve a `Programada`. No es un sexto estado.
 - `Atendida`, `Cancelada` e `Inasistencia` son finales para los flujos ordinarios. No inventar correcciones excepcionales.
 - La cancelación libera el intervalo, pero no elimina la cita. Preservar ubicación, duración e historia de las atenciones anteriores.
@@ -232,11 +236,11 @@ Nunca confirmar públicamente si un CI o correo pertenece a una cuenta o a una f
 
 - Cada cita admite **como máximo una consulta médica**; registrarla no marca automáticamente la cita como `Atendida`.
 - La consulta corresponde al Médico responsable y puede incluir **varias solicitudes de laboratorio**.
-- **CU-23 / PN18:** únicamente el Médico responsable de una atención real y autorizada registra, completa o corrige tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes personales o familiares. Administrador, Recepción y Paciente no los modifican. CU-08 mantiene la edición personal permitida y CU-22 permanece de consulta; no crear consultas ficticias para cambiar antecedentes.
-- Respetar el acceso clínico por relación asistencial; Recepción no modifica diagnósticos y el Administrador no realiza actos clínicos.
-- Resultados emitidos externamente: Administrador los incorpora como archivos protegidos; Médico solicitante revisa correspondencia y decide publicar o devolver para corrección.
+- **CU-23 / PN18:** Médico responsable o Administrador autorizado registran, completan o corrigen antecedentes durante una atención real y autorizada, conservando Médico responsable, ejecutor real y versiones. Recepción y Paciente no los modifican. CU-08 mantiene la edición personal permitida y CU-22 permanece de consulta; no crear consultas ficticias para cambiar antecedentes.
+- Respetar el acceso clínico por recurso: Médico con relación asistencial y Administrador por autorización expresa del CU, sin falsificar vínculos profesionales. Recepción no modifica diagnósticos.
+- Resultados emitidos externamente: Administrador los incorpora como archivos protegidos; Médico solicitante o Administrador autorizado revisan correspondencia y deciden publicar o devolver para corrección por CU-26. No alterar el archivo emitido ni atribuir falsamente la revisión al Médico.
 - Estados internos del laboratorio: **Pendiente, En revisión, Disponible**. No confundirlos con los cinco estados de cita.
-- Resultado correcto → Médico autoriza publicación **directamente**; resultado incorrecto → devolución motivada, corrección documental por Administrador y **nueva revisión médica**.
+- Resultado correcto → revisor autorizado publica **directamente**; incorrecto → devolución motivada, corrección documental y **nueva revisión autorizada**, siempre con ejecutor real y Médico responsable separados.
 - El Paciente ve `Pendiente` hasta la publicación y solo puede consultar/descargar su documento **vigente y autorizado**. Nunca exponer rutas públicas de archivos clínicos.
 - Conservar trazabilidad de correcciones y versiones de documentos, consultas y antecedentes, con responsables, fechas y versiones anteriores en almacenamiento protegido. La bitácora general registra solo referencias y metadatos seguros, sin contenido clínico sensible. No sobrescribir silenciosamente información clínica relevante ni cambiar automáticamente el estado de la cita al guardar antecedentes.
 

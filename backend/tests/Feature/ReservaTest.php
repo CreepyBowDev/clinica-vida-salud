@@ -21,6 +21,8 @@ class ReservaTest extends TestCase
 {
     use AutenticacionFixtures, CitasFixtures;
 
+    protected const ROL_OPERADOR = 'Recepcionista';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,8 +39,9 @@ class ReservaTest extends TestCase
         CarbonImmutable::setTestNow('2026-11-01T11:00:00Z');
     }
 
-    private function contexto(string $rol = 'Recepcionista'): array
+    private function contexto(?string $rol = null): array
     {
+        $rol ??= static::ROL_OPERADOR;
         $actor = $this->usuarioAuth($rol);
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $actor)->assertOk();
@@ -105,6 +108,9 @@ class ReservaTest extends TestCase
         $this->assertSame(0, DB::table('cambios_cita')->count());
         $this->assertSame(0, DB::table('recordatorios')->count());
         $evento = DB::table('bitacora')->where('tipo_evento', 'CITA_PROGRAMADA')->sole();
+        $this->assertSame($actor->getKey(), $evento->id_usuario_responsable);
+        $this->assertSame(static::ROL_OPERADOR, $evento->rol_responsable);
+        $this->assertSame(static::ROL_OPERADOR === 'Administrador' ? 'ADMINISTRACION' : 'RECEPCION', json_decode($evento->cambios_seguros, true)['origen']);
         $this->assertSame('Cita', $evento->entidad_referida);
         $this->assertSame($cita['id_cita'], $evento->registro_referido);
         foreach (['Motivo privado ficticio', $p['propuesta'], $p['id_propuesta'], 'motivo_hash'] as $secreto) {
@@ -337,7 +343,7 @@ class ReservaTest extends TestCase
 
     public static function accesos(): array
     {
-        return [['Administrador'], ['Médico']];
+        return [['Médico']];
     }
 
     #[DataProvider('accesos')]

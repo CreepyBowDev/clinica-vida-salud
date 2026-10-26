@@ -557,7 +557,7 @@ Reglas obligatorias para `CU-04` y `CU-07`:
 
 ### 17.2. Paciente ya registrado por Recepción
 
-1. Recepción verifica **presencialmente** la identidad, encuentra su ficha y comprueba su CI válido para iniciar la vinculación web.
+1. Administrador o Recepción verifican **presencialmente** identidad/ficha/CI y emiten el código administrativo por CU-07; los pasos personales de vinculación CU-04 siguen reservados al Paciente.
 2. Confirma que no tenga cuenta web vinculada.
 3. Genera un código de activación **alfanumérico aleatorio de 12 caracteres**, **24 horas**, **5 intentos incorrectos**, un solo uso.
 4. El Paciente introduce **CI, código de Recepción, correo y contraseña**.
@@ -584,17 +584,20 @@ Reglas obligatorias para `CU-04` y `CU-07`:
 
 ## 18. Roles y permisos fijos del dominio
 
+**Política definitiva 2026-10-24:** Administrador participa en **28/30 CU**, excluidos únicamente CU-04 y CU-08. Matriz y estado real en `docs/ai/casos-de-us.md` §3.1/contexto §17.117. Los demás roles conservan sus atribuciones. Las menciones anteriores a exclusividad de Recepción/Médico describen sus flujos, no excluyen al Administrador de los CU ahora autorizados. No equivalen a funcionalidad implementada ni permiten omitir integridad, estados, relaciones, disponibilidad, versiones o auditoría.
+
 Existen exactamente cuatro roles:
 
 | Rol | Backend autorizado |
 | --- | --- |
-| Administrador | Cuentas del personal y estado de acceso de cuentas de Pacientes previamente verificadas según CU-03, médicos, especialidades, consultorios, horarios, reportes, carga/corrección documental de laboratorio, bitácora |
+| Administrador | Todas las operaciones de CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30; CU-07 incluye emitir códigos administrativos sin realizar CU-04; usar flujos compartidos y contextos administrativos explícitos |
 | Recepcionista | Registro administrativo de pacientes y códigos de activación, programación, reprogramación, cancelación, llegadas e inasistencias |
 | Médico | Agenda propia, historia clínica relacionada, consultas y mantenimiento autorizado de antecedentes según CU-23, solicitudes, revisión y autorización de laboratorio, marcar **sus propias** citas como Atendida |
 | Paciente | Alta y activación propia, perfil, reserva **solo propia**, historial e información clínica autorizada, documentos publicados y avisos internos |
 
 - No crear permisos editables, tablas de permisos dinámicos ni roles adicionales sin decisión explícita.
-- No conceder al Administrador facultad para marcar citas `Atendida`, diagnosticar o autorizar resultados clínicos.
+- Administrador autorizado para asistencia/consulta clínica/laboratorio por sus CU; implementar únicamente funcionalidades existentes o fases aprobadas. **Usuario ejecutor, Paciente y Médico responsable son identidades separadas**: no simular una sesión de Médico/Recepcionista, falsificar la autoría ni reasignar la atención por ampliar permisos. CU-03 mantiene sus límites de cuentas de Pacientes y CU-05/CU-06 siguen siendo propios. CU-04/CU-08 no se habilitan para Administración.
+- Reutilizar rutas, Requests, Controllers, Services y Repositories existentes; no añadir endpoints/métodos por rol ni un bypass global del Administrador. Las comprobaciones propias del recurso continúan siendo obligatorias.
 - No conceder a Recepción permisos de modificar información clínica o crear credenciales de pacientes.
 - El Paciente **no puede reprogramar ni cancelar** citas.
 - El Médico debe estar vinculado a su identidad profesional y a las citas/consultas que realmente le correspondan.
@@ -615,7 +618,7 @@ Existen exactamente cuatro roles:
 - El Médico debe estar activo, pertenecer a la especialidad y tener horario válido para **nuevas** citas.
 - Paciente de nueva reserva debe estar activo. Desde web solo se permite reservar para el Paciente vinculado a la sesión.
 - Comprobar en servidor horario completo, fecha válida, intervalos ocupados por **Médico o consultorio**, y condiciones simultáneas de concurrencia.
-- Recepción es la única responsable de reprogramar o cancelar citas.
+- Administrador y Recepción pueden reprogramar/cancelar por CU-15/CU-16 cuando se implementen; conservar las mismas restricciones y el ejecutor real.
 - Los cambios de consultorio u horario del Administrador que afecten citas futuras deben identificar conflictos y **no** invalidar o reprogramar citas silenciosamente.
 - Una reprogramación mantiene el identificador de la cita; si estaba `Confirmada`, vuelve a `Programada`; actualiza avisos y conserva trazabilidad.
 - Para una cita ya existente de Paciente inactivo, aplicar estrictamente el CU-15 aprobado para gestión del mismo registro, sin autorizar crear reservas adicionales.
@@ -635,17 +638,17 @@ Transiciones ordinarias:
 
 | Desde | Hacia | Responsable | Condición |
 | --- | --- | --- | --- |
-| Nueva cita | Programada | Recepción o Paciente para sí mismo | Reserva válida |
-| Programada | Confirmada | Recepción | Llegada real, identidad comprobada, cita del día de atención |
-| Programada/Confirmada | Atendida | Médico responsable | Atención efectivamente realizada |
-| Programada/Confirmada | Cancelada | Recepción | Cancelación antes de atención |
-| Programada | Inasistencia | Recepción | Intervalo finalizado y ausencia comprobada |
-| Confirmada | Programada | Recepción | Reprogramación válida, pierde confirmación anterior |
+| Nueva cita | Programada | Administrador, Recepción o Paciente para sí mismo | Reserva válida |
+| Programada | Confirmada | Administrador o Recepción | Llegada real, identidad comprobada, cita del día de atención |
+| Programada/Confirmada | Atendida | Administrador o Médico responsable | Atención efectivamente realizada, ejecutor separado del Médico |
+| Programada/Confirmada | Cancelada | Administrador o Recepción | Cancelación antes de atención |
+| Programada | Inasistencia | Administrador o Recepción | Intervalo finalizado y ausencia comprobada |
+| Confirmada | Programada | Administrador o Recepción | Reprogramación válida, pierde confirmación anterior |
 
 Reprogramar una `Programada` conserva ese estado. `Atendida`, `Cancelada` e `Inasistencia` son finales para flujos ordinarios; no inventar una vía de reapertura.
 
 - No marcar una cita `Atendida` automáticamente al guardar consulta; registrar atención clínica y cambio de estado son operaciones distintas.
-- Recepción no marca `Atendida`; Administrador y Paciente tampoco.
+- Recepción y Paciente no marcan `Atendida`; Administrador sí está autorizado por CU-19, sin atribuir su actuación al Médico.
 - Agenda e historial son **consultas autorizadas** y no conceden privilegios de modificar datos.
 - La ubicación y la duración históricas deben preservarse aunque luego cambie un consultorio o un horario.
 
@@ -655,14 +658,14 @@ Reprogramar una `Programada` conserva ese estado. `Atendida`, `Cancelada` e `Ina
 
 - La historia clínica integra antecedentes, consultas y laboratorios sin confundirse con historial administrativo de citas.
 - El Médico consulta información de pacientes vinculados a una atención autorizada; el Paciente solo la suya cuando sea autorizada.
-- **CU-22 es exclusivamente de consulta. CU-23 / PN18** permite únicamente al Médico responsable registrar, completar o corregir antecedentes obtenidos durante una atención real y autorizada: tipo de sangre, alergias, enfermedades crónicas, medicamentos y antecedentes personales o familiares. Validar cuenta activa, sesión, rol y relación con la cita y el Paciente antes de leer o modificar.
-- CU-08 no permite al Paciente editar antecedentes, diagnósticos, alergias clínicas, enfermedades crónicas, tratamientos o resultados. Administrador y Recepción tampoco modifican antecedentes. No crear consultas ficticias para justificar su actualización.
+- **CU-22 es exclusivamente de consulta**, autorizado también al Administrador. **CU-23 / PN18** permite al Médico responsable o Administrador registrar, completar o corregir antecedentes de una atención real y autorizada. Validar cuenta, sesión, rol y recurso; conservar Paciente/Médico responsable y ejecutor real, versiones y fechas.
+- CU-08 no permite al Paciente editar antecedentes, diagnósticos, alergias clínicas, enfermedades crónicas, tratamientos o resultados. Recepción tampoco modifica antecedentes. Administración solo lo hace por CU-23, nunca por CU-08 ni creando consultas ficticias.
 - Cada cita admite **máximo una consulta**, incluso frente a solicitudes concurrentes.
 - El Médico responsable puede registrar la consulta durante la atención, sin exigir previamente `Atendida`; puede completar documentación de una atención realizada conforme a los CU.
 - No registrar una atención inexistente para citas `Cancelada` o con `Inasistencia`.
 - Actualizaciones clínicas importantes de consultas o antecedentes deben mantener responsable, fecha, motivo cuando corresponda y versiones anteriores y nuevas en almacenamiento clínico protegido. La bitácora general solo registra referencias y metadatos seguros, sin antecedentes, diagnósticos ni otro contenido clínico sensible. No sobrescribir silenciosamente información clínica previa.
 - La modificación de una consulta o de antecedentes **no** cambia automáticamente el estado de la cita.
-- Solo el Médico correspondiente puede registrar/modificar las consultas y solicitar los estudios asociados.
+- Médico correspondiente o Administrador pueden registrar/modificar consultas y solicitar estudios asociados por CU-23/CU-24, sin convertir al Administrador en Médico responsable.
 - Proteger consultas, antecedentes y documentos ante acceso por ID ajeno o URL manipulada.
 
 ---
@@ -671,7 +674,7 @@ Reprogramar una `Programada` conserva ese estado. `Atendida`, `Cancelada` e `Ina
 
 - Cada consulta puede generar varias solicitudes de laboratorio. El estudio se realiza **fuera del sistema** por el laboratorio emisor.
 - El Administrador registra un PDF o imagen legible y puede corregir asociación o sustituir un documento devuelto; **no** edita el contenido médico del resultado.
-- Únicamente el Médico **solicitante** comprueba correspondencia y decide autorizar publicación o devolver con motivo.
+- Médico **solicitante** o Administrador autorizado comprueban correspondencia y deciden autorizar publicación o devolver con motivo por CU-26. No modificar el contenido del documento externo; separar solicitante/responsable de usuario revisor real. El esquema actual de revisión requiere evaluar soporte de autoría antes de implementar CU-26; no modificarlo en la Fase 1.
 - Estados internos de cada solicitud:
 
 ```text
@@ -682,8 +685,8 @@ La devolución o corrección permanece `En revisión`; no crea un cuarto estado.
 
 **Flujo correcto:**
 
-1. Documento correcto en revisión → el Médico autoriza directamente y pasa a `Disponible`.
-2. Documento incorrecto → Médico devuelve con motivo → Administrador corrige/sustituye → nueva revisión médica → solo entonces se publica si corresponde.
+1. Documento correcto en revisión → Médico solicitante o Administrador autorizan directamente y pasa a `Disponible`.
+2. Documento incorrecto → revisor autorizado devuelve con motivo → Administrador corrige/sustituye → nueva revisión autorizada con ejecutor real → solo entonces se publica si corresponde.
 
 - El Paciente ve `Pendiente` mientras el resultado no está publicado, aun cuando el estado interno sea `En revisión`.
 - El Paciente solo descarga la **versión vigente publicada** de sus propias solicitudes; nunca las versiones devueltas o privadas.
@@ -699,6 +702,7 @@ La devolución o corrección permanece `En revisión`; no crea un cuarto estado.
 - Anticipación definida: **24 horas antes de la fecha y hora programadas** de la cita. Si se registra exitosamente con menos de 24 horas de anticipación, generar el aviso después de guardar correctamente la reserva en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el recordatorio siga siendo válido conforme a las condiciones establecidas y el intervalo de atención no haya finalizado. No generar avisos de una reserva cuyo registro haya fallado; revalidar vigencia, estados y preferencias también al ejecutar el programador, evitando duplicados para la misma cita y programación.
 - **La generación no depende del estado `Confirmada` ni modifica el estado de la cita: una cita `Programada` puede generar su recordatorio y una `Confirmada` puede conservar sus avisos vigentes.** La reserva nueva permanece inicialmente `Programada`; guardarla no realiza automáticamente la transición a `Confirmada`, que significa exclusivamente llegada presencial verificada por Recepción.
 - Relacionar aviso con el identificador del Paciente y la cita, incluso si todavía no tiene cuenta web; al activar la cuenta, mostrar únicamente avisos propios que correspondan a citas futuras vigentes.
+- CU-28 autoriza además consulta administrativa del Administrador para el Paciente seleccionado, sin suplantar al titular, modificar sus preferencias de CU-08 ni convertir la generación automática en una operación manual. Su flujo funcional está pendiente.
 - Reprogramación recalcula el momento del aviso según la nueva fecha y hora y actualiza o invalida avisos desactualizados, incluido el consultorio cuando corresponda. Cancelación, `Atendida`, `Inasistencia` o intervalo finalizado impiden nuevos avisos de próxima asistencia y retiran los anteriores de próximos recordatorios, conservando el historial según las reglas existentes.
 - El programador de tareas de Laravel puede generar los avisos; hacer las tareas idempotentes y resistentes a repeticiones. **La frecuencia específica del programador se definirá durante el diseño técnico**, sin fijarla arbitrariamente en estos documentos.
 - **No enviar recordatorios mediante correo, SMS, WhatsApp, Brevo ni push externo.**

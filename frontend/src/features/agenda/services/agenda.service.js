@@ -110,11 +110,9 @@ export async function consultarCita({ id: objetivo, rol }, signal) {
   exigir(result.id_cita === objetivo);
   // El rol solo limita presentación. Laravel decide sesión, titularidad y campos autorizados.
   // Se proyectan claves explícitas: nunca conservar extras clínicos o administrativos de otra matriz.
-  if (rol !== ROLES.ADMINISTRADOR) {
-    exigir(value.motivo_breve === null || (typeof value.motivo_breve === 'string' && [...value.motivo_breve].length <= 500));
-    result.motivo_breve = value.motivo_breve;
-  }
-  if (rol === ROLES.RECEPCIONISTA) {
+  exigir(value.motivo_breve === null || (typeof value.motivo_breve === 'string' && [...value.motivo_breve].length <= 500));
+  result.motivo_breve = value.motivo_breve;
+  if ([ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(rol)) {
     exigir((value.paciente.documento_identidad === null || texto(value.paciente.documento_identidad)) && texto(value.paciente.telefono));
     Object.assign(result.paciente, { documento_identidad: value.paciente.documento_identidad, telefono: value.paciente.telefono });
   }

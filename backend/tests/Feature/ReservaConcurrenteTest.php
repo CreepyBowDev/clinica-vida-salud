@@ -17,6 +17,8 @@ class ReservaConcurrenteTest extends TestCase
 {
     use AutenticacionFixtures, CitasFixtures;
 
+    protected const ROLES_OPERADORES = ['Recepcionista', 'Recepcionista'];
+
     private string $schema;
 
     private string $previousPath;
@@ -140,8 +142,8 @@ class ReservaConcurrenteTest extends TestCase
     private function preparar(): array
     {
         $cookies = [];
-        foreach ([0, 1] as $index) {
-            $actor = $this->usuarioAuth('Recepcionista');
+        foreach (static::ROLES_OPERADORES as $index => $rol) {
+            $actor = $this->usuarioAuth($rol);
             $cookies[$index] = $this->csrfAuth();
             $this->loginAuth($cookies[$index], $actor)->assertOk();
         }
@@ -263,16 +265,20 @@ class ReservaConcurrenteTest extends TestCase
     {
         [$cookies, $r] = $this->preparar();
         $token = $this->propuesta($cookies[0], $r);
-        $actor = DB::table('usuarios')->where('id_rol', DB::table('roles')->where('nombre', 'Recepcionista')->value('id_rol'))->orderBy('id_usuario')->value('id_usuario');
+        $actor = DB::table('usuarios')->where('id_rol', DB::table('roles')->where('nombre', static::ROLES_OPERADORES[0])->value('id_rol'))->orderBy('id_usuario')->value('id_usuario');
         DB::beginTransaction();
         $this->app->make(UsuarioRepository::class)->coordinarAdministracion();
         $w = $this->worker($cookies[0], $token, mode: $mode);
         $this->signal($w, 'INICIAR');
         // La barrera administrativa está en el Service, después de los middlewares.
         $this->blocked($w);
+        $destino = static::ROLES_OPERADORES[0] === 'Administrador' ? 'Recepcionista' : 'Administrador';
+        if ($kind === 'rol') {
+            DB::table('roles')->insertOrIgnore(['nombre' => $destino]);
+        }
         match ($kind) {
             'estado' => DB::table('usuarios')->where('id_usuario', $actor)->update(['estado_cuenta' => 'Desactivada']),
-            'rol' => DB::table('usuarios')->where('id_usuario', $actor)->update(['id_rol' => DB::table('roles')->insertGetId(['nombre' => 'Administrador'], 'id_rol')]),
+            'rol' => DB::table('usuarios')->where('id_usuario', $actor)->update(['id_rol' => DB::table('roles')->where('nombre', $destino)->value('id_rol')]),
             'sesion' => DB::table('sessions')->where('user_id', $actor)->delete(),
             'clave' => DB::table('usuarios')->where('id_usuario', $actor)->update(['password_hash' => Hash::make('Nueva frase ficticia para pruebas 567')]),
         };

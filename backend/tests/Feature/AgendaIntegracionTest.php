@@ -30,7 +30,7 @@ class AgendaIntegracionTest extends TestCase
 
     public static function reservantes(): array
     {
-        return [['Recepcionista'], ['Paciente']];
+        return [['Administrador'], ['Recepcionista'], ['Paciente']];
     }
 
     #[DataProvider('reservantes')]
@@ -51,7 +51,7 @@ class AgendaIntegracionTest extends TestCase
         DB::table('medico_especialidad')->insert(['id_medico' => $r['doctors'][0], 'id_especialidad' => $r['specialty']]);
         DB::table('horarios_atencion')->insert(['id_medico' => $r['doctors'][0], 'dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '10:00:00']);
         $seleccion = ['id_medico' => (string) $r['doctors'][0], 'id_especialidad' => (string) $r['specialty'], 'fecha' => '2026-11-01',
-            ...($reservante === 'Recepcionista' ? ['id_paciente' => (string) $r['patient']] : [])];
+            ...($reservante !== 'Paciente' ? ['id_paciente' => (string) $r['patient']] : [])];
         $turno = $this->navegador($cookies[$reservante], 'GET', '/api/reservas/disponibilidad?'.http_build_query($seleccion))->assertOk()->json('data.turnos.0');
         $motivo = 'MOTIVO-INTEGRACION-FICTICIO';
         $propuesta = $this->navegador($cookies[$reservante], 'POST', '/api/reservas/propuesta', [...$seleccion,
@@ -73,19 +73,15 @@ class AgendaIntegracionTest extends TestCase
                 $this->assertSame($cita[$campo], $listado[$campo]);
                 $this->assertSame($listado[$campo], $data[$campo]);
             }
-            if ($rol === 'Administrador') {
-                $this->assertArrayNotHasKey('motivo_breve', $data);
-            } else {
-                $this->assertSame($motivo, $data['motivo_breve']);
-            }
-            $this->assertSame($rol === 'Recepcionista', array_key_exists('documento_identidad', $data['paciente']));
-            $this->assertSame($rol === 'Recepcionista', array_key_exists('telefono', $data['paciente']));
+            $this->assertSame($motivo, $data['motivo_breve']);
+            $this->assertSame(in_array($rol, ['Administrador', 'Recepcionista'], true), array_key_exists('documento_identidad', $data['paciente']));
+            $this->assertSame(in_array($rol, ['Administrador', 'Recepcionista'], true), array_key_exists('telefono', $data['paciente']));
             $this->assertSame($rol === 'Médico', array_key_exists('fecha_nacimiento', $data['paciente']));
             if (in_array($rol, ['Administrador', 'Recepcionista'], true)) {
                 $this->navegador($cookies[$rol], 'GET', '/api/agenda/medicos?nombre='.$usuarios['Médico']->medico->codigo_medico)
                     ->assertOk()->assertJsonPath('data.0.id_medico', (string) $r['doctors'][0]);
             }
-            $this->navegador($cookies[$rol], 'GET', $historial)->assertStatus($rol === 'Recepcionista' ? 200 : 403);
+            $this->navegador($cookies[$rol], 'GET', $historial)->assertStatus(in_array($rol, ['Administrador', 'Recepcionista'], true) ? 200 : 403);
             $this->navegador($cookies[$rol], 'POST', '/api/auth/logout')->assertNoContent();
             $this->navegador($cookies[$rol], 'GET', $detalle)->assertUnauthorized();
             $cookies[$rol] = $this->csrfAuth();

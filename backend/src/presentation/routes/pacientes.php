@@ -21,7 +21,7 @@ Route::prefix('mi-perfil')->middleware(['auth:sanctum', VerificarCuentaHabilitad
     });
 
 Route::prefix('pacientes')->middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class,
-    ExigirRol::class.':Recepcionista'])->group(function (): void {
+    ExigirRol::class.':Administrador,Recepcionista'])->group(function (): void {
         Route::get('/', [PacienteController::class, 'index']);
         Route::post('/', [PacienteController::class, 'store']);
         Route::get('{id}', [PacienteController::class, 'show'])->where('id', '[1-9][0-9]{0,18}');
@@ -33,4 +33,4 @@ Route::prefix('pacientes')->middleware(['auth:sanctum', VerificarCuentaHabilitad
 Route::post('pacientes/{id}/codigo-activacion', [CodigoActivacionController::class, 'emitir'])
     ->where('id', '[1-9][0-9]{0,18}')
     ->middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class,
-        ExigirRol::class.':Recepcionista', LimitarCodigoActivacion::class]);
+        ExigirRol::class.':Administrador,Recepcionista', LimitarCodigoActivacion::class]);

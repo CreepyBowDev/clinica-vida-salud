@@ -22,6 +22,19 @@ function mount(path = '/inicio', element = <h1>Contenido existente</h1>) {
 
 describe('sidebar modular y orientación', () => {
   it.each([
+    ['/recepcion/pacientes/42/editar', 'Pacientes y perfil personal', 'Gestionar pacientes', 'Editar paciente'],
+    ['/recepcion/activacion-web', 'Pacientes y perfil personal', 'Activación web', 'Activación web'],
+    ['/recepcion/citas/nueva', 'Búsqueda y reserva de citas', 'Programar cita', 'Programar cita'],
+    ['/recepcion/pacientes/42/citas', 'Agenda e historial', 'Consultar historial de citas', 'Historial de citas'],
+  ])('Administrador reconoce %s como flujo compartido manteniendo su área y foco', (path, module, link, title) => {
+    mount(path);
+    expect(within(nav()).getByRole('button', { name: module })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(nav()).getByRole('link', { name: link })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Administración');
+    expect(document.title).toBe(`${title} | Clínica Vida Salud`);
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+  it.each([
     [ROLES.ADMINISTRADOR, 'Médicos y especialidades', 'Gestionar médicos', 'Reservar cita'],
     [ROLES.RECEPCIONISTA, 'Pacientes y perfil personal', 'Gestionar pacientes', 'Administrar cuentas'],
     [ROLES.PACIENTE, 'Búsqueda y reserva de citas', 'Reservar cita', 'Programar cita'],

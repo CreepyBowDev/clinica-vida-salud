@@ -2,7 +2,11 @@
 
 ## 1. Alcance y estado
 
+**Sincronización incremental 2026-10-24, permisos administrativos Fase 4:** HistorialCitasService admite Administrador en historial por ficha; ConsultaCitaService/CitaDetalleResource comparten motivo breve/CI/teléfono con Recepción. AgendaService conserva selección administrativa ya existente. Sin nuevas clases de producción, firmas o relaciones, no cambia la fuente estructural UML ni se reejecuta el renderizado. El análisis vigente y evidencia están en analisis-clases.md/contexto §17.120; las exclusiones históricas del motivo administrativo quedan sustituidas, sin declarar implementados otros CU ni certificada la integración PostgreSQL.
+
 **Fases 1–5 completadas documentalmente, 2026-10-23.** UML global editable en **19 vistas integradas**, con sintaxis comprobada, renderizado local SVG/PNG y revisión visual registrados en §11. §8–§9 distinguen código existente de diseño no implementado; **cerrar este diagrama no implementa los CU pendientes ni resuelve sus decisiones funcionales abiertas**. La actualización de PHP sigue aplazada.
+
+**Sincronización incremental 2026-10-24, permisos administrativos Fase 2:** en PacienteService, el método privado existente recepcionista se renombra a actorAdministrativo (mismos parámetros/retorno y responsabilidades, ahora Administrador/Recepcionista). Inventario y vista PlantUML de pacientes actualizados, sin clases, relaciones ni métodos adicionales. La matriz de permisos vigente está en casos-de-us.md §3.1/contexto §17.118; las restricciones de rol del diseño previo de CU pendientes no prevalecen sobre esa matriz y deberán concretarse al implementarlos con ejecutor auténtico separado del Médico responsable. No se reejecuta el renderizado histórico por este renombre; evidencia previa de §11 no se atribuye al cambio nuevo.
 
 Objetivo aprobado: modelo global **solo backend**, completo para **CU-01–CU-30**, incluidos los no implementados, con la siguiente representación selectiva UML:
 
@@ -1027,7 +1031,7 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 #### PacienteService — E
 ```text
 + __construct(AutenticacionService $autenticacion, PacienteRepository $pacientes, RegistroPacienteRepository $registros, BitacoraRepository $bitacora, CodigoActivacionRepository $activaciones)
-- recepcionista(): Usuario
+- actorAdministrativo(): Usuario
 + listar(array $filtros): LengthAwarePaginator
 + consultar(int|string $id): Paciente
 + crear(array $datos, array $contexto): Paciente
@@ -2502,7 +2506,7 @@ class MiPerfilService <<E>> {
 }
 class PacienteService <<E>> {
   + __construct(AutenticacionService $autenticacion, PacienteRepository $pacientes, RegistroPacienteRepository $registros, BitacoraRepository $bitacora, CodigoActivacionRepository $activaciones)
-  - recepcionista(): Usuario
+  - actorAdministrativo(): Usuario
   + listar(array $filtros): LengthAwarePaginator
   + consultar(int|string $id): Paciente
   + crear(array $datos, array $contexto): Paciente

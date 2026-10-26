@@ -27,12 +27,30 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(modules.flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.to)).not.toContain('/login');
   });
   it.each([
+    [ROLES.ADMINISTRADOR, ['cuentas', 'contrasena', 'pacientes', 'activacion', 'especialidades', 'medicos', 'consultorios', 'horarios', 'programar', 'eventos', 'agenda', 'historial']],
+    [ROLES.RECEPCIONISTA, ['contrasena', 'pacientes', 'activacion', 'programar', 'agenda', 'historial']],
+    [ROLES.MEDICO, ['contrasena', 'agenda']],
+    [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas']],
+  ])('%s tiene exactamente sus páginas operativas sin nuevos privilegios para otros roles', (role, ids) => {
+    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id)).toEqual(ids);
+  });
+  it.each([
     [ROLES.ADMINISTRADOR, '/administracion/medicos/42/consultorio', 'consultorios', 'consultorios', 'Asignar consultorio'],
     [ROLES.ADMINISTRADOR, '/administracion/medicos/42/especialidades', 'medicos', 'medicos', 'Especialidades del médico'],
     [ROLES.ADMINISTRADOR, '/administracion/horarios/configuracion', 'consultorios', 'horarios', 'Duración de citas'],
     [ROLES.ADMINISTRADOR, '/administracion/horarios/medicos/42', 'consultorios', 'horarios', 'Horarios del médico'],
     [ROLES.ADMINISTRADOR, '/administracion/cuentas/nueva', 'usuarios', 'cuentas', 'Crear cuenta del personal'],
     [ROLES.ADMINISTRADOR, '/administracion/bitacora/42', 'bitacora', 'eventos', 'Detalle del evento'],
+    [ROLES.ADMINISTRADOR, '/recepcion/pacientes', 'pacientes', 'pacientes', 'Gestionar pacientes'],
+    [ROLES.ADMINISTRADOR, '/recepcion/pacientes/nuevo', 'pacientes', 'pacientes', 'Registrar paciente'],
+    [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42', 'pacientes', 'pacientes', 'Detalle del paciente'],
+    [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/editar', 'pacientes', 'pacientes', 'Editar paciente'],
+    [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/activacion', 'pacientes', 'pacientes', 'Activación web del paciente'],
+    [ROLES.ADMINISTRADOR, '/recepcion/activacion-web', 'pacientes', 'activacion', 'Activación web'],
+    [ROLES.ADMINISTRADOR, '/recepcion/citas/nueva', 'reserva', 'programar', 'Programar cita'],
+    [ROLES.ADMINISTRADOR, '/recepcion/historial-citas', 'agenda', 'historial', 'Consultar historial de citas'],
+    [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/citas', 'agenda', 'historial', 'Historial de citas'],
+    [ROLES.ADMINISTRADOR, '/recepcion/historial-citas/42', 'agenda', 'historial', 'Detalle de cita'],
     [ROLES.RECEPCIONISTA, '/recepcion/pacientes/42/activacion', 'pacientes', 'pacientes', 'Activación web del paciente'],
     [ROLES.RECEPCIONISTA, '/recepcion/citas/nueva', 'reserva', 'programar', 'Programar cita'],
     [ROLES.PACIENTE, '/mi-perfil/correo', 'pacientes', 'perfil', 'Cambiar correo de acceso'],
@@ -54,10 +72,17 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(navigationAtPath(navigationForRole(ROLES.ADMINISTRADOR), '/administracion/medicos/42/inexistente')).toBeNull();
     expect(navigationTitle('/otro', null, AREAS[ROLES.PACIENTE])).toBe('Página no encontrada');
   });
-  it('conserva CU-18 Recepción inasistencia y CU-19 Médico atendida', () => {
+  it('añade Administración sin cambiar Recepción en inasistencia o Médico en atendida, aún pendientes', () => {
     const items = NAVIGATION.flatMap(module => module.items);
-    expect(items.find(item => item.cases.includes('CU-18'))).toMatchObject({ id: 'inasistencia', roles: [ROLES.RECEPCIONISTA] });
-    expect(items.find(item => item.cases.includes('CU-19'))).toMatchObject({ id: 'atendida', roles: [ROLES.MEDICO] });
+    expect(items.find(item => item.cases.includes('CU-18'))).toMatchObject({ id: 'inasistencia', kind: 'pending', roles: [ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA] });
+    expect(items.find(item => item.cases.includes('CU-19'))).toMatchObject({ id: 'atendida', kind: 'pending', roles: [ROLES.ADMINISTRADOR, ROLES.MEDICO] });
+  });
+  it('representa 28 CU administrativos, sin perfil/registro propio del Paciente ni enlaces al Ciclo 2', () => {
+    const items = navigationForRole(ROLES.ADMINISTRADOR).flatMap(module => module.items);
+    const cases = [...items.flatMap(item => item.cases), 'CU-01', 'CU-02', 'CU-06'];
+    expect([...new Set(cases)].sort()).toEqual(Array.from({ length: 30 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`).filter(id => !['CU-04', 'CU-08'].includes(id)));
+    expect([...new Set(items.filter(item => item.kind === 'pending').flatMap(item => item.cases))]).toHaveLength(13);
+    expect(items.filter(item => item.kind === 'pending').every(item => !item.to && !item.patterns)).toBe(true);
   });
   it.each(Object.values(ROLES))('%s reconoce detalle directo sin duplicar enlaces', role => {
     const active = navigationAtPath(navigationForRole(role), '/citas/17');

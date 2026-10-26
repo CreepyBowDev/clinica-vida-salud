@@ -19,9 +19,10 @@ describe('inicio actualizado por rol', () => {
     const pending = screen.getByRole('region', { name: 'Próximos módulos' });
     expect(within(pending).queryByRole('link')).not.toBeInTheDocument();
     expect(pending).toHaveTextContent('Pendiente');
-    if (role === ROLES.RECEPCIONISTA) {
+    if ([ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(role)) {
       expect(available).toHaveTextContent('Consultar historial de citas');
       expect(pending).not.toHaveTextContent('Consultar historial de citas');
+      for (const label of ['Gestionar pacientes', 'Activación web', 'Programar cita']) expect(within(available).getByRole('link', { name: label })).toBeVisible();
     }
   });
 });

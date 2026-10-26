@@ -32,7 +32,7 @@ class ReservaRequest extends FormRequest
         return ['id_medico' => $id, 'id_especialidad' => $id,
             'fecha' => ['required', 'date_format:Y-m-d', 'regex:/\A(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}\z/'],
             'hora_inicio' => ['required', 'date_format:H:i:s'], 'revision_turno' => ['required', 'string', 'regex:/\A[a-f0-9]{64}\z/'],
-            ...($this->user()?->rol?->nombre === 'Recepcionista' ? ['id_paciente' => $id] : []), ...$motivo];
+            ...(in_array($this->user()?->rol?->nombre, ['Administrador', 'Recepcionista'], true) ? ['id_paciente' => $id] : []), ...$motivo];
     }
 
     public function withValidator(Validator $validator): void

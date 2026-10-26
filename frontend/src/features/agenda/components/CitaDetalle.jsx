@@ -13,7 +13,7 @@ export default function CitaDetalle({ cita, rol }) {
         <Dato label="Duración">{cita.duracion_minutos} minutos</Dato><Dato label="Modalidad">{cita.modalidad}</Dato>
         <Dato label="Sede">{cita.sede_atencion}</Dato><Dato label="Consultorio de la cita">{cita.consultorio_atencion}</Dato>
         <Dato label="Fecha de registro"><Instante value={cita.creada_en} /></Dato>
-      </dl><p className="catalog-note">Confirmada indica llegada presencial verificada por Recepción. El paso del tiempo no cambia el estado de la cita.</p>
+      </dl><p className="catalog-note">Confirmada indica llegada presencial verificada por Administración o Recepción. El paso del tiempo no cambia el estado de la cita.</p>
     </section>
     <section className="catalog-panel" aria-labelledby="cita-profesional"><h2 id="cita-profesional">Médico y especialidad</h2><dl className="catalog-data record-data">
       <Dato label="Médico">{cita.medico.nombres} {cita.medico.apellidos}</Dato><Dato label="Código de médico">{cita.medico.codigo_medico}</Dato>
@@ -21,11 +21,11 @@ export default function CitaDetalle({ cita, rol }) {
     </dl></section>
     <section className="catalog-panel" aria-labelledby="cita-paciente"><h2 id="cita-paciente">Paciente</h2><dl className="catalog-data record-data">
       <Dato label="Nombre">{cita.paciente.nombres} {cita.paciente.apellidos}</Dato><Dato label="Código de paciente">{cita.paciente.codigo_paciente}</Dato>
-      {rol === ROLES.RECEPCIONISTA && <><Dato label="CI">{cita.paciente.documento_identidad ?? 'Sin CI registrado'}</Dato><Dato label="Teléfono">{cita.paciente.telefono}</Dato></>}
+      {[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(rol) && <><Dato label="CI">{cita.paciente.documento_identidad ?? 'Sin CI registrado'}</Dato><Dato label="Teléfono">{cita.paciente.telefono}</Dato></>}
       {rol === ROLES.MEDICO && <Dato label="Fecha de nacimiento">{cita.paciente.fecha_nacimiento
         ? <time dateTime={cita.paciente.fecha_nacimiento}>{formatearFechaCivil(cita.paciente.fecha_nacimiento)}</time> : 'No registrado'}</Dato>}
     </dl></section>
-    {rol !== ROLES.ADMINISTRADOR && Object.hasOwn(cita, 'motivo_breve') && <section className="catalog-panel" aria-labelledby="cita-motivo"><h2 id="cita-motivo">Motivo breve</h2>
+    {Object.hasOwn(cita, 'motivo_breve') && <section className="catalog-panel" aria-labelledby="cita-motivo"><h2 id="cita-motivo">Motivo breve</h2>
       <p className="agenda-motivo">{cita.motivo_breve ?? 'Sin motivo registrado'}</p></section>}
   </div>;
 }

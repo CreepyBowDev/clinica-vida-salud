@@ -7,7 +7,7 @@ use Clinica\presentation\middlewares\VerificarCuentaHabilitada;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum', VerificarCuentaHabilitada::class,
-    ExigirSesionNormal::class, ExigirRol::class.':Recepcionista,Paciente'])->group(function (): void {
+    ExigirSesionNormal::class, ExigirRol::class.':Administrador,Recepcionista,Paciente'])->group(function (): void {
         Route::post('reservas/propuesta', [ReservaController::class, 'propuesta']);
         Route::post('reservas/resultado', [ReservaController::class, 'resultado']);
         Route::post('citas', [ReservaController::class, 'store']);

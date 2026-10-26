@@ -8,7 +8,7 @@ const campos = { documento_identidad: 'Documento de identidad', nombres: 'Nombre
   recordatorios_habilitados: 'Preferencia de recordatorios', registro_profesional: 'Registro profesional',
   especialidades: 'Especialidades', nombre: 'Nombre', descripcion: 'Descripción', activa: 'Actividad de especialidad' };
 const entidades = { Usuario: 'Usuario', Paciente: 'Paciente', Medico: 'Médico', Especialidad: 'Especialidad',
-  CuentaPrueba: 'Cuenta de prueba', ConjuntoDemostracion: 'Conjunto de demostración' };
+  CuentaPrueba: 'Cuenta de prueba', ConjuntoDemostracion: 'Conjunto de demostración', Cita: 'Cita' };
 const referencias = { id_paciente: 'ID de Paciente', id_medico: 'ID de Médico', id_especialidad: 'ID de Especialidad' };
 const ausente = 'No disponible';
 const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -26,8 +26,19 @@ function EstadoCuenta({ estado }) {
   </dl>;
 }
 
-function Cambios({ cambios }) {
+function Cambios({ cambios, tipo }) {
   const value = object(cambios);
+  if (tipo === 'CITA_PROGRAMADA') {
+    const origenes = { ADMINISTRACION: 'Programación administrativa', RECEPCION: 'Programación por Recepción', PROPIA: 'Reserva propia del Paciente' };
+    const origenConocido = Object.hasOwn(origenes, value.origen);
+    const duracionValida = Number.isInteger(value.duracion_minutos) && value.duracion_minutos > 0 && value.duracion_minutos <= 2147483647;
+    if (!origenConocido && value.estado !== 'Programada' && !duracionValida) return <p>No hay cambios adicionales disponibles para este evento.</p>;
+    return <dl className="catalog-data">
+      {origenConocido && <Dato label="Origen de la reserva">{origenes[value.origen]}</Dato>}
+      {value.estado === 'Programada' && <Dato label="Estado al registrar">Programada</Dato>}
+      {duracionValida && <Dato label="Duración al registrar">{value.duracion_minutos} minutos</Dato>}
+    </dl>;
+  }
   const modificados = lista(value.campos, name => typeof name === 'string' && Object.hasOwn(campos, name));
   const habilitaciones = object(value.habilitaciones);
   const habilitadas = lista(habilitaciones.habilitadas, esIdentificador);
@@ -62,7 +73,8 @@ function Metadatos({ metadatos }) {
 export default function BitacoraEventData({ evento }) {
   const formatoConocido = evento.version_formato === 1;
   const refs = formatoConocido ? object(evento.referencias) : {};
-  const refsDisponibles = Object.keys(referencias).filter(key => esIdentificador(refs[key]));
+  const nombresReferencias = { ...referencias, ...(evento.tipo_evento === 'CITA_PROGRAMADA' ? { id_cita: 'ID de Cita', id_consultorio: 'ID de Consultorio' } : {}) };
+  const refsDisponibles = Object.keys(nombresReferencias).filter(key => esIdentificador(refs[key]));
   return <div className="catalog-panel bitacora-detail">
     <section aria-labelledby="evento-cabecera"><h2 id="evento-cabecera">Evento #{evento.id_evento}</h2><dl className="catalog-data bitacora-data-grid">
       <Dato label="Tipo de evento">{evento.tipo_evento}</Dato><Dato label="Origen">{etiquetaActor(evento.tipo_actor)}</Dato>
@@ -79,13 +91,13 @@ export default function BitacoraEventData({ evento }) {
       <dl className="catalog-data">
         <Dato label="Tipo de recurso principal">{Object.hasOwn(entidades, evento.entidad_referida) ? entidades[evento.entidad_referida] : ausente}</Dato>
         <Dato label="ID del recurso principal">{evento.registro_referido || ausente}</Dato>
-        {refsDisponibles.map(key => <Dato key={key} label={referencias[key]}>{refs[key]}</Dato>)}
+        {refsDisponibles.map(key => <Dato key={key} label={nombresReferencias[key]}>{refs[key]}</Dato>)}
       </dl>
       {!refsDisponibles.length && <p className="catalog-note">No hay referencias adicionales disponibles.</p>}
       <p className="catalog-note">Las referencias identifican recursos; no conceden acceso a sus fichas o documentos.</p>
     </section>
     {!formatoConocido && <p className="catalog-note">Esta versión de formato no dispone de presentación de información adicional. La cabecera del evento sigue disponible.</p>}
-    <section aria-labelledby="evento-cambios"><h2 id="evento-cambios">Cambios registrados</h2><Cambios cambios={formatoConocido ? evento.cambios_seguros : null} /></section>
+    <section aria-labelledby="evento-cambios"><h2 id="evento-cambios">Cambios registrados</h2><Cambios tipo={evento.tipo_evento} cambios={formatoConocido ? evento.cambios_seguros : null} /></section>
     <section aria-labelledby="evento-metadatos"><h2 id="evento-metadatos">Metadatos del evento</h2><Metadatos metadatos={formatoConocido ? evento.metadatos_seguros : null} /></section>
   </div>;
 }

@@ -89,15 +89,10 @@ class ConsultaCitaTest extends TestCase
         $data = $response->json('data');
         $common = ['id_cita', 'codigo_cita', 'inicio_at', 'fin_at', 'duracion_minutos', 'estado', 'modalidad',
             'sede_atencion', 'consultorio_atencion', 'creada_en', 'medico', 'especialidad', 'paciente'];
-        $this->assertEqualsCanonicalizing([...$common, ...($rol === 'Administrador' ? [] : ['motivo_breve'])], array_keys($data));
-        if ($rol === 'Administrador') {
-            $this->assertArrayNotHasKey('motivo_breve', $data);
-        } else {
-            $this->assertArrayHasKey('motivo_breve', $data);
-            $this->assertSame($motivo, $data['motivo_breve']);
-        }
+        $this->assertEqualsCanonicalizing([...$common, 'motivo_breve'], array_keys($data));
+        $this->assertSame($motivo, $data['motivo_breve']);
         $patientKeys = ['id_paciente', 'codigo_paciente', 'nombres', 'apellidos'];
-        if ($rol === 'Recepcionista') {
+        if (in_array($rol, ['Administrador', 'Recepcionista'], true)) {
             $patientKeys = [...$patientKeys, 'documento_identidad', 'telefono'];
             $this->assertSame('CI-PRIVADO', $data['paciente']['documento_identidad']);
             $this->assertSame('TEL-PRIVADO', $data['paciente']['telefono']);
@@ -115,9 +110,9 @@ class ConsultaCitaTest extends TestCase
             $this->assertStringNotContainsString($forbidden, $response->getContent());
         }
         $this->assertCount(1, $queries);
-        $this->assertSame($rol !== 'Administrador', str_contains($queries[0], '"citas"."motivo_breve"'));
-        $this->assertSame($rol === 'Recepcionista', str_contains($queries[0], '"p"."documento_identidad"'));
-        $this->assertSame($rol === 'Recepcionista', str_contains($queries[0], '"p"."telefono"'));
+        $this->assertTrue(str_contains($queries[0], '"citas"."motivo_breve"'));
+        $this->assertSame(in_array($rol, ['Administrador', 'Recepcionista'], true), str_contains($queries[0], '"p"."documento_identidad"'));
+        $this->assertSame(in_array($rol, ['Administrador', 'Recepcionista'], true), str_contains($queries[0], '"p"."telefono"'));
         $this->assertSame($rol === 'Médico', str_contains($queries[0], '"p"."fecha_nacimiento"'));
         $this->assertSame($before, $this->snapshot());
     }
@@ -202,7 +197,7 @@ class ConsultaCitaTest extends TestCase
     {
         [$cookies, $r, $actor, $id] = $this->contexto('Administrador', extra: ['id_cita' => '9223372036854775807']);
         $this->navegador($cookies, 'GET', '/api/citas/'.$id)->assertOk()->assertJsonPath('data.id_cita', '9223372036854775807');
-        $this->navegador($cookies, 'POST', '/api/citas')->assertForbidden(); // Sigue siendo la reserva, restringida por rol.
+        $this->navegador($cookies, 'POST', '/api/citas')->assertUnprocessable(); // Reserva administrativa: falta propuesta válida.
         $this->navegador($cookies, 'PATCH', '/api/citas/'.$id)->assertStatus(405);
         $this->navegador($cookies, 'DELETE', '/api/citas/'.$id)->assertStatus(405);
     }
@@ -281,7 +276,7 @@ class ConsultaCitaTest extends TestCase
         $result['cita'] += ['motivo_breve' => 'NO_SALIR', 'paciente_documento_identidad' => 'NO_SALIR', 'paciente_telefono' => 'NO_SALIR',
             'paciente_fecha_nacimiento' => 'NO_SALIR', 'diagnostico' => 'NO_SALIR', 'id_propuesta_reserva' => 'NO_SALIR'];
         $data = (new CitaDetalleResource($result))->toArray(Request::create('/api/citas/'.$id));
-        $this->assertArrayNotHasKey('motivo_breve', $data);
+        $this->assertSame($result['cita']['motivo_breve'], $data['motivo_breve']);
         $this->assertStringNotContainsString('NO_SALIR', json_encode($data));
     }
 }

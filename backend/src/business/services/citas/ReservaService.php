@@ -38,7 +38,7 @@ class ReservaService
     {
         $this->continuidad->coordinar();
         $actor = $this->autenticacion->exigirSesionNormal(bloquear: true);
-        if (! in_array($actor->rol->nombre, ['Recepcionista', 'Paciente'], true)) {
+        if (! in_array($actor->rol->nombre, ['Administrador', 'Recepcionista', 'Paciente'], true)) {
             throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
         }
         $this->planificacion->coordinar();
@@ -174,7 +174,7 @@ class ReservaService
                 return $guardar ? ['cita' => $this->detalle($cita), 'repetida' => true]
                     : ['registrada' => true, 'cita' => $this->detalle($cita)];
             }
-            $seleccion = [...$prueba['seleccion'], ...($actor->rol->nombre === 'Recepcionista' ? ['id_paciente' => $prueba['id_paciente']] : [])];
+            $seleccion = [...$prueba['seleccion'], ...(in_array($actor->rol->nombre, ['Administrador', 'Recepcionista'], true) ? ['id_paciente' => $prueba['id_paciente']] : [])];
             $vista = $this->seleccionar($seleccion, $prueba['revision_turno'], $prueba['resumen']);
             $paciente = $this->ficha($actor, $prueba['id_paciente']);
             $resumen = $this->resumen($vista, $paciente);

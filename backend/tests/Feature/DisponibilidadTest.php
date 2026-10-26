@@ -16,6 +16,8 @@ class DisponibilidadTest extends TestCase
 {
     use AutenticacionFixtures, CitasFixtures;
 
+    protected const ROL_OPERADOR = 'Recepcionista';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -32,8 +34,9 @@ class DisponibilidadTest extends TestCase
         CarbonImmutable::setTestNow('2026-10-22T12:00:00Z');
     }
 
-    private function contexto(string $rol = 'Recepcionista'): array
+    private function contexto(?string $rol = null): array
     {
+        $rol ??= static::ROL_OPERADOR;
         $actor = $this->usuarioAuth($rol);
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $actor)->assertOk();
@@ -260,7 +263,7 @@ class DisponibilidadTest extends TestCase
 
     public static function roles(): array
     {
-        return [['Administrador'], ['Médico']];
+        return [['Médico']];
     }
 
     #[DataProvider('roles')]
@@ -352,8 +355,9 @@ class DisponibilidadTest extends TestCase
                 if ($tipo === 'sesion') {
                     DB::table('sessions')->where('user_id', $actor->getKey())->delete();
                 } else {
-                    DB::table('roles')->insertOrIgnore(['nombre' => 'Administrador']);
-                    $rol = DB::table('roles')->where('nombre', 'Administrador')->value('id_rol');
+                    $destino = $actor->rol->nombre === 'Administrador' ? 'Recepcionista' : 'Administrador';
+                    DB::table('roles')->insertOrIgnore(['nombre' => $destino]);
+                    $rol = DB::table('roles')->where('nombre', $destino)->value('id_rol');
                     DB::table('usuarios')->where('id_usuario', $actor->getKey())->update(['id_rol' => $rol]);
                 }
             });

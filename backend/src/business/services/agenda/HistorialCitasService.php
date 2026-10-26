@@ -18,7 +18,7 @@ class HistorialCitasService
         return DB::transaction(function () use ($filtros, $idPaciente): array {
             $actor = $this->autenticacion->exigirSesionNormal(bloquear: true);
             $rol = $actor->rol->nombre;
-            if (! in_array($rol, ['Recepcionista', 'Paciente'], true) || ($rol === 'Paciente' && $idPaciente !== null)) {
+            if (! in_array($rol, ['Administrador', 'Recepcionista', 'Paciente'], true) || ($rol === 'Paciente' && $idPaciente !== null)) {
                 throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
             }
             if (array_key_exists('id_paciente', $filtros) || array_key_exists('id_objetivo', $filtros)) {

@@ -19,9 +19,9 @@ class UsuariosAutenticacionIntegracionTest extends TestCase
 {
     use AutenticacionFixtures;
 
-    private const CAMBIADA = 'Frase ficticia cambiada 456';
+    private const CAMBIADA = 'Frase ficticia cambiada 456!';
 
-    private const RECUPERADA = 'Frase ficticia recuperada 789';
+    private const RECUPERADA = 'Frase ficticia recuperada 789!';
 
     protected function setUp(): void
     {

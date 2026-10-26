@@ -13,10 +13,10 @@ class CitaDetalleResource extends JsonResource
         $row = $this->resource['cita'];
         $rol = $this->resource['rol'];
         $data = (new CitaListadoResource($row))->toArray($request);
-        if (in_array($rol, ['Recepcionista', 'Médico', 'Paciente'], true)) {
+        if (in_array($rol, ['Administrador', 'Recepcionista', 'Médico', 'Paciente'], true)) {
             $data['motivo_breve'] = $row['motivo_breve'];
         }
-        if ($rol === 'Recepcionista') {
+        if (in_array($rol, ['Administrador', 'Recepcionista'], true)) {
             $data['paciente']['documento_identidad'] = $row['paciente_documento_identidad'];
             $data['paciente']['telefono'] = $row['paciente_telefono'];
         } elseif ($rol === 'Médico') {

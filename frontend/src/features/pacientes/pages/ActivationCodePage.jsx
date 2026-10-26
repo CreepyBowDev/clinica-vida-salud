@@ -25,6 +25,7 @@ export default function ActivationCodePage({ patient }) {
   useEffect(() => { const clear = () => setReceipt(null); window.addEventListener('pagehide', clear); return () => window.removeEventListener('pagehide', clear); }, []);
   return <section className="workspace-page accounts-page activation-page">
     {patient && <Link className="accounts-back" to={`/recepcion/pacientes/${patient.id_paciente}`}>Volver a la ficha</Link>}
+    {!patient && <Link className="accounts-back" to="/recepcion/pacientes">Buscar ficha de paciente</Link>}
     <header className="page-heading"><h1 ref={heading} tabIndex="-1">{receipt ? 'Código de activación emitido' : 'Activación web de Paciente'}</h1><p>Autorización presencial para vincular la ficha existente al portal.</p></header>
     {receipt ? <div className="accounts-panel"><h2>Entrega presencial única</h2><p>Ficha {receipt.id_paciente}. Comunica el código a la persona cuya identidad verificaste. Al ocultarlo no podrá volver a consultarse.</p>
       <Alert variant="warning">Este código autoriza la vinculación de la ficha. No es el código de seis dígitos del correo.</Alert>

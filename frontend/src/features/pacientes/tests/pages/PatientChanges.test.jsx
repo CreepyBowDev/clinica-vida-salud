@@ -31,7 +31,8 @@ beforeEach(() => {
   emitirCodigoActivacion.mockResolvedValue({ id_paciente: id, codigo_activacion: 'Ab1234567890', expira_en: '2026-10-21T20:00:00Z' });
 });
 
-describe('edición administrativa CU-07', () => {
+describe.each(['Administrador', 'Recepcionista'])('edición administrativa CU-07 — %s', operador => {
+  beforeEach(() => { consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'personal@example.test', rol: operador }); });
   it('revisar y volver conserva corrección de identidad y no escribe sin confirmar', async () => {
     const user = userEvent.setup(); mount(); await screen.findByLabelText('Nombres');
     field('Nombres', 'Nombre corregido'); field('Motivo de la corrección', 'Comprobación administrativa ficticia');
@@ -41,7 +42,7 @@ describe('edición administrativa CU-07', () => {
     expect(screen.getByLabelText('Nombres')).toBeEnabled(); expect(screen.getByLabelText('Nombres')).toHaveValue('Nombre corregido');
     expect(screen.getByLabelText('Motivo de la corrección')).toHaveValue('Comprobación administrativa ficticia'); expect(actualizarPaciente).not.toHaveBeenCalled();
   });
-  it.each(['Administrador', 'Médico', 'Paciente'])('deniega edición y activación a %s sin consultar ni escribir', async rol => {
+  it.each(['Médico', 'Paciente'])('deniega edición y activación a %s sin consultar ni escribir', async rol => {
     consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona', correo_acceso: 'persona@example.test', rol }); const router = mount();
     await screen.findByRole('heading', { name: 'Acceso no permitido' }); await act(() => router.navigate(`/recepcion/pacientes/${id}/activacion`));
     expect(consultarPaciente).not.toHaveBeenCalled(); expect(actualizarPaciente).not.toHaveBeenCalled(); expect(emitirCodigoActivacion).not.toHaveBeenCalled();
@@ -130,7 +131,8 @@ describe('edición administrativa CU-07', () => {
   });
 });
 
-describe('estado de ficha independiente de cuenta y citas', () => {
+describe.each(['Administrador', 'Recepcionista'])('estado de ficha independiente de cuenta y citas — %s', operador => {
+  beforeEach(() => { consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'personal@example.test', rol: operador }); });
   it.each([true, false])('cambia estado inicial %s con motivo/confirmación y refresca', async activo => {
     const user = userEvent.setup(); consultarPaciente.mockResolvedValueOnce({ ...patient, activo }).mockResolvedValue({ ...patient, activo: !activo });
     mount(''); await user.click(await screen.findByRole('button', { name: activo ? 'Desactivar ficha' : 'Reactivar ficha' }));
@@ -160,7 +162,53 @@ describe('estado de ficha independiente de cuenta y citas', () => {
   });
 });
 
-describe('activación desde ficha seleccionada', () => {
+describe.each(['Administrador', 'Recepcionista'])('activación desde ficha seleccionada — %s', operador => {
+  beforeEach(() => { consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'personal@example.test', rol: operador }); });
+  it('emite mediante servicio/Axios reales sin enviar identidad del operador, credenciales ni estado', async () => {
+    const actual = await vi.importActual('../../services/activation.service');
+    emitirCodigoActivacion.mockImplementation(actual.emitirCodigoActivacion);
+    const calls = [];
+    api.defaults.adapter = async config => {
+      calls.push(config);
+      return { config, status: config.method === 'post' ? 201 : 204, headers: {}, data: config.method === 'post'
+        ? { data: { id_paciente: id, codigo_activacion: 'Ab1234567890', expira_en: '2026-10-21T20:00:00Z' } } : null };
+    };
+    const user = userEvent.setup(); mount('/activacion');
+    await user.click(await screen.findByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Revisar emisión' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar emisión presencial' }));
+    await screen.findByLabelText('Código de activación para entrega presencial');
+    expect(calls.map(c => c.method)).toEqual(['get', 'post']);
+    expect(calls[1]).toMatchObject({ url: `/pacientes/${id}/codigo-activacion`, sessionBound: true, withCredentials: true });
+    expect(JSON.parse(calls[1].data)).toEqual({ identidad_verificada: true });
+    expect(screen.getByText(/Esta emisión no crea una cuenta ni activa la ficha/)).toBeInTheDocument();
+    fireEvent(window, new Event('pagehide'));
+    expect(screen.queryByLabelText('Código de activación para entrega presencial')).not.toBeInTheDocument();
+    expect(localStorage.length + sessionStorage.length).toBe(0);
+  });
+  it.each([401, 403, 419, 422, 429, 500, undefined])('rechazo %s de emisión no entrega secreto ni reenvía automáticamente', async status => {
+    const actual = await vi.importActual('../../services/activation.service');
+    emitirCodigoActivacion.mockImplementation(actual.emitirCodigoActivacion);
+    const calls = [];
+    api.defaults.adapter = async config => {
+      calls.push(config);
+      if (config.method === 'post') throw new AxiosError('SQL secreto', undefined, config, null, status
+        ? { status, headers: status === 429 ? { 'retry-after': '60' } : {}, data: { error: { message: 'SQL secreto' } } } : undefined);
+      return { config, status: 204, data: null, headers: {} };
+    };
+    const user = userEvent.setup(); const router = mount('/activacion');
+    await user.click(await screen.findByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Revisar emisión' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar emisión presencial' }));
+    if (status === 401) await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    else {
+      expect(await screen.findByRole('alert')).not.toHaveTextContent('SQL secreto');
+      expect(router.state.location.pathname).toBe(`/recepcion/pacientes/${id}/activacion`);
+      if (status === 429) expect(screen.getByRole('button', { name: 'Espera 60 s' })).toBeDisabled();
+    }
+    expect(calls.filter(c => c.method === 'post')).toHaveLength(1);
+    expect(screen.queryByLabelText('Código de activación para entrega presencial')).not.toBeInTheDocument();
+  });
   it('enlaza desde detalle, fija ID y reutiliza emisión presencial incluso con ficha inactiva', async () => {
     const user = userEvent.setup(); consultarPaciente.mockResolvedValue({ ...patient, activo: false }); const router = mount('');
     await user.click(await screen.findByRole('link', { name: 'Emitir código de activación' })); await screen.findByRole('form', { name: 'Emitir código de activación' });

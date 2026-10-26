@@ -52,7 +52,7 @@ class ReservaIntegracionTest extends TestCase
 
     public static function actores(): array
     {
-        return [['Recepcionista'], ['Paciente']];
+        return [['Administrador'], ['Recepcionista'], ['Paciente']];
     }
 
     #[DataProvider('actores')]
@@ -62,7 +62,7 @@ class ReservaIntegracionTest extends TestCase
         $actor = $this->usuarioAuth($rol);
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $actor)->assertOk();
-        if ($rol === 'Recepcionista') {
+        if (in_array($rol, ['Administrador', 'Recepcionista'], true)) {
             $paciente = $this->navegador($cookies, 'POST', '/api/pacientes', ['nombres' => 'Paciente', 'apellidos' => 'Presencial sin CI',
                 'fecha_nacimiento' => '1990-01-01', 'telefono' => '70000000', 'posibles_duplicados_revisados' => true])->assertCreated()->json('data.id_paciente');
             $this->assertNull(DB::table('pacientes')->where('id_paciente', $paciente)->value('documento_identidad'));
@@ -77,7 +77,7 @@ class ReservaIntegracionTest extends TestCase
         $this->navegador($cookies, 'GET', '/api/reservas/medicos?'.http_build_query(['id_especialidad' => $especialidad, 'consultorio' => 'RES-INT', 'per_page' => 1]))
             ->assertOk()->assertJsonPath('data.0.id_medico', $medico['id_medico'])->assertDontSee('reserva@example.test');
         $seleccion = ['id_especialidad' => $especialidad, 'id_medico' => $medico['id_medico'], 'fecha' => '2026-11-01',
-            ...($rol === 'Recepcionista' ? ['id_paciente' => $paciente] : [])];
+            ...($rol !== 'Paciente' ? ['id_paciente' => $paciente] : [])];
         $url = '/api/reservas/disponibilidad?'.http_build_query($seleccion);
         $turno = $this->navegador($cookies, 'GET', $url)->assertOk()->json('data.turnos.0');
         $antes = DB::table('citas')->count();
@@ -101,12 +101,16 @@ class ReservaIntegracionTest extends TestCase
         $this->loginAuth($cookies, $actor)->assertOk();
         $this->navegador($cookies, 'POST', '/api/reservas/resultado', ['propuesta' => $p['propuesta']])->assertOk()->assertJsonPath('data.cita.id_cita', $cita['id_cita']);
         $this->navegador($cookies, 'POST', '/api/citas', $payload)->assertOk()->assertJsonPath('meta.repetida', true);
-        $this->navegador($cookies, 'GET', '/api/bitacora')->assertForbidden();
+        $this->navegador($cookies, 'GET', '/api/bitacora')->assertStatus($rol === 'Administrador' ? 200 : 403);
         $evento = $this->navegador($adminCookies, 'GET', '/api/bitacora?tipo_evento=CITA_PROGRAMADA&registro_referido='.$cita['id_cita'].'&entidad_referida=Cita')
             ->assertOk()->assertJsonCount(1, 'data')->json('data.0.id_evento');
         $detalle = $this->navegador($adminCookies, 'GET', '/api/bitacora/'.$evento)->assertOk()->assertDontSee($motivo)
             ->assertDontSee($p['propuesta'])->assertDontSee($p['id_propuesta'])->json('data');
         $this->assertSame((string) $actor->getKey(), $detalle['id_usuario_responsable']);
+        $this->assertSame($rol, $detalle['rol_responsable']);
+        $this->assertSame(match ($rol) {
+            'Administrador' => 'ADMINISTRACION', 'Recepcionista' => 'RECEPCION', default => 'PROPIA',
+        }, $detalle['cambios_seguros']['origen']);
         $this->assertSame('EXITO', $detalle['resultado']);
         $this->assertSame(1, DB::table('citas')->count());
         $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'CITA_PROGRAMADA')->count());

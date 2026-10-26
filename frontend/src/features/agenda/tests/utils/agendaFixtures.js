@@ -6,8 +6,8 @@ export const cita = {
   paciente: { id_paciente: '31', codigo_paciente: 'PAC-FICTICIO', nombres: 'Paciente', apellidos: 'De prueba' },
   especialidad: { id_especialidad: '9', nombre: 'Especialidad ficticia' },
 };
-export const detalle = rol => ({ ...structuredClone(cita), ...(rol === 'Administrador' ? {} : { motivo_breve: 'MOTIVO-FICTICIO' }),
-  paciente: { ...cita.paciente, ...(rol === 'Recepcionista' ? { documento_identidad: null, telefono: '70000000' } : {}),
+export const detalle = rol => ({ ...structuredClone(cita), motivo_breve: 'MOTIVO-FICTICIO',
+  paciente: { ...cita.paciente, ...(['Administrador', 'Recepcionista'].includes(rol) ? { documento_identidad: null, telefono: '70000000' } : {}),
     ...(rol === 'Médico' ? { fecha_nacimiento: '1990-01-01' } : {}) } });
 export const sesion = (rol = 'Paciente', id = '1') => ({ id_usuario: id, rol, nombre_visible: 'Persona Ficticia', correo_acceso: 'persona@example.test' });
 export function pagina(data = [structuredClone(cita)], extra = {}) {

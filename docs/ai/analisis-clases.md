@@ -1,5 +1,2121 @@
 # Análisis de clases — Clínica Vida Salud
 
+## Revisión por procedimientos — Fase 1: inventario y estructura (2026-10-26)
+
+### Decisión vigente y alcance de esta fase
+
+**Se descarta la regla de un único diagrama por CU.** Se conserva la división de diagramas por procedimiento, escenario y contexto del flujo. Esta decisión sustituye el criterio de consolidación registrado anteriormente en este documento y en contexto §17.127; no revoca los permisos administrativos ya aprobados. El UML global de `diagrama-clases.md` sigue siendo una representación distinta del análisis por procedimiento.
+
+**Fase 1 completada como inventario, no como corrección de diagramas:** se localizaron entonces **33 bloques `classDiagram`: 17 consolidados anteriores y 16 por procedimiento**, estos últimos almacenados en bloques `text` antes de su revisión. Los 17 consolidados se conservan como antecedente descartado, no como análisis vigente ni como plantilla obligatoria. Ningún bloque se eliminó ni fusionó en Fase 1. **Cierre acumulado de Fase 6:** 57 bloques, de los cuales 17 son antecedentes descartados y 40 son vistas por procedimiento cotejadas/reactivadas como Mermaid; cuatro se incorporaron en Fase 3, doce en Fase 4 y ocho en Fase 5 a partir del análisis textual y el software existentes, no como diagramas originales recuperados. La revisión integral corrige doce anotaciones de tipo/nulabilidad en once vistas, sin cambiar procedimientos, actores, métodos ni relaciones.
+
+No hay 30 CU con diagramas de ejecución: los flujos implementados de CU-01–CU-14/CU-20/CU-21/CU-30 quedan representados por P01–P40, con distinta cantidad de vistas según sus procedimientos reales, sin imponer una por CU. CU-15–CU-19 y CU-22–CU-29 permanecen pendientes de implementación. El conteo de diagramas no demuestra cobertura funcional; la comprobación de métodos por contexto y sus límites se registran en el cierre de Fase 6.
+
+### Criterio de revisión aplicado en las seis fases
+
+- **Boundary:** campos y funciones existentes que participan en ese procedimiento de frontend. Contrastar formularios/estado, servicios HTTP y contrato real; no copiar todo el payload de otro escenario ni inventar interfaces conceptuales. Las clases Boundary son agrupaciones del análisis, no nuevas clases de software.
+- **Control:** métodos principales reales del controlador, servicio y validador; únicamente auxiliares necesarios para comprender ese recorrido. **Del repositorio, todos los métodos que participan en ese flujo**, incluidos los de repositorios colaboradores cuando se invoquen para ejecutarlo. No incluir operaciones de otros procedimientos por pertenecer al mismo CU.
+- **Formato:** `nombre() [controller]`, `nombre() [service]`, `nombre() [validator]` o `nombre() [repository]`; sin parámetros ni prefijos de clase. Los métodos de nombre coincidente se distinguen por capa y por su clase/archivo en la tabla externa; no se suprime una participación real solo por repetir el nombre.
+- **Orden:** entrada del controlador como inicio de lectura, seguida de validación y operaciones de servicio/repositorio por recorrido. No es una secuencia literal de ejecución: Laravel valida los Form Requests antes de invocar el controlador. Se evita repetir una misma operación de la misma clase solo por llamarse varias veces.
+- **Entidades:** exclusivamente las participantes en el procedimiento, con **solo los atributos que se utilizan en ese flujo**, incluidos los leídos para validar o autorizar cuando correspondan. No trasladar todo el esquema de la entidad ni campos de otros escenarios. Distinguir tabla técnica de modelo propio. Un campo interno no implica exposición en la API.
+- **Comprobación:** existencia de un nombre no basta: verificar llamadas y ramas del flujo, campos de entrada y atributos leídos/escritos; dejar fuera del diagrama la correspondencia con clases y archivos concretos. No incorporar elementos pendientes como implementación ni agregar métodos ficticios para completar capas.
+- **Actores:** Administrador en CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30; CU-04/CU-08 personales del Paciente. Conservar permisos restantes, titularidad, ejecutor real y Médico responsable separados. Aceptar invitación/completar contraseña son acciones del titular, no del Administrador por terceros; emisión de código es CU-07, no participación administrativa en CU-04.
+
+### Inventario de diagramas anteriores por procedimiento
+
+Identificadores `P01`–`P40` solo para este inventario documental; no son nuevos CU. Se localizan por sus encabezados y nombre de Control, no por números de línea que cambiarán al editar. Estado al cierre de Fase 1: P01–P16 existentes y pendientes de cotejo detallado. **Actualización Fase 2:** P01–P10/P12–P16 revisados. **Actualización Fase 3:** P11 revisado y P17–P20 incorporados. **Actualización Fase 4:** P21–P32 incorporados. **Actualización Fase 5:** P33–P40 incorporados. Las incorporaciones representan procedimientos ya implementados y descritos textualmente. La columna Fuentes remite al mapa posterior.
+
+| Ref. | CU / encabezado del procedimiento existente | Control del bloque existente | Actores del procedimiento | Fuentes / fase |
+| --- | --- | --- | --- | --- |
+| P01 | CU-01 — Diagrama de análisis, flujo principal | Iniciar sesión | Cuatro roles, sesión propia | U1 / Fase 2 |
+| P02 | CU-02 — Diagrama de análisis | Cerrar sesión | Cuatro roles, sesión propia | U1 / Fase 2 |
+| P03 | CU-03 — Alta y reenvío de invitación del personal | Alta e invitación | Administrador | U2 / Fase 2 |
+| P04 | CU-03 — Aceptar invitación y establecer primera contraseña | Aceptar invitación | Titular Administrador/Recepcionista/Médico | U2 / Fase 2 |
+| P05 | CU-03 — Listado y consulta administrativa | Consultar cuentas | Administrador | U3 / Fase 2 |
+| P06 | CU-03 — Estado de acceso y rol | Modificar acceso o rol | Administrador | U3 / Fase 2 |
+| P07 | CU-03 — Emitir credencial temporal excepcional | Emitir temporal | Administrador | U4 / Fase 2 |
+| P08 | CU-03 — Completar cambio obligatorio del personal | Completar cambio obligatorio | Titular Administrador/Recepcionista/Médico | U4 / Fase 2 |
+| P09 | CU-04 — Escenario A, inicio y reenvío | Iniciar o reenviar | Paciente sin sesión | U5 / Fase 2 |
+| P10 | CU-04 — Escenario A, verificación y creación definitiva | Verificar registro nuevo | Paciente sin sesión | U5 / Fase 2 |
+| P11 | CU-07 — Emisión de código de Recepción, necesario para 7B | Emitir código de Recepción | Administrador/Recepcionista | P1 / Fase 3 |
+| P12 | CU-04 — Escenario B, reservar la vinculación histórica | Reservar vinculación | Paciente sin sesión | U5 / Fase 2 |
+| P13 | CU-04 — Escenario B, confirmar correo y vincular atómicamente | Confirmar vínculo histórico | Paciente sin sesión | U5 / Fase 2 |
+| P14 | CU-05 — Diagrama de análisis | Cambiar contraseña propia | Cuatro roles, contraseña propia | U6 / Fase 2 |
+| P15 | CU-06 — Solicitar enlace | Solicitar enlace | Cuatro roles, recuperación propia | U7 / Fase 2 |
+| P16 | CU-06 — Restablecer mediante el enlace | Restablecer contraseña | Cuatro roles, recuperación propia | U7 / Fase 2 |
+| P17 | [CU-07 — Consulta y registro administrativo](#analisis-cu07-consulta-alta) | Consultar o registrar ficha | Administrador/Recepcionista | P1 / Fase 3 |
+| P18 | [CU-07 — Actualización, CI y estado](#analisis-cu07-actualizacion) | Actualizar ficha o estado | Administrador/Recepcionista | P1 / Fase 3 |
+| P19 | [CU-08 — Perfil propio](#analisis-cu08-perfil) | Consultar o actualizar perfil propio | Paciente titular | P2 / Fase 3 |
+| P20 | [CU-08 — Correo propio](#analisis-cu08-correo) | Verificar cambio de correo propio | Paciente titular | P2 / Fase 3 |
+| P21 | [CU-09 — Catálogo de especialidades](#analisis-cu09-catalogo) | Gestionar catálogo de especialidades | Administrador | M1 / Fase 4 |
+| P22 | [CU-10 — Datos profesionales](#analisis-cu10-profesional) | Consultar o guardar datos profesionales | Administrador | M2 / Fase 4 |
+| P23 | [CU-10 — Actividad/habilitaciones](#analisis-cu10-habilitaciones) | Cambiar actividad o habilitaciones | Administrador | M2 / Fase 4 |
+| P24 | [CU-11 — Catálogo de consultorios](#analisis-cu11-catalogo) | Gestionar catálogo de consultorios | Administrador | C1 / Fase 4 |
+| P25 | [CU-11 — Asignación e impacto](#analisis-cu11-asignacion) | Revisar y confirmar asignación | Administrador | C1 / Fase 4 |
+| P26 | [CU-12 — Horarios](#analisis-cu12-horarios) | Revisar y guardar horarios | Administrador | H1 / Fase 4 |
+| P27 | [CU-12 — Duración global](#analisis-cu12-duracion) | Revisar y cambiar duración | Administrador | H1 / Fase 4 |
+| P28 | [CU-13 — Catálogos para reserva](#analisis-cu13-catalogos) | Consultar catálogos de reserva | Administrador/Recepcionista/Paciente | R1 / Fase 4 |
+| P29 | [CU-13 — Disponibilidad](#analisis-cu13-turnos) | Consultar disponibilidad por fecha | Administrador/Recepcionista/Paciente | R1 / Fase 4 |
+| P30 | [CU-14 — Propuesta](#analisis-cu14-propuesta) | Preparar propuesta revisada | Administrador/Recepcionista/Paciente | R2 / Fase 4 |
+| P31 | [CU-14 — Confirmar reserva](#analisis-cu14-confirmacion) | Confirmar o reconciliar reserva | Administrador/Recepcionista/Paciente | R2 / Fase 4 |
+| P32 | [CU-14 — Consultar resultado](#analisis-cu14-resultado) | Consultar resultado persistido | Administrador/Recepcionista/Paciente | R2 / Fase 4 |
+| P33 | [CU-20 — Selector de Médico](#analisis-cu20-selector) | Consultar selector de agenda | Administrador/Recepcionista | A1 / Fase 5 |
+| P34 | [CU-20 — Agenda seleccionada](#analisis-cu20-seleccionada) | Consultar agenda seleccionada | Administrador/Recepcionista | A1 / Fase 5 |
+| P35 | [CU-20 — Agenda propia](#analisis-cu20-propia) | Consultar agenda propia | Médico vinculado | A1 / Fase 5 |
+| P36 | [CU-21 — Historial por ficha](#analisis-cu21-ficha) | Consultar historial por ficha | Administrador/Recepcionista | A1 / Fase 5 |
+| P37 | [CU-21 — Mis citas](#analisis-cu21-propias) | Consultar citas propias | Paciente titular | A1 / Fase 5 |
+| P38 | [CU-20/CU-21 — Detalle compartido](#analisis-cu20-cu21-detalle) | Consultar detalle autorizado | Cuatro roles, ámbito/matriz propios | A1 / Fase 5 |
+| P39 | [CU-30 — Listado/filtros](#analisis-cu30-listado) | Filtrar y consultar eventos | Administrador | B1 / Fase 5 |
+| P40 | [CU-30 — Detalle de evento](#analisis-cu30-detalle) | Consultar evento persistido | Administrador | B1 / Fase 5 |
+
+P11 está físicamente dentro de la sección histórica de CU-04 porque soporta su escenario B, pero **pertenece a CU-07**. No se incorpora al actor Administrador en los diagramas personales P09/P10/P12/P13 ni se mueve esa sección en esta fase.
+
+### Cobertura restante y diferencias encontradas
+
+| CU / fuentes | Material localizado además del inventario P01–P16 | Tratamiento por fase |
+| --- | --- | --- |
+| CU-07 / P1 | En Fase 1 había análisis textual, un consolidado descartado y P11 | Fase 3 completada: P11 revisado, P17/P18 nuevos como representación de procedimientos existentes. No se presentan estos dos últimos como diagramas originales recuperados. |
+| CU-08 / P2 | En Fase 1 había análisis textual de perfil/correo y un consolidado descartado | Fase 3 completada: P19/P20 por contextos separados, sin imponer un único diagrama. |
+| CU-09 / M1 | Análisis incremental de catálogo/estado; un consolidado descartado | Fase 4 completada: P21. |
+| CU-10 / M2 | Análisis incremental de alta/datos, actividad y habilitaciones; un consolidado descartado | Fase 4 completada: P22/P23; invitación de cuenta conserva CU-03. |
+| CU-11 / C1 | Análisis de catálogo y asignación/impacto/traslado; un consolidado descartado | Fase 4 completada: P24/P25 separados. |
+| CU-12 / H1 | Análisis de horarios/impacto y duración global; un consolidado descartado | Fase 4 completada: P26/P27 separados. |
+| CU-13 / R1 | Análisis de catálogos/búsqueda/turnos; un consolidado descartado | Fase 4 completada: P28/P29; no creación de cita. |
+| CU-14 / R2 | Análisis de propuesta, confirmación y resultado incierto; un consolidado descartado | Fase 4 completada: P30/P31/P32 por rama efectiva. |
+| CU-20 / A1 | Análisis de selector/agenda y detalle compartido; un consolidado descartado | Fase 5 completada: P33/P34/P35 y P38 compartido, sin suplantación de Médico. |
+| CU-21 / A1 | Análisis de historial por ficha/Mis citas y detalle; un consolidado descartado | Fase 5 completada: P36/P37 y P38 compartido, sin historial general para Médico. |
+| CU-30 / B1 | Análisis de listado/filtros y detalle de evento; un consolidado descartado | Fase 5 completada: P39/P40, solo lectura administrativa. |
+| CU-15–CU-19, CU-22–CU-29 | Sin diagramas de ejecución; soporte parcial de modelos/persistencia, salvo reportes sin módulo | Fase 5 completada documentalmente: referencias/actores y soporte existente distinguidos de flujos pendientes; sin métodos ficticios. |
+
+Los 17 consolidados anteriores corresponden a CU-01–CU-14, CU-20, CU-21 y CU-30. No son 17 procedimientos adicionales que deban mantenerse activos junto a los anteriores: su contenido solo sirve de referencia para contrastar, sin sustituir las divisiones originales ni acreditar atributos/métodos correctos por contexto.
+
+### Mapa de fuentes reales para el cotejo
+
+Rutas relativas a la raíz. En las columnas PHP, los nombres indican archivos `.php` en las carpetas descritas a continuación, no clases nuevas. En Fase 1 se comprobó la existencia de los **118 archivos de código referenciados por las tablas de la consolidación anterior**, sin comprobar entonces la exhaustividad por procedimiento. Fases 2–5 siguieron las entradas y colaboradores de cada contexto; Fase 6 repite el cotejo conjunto de las cuarenta vistas. Las fuentes listadas son puntos de entrada, no el límite del recorrido.
+
+- Frontend: `frontend/src/features/<feature>/services/`, además de `pages/`, `components/` y hooks realmente utilizados para campos de Boundary; transporte común `frontend/src/api/api.js` y router `frontend/src/app/router.jsx`.
+- Backend: `backend/src/presentation/controllers/<modulo>/`, `backend/src/presentation/dtos/<modulo>/`, `backend/src/business/services/<modulo>/`, `backend/src/data/repositories/<modulo>/`. Validadores adicionales en `backend/src/business/validators/`; modelos en `backend/src/data/models/` y columnas en `backend/src/data/database/migrations/`.
+- Autorización/contrato: rutas reales en `backend/src/presentation/routes/`, `casos-de-us.md` §3.1, `reglas-negocio.md`, RF/RN de `requerimientos.md`, `contexto-maestro.md`, DER y UML global. Las pruebas existentes aportan escenarios, no sustituyen la lectura de las llamadas productivas.
+
+| Fuente | Servicios frontend, relativos a `features/` | Entradas backend y servicios principales | Repositorios iniciales a seguir |
+| --- | --- | --- | --- |
+| U1 | auth/services/auth.service.js | usuarios/AutenticacionController; AutenticacionService | usuarios/UsuarioRepository, SesionRepository, TokenAccesoRepository |
+| U2 | usuarios/services/usuario.service.js; auth/services/invitation.service.js | usuarios/PersonalController, InvitacionPersonalController; InvitacionPersonalService | usuarios/UsuarioRepository, TokenAccesoRepository |
+| U3 | usuarios/services/usuario.service.js | usuarios/CuentaController; AdministracionCuentaService, ContinuidadAdministrativaService | usuarios/UsuarioRepository, SesionRepository |
+| U4 | usuarios/services/usuario.service.js; auth/services/password.service.js | usuarios/CredencialTemporalController; CredencialTemporalService | usuarios/UsuarioRepository, TokenAccesoRepository, SesionRepository |
+| U5 | auth/services/registration.service.js | usuarios/RegistroPacienteController; RegistroPacienteService | usuarios/RegistroPacienteRepository, UsuarioRepository; pacientes/CodigoActivacionRepository |
+| U6 | auth/services/password.service.js | usuarios/ClaveController; ClaveService | usuarios/UsuarioRepository, TokenAccesoRepository, SesionRepository, CambioCorreoRepository |
+| U7 | auth/services/password.service.js | usuarios/RecuperacionClaveController; RecuperacionClaveService | usuarios/UsuarioRepository, TokenAccesoRepository, SesionRepository, CambioCorreoRepository |
+| P1 | pacientes/services/paciente.service.js, activation.service.js | pacientes/PacienteController, CodigoActivacionController; PacienteService, CodigoActivacionService | pacientes/PacienteRepository, CodigoActivacionRepository; usuarios/RegistroPacienteRepository |
+| P2 | pacientes/services/perfil.service.js, cambioCorreo.service.js | pacientes/MiPerfilController, usuarios/CambioCorreoController; MiPerfilService, CambioCorreoService | pacientes/PacienteRepository; usuarios/CambioCorreoRepository, UsuarioRepository, SesionRepository |
+| M1 | especialidades/services/especialidad.service.js | medicos/EspecialidadController; EspecialidadService | medicos/EspecialidadRepository |
+| M2 | medicos/services/medico.service.js | medicos/MedicoController; MedicoService | medicos/MedicoRepository, EspecialidadRepository; usuarios/UsuarioRepository |
+| C1 | consultorios/services/consultorio.service.js, asignacionConsultorio.service.js | consultorios/ConsultorioController, AsignacionConsultorioController; ConsultorioService, AsignacionConsultorioService | consultorios/ConsultorioRepository, AsignacionConsultorioRepository; medicos/MedicoRepository |
+| H1 | horarios/services/horario.service.js, configuracionCitas.service.js | horarios/HorarioController, ConfiguracionCitasController; HorarioService, ConfiguracionCitasService | horarios/HorarioRepository, ConfiguracionCitasRepository |
+| R1 | citas/services/reserva.service.js | citas/DisponibilidadController; DisponibilidadService | citas/DisponibilidadRepository; horarios/ConfiguracionCitasRepository |
+| R2 | citas/services/reserva.service.js | citas/ReservaController; ReservaService, DisponibilidadService | citas/CitaRepository, DisponibilidadRepository |
+| A1 | agenda/services/agenda.service.js | agenda/AgendaController, HistorialCitasController, ConsultaCitaController; AgendaService, HistorialCitasService, ConsultaCitaService | agenda/AgendaRepository |
+| B1 | bitacora/services/bitacora.service.js | bitacora/BitacoraController; BitacoraService | bitacora/BitacoraRepository |
+
+En los recorridos se comprobaron también los repositorios transversales realmente invocados, como autenticación/sesión, planificación y bitácora, sin añadirlos indiscriminadamente a todos los diagramas ni incorporar todo el pipeline previo de rate limiting. Los Form Requests/Validators concretos se identifican por ruta/acción y en las tablas externas; no se presupone un mismo validador para todo el CU.
+
+### Estado de las seis fases
+
+| Fase | Estado / condición de cierre |
+| --- | --- |
+| 1 — Inventario y estructura | Completada: 33 bloques inventariados, división original identificada, diferencias y fuentes registradas; sin cambios en cuerpos de diagramas. |
+| 2 — CU-01–CU-06 | Completada documentalmente: P01–P10/P12–P16 cotejados y corregidos por contexto, sin fusionarlos; comprobaciones debajo. |
+| 3 — CU-07/CU-08 | Completada documentalmente: P11 revisado; P17/P18 de ficha y P19/P20 de perfil/correo representados con código existente. |
+| 4 — CU-09–CU-14 | Completada documentalmente: P21–P32 cotejados por contexto; sin fusión ni cambios de software. |
+| 5 — CU-20/CU-21/CU-30 y referencias pendientes | Completada documentalmente: P33–P40 cotejados por contexto; trece CU pendientes revisados sin diagramas de ejecución ficticios. |
+| 6 — Revisión integral | Completada documentalmente: 40 vistas/702 participaciones de repositorio cotejadas, tipos/nulabilidades corregidos, actores/índice/anclas y renderizado conjunto comprobados; límites debajo. |
+
+Esta tarea no completa ni implementa nuevos CU; no modifica código, permisos, RF/RN, DER ni UML global. La Fase 5 de integración frontend administrativa sigue pausada y es independiente de estas seis fases documentales, ahora cerradas. Las comprobaciones de la consolidación descartada quedan como evidencia de su versión y no validan el criterio por procedimiento; la verificación actual corresponde al cierre conjunto siguiente.
+
+### Cierre de Fase 6 — revisión integral por procedimientos (2026-10-26)
+
+**Se cierran las seis fases documentales**, no nuevas funcionalidades ni la integración pendiente. Se mantienen cuarenta vistas P01–P40 para los diecisiete CU con flujos implementados, diecisiete consolidados expresamente descartados y la tabla de trece CU pendientes sin diagramas de ejecución ficticios. No se elimina ni fusiona ningún bloque; P11 conserva ubicación de soporte a CU-04 pero pertenece a CU-07.
+
+#### Alcance y resultado del cotejo conjunto
+
+| Grupo de vistas | Cantidad | Participaciones de métodos de repositorio |
+| --- | ---: | ---: |
+| P01–P10/P12–P16, usuarios/autenticación | 15 | 256 |
+| P11/P17–P20, ficha/perfil/correo | 5 | 103 |
+| P21–P32, catálogos/planificación/reserva | 12 | 230 |
+| P33–P40, agenda/historial/bitácora | 8 | 113 |
+| **Total** | **40** | **702** |
+
+Son **142 métodos de repositorio distintos** repetidos según su participación en las vistas, no 702 métodos diferentes ni pruebas funcionales. El recorrido estático sigue Services de entrada, colaboradores, llamadas internas de repositorios, validadores invocados, callbacks y errores; delimita Nuevo/Vinculacion en verificación y guardar=false en resultado incierto. No confunde una llamada repetida de la misma clase con una operación adicional, pero conserva operaciones homónimas de clases distintas. Conjunto dibujado y conjunto analizado coinciden; no se detectan omisiones/adiciones de repositorio en ese perímetro.
+
+Controller/Request se contrastan con las clases concretas asociadas al Service de cada procedimiento; se comprueban declaraciones propias/heredadas pertinentes, capa, visibilidad, formato sin parámetros/prefijos y Controller como comienzo de lectura. Boundary tiene una sola caja por vista con funciones exportadas y campos reales de su servicio frontend, cotejados con su uso/contrato: cuerpo, query, ruta y proyección local se distinguen en el texto. `rol` de detalle no se envía como permiso; cookies/CSRF/cancelación de transporte no se convierten en atributos de dominio. No se exige a cada vista mostrar todas las funciones de su feature.
+
+Entidades y atributos seleccionados se contrastan con usos de Service/Repository/Resource y con Model/migraciones, incluidas las ampliaciones aditivas 000030–000034. Solo se representan participantes del contexto, no entidades de módulos pendientes por asociación conceptual. La revalidación puede aportar entidades de identidad o credencial restringida sin exponer esos atributos ni autorizar el flujo normal. No se convierten proyecciones/conteos/contextos de respuesta en columnas, ni se reconstruyen datos históricos de Cita desde la asignación actual del consultorio. Bitácora no expande los recursos referidos ni carga datos clínicos.
+
+#### Correcciones documentales detectadas en esta revisión
+
+`?` conserva el significado de **nulabilidad física**, no obligatoriedad condicional del flujo. Se corrigen doce anotaciones en once vistas, sin tocar el código ni el DER:
+
+| Vistas | Atributo | Corrección / fundamento real |
+| --- | --- | --- |
+| P04/P06/P07/P08/P14/P16 | VerificacionCorreo.id_usuario | `BigInt?`: columna nullable en 000015, compartida con activación de registro. El cambio de correo por cuenta exige su ID no nulo en su propio contexto; no vuelve obligatoria toda la columna. |
+| P25 | CambioCita.estado_anterior / datos_anteriores | `String?` / `JSONB?` según 000020. El traslado de ubicación llena ambos, aunque la tabla admita NULL en otros registros. |
+| P27 | ConfiguracionClinica.id_configuracion | `Integer`, no BigInt, según 000005; singleton sigue restringido a 1. |
+| P31/P32 | Cita.id_propuesta_reserva | `UUID?` según 000034: registros anteriores pueden conservar NULL; una creación/reconciliación por propuesta usa un UUID válido. |
+| P38 | Paciente.fecha_nacimiento | `Date`, no Date?, según 000010. Resource/cliente toleran NULL defensivamente; eso no cambia la columna implementada. |
+
+Se aclara también la cifra vigente de persistencia en la guía: **28 entidades/244 atributos/43 relaciones** según el DER actual; 239 atributos corresponde a su fuente original histórica. No es una nueva migración ni un cambio del modelo en esta tarea. Los conteos y comprobaciones de fases anteriores se conservan con su fecha; este cierre los vuelve a contrastar y corrige las anotaciones, no los presenta como nuevas pruebas de software.
+
+#### Actores, integridad documental y renderizado
+
+Matriz de actores cotejada en las cuarenta vistas con política aprobada, rutas/Services y consumidores reales: Administrador en sus procedimientos autorizados, sin CU-04/CU-08; aceptación de invitación/clave temporal por titular del personal; Paciente propio y Médico propio; operadores administrativos con selección explícita. Se conservan usuario ejecutor, Paciente afectado y Médico responsable separados. Trece CU pendientes mantienen autorización aprobada y límites, no implementación; sin ampliación de los otros roles.
+
+Se verifica inventario P01–P40 sin saltos, anclas explícitas únicas y destinos internos del análisis existentes, cercas equilibradas, UTF-8 válido y `git diff --check`. Frente a la copia previa de Fase 6 hay **57 bloques conservados: 46 intactos (incluidos los 17 descartados) y 11 con solo las 12 correcciones de anotación**; cuerpos de métodos, campos Boundary, actores, relaciones y orden de procedimientos intactos. Mermaid 10.9.5/Chrome headless analiza y renderiza **40/40** vistas finales, con SVG/captura por vista y cero etiquetas fuera del lienzo en la comprobación geométrica. Se revisan visualmente ocho capturas representativas (invitación, acceso/rol, vínculo histórico, actualización de ficha, asignación, duración, resultado incierto y detalle de cita) sin recortes de texto observados. El chequeo geométrico no acredita por sí solo legibilidad a cualquier escala de impresión.
+
+Herramientas, copia previa y evidencias JSON/SVG/PNG permanecen en directorio temporal externo, sin dependencias del proyecto. Se comprueba por hashes que los archivos ajenos a `analisis-clases.md`/`contexto-maestro.md` permanecen sin cambios durante esta fase; se preserva el trabajo local acumulado. No se ejecutan suites funcionales, migraciones, accesos a bases, servidores de aplicación, envíos, commits ni despliegues. El cotejo estático no demuestra ejecución integral de cada rama ni aceptación productiva. **Revisión documental terminada; desarrollo de los trece CU pendientes e integración administrativa Fase 5 frontend continúan separados y no autorizados por este cierre.**
+
+### Cierre de Fase 2 — CU-01–CU-06 (2026-10-26)
+
+**15 diagramas por procedimiento corregidos y reactivados como Mermaid**, conservando sus divisiones y actores. Boundary muestra campos y funciones reales del servicio frontend; Control distingue métodos principales de presentación/negocio/validación y todas las operaciones de repositorio del contexto, con `nombre() [capa]`, sin parámetros ni prefijos. Se añaden repositorios colaboradores omitidos en las fuentes anteriores (correo, sesiones, bitácora, reservas y persistencia de ficha dentro del vínculo). Se mantienen separados P10/Nuevo y P13/Vinculacion, y se retira `Paciente.activo` de P13 porque vincular no consulta ni modifica ese atributo. Las tablas externas y el mapa común documentan clases, archivos y homónimos.
+
+**Verificaciones ejecutadas:** cotejo estático de llamadas desde los Services de entrada y sus colaboradores, con ramas Nuevo/Vinculacion delimitadas: **256 participaciones de métodos de repositorio entre las 15 vistas**, sin omisiones ni adiciones frente al conjunto cotejado (incluye internos invocados y ramas de error; no son 256 métodos distintos del software). Declaraciones de métodos, funciones Boundary y nombres de atributos contrastados con código/modelos/migraciones. Los 15 diagramas pasan análisis y renderizado con Mermaid 10.9.5/Chrome headless; revisión visual de alta/reenvío de personal, inicio de registro nuevo, confirmación del vínculo histórico y restablecimiento por enlace, sin recortes de texto observados. Herramientas, evidencia JSON/SVG y capturas temporales externas al repositorio; sin dependencias nuevas.
+
+Comparación con la copia previa: **18 bloques intactos** (17 consolidados descartados y P11/CU-07); ningún diagrama fusionado ni perdido. UTF-8 y `git diff --check` comprobados al cierre. No se ejecutaron nuevas pruebas funcionales ni se cambió software, base de datos, permisos o requisitos. La revisión es documental/estática, no una nueva certificación de ejecución de todos los caminos ni de producción. Fase 3 pendiente.
+
+## Antecedente descartado: consolidación por CU — 2026-10-26
+
+**No vigente.** La consolidación siguiente había sustituido los diagramas por procedimiento por un único diagrama por CU implementado. Esa decisión fue descartada expresamente; sus bloques y comprobaciones se conservan temporalmente para trazabilidad mientras se corrigen las divisiones originales en las fases correspondientes. No se crean clases PHP nuevas ni se cambia la arquitectura real. Los encabezados «análisis vigente», «diagrama único vigente» y las convenciones de esta sección describen la versión anterior y no prevalecen sobre la revisión por procedimientos de Fase 1.
+
+### Criterio acordado y trazabilidad
+
+**Actores sincronizados (2026-10-26):** Administrador participa en **28/30 CU: CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30**, conforme a `casos-de-us.md` §3.1, `reglas-negocio.md` VS-GEN-03 y contexto §17.117. CU-04 y CU-08 siguen personales del Paciente. Se conservan los permisos de los demás roles y las precondiciones de cada operación, sin suplantación ni excepción global. En CU-01/CU-02/CU-05/CU-06 actúa sobre su propia sesión/credenciales; en programación, historial y recordatorios administrativos selecciona Paciente. En atención, consulta y laboratorio se mantienen separados ejecutor real y Médico responsable. La autorización de los CU pendientes no acredita su implementación. Esta actualización solo añade actores/conexiones y armoniza textos de permisos; no modifica métodos, entidades ni relaciones entre estas.
+
+**Verificación del ajuste de actores:** cotejo automático de los 33 bloques de diagramas contra la copia previa, con contenido ajeno a actores/conexiones/estilos de actor intacto. Los 15 CU implementados autorizados incluyen Administrador conectado a su Boundary; CU-04/CU-08 no lo incluyen. Los 13 pendientes explicitan Administración en la tabla de actores, sin crear diagramas ni métodos de ejecución. Los 17 diagramas vigentes se volvieron a analizar y renderizar correctamente con Mermaid 10.9.5. Cotejo de métodos/archivos sin discrepancias, UTF-8 válido y `git diff --check` sin errores. Sin cambios de código ni nuevas pruebas funcionales; no se altera la matriz de los documentos fuente.
+
+- **Boundary:** datos que envía React (cuerpo, filtros o ID de ruta, según operación), más funciones reales de sus servicios HTTP. No todos los atributos se envían juntos; no se envían estados/IDs privilegiados fuera de su operación autorizada. Cookies y CSRF son transporte, no atributos de dominio.
+- **Control:** selección de métodos principales existentes, sin prefijos de clase ni responsabilidades ficticias. El primer método es una entrada real del Controller; después se agrupan validación, Service y Repository por recorrido. `rules()` aparece una sola vez y corresponde a los Form Requests indicados en la tabla. No se muestran constructores, callbacks ni todos los métodos auxiliares.
+- **Orden:** lectura del flujo principal y después variantes. No es un diagrama de secuencia: Laravel valida antes de invocar el Controller y un mismo método puede ejecutarse en varias etapas. Los nombres coincidentes se muestran una vez y se desambiguan en la tabla de clases/archivos; no se atribuyen todos a una clase Control inexistente.
+- **Entidades:** clases Eloquent reales con solo atributos pertinentes al CU. `Sesiones` representa la tabla técnica `sessions`, no un modelo propio. Los tipos son alias documentales (`bigint`, `string`, `datetime`, `boolean`, `array`); no sustituyen nullabilidad, longitud o restricciones del DER. Un atributo en una entidad no implica que salga en la API.
+- **Relaciones:** dependencias Control → entidad resumen acceso mediado por repositorios, no consultas desde Controllers ni un nuevo orden transaccional. Las asociaciones no dibujadas no se niegan. Responsabilidades, errores, contratos y evidencia se conservan en el texto histórico, fuera de los compartimentos de métodos.
+- **Estado real:** 17 CU implementados (01–14, 20, 21, 30). Los otros 13 quedan pendientes, sin métodos/diagramas inventados. Los permisos vigentes son los de casos-de-us.md §3.1. La Fase 5 frontend iniciada antes de esta tarea permanece **pausada e incompleta**; no se declara integrada por reorganizar análisis.
+
+Las rutas de las tablas son relativas a la raíz: `frontend/src/` y `backend/src/`. Cada fila identifica archivos concretos; los nombres mostrados deben encontrarse como funciones/métodos declarados en esos archivos. Los métodos internos del framework no se presentan como propios.
+
+**Verificación documental (2026-10-26):** 17 diagramas, cada uno con un Boundary y un Control; 269 entradas de métodos y 339 referencias a declaraciones en archivos reales cotejadas automáticamente, sin discrepancias de nombres. Los nombres de atributos de entidades se contrastaron con modelos y migraciones; este cotejo no sustituye la revisión del contrato ni del flujo. Los 17 bloques se analizaron y renderizaron correctamente con Mermaid 10.9.5 en Chrome headless; se revisaron visualmente capturas de CU-06, CU-07 y CU-14, sin recortes de texto observados. Herramientas, SVG y capturas son temporales externos al repositorio, sin dependencias nuevas del proyecto. No se ejecutaron pruebas funcionales nuevas por este cambio exclusivamente documental.
+
+| CU | Diagrama único vigente | Actores |
+| --- | --- | --- |
+| CU-01 | [Iniciar sesión](#vigente-cu-01) | Cuatro roles |
+| CU-02 | [Cerrar sesión](#vigente-cu-02) | Cuatro roles |
+| CU-03 | [Administrar cuentas](#vigente-cu-03) | Administrador; personal en aceptación/cambio obligatorio propios |
+| CU-04 | [Registro y vinculación web](#vigente-cu-04) | Paciente |
+| CU-05 | [Cambiar contraseña](#vigente-cu-05) | Cuatro roles, propia |
+| CU-06 | [Recuperar contraseña](#vigente-cu-06) | Cuatro roles, propia |
+| CU-07 | [Registro administrativo de pacientes](#vigente-cu-07) | Administrador, Recepcionista |
+| CU-08 | [Perfil propio](#vigente-cu-08) | Paciente |
+| CU-09 | [Especialidades](#vigente-cu-09) | Administrador |
+| CU-10 | [Médicos](#vigente-cu-10) | Administrador |
+| CU-11 | [Consultorios y asignaciones](#vigente-cu-11) | Administrador |
+| CU-12 | [Horarios y duración](#vigente-cu-12) | Administrador |
+| CU-13 | [Buscar disponibilidad](#vigente-cu-13) | Administrador, Recepcionista, Paciente propio |
+| CU-14 | [Programar o reservar](#vigente-cu-14) | Administrador, Recepcionista, Paciente propio |
+| CU-20 | [Agenda médica](#vigente-cu-20) | Administrador, Recepcionista, Médico propio |
+| CU-21 | [Historial de citas](#vigente-cu-21) | Administrador, Recepcionista, Paciente propio |
+| CU-30 | [Consultar bitácora](#vigente-cu-30) | Administrador |
+
+<a id="vigente-cu-01"></a>
+## CU-01 — Iniciar sesión: análisis vigente
+
+Boundary transmite correo/contraseña; `consultarSesion()` restaura identidad pública. La consulta no concede permisos de otro rol ni transforma ficha/profesional inactivo en cuenta desactivada.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU01 {
+  <<Boundary>>
+  correo_acceso : string
+  password : string
+  iniciarSesion()
+  consultarSesion()
+}
+class ControlCU01 {
+  <<Control>>
+  login()
+  rules()
+  iniciar()
+  porCorreoBloqueado()
+  guardar()
+  me()
+  validarSesion()
+  porId()
+  coincide()
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  correo_acceso : string
+  password_hash : string
+  estado_cuenta : string
+  correo_verificado_en : datetime
+  cambio_clave_obligatorio : boolean
+  intentos_fallidos : integer
+  bloqueado_hasta : datetime
+}
+class Rol {
+  <<Entidad>>
+  id_rol : bigint
+  nombre : string
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  nombres : string
+  apellidos : string
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_usuario : bigint
+  nombres : string
+  apellidos : string
+}
+class TokenAcceso {
+  <<Entidad>>
+  id_token : bigint
+  id_usuario : bigint
+  proposito : string
+  token_hash : string
+  expira_en : datetime
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Sesiones {
+  <<Tabla>>
+  id : string
+  user_id : bigint
+  payload : string
+  last_activity : integer
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU01
+BoundaryCU01 --> ControlCU01
+ControlCU01 ..> Usuario
+ControlCU01 ..> TokenAcceso
+ControlCU01 ..> Sesiones
+Usuario --> Rol
+Usuario --> Paciente
+Usuario --> Medico
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/auth/services/auth.service.js | iniciarSesion, consultarSesion |
+| backend/src/presentation/controllers/usuarios/AutenticacionController.php | login, me |
+| backend/src/presentation/dtos/usuarios/LoginRequest.php | rules |
+| backend/src/business/services/usuarios/AutenticacionService.php | iniciar, validarSesion |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | porCorreoBloqueado, guardar, porId |
+| backend/src/data/repositories/usuarios/SesionRepository.php | iniciar, coincide |
+
+<a id="vigente-cu-02"></a>
+## CU-02 — Cerrar sesión: análisis vigente
+
+No requiere campos de negocio en el cuerpo. Boundary envía cookies/CSRF por el transporte existente. El cierre restringido también invalida credenciales temporales según reglas vigentes.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU02 {
+  <<Boundary>>
+  cerrarSesion()
+}
+class ControlCU02 {
+  <<Control>>
+  logout()
+  cerrar()
+  usuarioId()
+  porId()
+  invalidarTemporales()
+  revocarUsuario()
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  cambio_clave_obligatorio : boolean
+}
+class TokenAcceso {
+  <<Entidad>>
+  id_token : bigint
+  id_usuario : bigint
+  proposito : string
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Sesiones {
+  <<Tabla>>
+  id : string
+  user_id : bigint
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU02
+BoundaryCU02 --> ControlCU02
+ControlCU02 ..> Usuario
+ControlCU02 ..> TokenAcceso
+ControlCU02 ..> Sesiones
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/auth/services/auth.service.js | cerrarSesion |
+| backend/src/presentation/controllers/usuarios/AutenticacionController.php | logout |
+| backend/src/business/services/usuarios/AutenticacionService.php | cerrar |
+| backend/src/data/repositories/usuarios/SesionRepository.php | usuarioId, cerrar, revocarUsuario |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | porId |
+| backend/src/data/repositories/usuarios/TokenAccesoRepository.php | invalidarTemporales |
+
+<a id="vigente-cu-03"></a>
+## CU-03 — Administrar cuentas y acceso: análisis vigente
+
+Unifica consulta/estado/rol del personal y acceso mínimo de Pacientes, alta/invitación y credencial temporal. Aceptación y contraseña definitiva son acciones personales del destinatario. Las operaciones administrativas sobre Pacientes no cambian credenciales, rol o vínculo.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU03 {
+  <<Boundary>>
+  id : bigint
+  rol : string
+  estado_cuenta : string
+  correo_acceso : string
+  nombres_personal : string
+  apellidos_personal : string
+  id_medico : bigint
+  identidad_verificada : boolean
+  token : string
+  password : string
+  password_confirmation : string
+  page : integer
+  per_page : integer
+  crearPersonal()
+  reenviarInvitacion()
+  aceptarInvitacion()
+  listarCuentas()
+  consultarCuenta()
+  cambiarEstadoCuenta()
+  cambiarRolCuenta()
+  emitirCredencialTemporal()
+  completarClaveTemporal()
+}
+class ControlCU03 {
+  <<Control>>
+  store()
+  rules()
+  crear()
+  crearPersonal()
+  reenviar()
+  aceptar()
+  consumir()
+  index()
+  listar()
+  listadoAdministrativo()
+  show()
+  consultar()
+  estado()
+  cambiarEstado()
+  rol()
+  cambiarRol()
+  emitir()
+  emitirTemporal()
+  completar()
+  guardar()
+  revocarUsuario()
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  correo_acceso : string
+  nombres_personal : string
+  apellidos_personal : string
+  estado_cuenta : string
+  password_hash : string
+  correo_verificado_en : datetime
+  cambio_clave_obligatorio : boolean
+  bloqueado_hasta : datetime
+}
+class Rol {
+  <<Entidad>>
+  id_rol : bigint
+  nombre : string
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_usuario : bigint
+  nombres : string
+  apellidos : string
+  activo : boolean
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+}
+class TokenAcceso {
+  <<Entidad>>
+  id_token : bigint
+  id_usuario : bigint
+  proposito : string
+  token_hash : string
+  emitido_en : datetime
+  expira_en : datetime
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Sesiones {
+  <<Tabla>>
+  id : string
+  user_id : bigint
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU03 : operaciones administrativas y propias
+BoundaryCU03 --> ControlCU03
+ControlCU03 ..> Usuario
+ControlCU03 ..> Medico
+ControlCU03 ..> Paciente
+ControlCU03 ..> TokenAcceso
+ControlCU03 ..> Sesiones
+Usuario --> Rol
+Usuario --> Medico
+Usuario --> Paciente
+Usuario --> TokenAcceso
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/usuarios/services/usuario.service.js | crearPersonal, reenviarInvitacion, listarCuentas, consultarCuenta, cambiarEstadoCuenta, cambiarRolCuenta, emitirCredencialTemporal |
+| frontend/src/features/auth/services/invitation.service.js | aceptarInvitacion |
+| frontend/src/features/auth/services/password.service.js | completarClaveTemporal |
+| backend/src/presentation/controllers/usuarios/PersonalController.php | store, reenviar |
+| backend/src/presentation/controllers/usuarios/InvitacionPersonalController.php | aceptar |
+| backend/src/presentation/controllers/usuarios/CuentaController.php | index, show, estado, rol |
+| backend/src/presentation/controllers/usuarios/CredencialTemporalController.php | emitir, completar |
+| backend/src/presentation/dtos/usuarios/CrearPersonalRequest.php | rules |
+| backend/src/presentation/dtos/usuarios/AceptarInvitacionRequest.php | rules |
+| backend/src/business/services/usuarios/InvitacionPersonalService.php | crear, reenviar, aceptar |
+| backend/src/business/services/usuarios/AdministracionCuentaService.php | listar, consultar, cambiarEstado, cambiarRol |
+| backend/src/business/services/usuarios/CredencialTemporalService.php | emitir, completar |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | crearPersonal, listadoAdministrativo, guardar |
+| backend/src/data/repositories/usuarios/TokenAccesoRepository.php | consumir, emitirTemporal |
+| backend/src/data/repositories/usuarios/SesionRepository.php | revocarUsuario |
+
+`rules()` también agrupa la validación de listado, estado/rol, reenvío y temporal: ListarCuentasRequest, CambiarEstadoCuentaRequest, CambiarRolCuentaRequest, ReenviarInvitacionRequest, EmitirCredencialTemporalRequest y la heredada de ClaveRequest en CompletarClaveTemporalRequest, dentro de backend/src/presentation/dtos/usuarios/. No se repite en la caja. Las precondiciones de último Administrador y obligaciones profesionales siguen en los servicios reales, aunque sus auxiliares no se seleccionen visualmente.
+
+<a id="vigente-cu-04"></a>
+## CU-04 — Registro y vinculación web del Paciente: análisis vigente
+
+Dos caminos dentro del mismo diagrama: paciente nuevo o ficha histórica con código presencial. El código administrativo se emite por CU-07, no por este CU; nadie ejecuta los pasos personales suplantando al titular.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU04 {
+  <<Boundary>>
+  documento_identidad : string
+  nombres : string
+  apellidos : string
+  fecha_nacimiento : date
+  telefono : string
+  sexo : string
+  correo_contacto : string
+  direccion : string
+  correo_acceso : string
+  password : string
+  password_confirmation : string
+  codigo_activacion : string
+  codigo : string
+  registrarPaciente()
+  vincularPaciente()
+  reenviarCodigoRegistro()
+  verificarRegistro()
+}
+class ControlCU04 {
+  <<Control>>
+  iniciar()
+  rules()
+  porContexto()
+  crear()
+  emitirCodigo()
+  reenviar()
+  vincular()
+  pacientePorDocumento()
+  verificar()
+  ultimoCodigo()
+  crearPaciente()
+  guardar()
+  invalidarCodigos()
+}
+class RegistroPacientePendiente {
+  <<Entidad>>
+  id_registro_pendiente : bigint
+  tipo_registro : string
+  documento_identidad : string
+  correo_propuesto : string
+  password_hash_temporal : string
+  datos_registro : array
+  id_paciente : bigint
+  id_codigo_activacion : bigint
+  iniciado_en : datetime
+  expira_en : datetime
+  completado_en : datetime
+  invalidado_en : datetime
+}
+class CodigoActivacionPaciente {
+  <<Entidad>>
+  id_codigo_activacion : bigint
+  id_paciente : bigint
+  codigo_hash : string
+  expira_en : datetime
+  intentos_fallidos : integer
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class VerificacionCorreo {
+  <<Entidad>>
+  id_verificacion : bigint
+  id_registro_pendiente : bigint
+  codigo_hash : string
+  enviado_en : datetime
+  expira_en : datetime
+  intentos_fallidos : integer
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  correo_acceso : string
+  password_hash : string
+  estado_cuenta : string
+  correo_verificado_en : datetime
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  codigo_paciente : string
+  documento_identidad : string
+  nombres : string
+  apellidos : string
+  fecha_nacimiento : date
+  telefono : string
+  activo : boolean
+}
+BoundaryCU04 --> ControlCU04
+ControlCU04 ..> RegistroPacientePendiente
+ControlCU04 ..> CodigoActivacionPaciente
+ControlCU04 ..> VerificacionCorreo
+ControlCU04 ..> Usuario
+ControlCU04 ..> Paciente
+Usuario --> Paciente
+RegistroPacientePendiente --> VerificacionCorreo
+RegistroPacientePendiente --> CodigoActivacionPaciente
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/auth/services/registration.service.js | registrarPaciente, vincularPaciente, reenviarCodigoRegistro, verificarRegistro |
+| backend/src/presentation/controllers/usuarios/RegistroPacienteController.php | iniciar, vincular, reenviar, verificar |
+| backend/src/presentation/dtos/usuarios/RegistrarPacienteRequest.php | rules |
+| backend/src/presentation/dtos/usuarios/VincularPacienteRequest.php | rules |
+| backend/src/presentation/dtos/usuarios/VerificarRegistroPacienteRequest.php | rules |
+| backend/src/business/services/usuarios/RegistroPacienteService.php | iniciar, reenviar, vincular, verificar |
+| backend/src/data/repositories/usuarios/RegistroPacienteRepository.php | porContexto, crear, emitirCodigo, ultimoCodigo, crearPaciente, guardar, invalidarCodigos |
+| backend/src/data/repositories/pacientes/CodigoActivacionRepository.php | pacientePorDocumento, vincular |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | crearPaciente |
+
+La huella del contexto de registro se conserva dentro de `datos_registro` como `_contexto_hash`; no existe una columna `contexto_hash` independiente y no se dibuja como atributo persistido propio.
+
+<a id="vigente-cu-05"></a>
+## CU-05 — Cambiar contraseña propia: análisis vigente
+
+No es el restablecimiento administrativo de otra cuenta. Se conserva sesión actual regenerada y se revocan contextos anteriores conforme al flujo real.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU05 {
+  <<Boundary>>
+  current_password : string
+  password : string
+  password_confirmation : string
+  cambiarClave()
+}
+class ControlCU05 {
+  <<Control>>
+  update()
+  rules()
+  cambiar()
+  exigirSesionNormal()
+  guardar()
+  invalidarRecuperaciones()
+  revocarUsuario()
+  iniciar()
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  password_hash : string
+  estado_cuenta : string
+  cambio_clave_obligatorio : boolean
+  actualizado_en : datetime
+}
+class TokenAcceso {
+  <<Entidad>>
+  id_usuario : bigint
+  proposito : string
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Sesiones {
+  <<Tabla>>
+  id : string
+  user_id : bigint
+  payload : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU05
+BoundaryCU05 --> ControlCU05
+ControlCU05 ..> Usuario
+ControlCU05 ..> TokenAcceso
+ControlCU05 ..> Sesiones
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/auth/services/password.service.js | cambiarClave |
+| backend/src/presentation/controllers/usuarios/ClaveController.php | update |
+| backend/src/presentation/dtos/usuarios/CambiarClaveRequest.php | rules |
+| backend/src/business/services/usuarios/ClaveService.php | cambiar |
+| backend/src/business/services/usuarios/AutenticacionService.php | exigirSesionNormal |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | guardar |
+| backend/src/data/repositories/usuarios/TokenAccesoRepository.php | invalidarRecuperaciones |
+| backend/src/data/repositories/usuarios/SesionRepository.php | revocarUsuario, iniciar |
+
+<a id="vigente-cu-06"></a>
+## CU-06 — Recuperar contraseña: análisis vigente
+
+Se conserva exactamente la selección de diez métodos de Control acordada con el usuario. Solicitud: correo; restablecimiento: token/contraseña/confirmación. No son un único envío.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU06 {
+  <<Boundary>>
+  correo_acceso : string
+  token : string
+  password : string
+  password_confirmation : string
+  solicitarRecuperacion()
+  restablecerClave()
+}
+class ControlCU06 {
+  <<Control>>
+  solicitar()
+  rules()
+  porCorreoBloqueado()
+  invalidarRecuperaciones()
+  emitirRecuperacion()
+  restablecer()
+  recuperacionPorHash()
+  guardar()
+  consumir()
+  revocarUsuario()
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  correo_acceso : string
+  password_hash : string
+  estado_cuenta : string
+  correo_verificado_en : datetime
+  cambio_clave_obligatorio : boolean
+  nombres_personal : string
+  apellidos_personal : string
+  actualizado_en : datetime
+}
+class Rol {
+  <<Entidad>>
+  id_rol : bigint
+  nombre : string
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_usuario : bigint
+}
+class TokenAcceso {
+  <<Entidad>>
+  id_token : bigint
+  id_usuario : bigint
+  proposito : string
+  token_hash : string
+  emitido_en : datetime
+  expira_en : datetime
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class VerificacionCorreo {
+  <<Entidad>>
+  id_usuario : bigint
+  proposito : string
+  enviado_en : datetime
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Sesiones {
+  <<Tabla>>
+  id : string
+  user_id : bigint
+}
+class Bitacora {
+  <<Entidad>>
+  tipo_evento : string
+  tipo_actor : string
+  id_usuario_responsable : bigint
+  id_usuario_objetivo : bigint
+  rol_responsable : string
+  rol_objetivo : string
+  resultado : string
+  causa_codigo : string
+  ocurrido_en : datetime
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU06
+BoundaryCU06 --> ControlCU06
+ControlCU06 ..> Usuario
+ControlCU06 ..> TokenAcceso
+ControlCU06 ..> VerificacionCorreo
+ControlCU06 ..> Sesiones
+ControlCU06 ..> Bitacora
+Usuario --> Rol
+Usuario --> Paciente
+Usuario --> Medico
+Usuario --> TokenAcceso
+Usuario --> VerificacionCorreo
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/auth/services/password.service.js | solicitarRecuperacion, restablecerClave |
+| backend/src/presentation/controllers/usuarios/RecuperacionClaveController.php | solicitar, restablecer |
+| backend/src/presentation/dtos/usuarios/SolicitarRecuperacionRequest.php | rules |
+| backend/src/presentation/dtos/usuarios/RestablecerClaveRequest.php | rules |
+| backend/src/business/services/usuarios/RecuperacionClaveService.php | solicitar, restablecer |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | porCorreoBloqueado, guardar |
+| backend/src/data/repositories/usuarios/TokenAccesoRepository.php | invalidarRecuperaciones, emitirRecuperacion, recuperacionPorHash, consumir |
+| backend/src/data/repositories/usuarios/SesionRepository.php | revocarUsuario |
+
+El servicio también invalida verificaciones de cambio de correo y registra auditoría; por selección explícita sus métodos auxiliares no se añaden a Control. Sus entidades sí participan. Envío posterior al commit, expiración/uso único y sesiones quedan descritos en el expediente. No se presentan contraseñas/tokens de entrada como atributos persistidos en claro.
+
+<a id="vigente-cu-07"></a>
+## CU-07 — Gestionar registro administrativo de pacientes: análisis vigente
+
+Incluye consulta/alta/edición/estado de ficha y emisión de código, sin registro personal ni credenciales. El historial enlazado desde ficha pertenece a CU-21 y no concede edición clínica.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU07 {
+  <<Boundary>>
+  id : bigint
+  documento_identidad : string
+  nombres : string
+  apellidos : string
+  fecha_nacimiento : date
+  sexo : string
+  telefono : string
+  correo_contacto : string
+  direccion : string
+  contacto_emergencia : object
+  posibles_duplicados_revisados : boolean
+  identidad_verificada : boolean
+  motivo : string
+  actualizado_en_original : datetime
+  activo : boolean
+  page : integer
+  per_page : integer
+  listarPacientes()
+  consultarPaciente()
+  crearPaciente()
+  actualizarPaciente()
+  cambiarEstadoPaciente()
+  emitirCodigoActivacion()
+}
+class ControlCU07 {
+  <<Control>>
+  index()
+  rules()
+  listar()
+  show()
+  consultar()
+  store()
+  crear()
+  update()
+  actualizar()
+  guardar()
+  estado()
+  cambiarEstado()
+  emitir()
+  pacientePorId()
+  invalidarAnteriores()
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  codigo_paciente : string
+  documento_identidad : string
+  nombres : string
+  apellidos : string
+  fecha_nacimiento : date
+  sexo : string
+  telefono : string
+  correo_contacto : string
+  direccion : string
+  activo : boolean
+  actualizado_en : datetime
+}
+class ContactoEmergencia {
+  <<Entidad>>
+  id_paciente : bigint
+  nombre : string
+  parentesco : string
+  telefono : string
+}
+class CodigoActivacionPaciente {
+  <<Entidad>>
+  id_codigo_activacion : bigint
+  id_paciente : bigint
+  id_recepcionista : bigint
+  codigo_hash : string
+  emitido_en : datetime
+  expira_en : datetime
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class RegistroPacientePendiente {
+  <<Entidad>>
+  id_registro_pendiente : bigint
+  id_paciente : bigint
+  documento_identidad : string
+  invalidado_en : datetime
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  estado_cuenta : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU07
+BoundaryCU07 --> ControlCU07
+ControlCU07 ..> Paciente
+ControlCU07 ..> ContactoEmergencia
+ControlCU07 ..> CodigoActivacionPaciente
+ControlCU07 ..> RegistroPacientePendiente
+ControlCU07 ..> Usuario
+Paciente --> ContactoEmergencia
+Paciente --> CodigoActivacionPaciente
+CodigoActivacionPaciente --> Usuario
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/pacientes/services/paciente.service.js | listarPacientes, consultarPaciente, crearPaciente, actualizarPaciente, cambiarEstadoPaciente |
+| frontend/src/features/pacientes/services/activation.service.js | emitirCodigoActivacion |
+| backend/src/presentation/controllers/pacientes/PacienteController.php | index, show, store, update, estado |
+| backend/src/presentation/controllers/pacientes/CodigoActivacionController.php | emitir |
+| backend/src/presentation/dtos/pacientes/CrearPacienteRequest.php | rules |
+| backend/src/presentation/dtos/pacientes/ActualizarPacienteRequest.php | rules |
+| backend/src/presentation/dtos/pacientes/CambiarEstadoPacienteRequest.php | rules |
+| backend/src/presentation/dtos/pacientes/EmitirCodigoActivacionRequest.php | rules |
+| backend/src/business/services/pacientes/PacienteService.php | listar, consultar, crear, actualizar, cambiarEstado |
+| backend/src/business/services/pacientes/CodigoActivacionService.php | emitir |
+| backend/src/data/repositories/pacientes/PacienteRepository.php | listar, consultar, crear, guardar |
+| backend/src/data/repositories/pacientes/CodigoActivacionRepository.php | pacientePorId, invalidarAnteriores, crear |
+
+`id_recepcionista` es el nombre persistido de la FK a Usuario: guarda también al Administrador emisor auténtico. No es una restricción de rol ni una identidad simulada.
+
+<a id="vigente-cu-08"></a>
+## CU-08 — Actualizar perfil propio: análisis vigente
+
+Contacto/emergencia/preferencias y cambio verificado del correo de acceso propio; no edición de identidad clínica, rol o historial. Correo de contacto y correo de acceso son datos distintos.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU08 {
+  <<Boundary>>
+  telefono : string
+  correo_contacto : string
+  direccion : string
+  contacto_emergencia : object
+  recordatorios_habilitados : boolean
+  actualizado_en_original : datetime
+  correo_acceso : string
+  current_password : string
+  codigo : string
+  consultarMiPerfil()
+  actualizarMiPerfil()
+  solicitarCambioCorreo()
+  reenviarCambioCorreo()
+  verificarCambioCorreo()
+}
+class ControlCU08 {
+  <<Control>>
+  show()
+  rules()
+  consultar()
+  porUsuario()
+  update()
+  actualizar()
+  guardar()
+  guardarEmergencia()
+  guardarRecordatorios()
+  solicitar()
+  reenviar()
+  verificar()
+  ultimo()
+  crear()
+  revocarUsuario()
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  telefono : string
+  correo_contacto : string
+  direccion : string
+  actualizado_en : datetime
+}
+class ContactoEmergencia {
+  <<Entidad>>
+  id_paciente : bigint
+  nombre : string
+  parentesco : string
+  telefono : string
+}
+class PreferenciaPaciente {
+  <<Entidad>>
+  id_paciente : bigint
+  recordatorios_habilitados : boolean
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  correo_acceso : string
+  password_hash : string
+  correo_verificado_en : datetime
+}
+class VerificacionCorreo {
+  <<Entidad>>
+  id_verificacion : bigint
+  id_usuario : bigint
+  proposito : string
+  correo_destino : string
+  codigo_hash : string
+  enviado_en : datetime
+  expira_en : datetime
+  consumido_en : datetime
+  invalidado_en : datetime
+}
+class Sesiones {
+  <<Tabla>>
+  id : string
+  user_id : bigint
+}
+BoundaryCU08 --> ControlCU08
+ControlCU08 ..> Paciente
+ControlCU08 ..> Usuario
+ControlCU08 ..> VerificacionCorreo
+ControlCU08 ..> Sesiones
+Paciente --> ContactoEmergencia
+Paciente --> PreferenciaPaciente
+Usuario --> Paciente
+Usuario --> VerificacionCorreo
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/pacientes/services/perfil.service.js | consultarMiPerfil, actualizarMiPerfil |
+| frontend/src/features/pacientes/services/cambioCorreo.service.js | solicitarCambioCorreo, reenviarCambioCorreo, verificarCambioCorreo |
+| backend/src/presentation/controllers/pacientes/MiPerfilController.php | show, update |
+| backend/src/presentation/controllers/usuarios/CambioCorreoController.php | solicitar, reenviar, verificar |
+| backend/src/presentation/dtos/pacientes/MiPerfilRequest.php | rules |
+| backend/src/presentation/dtos/usuarios/CambioCorreoRequest.php | rules |
+| backend/src/business/services/pacientes/MiPerfilService.php | consultar, actualizar |
+| backend/src/business/services/usuarios/CambioCorreoService.php | solicitar, reenviar, verificar |
+| backend/src/data/repositories/pacientes/PacienteRepository.php | porUsuario, guardar, guardarEmergencia, guardarRecordatorios |
+| backend/src/data/repositories/usuarios/CambioCorreoRepository.php | ultimo, crear, guardar |
+| backend/src/data/repositories/usuarios/SesionRepository.php | revocarUsuario |
+
+<a id="vigente-cu-09"></a>
+## CU-09 — Gestionar especialidades: análisis vigente
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU09 {
+  <<Boundary>>
+  id : bigint
+  nombre : string
+  descripcion : string
+  activa : boolean
+  actualizado_en_original : datetime
+  page : integer
+  per_page : integer
+  listarEspecialidades()
+  consultarEspecialidad()
+  crearEspecialidad()
+  actualizarEspecialidad()
+  cambiarEstadoEspecialidad()
+}
+class ControlCU09 {
+  <<Control>>
+  index()
+  rules()
+  listar()
+  show()
+  consultar()
+  porIdBloqueado()
+  store()
+  crear()
+  update()
+  actualizar()
+  guardar()
+  estado()
+}
+class Especialidad {
+  <<Entidad>>
+  id_especialidad : bigint
+  nombre : string
+  descripcion : string
+  activa : boolean
+  actualizado_en : datetime
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU09
+BoundaryCU09 --> ControlCU09
+ControlCU09 ..> Especialidad
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/especialidades/services/especialidad.service.js | listarEspecialidades, consultarEspecialidad, crearEspecialidad, actualizarEspecialidad, cambiarEstadoEspecialidad |
+| backend/src/presentation/controllers/medicos/EspecialidadController.php | index, show, store, update, estado |
+| backend/src/presentation/dtos/medicos/CrearEspecialidadRequest.php | rules |
+| backend/src/presentation/dtos/medicos/ActualizarEspecialidadRequest.php | rules |
+| backend/src/presentation/dtos/medicos/CambiarEstadoEspecialidadRequest.php | rules |
+| backend/src/business/services/medicos/EspecialidadService.php | listar, consultar, crear, actualizar |
+| backend/src/data/repositories/medicos/EspecialidadRepository.php | listar, porIdBloqueado, crear, guardar |
+
+<a id="vigente-cu-10"></a>
+## CU-10 — Gestionar médicos: análisis vigente
+
+Actividad profesional independiente de la cuenta. Asociación de especialidades conserva historia; crear acceso profesional es CU-03, no un método ficticio de CU-10.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU10 {
+  <<Boundary>>
+  id : bigint
+  nombre : string
+  id_especialidad : bigint
+  registro_profesional : string
+  nombres : string
+  apellidos : string
+  telefono : string
+  correo_contacto : string
+  especialidades : array
+  activo : boolean
+  actualizado_en_original : datetime
+  page : integer
+  per_page : integer
+  listarMedicos()
+  consultarMedico()
+  crearMedico()
+  actualizarMedico()
+  cambiarEstadoMedico()
+  cambiarEspecialidadesMedico()
+}
+class ControlCU10 {
+  <<Control>>
+  index()
+  rules()
+  listar()
+  show()
+  consultar()
+  porIdBloqueado()
+  store()
+  crear()
+  update()
+  actualizar()
+  guardar()
+  estado()
+  cambiarEstado()
+  especialidades()
+  cambiarEspecialidades()
+  guardarHabilitaciones()
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_usuario : bigint
+  codigo_medico : string
+  registro_profesional : string
+  nombres : string
+  apellidos : string
+  telefono : string
+  correo_contacto : string
+  activo : boolean
+  actualizado_en : datetime
+}
+class Especialidad {
+  <<Entidad>>
+  id_especialidad : bigint
+  nombre : string
+  activa : boolean
+}
+class MedicoEspecialidad {
+  <<Entidad>>
+  id_medico : bigint
+  id_especialidad : bigint
+  habilitada : boolean
+}
+class Cita {
+  <<Entidad>>
+  id_medico : bigint
+  id_especialidad : bigint
+  inicio_at : datetime
+  estado : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU10
+BoundaryCU10 --> ControlCU10
+ControlCU10 ..> Medico
+ControlCU10 ..> Especialidad
+ControlCU10 ..> MedicoEspecialidad
+ControlCU10 ..> Cita
+Medico --> MedicoEspecialidad
+MedicoEspecialidad --> Especialidad
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/medicos/services/medico.service.js | listarMedicos, consultarMedico, crearMedico, actualizarMedico, cambiarEstadoMedico, cambiarEspecialidadesMedico |
+| backend/src/presentation/controllers/medicos/MedicoController.php | index, show, store, update, estado, especialidades |
+| backend/src/presentation/dtos/medicos/CrearMedicoRequest.php | rules |
+| backend/src/presentation/dtos/medicos/ActualizarMedicoRequest.php | rules |
+| backend/src/presentation/dtos/medicos/CambiarEstadoMedicoRequest.php | rules |
+| backend/src/presentation/dtos/medicos/CambiarEspecialidadesMedicoRequest.php | rules |
+| backend/src/business/services/medicos/MedicoService.php | listar, consultar, crear, actualizar, cambiarEstado, cambiarEspecialidades |
+| backend/src/data/repositories/medicos/MedicoRepository.php | listar, porIdBloqueado, crear, guardar, guardarHabilitaciones |
+
+<a id="vigente-cu-11"></a>
+## CU-11 — Gestionar consultorios y asignación: análisis vigente
+
+Un diagrama reúne catálogo/asignación/impacto/confirmación. La vista previa no autoriza traslados silenciosos ni reprograma citas por otro CU.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU11 {
+  <<Boundary>>
+  id : bigint
+  q : string
+  codigo_consultorio : string
+  nombre : string
+  activo : boolean
+  id_consultorio : bigint
+  actualizado_en_original : datetime
+  huella_impacto : string
+  confirmar_traslados : boolean
+  page : integer
+  per_page : integer
+  listarConsultorios()
+  consultarConsultorio()
+  crearConsultorio()
+  actualizarConsultorio()
+  cambiarEstadoConsultorio()
+  consultarAsignacion()
+  consultarImpactoAsignacion()
+  confirmarAsignacion()
+}
+class ControlCU11 {
+  <<Control>>
+  index()
+  rules()
+  listar()
+  show()
+  consultar()
+  store()
+  crear()
+  update()
+  actualizar()
+  guardar()
+  estado()
+  impacto()
+  confirmar()
+  horarios()
+  citas()
+  trasladar()
+}
+class Consultorio {
+  <<Entidad>>
+  id_consultorio : bigint
+  codigo_consultorio : string
+  nombre : string
+  activo : boolean
+  actualizado_en : datetime
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_consultorio : bigint
+  activo : boolean
+  actualizado_en : datetime
+}
+class HorarioAtencion {
+  <<Entidad>>
+  id_medico : bigint
+  dia_semana : integer
+  hora_inicio : time
+  hora_fin : time
+  activo : boolean
+}
+class Cita {
+  <<Entidad>>
+  id_cita : bigint
+  id_medico : bigint
+  id_consultorio : bigint
+  inicio_at : datetime
+  fin_at : datetime
+  estado : string
+  consultorio_atencion : string
+  actualizada_en : datetime
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU11
+BoundaryCU11 --> ControlCU11
+ControlCU11 ..> Consultorio
+ControlCU11 ..> Medico
+ControlCU11 ..> HorarioAtencion
+ControlCU11 ..> Cita
+Medico --> Consultorio
+Medico --> HorarioAtencion
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/consultorios/services/consultorio.service.js | listarConsultorios, consultarConsultorio, crearConsultorio, actualizarConsultorio, cambiarEstadoConsultorio |
+| frontend/src/features/consultorios/services/asignacionConsultorio.service.js | consultarAsignacion, consultarImpactoAsignacion, confirmarAsignacion |
+| backend/src/presentation/controllers/consultorios/ConsultorioController.php | index, show, store, update, estado |
+| backend/src/presentation/controllers/consultorios/AsignacionConsultorioController.php | show, impacto, update |
+| backend/src/presentation/dtos/consultorios/CrearConsultorioRequest.php | rules |
+| backend/src/presentation/dtos/consultorios/ActualizarConsultorioRequest.php | rules |
+| backend/src/presentation/dtos/consultorios/CambiarEstadoConsultorioRequest.php | rules |
+| backend/src/presentation/dtos/consultorios/ImpactoAsignacionConsultorioRequest.php | rules |
+| backend/src/presentation/dtos/consultorios/ConfirmarAsignacionConsultorioRequest.php | rules |
+| backend/src/business/services/consultorios/ConsultorioService.php | listar, consultar, crear, actualizar |
+| backend/src/business/services/consultorios/AsignacionConsultorioService.php | consultar, impacto, confirmar |
+| backend/src/data/repositories/consultorios/ConsultorioRepository.php | listar, crear, guardar |
+| backend/src/data/repositories/consultorios/AsignacionConsultorioRepository.php | horarios, citas, trasladar |
+
+<a id="vigente-cu-12"></a>
+## CU-12 — Gestionar horarios y duración: análisis vigente
+
+Consolida horarios de Médico, impacto y configuración de duración. `ejecutar()` existe en dos Services distintos; la tabla conserva ambos orígenes. Duración efectiva de citas previas no se sustituye por cambiar la configuración.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU12 {
+  <<Boundary>>
+  id : bigint
+  horario : bigint
+  accion : string
+  dia_semana : integer
+  hora_inicio : time
+  hora_fin : time
+  activo : boolean
+  actualizado_en_original : datetime
+  duracion_turno_minutos : integer
+  page : integer
+  per_page : integer
+  listarHorarios()
+  consultarImpactoHorario()
+  crearHorario()
+  actualizarHorario()
+  cambiarEstadoHorario()
+  consultarConfiguracionCitas()
+  consultarImpactoDuracion()
+  actualizarDuracion()
+}
+class ControlCU12 {
+  <<Control>>
+  index()
+  rules()
+  ejecutar()
+  propios()
+  impacto()
+  store()
+  update()
+  estado()
+  guardar()
+  show()
+  bloqueada()
+  horariosActivos()
+}
+class HorarioAtencion {
+  <<Entidad>>
+  id_horario : bigint
+  id_medico : bigint
+  dia_semana : integer
+  hora_inicio : time
+  hora_fin : time
+  activo : boolean
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_consultorio : bigint
+  activo : boolean
+  actualizado_en : datetime
+}
+class Consultorio {
+  <<Entidad>>
+  id_consultorio : bigint
+  activo : boolean
+}
+class ConfiguracionClinica {
+  <<Entidad>>
+  id_configuracion : bigint
+  duracion_turno_minutos : integer
+  zona_horaria : string
+  actualizado_en : datetime
+}
+class Cita {
+  <<Entidad>>
+  id_cita : bigint
+  id_medico : bigint
+  id_consultorio : bigint
+  inicio_at : datetime
+  fin_at : datetime
+  duracion_minutos : integer
+  estado : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU12
+BoundaryCU12 --> ControlCU12
+ControlCU12 ..> HorarioAtencion
+ControlCU12 ..> Medico
+ControlCU12 ..> Consultorio
+ControlCU12 ..> ConfiguracionClinica
+ControlCU12 ..> Cita
+Medico --> HorarioAtencion
+Medico --> Consultorio
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/horarios/services/horario.service.js | listarHorarios, consultarImpactoHorario, crearHorario, actualizarHorario, cambiarEstadoHorario |
+| frontend/src/features/horarios/services/configuracionCitas.service.js | consultarConfiguracionCitas, consultarImpactoDuracion, actualizarDuracion |
+| backend/src/presentation/controllers/horarios/HorarioController.php | index, impacto, store, update, estado |
+| backend/src/presentation/controllers/horarios/ConfiguracionCitasController.php | show, impacto, update |
+| backend/src/presentation/dtos/horarios/HorarioRequest.php | rules |
+| backend/src/presentation/dtos/horarios/ConfiguracionCitasRequest.php | rules |
+| backend/src/business/services/horarios/HorarioService.php | ejecutar |
+| backend/src/business/services/horarios/ConfiguracionCitasService.php | ejecutar |
+| backend/src/data/repositories/horarios/HorarioRepository.php | propios, guardar |
+| backend/src/data/repositories/horarios/ConfiguracionCitasRepository.php | bloqueada, horariosActivos, guardar |
+
+<a id="vigente-cu-13"></a>
+## CU-13 — Buscar médicos y disponibilidad: análisis vigente
+
+Catálogos/turnos orientativos, no reserva. `id_paciente` solo en contexto administrativo; Paciente propio se deriva del servidor.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU13 {
+  <<Boundary>>
+  nombre : string
+  consultorio : string
+  id_especialidad : bigint
+  id_medico : bigint
+  id_paciente : bigint
+  fecha : date
+  page : integer
+  per_page : integer
+  listarEspecialidadesReserva()
+  listarMedicosReserva()
+  consultarDisponibilidad()
+}
+class ControlCU13 {
+  <<Control>>
+  especialidades()
+  rules()
+  medicos()
+  turnos()
+  bloqueada()
+  paciente()
+  medico()
+  especialidad()
+  habilitado()
+  consultorio()
+  horarios()
+  ocupacion()
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  activo : boolean
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_consultorio : bigint
+  nombres : string
+  apellidos : string
+  activo : boolean
+  actualizado_en : datetime
+}
+class Especialidad {
+  <<Entidad>>
+  id_especialidad : bigint
+  nombre : string
+  activa : boolean
+}
+class Consultorio {
+  <<Entidad>>
+  id_consultorio : bigint
+  codigo_consultorio : string
+  nombre : string
+  activo : boolean
+}
+class HorarioAtencion {
+  <<Entidad>>
+  id_medico : bigint
+  dia_semana : integer
+  hora_inicio : time
+  hora_fin : time
+  activo : boolean
+}
+class ConfiguracionClinica {
+  <<Entidad>>
+  duracion_turno_minutos : integer
+  zona_horaria : string
+}
+class Cita {
+  <<Entidad>>
+  id_paciente : bigint
+  id_medico : bigint
+  id_consultorio : bigint
+  inicio_at : datetime
+  fin_at : datetime
+  estado : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU13
+BoundaryCU13 --> ControlCU13
+ControlCU13 ..> Paciente
+ControlCU13 ..> Medico
+ControlCU13 ..> Especialidad
+ControlCU13 ..> Consultorio
+ControlCU13 ..> HorarioAtencion
+ControlCU13 ..> ConfiguracionClinica
+ControlCU13 ..> Cita
+Medico --> Consultorio
+Medico --> HorarioAtencion
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/citas/services/reserva.service.js | listarEspecialidadesReserva, listarMedicosReserva, consultarDisponibilidad |
+| backend/src/presentation/controllers/citas/DisponibilidadController.php | especialidades, medicos, turnos |
+| backend/src/presentation/dtos/citas/DisponibilidadRequest.php | rules |
+| backend/src/business/services/citas/DisponibilidadService.php | especialidades, medicos, turnos |
+| backend/src/data/repositories/citas/DisponibilidadRepository.php | especialidades, medicos, paciente, medico, especialidad, habilitado, consultorio, horarios, ocupacion |
+| backend/src/data/repositories/horarios/ConfiguracionCitasRepository.php | bloqueada |
+
+<a id="vigente-cu-14"></a>
+## CU-14 — Programar o reservar cita: análisis vigente
+
+Propuesta, confirmación y resultado incierto en un único diagrama. Propuesta cifrada no es una credencial ni una retención de turno. Actor real y Médico responsable permanecen separados.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU14 {
+  <<Boundary>>
+  id_paciente : bigint
+  id_especialidad : bigint
+  id_medico : bigint
+  fecha : date
+  hora_inicio : time
+  revision_turno : string
+  motivo_breve : string
+  propuesta : string
+  proponerReserva()
+  confirmarReserva()
+  consultarResultadoReserva()
+}
+class ControlCU14 {
+  <<Control>>
+  propuesta()
+  rules()
+  proponer()
+  turnos()
+  store()
+  confirmar()
+  porPropuesta()
+  pacienteSolapado()
+  crear()
+  citaProgramada()
+  resultado()
+}
+class Cita {
+  <<Entidad>>
+  id_cita : bigint
+  codigo_cita : string
+  id_paciente : bigint
+  id_medico : bigint
+  id_especialidad : bigint
+  id_consultorio : bigint
+  inicio_at : datetime
+  fin_at : datetime
+  duracion_minutos : integer
+  modalidad : string
+  sede_atencion : string
+  consultorio_atencion : string
+  motivo_breve : string
+  estado : string
+  creada_por : bigint
+  id_propuesta_reserva : uuid
+  version_programacion : integer
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  nombres : string
+  apellidos : string
+  activo : boolean
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_consultorio : bigint
+  activo : boolean
+}
+class Especialidad {
+  <<Entidad>>
+  id_especialidad : bigint
+  activa : boolean
+}
+class Consultorio {
+  <<Entidad>>
+  id_consultorio : bigint
+  activo : boolean
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  estado_cuenta : string
+}
+class Bitacora {
+  <<Entidad>>
+  tipo_evento : string
+  id_usuario_responsable : bigint
+  rol_responsable : string
+  registro_referido : string
+  referencias : array
+  cambios_seguros : array
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU14
+BoundaryCU14 --> ControlCU14
+ControlCU14 ..> Cita
+ControlCU14 ..> Paciente
+ControlCU14 ..> Medico
+ControlCU14 ..> Especialidad
+ControlCU14 ..> Consultorio
+ControlCU14 ..> Usuario
+ControlCU14 ..> Bitacora
+Cita --> Paciente
+Cita --> Medico
+Cita --> Consultorio
+Cita --> Usuario
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/citas/services/reserva.service.js | proponerReserva, confirmarReserva, consultarResultadoReserva |
+| backend/src/presentation/controllers/citas/ReservaController.php | propuesta, store, resultado |
+| backend/src/presentation/dtos/citas/ReservaRequest.php | rules |
+| backend/src/business/services/citas/ReservaService.php | proponer, confirmar, resultado |
+| backend/src/business/services/citas/DisponibilidadService.php | turnos |
+| backend/src/data/repositories/citas/CitaRepository.php | porPropuesta, pacienteSolapado, crear |
+| backend/src/data/repositories/bitacora/BitacoraRepository.php | citaProgramada |
+
+HorarioAtencion/ConfiguracionClinica y consultas de ocupación se reutilizan al revalidar disponibilidad según CU-13; no se repite su inventario completo de atributos en este diagrama seleccionado.
+
+<a id="vigente-cu-20"></a>
+## CU-20 — Consultar agenda médica: análisis vigente
+
+Administrador/Recepción seleccionan Médico; profesional desde su sesión. Detalle compartido se consulta sin dar acceso a otra agenda. La selección/filtros no conceden permiso de modificar citas.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU20 {
+  <<Boundary>>
+  id : bigint
+  id_medico : bigint
+  nombre : string
+  fecha : date
+  estado : string
+  page : integer
+  per_page : integer
+  listarMedicosAgenda()
+  consultarAgenda()
+  consultarCita()
+}
+class ControlCU20 {
+  <<Control>>
+  index()
+  rules()
+  consultar()
+  medico()
+  citas()
+  medicos()
+  show()
+  detalle()
+}
+class Cita {
+  <<Entidad>>
+  id_cita : bigint
+  codigo_cita : string
+  id_medico : bigint
+  id_paciente : bigint
+  id_especialidad : bigint
+  inicio_at : datetime
+  fin_at : datetime
+  duracion_minutos : integer
+  estado : string
+  modalidad : string
+  sede_atencion : string
+  consultorio_atencion : string
+  motivo_breve : string
+  creada_en : datetime
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  id_usuario : bigint
+  codigo_medico : string
+  nombres : string
+  apellidos : string
+  activo : boolean
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  codigo_paciente : string
+  nombres : string
+  apellidos : string
+  documento_identidad : string
+  telefono : string
+  fecha_nacimiento : date
+}
+class Especialidad {
+  <<Entidad>>
+  id_especialidad : bigint
+  nombre : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU20
+BoundaryCU20 --> ControlCU20
+ControlCU20 ..> Cita
+ControlCU20 ..> Medico
+ControlCU20 ..> Paciente
+ControlCU20 ..> Especialidad
+Cita --> Medico
+Cita --> Paciente
+Cita --> Especialidad
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/agenda/services/agenda.service.js | listarMedicosAgenda, consultarAgenda, consultarCita |
+| backend/src/presentation/controllers/agenda/AgendaController.php | index, medicos |
+| backend/src/presentation/controllers/agenda/ConsultaCitaController.php | show |
+| backend/src/presentation/dtos/agenda/AgendaRequest.php | rules |
+| backend/src/presentation/dtos/agenda/ConsultaCitaRequest.php | rules |
+| backend/src/business/services/agenda/AgendaService.php | consultar, medicos |
+| backend/src/business/services/agenda/ConsultaCitaService.php | consultar |
+| backend/src/data/repositories/agenda/AgendaRepository.php | medico, citas, medicos, detalle |
+
+Los atributos CI/teléfono/motivo son exclusivamente del detalle administrativo autorizado, nacimiento del detalle Médico; no del listado ni de todas las respuestas por el hecho de figurar en la entidad.
+
+<a id="vigente-cu-21"></a>
+## CU-21 — Consultar historial de citas: análisis vigente
+
+Un diagrama para historial administrativo por ficha y Mis citas del titular, con detalle/retorno. Período/estado se filtran independientemente; el tiempo no cambia estados.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU21 {
+  <<Boundary>>
+  id : bigint
+  periodo : string
+  estado : string
+  page : integer
+  per_page : integer
+  consultarHistorialPaciente()
+  consultarMisCitas()
+  consultarCita()
+}
+class ControlCU21 {
+  <<Control>>
+  paciente()
+  rules()
+  consultar()
+  historial()
+  propias()
+  show()
+  detalle()
+}
+class Paciente {
+  <<Entidad>>
+  id_paciente : bigint
+  id_usuario : bigint
+  codigo_paciente : string
+  nombres : string
+  apellidos : string
+  documento_identidad : string
+  telefono : string
+  fecha_nacimiento : date
+}
+class Cita {
+  <<Entidad>>
+  id_cita : bigint
+  codigo_cita : string
+  id_paciente : bigint
+  id_medico : bigint
+  id_especialidad : bigint
+  inicio_at : datetime
+  fin_at : datetime
+  duracion_minutos : integer
+  estado : string
+  modalidad : string
+  sede_atencion : string
+  consultorio_atencion : string
+  motivo_breve : string
+  creada_en : datetime
+}
+class Medico {
+  <<Entidad>>
+  id_medico : bigint
+  codigo_medico : string
+  nombres : string
+  apellidos : string
+}
+class Especialidad {
+  <<Entidad>>
+  id_especialidad : bigint
+  nombre : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU21
+BoundaryCU21 --> ControlCU21
+ControlCU21 ..> Paciente
+ControlCU21 ..> Cita
+ControlCU21 ..> Medico
+ControlCU21 ..> Especialidad
+Cita --> Paciente
+Cita --> Medico
+Cita --> Especialidad
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/agenda/services/agenda.service.js | consultarHistorialPaciente, consultarMisCitas, consultarCita |
+| backend/src/presentation/controllers/agenda/HistorialCitasController.php | paciente, propias |
+| backend/src/presentation/controllers/agenda/ConsultaCitaController.php | show |
+| backend/src/presentation/dtos/agenda/HistorialCitasRequest.php | rules |
+| backend/src/presentation/dtos/agenda/ConsultaCitaRequest.php | rules |
+| backend/src/business/services/agenda/HistorialCitasService.php | consultar |
+| backend/src/business/services/agenda/ConsultaCitaService.php | consultar |
+| backend/src/data/repositories/agenda/AgendaRepository.php | paciente, historial, detalle |
+
+`id` identifica ficha en la ruta administrativa o cita al consultar detalle; Mis citas no envía ficha ajena. La búsqueda administrativa anterior a elegir ficha reutiliza CU-07. CI/teléfono/motivo/nacimiento siguen la matriz de detalle de CU-20, nunca listados mínimos.
+
+<a id="vigente-cu-30"></a>
+## CU-30 — Consultar bitácora: análisis vigente
+
+Solo lectura para Administrador. El origen de reserva es metadata segura de CITA_PROGRAMADA, no un permiso ni un rol nuevo.
+
+```mermaid
+classDiagram
+direction LR
+class BoundaryCU30 {
+  <<Boundary>>
+  id : bigint
+  fecha_desde : date
+  fecha_hasta : date
+  id_usuario_responsable : bigint
+  id_usuario_objetivo : bigint
+  tipo_actor : string
+  modulo : string
+  operacion : string
+  tipo_evento : string
+  resultado : string
+  direccion_ip : string
+  entidad_referida : string
+  registro_referido : string
+  page : integer
+  per_page : integer
+  listarBitacora()
+  consultarEvento()
+}
+class ControlCU30 {
+  <<Control>>
+  index()
+  rules()
+  listar()
+  filtrarRecurso()
+  show()
+  consultar()
+  porId()
+}
+class Bitacora {
+  <<Entidad>>
+  id_evento : bigint
+  tipo_evento : string
+  tipo_actor : string
+  id_usuario_responsable : bigint
+  id_usuario_objetivo : bigint
+  rol_responsable : string
+  rol_objetivo : string
+  modulo : string
+  operacion : string
+  resultado : string
+  causa_codigo : string
+  ocurrido_en : datetime
+  registrado_en : datetime
+  direccion_ip : string
+  procedencia_ip : string
+  correlacion : string
+  entidad_referida : string
+  registro_referido : string
+  referencias : array
+  cambios_seguros : array
+  metadatos_seguros : array
+  version_formato : integer
+}
+class Usuario {
+  <<Entidad>>
+  id_usuario : bigint
+  id_rol : bigint
+  estado_cuenta : string
+}
+class Administrador {
+  <<actor>>
+}
+Administrador --> BoundaryCU30
+BoundaryCU30 --> ControlCU30
+ControlCU30 ..> Bitacora
+ControlCU30 ..> Usuario
+```
+
+| Archivo real | Métodos del diagrama |
+| --- | --- |
+| frontend/src/features/bitacora/services/bitacora.service.js | listarBitacora, consultarEvento |
+| backend/src/presentation/controllers/bitacora/BitacoraController.php | index, show |
+| backend/src/presentation/dtos/bitacora/ListarBitacoraRequest.php | rules |
+| backend/src/presentation/dtos/usuarios/CuentaRequest.php | rules |
+| backend/src/business/services/bitacora/BitacoraService.php | listar, consultar |
+| backend/src/data/repositories/bitacora/BitacoraRepository.php | listar, filtrarRecurso, porId |
+
+## Casos aún no implementados: sin diagrama de ejecución
+
+| CU | Actores autorizados | Motivo de no dibujar métodos |
+| --- | --- | --- |
+| CU-15 — Reprogramar cita | Administrador, Recepcionista | Persistencia disponible, sin flujo funcional aprobado como implementado |
+| CU-16 — Cancelar cita | Administrador, Recepcionista | Estado persistible no equivale a Controller/Service funcional |
+| CU-17 — Confirmar llegada | Administrador, Recepcionista | Sin flujo funcional de transición |
+| CU-18 — Registrar inasistencia | Administrador, Recepcionista | Sin flujo funcional de transición |
+| CU-19 — Marcar Atendida | Administrador, Médico responsable | Sin flujo funcional de transición |
+| CU-22 — Consultar historia clínica | Administrador, Médico autorizado, Paciente titular | Modelos existentes, sin interfaz/API funcional del CU |
+| CU-23 — Registrar o actualizar consulta | Administrador, Médico responsable | Versiones/persistencia existentes, sin flujo funcional del CU |
+| CU-24 — Solicitar estudios | Administrador, Médico responsable | Sin flujo funcional ni métodos de ejecución que documentar |
+| CU-25 — Incorporar documentos | Administrador | Sin carga/archivo protegido funcional del CU |
+| CU-26 — Revisar y publicar resultados | Administrador, Médico solicitante | Sin flujo funcional; autoría del revisor por resolver |
+| CU-27 — Consultar/descargar resultados | Administrador, Médico autorizado, Paciente titular | Sin entrega protegida funcional del CU |
+| CU-28 — Consultar recordatorios | Administrador por Paciente seleccionado, Paciente titular | Sin consulta/scheduler funcional, no generar desde frontend |
+| CU-29 — Reportes administrativos | Administrador | Sin módulo funcional |
+
+El diseño previsto en el UML global sigue siendo planificación, no evidencia de estos CU. Esta tarea no altera ese archivo ni convierte sus clases previstas en implementación. **Aclaración de Fase 5:** al implementar cada caso se añadirán vistas comprobables según sus procedimientos/contextos reales, sin imponer un único diagrama por CU. El detalle de soporte y límites actuales se revisa en la tabla de pendientes de Fase 5.
+
+## Expediente de evolución y análisis por procedimientos
+
+### Administrador — Fase 5 frontend: integración y cierre local (2026-10-26)
+
+**Las cinco fases frontend administrativas quedan completadas localmente**, incluida la integración pausada antes de la revisión documental. No nuevas clases, funciones productivas o relaciones: PatientsPage/PatientForm/edición/estado/código reutilizan paciente.service/activation.service; ReservarCitaPage/ReservaRegistro/useReservaRegistro utilizan reserva.service con selección administrativa; AgendaWorkspace/HistorialCitas/CitaDetallePage/CitaDetalle utilizan agenda.service; BitacoraEventData consume proyecciones seguras. Router/guards/AuthProvider/Axios conservan rol auténtico, sesión y aislamiento. Controllers/Services/Repositories existentes siguen autorizando, validando y persistiendo en Laravel/PostgreSQL. P11/P17/P18/P28–P40 conservan sus vistas por procedimiento y no se fusionan por este cierre.
+
+Chrome/React/Axios/Laravel/Sanctum/PostgreSQL reales, cuatro roles ficticios y esquema propio aislado. Recorrido completo final: 19 comprobaciones de alta sin CI/incorporación misma ficha, edición 409, estado, emisión/ocultación, exclusiones personales, reserva administrativa/resultado incierto tras 201 cortado, historial/detalle/retorno/agenda y límites de los demás roles, bitácora, CSRF/validación, teclado/restauración/revocación. SQL final confirma cuatro citas/cuatro eventos, dos de ADMINISTRACION y uno de RECEPCION/PROPIA, cuatro propuestas distintas y ejecutor/Médico separados; auditoría sin motivo ni contraseña. No certifica nuevos flujos de registro personal, clínica o CU pendientes. Correo simulado.
+
+**Evidencia nueva:** suite frontend 1601/68 correcta (208,60 s), build correcto con aviso conocido 700,42 kB; 56 disposiciones sin desbordamiento/controles fuera de pantalla y 23 axe sin infracciones automáticas, cuatro capturas representativas inspeccionadas. Sin excepciones JS observadas en ejecución completa final; Web Storage vacío, cookie HttpOnly/SameSite y CORS local correctos. Estado/cookies/CSRF/SQL reales; no se atribuye a este cierre la suite backend histórica. Fixture parcial comprobado antes de reanudar; después se retiró y preparó otro propio con 35 migraciones existentes para el recorrido completo. Al finalizar se retiraron esquema/credenciales/servidores propios con public/esquemas ajenos conservados.
+
+Ajustes solo en herramientas temporales: comparación de IDs texto/entero y selectores/diagnóstico. Una ejecución intermedia se detuvo por espera al volver a entrar como Administrador y abrir un evento; causa no determinada, no defecto productivo corregido acreditado. Continuación y ejecución completa final nuevas correctas, sin aumentar timeouts. Evidencia JSON/PNG externa, sin secretos en repositorio. No nuevas modificaciones productivas, RF/RN, permisos, persistencia, DER o UML global; solo actualización del cierre/evidencia. Esta entrada y contexto §17.134 sustituyen el estado de pausa/incompleto previo, sin reescribir sus resultados históricos. Trece CU pendientes, correo real y producción quedan separados; sin commit/push/despliegue.
+
+Se conserva el texto previo para no perder decisiones, pruebas y referencias históricas. **Prevalece la revisión por procedimientos:** Fase 2 actualiza y reactiva P01–P10/P12–P16; Fase 3 revisa P11 y completa P17–P20; Fases 4/5 incorporan P21–P32/P33–P40. Los 17 consolidados anteriores están descartados, no prevalecen sobre estas vistas. Las entradas de evolución, pruebas y referencias a React pendiente o a un UML global aplazado describen el estado de su fecha, salvo las convenciones y secciones expresamente revisadas.
+
+**Lectura de las entradas fechadas:** los actores y permisos se armonizan con la política vigente de 28/30 CU; las pruebas, recorridos, fechas y estados parciales siguen siendo evidencia histórica y no se amplían retrospectivamente al Administrador. Una prueba antigua ejecutada con Recepción no constituye una prueba administrativa nueva. Las notas de implementación posterior de Fases 1–5 prevalecen sobre pendientes históricos. La participación administrativa en clínica corresponde a sus CU expresos, nunca a la consulta de bitácora ni a una autorización clínica de Recepción.
+
+## CU-20/CU-21/CU-30 — Administrador: Fase 4 frontend (2026-10-25)
+
+**Colaboración reutilizada:** SeleccionarPacienteHistorialPage usa PatientsPage, ficha administrativa enlaza HistorialCitasPage/HistorialCitas, useAgendaQuery consulta agenda.service y AgendaWorkspace conserva solo criterios en memoria por usuario/rol; CitaDetallePage reconsulta detalle y ofrece retorno existente. Estas piezas no requieren nuevos cambios productivos para Administración. consultarCita ahora valida/proyecta motivo para todos y CI/teléfono para Administración/Recepción, CitaDetalle muestra esa matriz; nacimiento solo Médico, listados/contexto mínimos conservados. Null permitido no equivale a ausencia de campo requerido. No nueva página, endpoint ni servicio por rol; permisos/titularidad siguen del servidor.
+
+**Auditoría:** BitacoraEventData interpreta CITA_PROGRAMADA/formato conocido con origen permitido etiquetado, estado inicial Programada/duración válida y referencias a Cita/consultorio; distingue usuario responsable/Médico sin exponer motivo/tokens o enlazar recursos. Cambios recibe tipo de evento para no atribuir metadata de reserva a otros eventos; consulta CU-30 sigue exclusiva del Administrador/solo lectura. No cambios de modelos o clases PHP, DER/UML backend intactos.
+
+**Evidencia:** 316 pruebas dirigidas/11 archivos; global **1601 pruebas/68 archivos correcta**, build correcto con aviso >500 kB. Recorridos Administrador/Recepción de ficha/historial/detalle, matriz por cuatro roles, privacidad, errores, paginación/retorno e identidades, metadata segura y desconocida de bitácora comprobados con servicios/Axios reales y transporte/sesión simulados. Fixtures actualizados, expectativa obsoleta de motivo y sincronización del test de cancelación corregidas sin omitir pruebas. No integración real nueva o revisión visual de navegador; Fase 5 pendiente, contexto §17.126. Fase 4 cerrada localmente, no cierre integral frontend.
+
+## CU-13/CU-14 — Administrador: Fase 3 frontend (2026-10-24)
+
+**Frontera/flujo compartido con Recepción, no nueva implementación de negocio.** ReservarCitaPage deriva contexto `administrativa` explícito por rol permitido y pasa a ReservaFlujo; el key usuario/rol existente aísla instancias. ReservaCatalogo carga Pacientes con listarPacientes antes de especialidad/Médico/fecha; DisponibilidadTurnos recibe criterios con id_paciente administrativo. ReservaRegistro muestra revisión/resultado y usa la misma prop para CTA Programar cita, sin asignar identidad de Recepción al Administrador. Paciente mantiene su propio flujo sin selector. No nuevas clases de dominio ni componentes/rutas duplicados.
+
+useReservaRegistro coordina estados de propuesta/confirmación/resultado incierto con reserva.service y Axios; no cambian sus firmas/implementación. Los servicios conservan campos permitidos, verificación de Paciente esperado y protección CSRF; el servidor conserva actor/rol/revisión/idempotencia/disponibilidad. Confirmación usa propuesta/motivo, no actor o IDs reemplazados. React no reserva turnos ni decide integridad SQL. Invalidar paciente limpia dependencias y cambio usuario/rol descarta revisión/respuestas tardías mediante mecanismos existentes.
+
+**Evidencia:** 255 pruebas citas/5 archivos; global **1549/68 correcto**, build correcto con aviso >500 kB. Batería de registro parametrizada por tres roles más búsqueda/selección/inactividad/limpieza en ambos operadores, rechazo de recibos ajenos y cambio entre roles permitidos. API/sesiones simuladas, no nueva integración real o revisión visual; Fase 5 pendiente. Sin cambios de persistencia o clases PHP/relaciones, DER/UML global backend intactos. Contexto §17.125, Fase 4 pendiente.
+
+## CU-07 — Administrador: Fase 2 frontend (2026-10-24)
+
+**Frontera React reutilizada para Administración/Recepción, verificada con API simulada.** PatientsPage/PatientsTable/usePatientQuery delegan listado y detalle a paciente.service; NewPatientPage/PatientForm/PatientDuplicateReview validan experiencia y revisión sin CI antes de crear; EditPatientPage/usePatientSubmission/PatientVersionReview conservan cambios y versión; PatientStateAction confirma estado de ficha independiente de cuenta. PatientActivationPage carga ficha y comprueba presencia de CI/ausencia de cuenta para orientar UI; Laravel revalida al emitir. ActivationCodePage confirma emisión, usa activation.service, muestra secreto temporal sin almacenamiento y lo retira al ocultar/pagehide/navegar. Único cambio productivo es enlace desde emisión independiente a búsqueda; rutas ya compartidas, no nuevos componentes/clases/servicios ni métodos por rol.
+
+**Contratos y límites:** identidad/motivo/versiones de ficha y revisión de duplicados se conservan; emisión envía solo identidad_verificada, ID de ficha por ruta y cookies de sesión, nunca rol/id del operador/contraseña. Crear/editar ficha o emitir código no crea cuenta ni realiza registro personal CU-04/perfil CU-08. No convertir estado de ficha en estado de acceso/bloqueo. Services Axios delegan al servidor sin reglas nuevas ni elección de ejecutor.
+
+**Pruebas:** baterías existentes de pacientes y emisión independiente parametrizadas por ambos operadores, sin copiar flujos. Nuevos recorridos reales de servicio/Axios con transporte simulado verifican emisión/errores/secretos. 275 pruebas dirigidas/9 archivos; suite completa **1438 pruebas/68 archivos correcta**, build correcto con aviso bundle. No nueva evidencia SQL/servidor/cookies persistidas/auditoría ni navegador. Contexto §17.124. DER/UML backend intactos; CU-07 revisado localmente, integración real pendiente Fase 5; Fases 3/4 no implementadas.
+
+## Administrador — Fase 1 frontend: frontera de navegación (2026-10-24)
+
+**Avance transversal parcial, no cierre funcional de CU-07/CU-13/CU-14/CU-21.** router.jsx amplía grupos existentes de RoleRoute a Administración/Recepción en diez rutas compartidas; NAVIGATION define cuatro accesos y autorización administrativa de pendientes sin enlaces; AREAS/destinoSeguro describen el área y limitan retorno tras login a rutas locales admitidas. HomePage deriva accesos desde NAVIGATION, MainLayout/ModuleNavigation muestran orientación y conservan identidad/área del ejecutor. ProtectedRoute/RoleRoute/AuthProvider continúan controlando sesión y rol sin cambio. No servicios HTTP nuevos, duplicación por rol o clases de dominio React.
+
+**Colaboraciones preservadas:** los destinos siguen siendo PatientsPage/NewPatientPage/PatientDetailPage/EditPatientPage/PatientActivationPage/ActivationCodePage, ReservarCitaPage y selección/historial/detalle de agenda ya existentes. Esta fase solo abre sus guards: páginas de reserva/detalle requieren adaptación posterior, no completadas. ReservarCitaPage necesita selección administrativa también para Administrador (Fase 3); agenda.service/CitaDetalle necesitan matriz administrativa actualizada (Fase 4). CU-04/CU-08 y flujos propios del Paciente no se amplían. Los CU futuros se describen como pendientes, no se implementan.
+
+**Pruebas:** AdministrativeNavigation.test.jsx aporta 77 casos de fronteras con rutas/guards/layout/AuthProvider reales y páginas/sesión simuladas; complementos en navegación/sidebar/Inicio verifican matrices/títulos/foco/retorno. Suite global 1352/68 correcta, build correcto con aviso bundle >500 kB. No nueva integración API/SQL ni revisión visual en navegador. Sin cambios de datos o clases/firmas/relaciones PHP: DER/UML global de alcance backend intactos; contexto §17.123. Solo Fase 1 frontend cerrada, Fase 2 pendiente de autorización.
+
+## Administrador — cierre de Fase 5 con PostgreSQL (2026-10-24)
+
+**Suite completa 2535 pruebas/25681 aserciones correcta**, 15 min 10,998 s/238 MB. Resuelve pendientes PostgreSQL de las entradas administrativas anteriores: regresiones positivas heredadas/nuevas, integración HTTP/cookies/sesiones database, integridad/rollback y concurrencia multiproceso (incluida Administración/Recepción). Sin nuevas clases productivas, firmas o relaciones: DER/UML estructural sin cambios necesarios. Correo simulado y fixtures de identidad/planificación mantienen sus límites; no certifica producción ni implementa Ciclo 2/React. Contexto §17.122/README registran comando, autorización y postflight.
+
+**Correcciones de pruebas:** contraseña ficticia de carrera recuperación reemisión/consumo y constantes CAMBIADA/RECUPERADA de integración de usuarios ahora incluyen símbolo requerido. Antes eran rechazadas por validación de entrada, impidiendo ejecutar el flujo que sus aserciones pretendían probar. Se conserva el protocolo de locks y las expectativas de negocio; no cambian AutenticacionService/RecuperacionClaveService ni la política aprobada. Dirigidas de recuperación concurrente 5/73 e integración/auditoría/vinculación 74/772 correctas; no agregadas a la cifra global como casos diferentes. Fase 5 y ampliación backend cerradas localmente, React separado pendiente.
+
+## Administrador — Fase 5: regresión transversal del Ciclo 1 (2026-10-24)
+
+**Sin clases productivas nuevas ni cambio de colaboraciones.** MatrizPermisosBackendTest comprueba 58 operaciones con rol/70 API, cadena auth/cuenta/sesión normal y gates por cuatro roles; rechazos HTTP con AutenticacionService real y UsuarioRepository/SesionRepository/TokenAccesoRepository simulados, vigencia temporal simulada. No llama a Controllers/Services de negocio en gates positivos, por tanto no acredita ejecución positiva completa de los 15 CU administrativos del Ciclo 1. Revocación comprobada en revalidación directa con bloqueo, no SQL. CU-04/CU-08 y demás límites conservan evidencia previa.
+
+**Evidencia:** 476 casos de matriz; junto con 128 previos e infraestructura/correo, 627 pruebas/3195 aserciones; política de claves seleccionada sin SQL 98/330. **725 pruebas/3525 aserciones correctas**. CORS/CSRF/cookies con driver array y Brevo simulado no equivalen a sesiones persistidas/envíos reales. ReservaIntegracionTest reutiliza recorrido para Administrador y audita rol/origen, cuatro casos descubiertos pero no ejecutados por migraciones. Descubrimiento global 2535; pendientes baterías PostgreSQL positivas/concurrentes/integradas de los módulos, sin repetir evidencia histórica como nueva. No nueva tabla/DTO/Service ni firma: DER y UML estructural sin cambios necesarios. Contexto §17.121/README documentan comandos y cierre integral condicionado; React no iniciado.
+
+## CU-20/CU-21 — Administrador: Fase 4 backend (2026-10-24)
+
+**Implementación y revisión dirigidas, integración SQL pendiente.** Por decisión administrativa vigente (RF11/RF12 y reglas VS-HIS), CU-21 admite historial de ficha seleccionada para Administrador/Recepcionista sin utilizar el historial propio del Paciente. /api/mis-citas mantiene titularidad exclusiva. Motivo breve/CI/teléfono del detalle administrativo se equiparan a Recepción; listados siguen mínimos. Las exclusiones administrativas históricas del análisis de CU-20/CU-21 quedan sustituidas por esta entrada, no sus evidencias antiguas.
+
+**Colaboración:** agenda.php amplía middleware de historial; HistorialCitasRequest valida ID/filtros cerrados sin cambios; HistorialCitasController separa ID canónico de filtros y delega. HistorialCitasService admite Administrador, exige selección explícita, consulta paciente/historial mediante AgendaRepository y devuelve contexto/página; defaults Todas para roles administrativos, Próximas para titular. ConsultaCitaService selecciona campos administrativos compartidos y conserva ámbitos de Médico/Paciente; CitaDetalleResource expone solo mínimos permitidos. CitaListadoResource mantiene minimización incluso con extras inyectados. AgendaService ya maneja selección administrativa/agenda profesional propia: sin cambio, al igual que Requests, Controllers y Repository. No se modifican relaciones, firmas, modelos o persistencia, ni se agregan métodos por rol.
+
+**Verificación:** 44 casos nuevos AgendaPermisosAdministrativosTest con kernel/Services/Resources reales y autenticación/Repositories/DB simulados; con Fases 2/3, **128 pruebas/935 aserciones correctas**. Se comprueba selección, filtros/paginación delegados, defaults, proyección/ámbitos por cuatro roles, minimización, vínculos recíprocos/ambiguos, inactividad, errores y entradas manipuladas. Las simulaciones de retorno 404 o rechazo de sesión prueban manejo/propagación, no SQL ni invalidación persistida real. 89 escenarios heredados adaptados (48 historial/37 detalle/4 integración) descubiertos, sin ejecutar por migraciones prohibidas; descubrimiento global 2058 casos. No afirmar pruebas reales de SQL/orden/conteo/cookies/rollback/concurrencia ni cierre de Fase 5. Fuente UML estructural y DER sin cambios necesarios, nota UML sincronizada; contexto §17.120. React pendiente.
+
+## CU-13/CU-14 — Administrador: Fase 3 backend (2026-10-24)
+
+**Alcance implementado:** Administrador participa en búsqueda/turnos y programación para Paciente seleccionado mediante las seis operaciones existentes. Recepcionista/Paciente conservan flujos y Médico sigue sin reservar. No UI nueva ni ampliación CU-21/Ciclo 2. RF06/RF07, RN03–RN08/RN12/RN13 y VS-CIT/VS-HOR conservan sus condiciones. Estado y evidencia en contexto §17.119.
+
+**Colaboración reutilizada:** rutas reservas.php/citas.php amplían ExigirRol; DisponibilidadRequest/ReservaRequest exigen id_paciente en los dos roles administrativos y mantienen campos cerrados. DisponibilidadController/ReservaController sin cambios, delegan a los mismos métodos de DisponibilidadService/ReservaService, con autorización también en Services. DisponibilidadRepository/ConfiguracionCitasRepository/PlanificacionRepository/CitaRepository y auxiliar IntervalosAtencion no cambian. ReservaService.operar reconstruye selección administrativa con el Paciente revisado y conserva protocolo de revalidación/locks/idempotencia, creada_por real e id_medico independiente. PropuestaReserva.abrir admite Administrador sin omitir actor/rol/cifrado/propósito/versión ni revisar tokens por otro usuario.
+
+**Auditoría:** BitacoraRepository.citaProgramada diferencia PROPIA, RECEPCION y ADMINISTRACION según rol real, conservando rol_responsable/id_usuario_responsable y referencias Paciente/Médico, sin motivo/token. BitacoraDetalleResource añade ADMINISTRACION a la lista de orígenes seguros. No se duplican métodos ni se altera tabla/entidad; metadata origen no equivale a cambiar rol o estado.
+
+**Pruebas efectivamente ejecutadas:** 40 casos nuevos: ReservaPermisosAdministrativosTest (37) y ReservaBitacoraOrigenTest (3); con 44 de Fase 2, **84 pruebas/763 aserciones correctas**. HTTP/servicios/cálculo/HMAC/cifrado reales, sesión/repositorios/locks/transacciones simulados; evento de BitacoraRepository real interceptado antes de INSERT en conexión sin PDO y Resource real. Identidad/selección/revisión, recursos/inactividad/tiempo, campos cerrados, exclusión Médico/anonimato, sesión revalidada, resultado/replay, no reapertura y conflicto secuencial comprobados. No equivalen a persistencia/bitácora SQL/rollback/cookies/concurrencia reales.
+
+**Regresión preparada, no ejecutada:** tres subclases reutilizan escenarios de DisponibilidadTest/ReservaTest/ReservaConcurrenteTest (55/56/62 = **173**), con Admin o Admin/Recepción. ROL_OPERADOR/ROLES_OPERADORES y selección del actor/destino de revocación evitan repetir flujos o invalidar al usuario equivocado. Bases originales permanecen con Recepción; negativas ahora solo Médico. No se ejecutan por preparaciones con migraciones, prohibidas en esta entrega; no declarar cerrado el control real de carreras. Descubrimiento global 2013 casos; Pint/sintaxis 17 PHP correctos. Sin cambio de firmas/relaciones, DER/UML sin modificación adicional por esta fase. Frontend y Fase 4 pendientes de aprobación.
+
+## CU-07 — Administrador: Fase 2 backend (2026-10-24)
+
+**Implementación autorizada y alcance:** seis operaciones compartidas de pacientes ahora permiten Administrador/Recepcionista en rutas y Services; CU-04/CU-08 siguen excluidos, otros roles sin cambios. No se completa una interfaz nueva ni los CU-13/CU-14/CU-21: fases posteriores independientes. RF02/RN01/RN11/RN12 y política VS-GEN-03/VS-AUT-15/VS-PAC conservados.
+
+**Colaboración real:** pacientes.php agrega Administrador a ExigirRol en el grupo administrativo y emisión; conserva auth:sanctum, VerificarCuentaHabilitada, ExigirSesionNormal y LimitarCodigoActivacion. PacienteController y sus Requests/Resources reutilizados sin modificación. PacienteService renombra su guard privado recepcionista → actorAdministrativo, revalida sesión normal/rol bajo bloqueo y reutiliza listar/consultar/crear/actualizar/cambiarEstado, misma coordinación de RegistroPacienteRepository, PacienteRepository, CodigoActivacionRepository y BitacoraRepository. CodigoActivacionService.emitir admite ambos roles sin alterar comprobación presencial/CI/cuenta, invalidación de pendientes/códigos, HMAC, vigencia o límites técnicos.
+
+**Autoría:** los mismos métodos de BitacoraRepository reciben el Usuario real, sin convertirlo en Recepcionista. CodigoActivacionPaciente.id_recepcionista conserva el ID real del Administrador emisor (FK Usuario); no hay cambio de esquema/Models/Repository. Modificar ficha/estado no cambia la cuenta ni el Médico ni crea citas/consultas. CU-04 continúa rechazando sesiones existentes y CU-08 mantiene rol Paciente, sin un bypass administrativo.
+
+**Pruebas:** PacientePermisosAdministrativosTest ejecuta **44 casos/222 aserciones correctas** usando kernel/rutas/middlewares/Requests/Controllers/Services/Resources reales, autenticación/rate limit/Repositories/DB simulados, DB.connection nunca permitida. CRUD/código para ambos operadores, filtros/proyecciones, actor entregado a auditoría, HMAC/24 h, invalidación, identidad/CI/cuenta/versión, campos prohibidos, ausencia/restricción de sesión, límites y rechazo CU-04/CU-08. Simulación transaccional no acredita rollback, escritura/bitácora SQL, sesión real, límites persistidos ni concurrencia PostgreSQL. Fallos iniciales fueron ajustes de casts del doble Eloquent y argumentos nombrados/código de error en expectativas; corregidos sin cambios de dominio.
+
+**Regresión real preparada, no ejecutada:** AdministradorPacienteAdministrativoTest y AdministradorPacienteActualizacionTest heredan **42 escenarios** existentes con ROL_OPERADOR=Administrador, sin duplicar flujos/aserciones. Bases conservan Recepcionista y ahora comprueban autor persistido de alta/código; matrices negativas se actualizan a Médico/Paciente en esas bases y VinculacionPacienteTest. No se ejecutan porque su setUp invoca migraciones y sigue vigente la restricción de no migrar. Descubrimiento global **1802 casos**, no suite ejecutada. Pint/sintaxis de nueve PHP correctos; seis rutas CU-07 con roles ampliados e historial de CU-21 aún exclusivo de Recepción. UML Markdown actualiza dos firmas del guard privado; mismas relaciones y sin render nuevo; DER intacto. Contexto §17.118/README backend.
+
+## Administrador 28/30 CU — Fase 1: política y reutilización prevista (2026-10-24)
+
+**Solo análisis/documentación, no cierre funcional nuevo.** Matriz de permisos/estado real en `casos-de-us.md` §3.1; decisión y diagnóstico en contexto §17.117. Administrador excluido solo de CU-04/CU-08, sin ampliar otros roles ni usar una excepción global de autorización. Los análisis históricos siguientes describen restricciones/código de su fecha, no prevalecen sobre esta política ni acreditan que los permisos ya hayan cambiado.
+
+| Grupo / fase futura | Participantes existentes a reutilizar | Ajuste previsto, no implementado |
+| --- | --- | --- |
+| CU-07 / Fase 2 | PacienteController, PacienteService/PacienteRepository; CodigoActivacionController/Service/Repository; AutenticacionService y BitacoraRepository | Ampliar roles en rutas/Services; mismos métodos para ficha/estado/código. Registrar actor real, sin dar CU-04/CU-08 |
+| CU-13/CU-14 / Fase 3 | DisponibilidadController/Service/Repository, DisponibilidadRequest; ReservaController/Service/Request, CitaRepository, PropuestaReserva, PlanificacionRepository, BitacoraRepository | Contexto administrativo con id_paciente, reconstrucción de selección y mismos controles de propuesta/resultado/idempotencia, bloqueos/revalidación. Cita.creada_por = Administrador real, no Médico |
+| CU-20/CU-21 / Fase 4 | AgendaController/Service/Repository; HistorialCitasController/Service; ConsultaCitaController/Service, CitaDetalleResource | Agenda administrativa ya existe; ampliar historial por ficha y proyecciones administrativas, sin cargar contenido clínico en CU-21 |
+| Otros 11 CU administrativos existentes / Fase 5 | Servicios/rutas existentes de usuarios, médicos/especialidades, consultorios/horarios, agenda y bitácora | Regresión de 15 permitidos/2 excluidos del Ciclo 1; no duplicar operación por rol |
+| CU-15–CU-19, CU-22–CU-29 / fuera de implementación inmediata | Models/persistencia de CambioCita, consulta/versiones, laboratorio y recordatorios; auxiliares existentes | No existen flujos funcionales completos de esos CU; autorización documentada para aplicarla al desarrollarlos. Reportes sin módulo funcional |
+
+**Trazabilidad:** CodigoActivacionPaciente.id_recepcionista referencia Usuario; conserva emisor real del código CU-07 pese al nombre histórico, sin migración necesaria ahora. ConsultaMedica se vincula a Cita y su Médico/Paciente; VersionConsulta/VersionAntecedente/VersionResultado.id_autor y DocumentoLaboratorio.cargado_por permiten autor usuario. SolicitudLaboratorio no separa ejecutor solicitante y RevisionResultado solo relaciona id_medico: evaluar representación del ejecutor de CU-24/CU-26 antes de implementar, sin atribuir al Médico actuaciones administrativas. No cambiar Models/relaciones ahora ni inventar métodos/clases para un diagrama.
+
+**Verificación de entorno:** conexión local aislada a PostgreSQL 18.6, pdo_pgsql/btree_gist disponibles, transacción READ ONLY con identidad verificada y ROLLBACK; sin public.migrations, preparación de esquema no acreditada. Sin migraciones ni pruebas que las disparen. Coherencia documental/alcance se comprueban en esta fase; pruebas de autorización/operación se añadirán en sus fases funcionales. DER/UML permanecen intactos; ningún CU se declara reimplementado/completado por este ajuste documental.
+
 ## CU-03–CU-06 — composición y ayuda de contraseña, frontend (2026-10-23)
 
 **Frontera/UI:** `PasswordCreationFields` se reutiliza en RegisterPatientPage (nuevo/vinculación), AcceptInvitationPage, ChangePasswordPage, ResetPasswordPage y RestrictedAccessPage. Recibe valores/callbacks/ocupación/errores por props; reutiliza PasswordField/FormField/Icon, asocia la lista mediante aria-describedby y mantiene el mostrar/ocultar. Lista de cinco requisitos con icono y texto Cumplido/Pendiente, sin depender solo del color; coincidencia en vivo de confirmación. No anuncia ni imprime el secreto en ayudas, URL o almacenamiento.
@@ -53,7 +2169,7 @@ README/CU/reglas/requerimientos (solo evidencia/avance)/contexto §17.113 sincro
 | consultarMisCitas / consultarHistorialPaciente / useAgendaQuery existentes | GET reales de fase 1, allowlist de filtros/errores, proyección/contexto/ID/página y estado ligado a identidad/parámetros. Sin perfil/disponibilidad para habilitar lectura, nunca condición local de actividad. Cancelación/descartes/401/429/errores seguros reutilizados. |
 | AgendaWorkspace / CitaDetallePage | Solo criterios/ID/origen por ficha en memoria. Otro Paciente reinicia criterios; detalle preserva ámbito y retorno/reconsulta sin persistir filas o poner datos en history.state. Detalle de cada flujo tiene ruta real por rol, misma API autorizada y matriz del Resource. Retorno directo administrativo deriva ficha de la respuesta autorizada o vuelve a selección. |
 | SeleccionarPacienteHistorialPage → PatientsPage / PatientDetailPage | Reutiliza búsqueda administrativa en ruta de entrada /recepcion/historial-citas sin duplicar destino de Gestionar pacientes. Selector reinicia por identidad/pagehide, abre ficha y enlace CU-21 visible también sin CI/cuenta o con ficha inactiva. No alta nueva ni historial global; comportamiento ordinario de gestión se mantiene en su ruta previa. |
-| Router / navegación / HomePage | Guards exclusivos, enlaces descriptivos por rol y contexto/breadcrumb de lista/detalle. Paciente tiene Mis citas, Recepción Consultar historial; ningún destino vacío o CU visible. No activación de CU-15–CU-19 ni nuevas operaciones de negocio. |
+| Router / navegación / HomePage | Guards exclusivos, enlaces descriptivos por rol y contexto/breadcrumb de lista/detalle. Paciente tiene Mis citas, Administrador/Recepción Consultar historial según permisos vigentes; ningún destino vacío o CU visible. No activación de CU-15–CU-19 ni nuevas operaciones de negocio. |
 
 **Colaboración:** entrada/ficha o Mis citas → componente de consulta → Service/Axios con sesión → API/backend cerrado → validación/proyección → tabla/detalle. Citas en curso, fin=t, canceladas futuras y Programada antigua se muestran según respuesta, no se transforman en React. Empty conserva contexto y filtros, distinto de 404; no contenido técnico/clínico o contactos fuera de matriz, almacenamiento persistente o caché global.
 
@@ -89,7 +2205,7 @@ README frontend/CU-20/contexto §17.111 sincronizados. Sin cambios backend/API/p
 | --- | --- |
 | CitaDetallePage → useAgendaQuery | Ruta /citas/:id protegida, ID validado antes de consultar, usuario/rol tomados de useAuth, carga/error/reconsulta manual. Resultado ligado a identidad/parámetros/revisión, aborto/descartes por navegación/sesión/desmontaje; pagehide limpia y pageshow reconsulta. Retry-After controla espera, sin retry automático. |
 | agenda.service.js → api.js | Cinco GET reales con AbortSignal/sessionBound, parámetros cerrados y BIGINT textual; valida estructura/paginación/contexto/filtros/IDs y proyecta campos previstos. Detalle según rol público para minimizar presentación, nunca para conceder acceso. Backend valida sesión/vínculo/scope. No usa endpoints de reserva ni inventa permisos o reglas. |
-| CitaDetalle | Componente presentacional con secciones cita/profesional/Paciente/motivo autorizado; Admin sin extras, Recepción motivo/CI/teléfono, Médico motivo/nacimiento, Paciente motivo propio. No serialización genérica, contactos profesionales, datos clínicos o acciones de escritura. Reutiliza paneles/rejilla record-data y componentes globales. |
+| CitaDetalle | Componente presentacional con secciones cita/profesional/Paciente/motivo autorizado; Administrador/Recepción motivo/CI/teléfono, Médico motivo/nacimiento, Paciente motivo propio, según matriz vigente. No serialización genérica, contactos profesionales, datos clínicos o acciones de escritura. Reutiliza paneles/rejilla record-data y componentes globales. |
 | agendaFormat.js | Presentación explícita de instantes en America/La_Paz y fecha civil sin convertir nacimiento a UTC; enum de cinco estados/períodos, validación de formato. No decide disponibilidad, autorización o transición/reclasificación temporal de Cita. |
 | Router / navigationAtPath / guards existentes | Ruta real sin enlace de sidebar ni listado ficticio. Contexto Agenda e historial/título Detalle de cita; los accesos de listados siguen pendientes. Entrada directa retorna a Inicio, retorno al listado se implementará con sus pantallas. |
 
@@ -101,7 +2217,7 @@ README frontend/contexto §17.110 sincronizados. Sin backend/persistencia/DER/re
 
 ## CU-20/CU-21 — fase 6: integración y cierre backend (2026-10-22)
 
-**Fase 6 y backend CU-20/CU-21 cerrados localmente.** RF11/RF12 y RN10–RN12/RN14 conservan su texto oficial. Actores: Administrador/Recepción con agenda seleccionada, Médico con agenda propia; Recepción con historial por ficha y Paciente con historial propio. Detalle compartido con scope/matriz por rol. Frontend y CU-15–CU-19 no incluidos.
+**Fase 6 y backend CU-20/CU-21 cerrados localmente en esta entrega histórica.** RF11/RF12 y RN10–RN12/RN14 conservan su texto oficial. Actores vigentes: Administrador/Recepción con agenda seleccionada, Médico con agenda propia; Administrador/Recepción con historial por ficha y Paciente con historial propio. Detalle compartido con scope/matriz por rol. Frontend y CU-15–CU-19 no incluidos en esa entrega.
 
 **Colaboración implementada acumulada:** rutas de agenda + middleware transversal → AgendaController/AgendaRequest, HistorialCitasController/HistorialCitasRequest o ConsultaCitaController/ConsultaCitaRequest → AgendaService, HistorialCitasService o ConsultaCitaService → AutenticacionService (sesión normal/actor/rol/vínculo bajo lock) y AgendaRepository → Cita/Paciente/Medico/Especialidad y PostgreSQL. Proyección cerrada/scope antes de materializar; CitaListadoResource/MedicoAgendaResource/CitaDetalleResource adaptan respuesta. Colección paginada nativa con metadata explícita, no clase CitasCollection sin uso. Sin entidad Agenda/Historial, nuevas tablas o lógica clínica. El detalle reutiliza la proyección común y añade allowlist; las lecturas no llaman a escritores de reserva.
 
@@ -138,10 +2254,10 @@ README/CU/reglas/requerimientos propios/contexto §17.108 sincronizados. Sin có
 | ConsultaCitaController / ConsultaCitaRequest | Nuevo GET /api/citas/{id}; solo ID canónico de ruta, sin campos query/body/expansiones ni selección de rol. Controller adapta petición y devuelve Resource, sin Eloquent o permisos de negocio. |
 | ConsultaCitaService → AutenticacionService | Revalida sesión normal/actor/rol/vínculo bajo lock en transacción corta. Decide scope SQL y columnas: Médico propio, Paciente titular, Admin/Recepción lectura administrativa autorizada. Scope/rol no provienen de React. Devuelve fila materializada y rol revalidado, no modelo con relaciones diferidas. |
 | AgendaRepository::detalle → citasProyectadas | Reutiliza base común mínima de agenda/historial, aplica id_cita + scope antes de leer y añade solo columnas solicitadas internamente por Service. No decide permisos de negocio ni consulta historia/laboratorio. Ajeno/inexistente sin fila → mismo 404 genérico del Service. |
-| CitaDetalleResource → CitaListadoResource | Compone campos comunes y allowlist adicional por rol revalidado: Admin ninguno; Recepción motivo/CI/teléfono; Médico motivo/nacimiento para identificación; Paciente motivo propio. Prohibido = clave omitida, permitido sin dato = null. Segunda barrera incluso si fila interna trae extras; no exposición genérica de modelos. |
+| CitaDetalleResource → CitaListadoResource | Compone campos comunes y allowlist adicional por rol revalidado: Administrador/Recepción motivo/CI/teléfono; Médico motivo/nacimiento para identificación; Paciente motivo propio, según matriz vigente. Prohibido = clave omitida, permitido sin dato = null. Segunda barrera incluso si fila interna trae extras; no exposición genérica de modelos. |
 | Route/middlewares/modelos/errores existentes | GET nuevo en agenda.php, sin cambiar POST /citas, Cita/Paciente/Medico o contratos de listados/reserva. No nuevo estado/modelo/tabla/efecto de negocio. Respuesta privada con origen/HEAD y errores uniformes. |
 
-**Flujo real:** sesión/origen/middleware → Request → Service revalida actor y determina scope/proyección → Repository obtiene solo fila autorizada → Service convierte ausencia/ajeno a 404 → Resource aplica matriz. Admin no selecciona ni devuelve motivo; listados continúan sin datos adicionales. Datos de intervalo/duración/ubicación conservados de Cita, sin exigir condiciones de nueva reserva a historia autorizada o estados de atención. No permiso clínico nuevo por mostrar identificación en detalle.
+**Flujo:** sesión/origen/middleware → Request → Service revalida actor y determina scope/proyección → Repository obtiene solo fila autorizada → Service convierte ausencia/ajeno a 404 → Resource aplica matriz. Según la matriz vigente, Administrador/Recepción reciben motivo breve/CI/teléfono solo en detalle; listados continúan sin datos adicionales. Datos de intervalo/duración/ubicación conservados de Cita, sin exigir condiciones de nueva reserva a historia autorizada o estados de atención. No permiso clínico nuevo por mostrar identificación en detalle.
 
 **Verificación:** ConsultaCitaTest, **37 pruebas nuevas**; tres clases del módulo **128/1292 correctas**. Regresión de ocho clases agenda/historial/detalle/reserva/integración reserva/perfil/registro y actualización administrativa: **257 pruebas/2753 aserciones correctas**, 1 min 17,993 s/80 MB, PostgreSQL aislado/sesiones/kernel reales. Matriz cuatro roles/null/columnas SQL, claves omitidas, motivo «0», ficha sin CI/cuenta, cinco estados/historia/inactividad/ubicación, scope SQL/404 idéntico/ID ajeno directo, BIGINT/entradas/privilegios/cuerpo, huésped/origen/HEAD/expiración/restricción, revalidación tardía/allowlist ante extras y dominio intacto. Inyecciones tardías en misma conexión, no carrera multiproceso (fase 5). Pint/sintaxis 18 PHP/Composer/autoload estricto/72 rutas/cinco GET del módulo sin duplicados/diff correctos. No regresión global nueva: 1423/16794 sigue siendo ejecución de fase 2.
 
@@ -149,12 +2265,12 @@ README/CU/reglas/requerimientos propios/contexto §17.107 sincronizados; sin fro
 
 ## Historial y Mis citas CU-21 — fase 3 (2026-10-22)
 
-**Consultas de CU-21 implementadas; detalle compartido/módulo integral pendientes.** Actores Paciente titular/Recepción, RF02/RF12 y RN01/RN10–RN12/RN14, VS-HIS-02–05/07/08. Reutiliza listado de CU-20 sin abrir historial a Administrador/Médico ni incluir CU-15–CU-19 o clínica.
+**Consultas de CU-21 implementadas; detalle compartido/módulo integral pendientes en esta fase histórica.** Actores vigentes: Administrador/Recepción por ficha seleccionada y Paciente titular, RF02/RF12 y RN01/RN10–RN12/RN14, VS-HIS-02–05/07/08. Reutiliza listado de CU-20 sin abrir este historial al Médico ni incluir CU-15–CU-19 o contenido clínico.
 
 | Participante real | Responsabilidad/colaboración |
 | --- | --- |
-| HistorialCitasController / HistorialCitasRequest | Adaptar dos GET y entradas cerradas. ID de ficha de ruta solo Recepción, no sobrescribible por query/body; período/estado/page/per_page. Controller retira id_objetivo interno antes de pasar filtros y forma links/meta nativos, sin Eloquent. |
-| HistorialCitasService → AutenticacionService | Revalida sesión normal/rol/vínculo con actor bloqueado en transacción corta. Paciente deriva ficha y rechaza ID explícito; Recepción necesita ficha seleccionada. Captura t después de revalidar y resuelve defaults/contexto; inactividad no impide consulta autorizada. |
+| HistorialCitasController / HistorialCitasRequest | Adaptar dos GET y entradas cerradas. ID de ficha de ruta para Administrador/Recepción, no sobrescribible por query/body; período/estado/page/per_page. Controller retira id_objetivo interno antes de pasar filtros y forma links/meta nativos, sin Eloquent. |
+| HistorialCitasService → AutenticacionService | Revalida sesión normal/rol/vínculo con actor bloqueado en transacción corta. Paciente deriva ficha y rechaza ID explícito; Administrador/Recepción necesitan ficha seleccionada. Captura t después de revalidar y resuelve defaults/contexto; inactividad no impide consulta autorizada. |
 | AgendaRepository | Añade paciente mínimo e historial con scope de id_paciente antes de paginar. Extrae citasProyectadas privada para compartir allowlist con agenda, preservando su filtro/orden. Estado/período combinan AND; snapshot de sentencia para página/count/vacío, no entre peticiones ni lock de planificación. |
 | CitaListadoResource / paginador nativo | Reutilizados sin ampliar campos: IDs textuales/instantes UTC/datos comunes. Sin motivo/CI/contacto/nacimiento/UUID/creador/clínica. Ubicación/duración efectivas son las conservadas de Cita. |
 | Modelos/middleware/errores existentes | Sin cambios. GET en agenda.php, sin entidad Historial/tabla, cambio de estado, evento de negocio/correo o permiso de escritura nuevos. |
@@ -188,7 +2304,7 @@ README/ficha/reglas/requerimientos propios/contexto §17.105 sincronizados. Sin 
 
 ## Agenda e historial CU-20/CU-21 — fase 1: análisis previsto (2026-10-22)
 
-**Estado: diseño, no implementación ni cierre de CU.** Actores CU-20: Administrador, Recepcionista y Médico (propia agenda); CU-21: Recepcionista/Paciente titular. Objetivo: consulta diaria e historial completo con detalle mínimo autorizado, sin mutar citas ni abrir acceso clínico. Trazabilidad: RF03/RF11 para CU-20, RF02/RF12 para CU-21; RN01/RN10–RN12/RN14 y precisiones aprobadas VS-HIS-01–08. CU-15–CU-19 se posponen expresamente, no desaparecen del alcance.
+**Estado histórico: diseño, no implementación ni cierre de CU en esta fase.** Actores vigentes CU-20: Administrador, Recepcionista y Médico (propia agenda); CU-21: Administrador/Recepcionista por ficha y Paciente titular. Objetivo: consulta diaria e historial completo con detalle mínimo autorizado, sin mutar citas ni abrir contenido clínico desde estos CU. Trazabilidad: RF03/RF11 para CU-20, RF02/RF12 para CU-21; RN01/RN10–RN12/RN14 y precisiones aprobadas VS-HIS-01–08. CU-15–CU-19 se posponen expresamente, no desaparecen del alcance.
 
 | Participante | Estado / responsabilidad y colaboración |
 | --- | --- |
@@ -196,14 +2312,14 @@ README/ficha/reglas/requerimientos propios/contexto §17.105 sincronizados. Sin 
 | AutenticacionService / middlewares de sesión/rol/origen / RespuestaError | Existentes. Revalidar sesión normal y actor en Service dentro de transacción corta, sin delegar titularidad al ID del cliente. Errores uniformes y respuesta privada. El vínculo propio se determina desde relaciones persistidas; inactividad de ficha/profesional no equivale a cuenta desactivada. |
 | AgendaController / AgendaRequest / AgendaService | **Previstos**, módulo agenda dentro de sus capas. Adaptador HTTP/validación cerrada y orquestación de CU-20; Médico propio, Admin/Recepción seleccionan profesional. Selector propio evita ampliar MedicoService/endpoint administrativo exclusivo de Admin a Recepción. |
 | HistorialCitasController / HistorialCitasRequest / HistorialCitasService | **Previstos**, mismo módulo por capa. Historial propio o por ficha seleccionada por Recepción. Período/estado y orden fijo; un instante t para clasificación/metadata. No reclasificar estados ni exigir actividad para consultar. |
-| ConsultaCitaController / ConsultaCitaRequest / ConsultaCitaService | **Previstos** para detalle compartido. Scope de autorización por rol/relación antes de recuperar datos; cita ajena/inexistente responde igual 404. Administrador solo detalle administrativo por CU-20, no historial CU-21. |
+| ConsultaCitaController / ConsultaCitaRequest / ConsultaCitaService | **Previstos en esta fase histórica** para detalle compartido. Scope de autorización por rol/relación antes de recuperar datos; cita ajena/inexistente responde igual 404. Administrador accede al detalle administrativo desde CU-20/CU-21, sin contenido clínico. |
 | AgendaRepository | **Previsto** en data/repositories/agenda; lectura proyectada para selector/agenda/historial/detalle, scope en SQL antes de contar/paginar. No trasladar permisos al repositorio ni modificar CitaRepository de escritura para esta responsabilidad. |
 | MedicoAgendaResource / CitaListadoResource / CitaDetalleResource / CitasCollection | **Previstos** en presentation/dtos/agenda. Allowlist de campos por rol, BIGINT textual, instantes UTC y zona America/La_Paz. Listados sin motivo/CI/teléfono/nacimiento; detalle omite completamente campos no autorizados, no solo null. Paginación/contexto efectivos sin datos privados ajenos. |
 | src/presentation/routes/agenda.php y puente routes/api.php | Registro **previsto**, ninguno añadido ahora. Cinco GET diseñados (selector, agenda, historial propio, historial por ficha y detalle); sin nuevos endpoints de escritura o permisos sobre los existentes. |
 
 **Flujo previsto:** Route/Middleware → Request valida → Service exige sesión/vínculo/rol → Repository obtiene scope y proyección autorizados → Resource materializa respuesta sin lazy-load fuera del ámbito de lectura. CU-20 obtiene día local/filtros; CU-21 deriva titular o valida ficha de Recepción; detalle aplica matriz. Próximas = Programada/Confirmada y fin_at > t; Anteriores = fin_at <= t; Todas no filtra tiempo. Una cita Cancelada futura solo se recupera en Todas/estado Cancelada. Período y estado combinan por AND; vacíos legítimos responden 200, no son denegación.
 
-**Privacidad/consistencia previstas:** no motivo en listados, detalle de Administrador sin clave motivo_breve, sin contenido clínico/UUID/credenciales/contacto médico. Actor revalidado después de esperar su lock con patrón existente; scope de cita propia en SQL. Snapshot local de lectura de conteo/filas a verificar durante implementación sin congelar la sesión antes de revalidarla, sin snapshot entre páginas o bloqueo global de planificación. Datos materializados para serialización, sin prometer estado inmutable al navegar. No Cita/CambioCita/Recordatorio/auditoría de negocio/correo creados por consultar; se permiten escrituras técnicas normales de sesión.
+**Privacidad/consistencia:** no motivo en listados; detalle de Administrador/Recepción con motivo breve/CI/teléfono autorizados según matriz vigente, sin contenido clínico/UUID/credenciales/contacto médico. Actor revalidado después de esperar su lock con patrón existente; scope de cita propia en SQL. Snapshot local de lectura de conteo/filas a verificar durante la implementación de esta fase histórica sin congelar la sesión antes de revalidarla, sin snapshot entre páginas o bloqueo global de planificación. Datos materializados para serialización, sin prometer estado inmutable al navegar. No Cita/CambioCita/Recordatorio/auditoría de negocio/correo creados por consultar; se permiten escrituras técnicas normales de sesión.
 
 **Secuencia y evidencia:** contratos completos y matriz de aceptación futura en `backend/README.md`; fases 2 agenda, 3 historial, 4 detalle, 5 seguridad y 6 integración/cierre. Versiones/rutas/modelos/recursos existentes inspeccionados; no pruebas funcionales nuevas ejecutadas en fase documental, ni endpoints/clases/migraciones creados. README/reglas/CU/requerimientos propios/contexto §17.104 sincronizados. DER contrastado sin cambios de esquema; diagrama global ausente y aplazado por decisión vigente. No React, Word/PDF, despliegue o cierre funcional del módulo por esta fase.
 
@@ -337,7 +2453,7 @@ README/contexto §17.98 sincronizados; backend/DER/RF/RN/reglas/CU funcionales/d
 
 **Flujo:** sesión restaurada por los mecanismos existentes → layout filtra catálogo por rol → ruta conocida identifica módulo y funcionalidad → despliegue automático/enlace activo/contexto. Enter/Espacio alternan un módulo sin navegar ni tocar formularios; navegar mantiene guards y blockers de React Router. Escape móvil cierra y devuelve foco al botón; navegar enfoca main, incluida selección de la misma ruta. Cambio de identidad/rol remonta únicamente el estado de navegación. No persistencia de expansión ni datos privados en Web Storage.
 
-**Trazabilidad pendiente correcta:** CU-15/16 solo Recepción; CU-17/18 llegada/inasistencia Recepción y CU-19 Atendida Médico. CU-20 Administrador/Recepción/Médico; CU-21 Recepción/Paciente; CU-22 Médico/Paciente y CU-23 Médico; CU-24/26 Médico, CU-25 Administrador y CU-27 Médico/Paciente; CU-28 Paciente y CU-29 Administrador. Estos rótulos no acreditan implementación. Acciones por registro y detalles conservan accesos reales desde sus listados, sin identificadores de ejemplo en enlaces del sidebar.
+**Trazabilidad de actores actualizada:** CU-15/16 y CU-17/18 Administrador/Recepción; CU-19 Administrador/Médico responsable. CU-20 Administrador/Recepción/Médico; CU-21 Administrador/Recepción/Paciente titular; CU-22 Administrador/Médico autorizado/Paciente titular y CU-23 Administrador/Médico responsable; CU-24/26 Administrador/Médico responsable, CU-25 Administrador y CU-27 Administrador/Médico autorizado/Paciente titular; CU-28 Administrador por Paciente seleccionado/Paciente titular y CU-29 Administrador. Estos rótulos expresan autorización, no acreditan implementación. Acciones por registro y detalles conservan accesos reales desde sus listados, sin identificadores de ejemplo en enlaces del sidebar.
 
 **Evidencia:** 41 pruebas nuevas (18 metadata/rutas/CU, 12 layout, ocho inicio/áreas y tres reserva). Suite completa 966/54 correcta, seguida de 60 pruebas correctas de los dos archivos afectados al añadir cuatro regresiones adicionales; inventario final 970. Reserva real del cliente conserva selección/motivo/revisión para Recepción/Paciente y resultado incierto sin nuevas solicitudes, blocker o envíos al desplegar. Chrome con transporte ficticio: 16 disposiciones de cuatro roles a 320/390/768/1440 px, ocho axe sin infracciones detectadas, cero excepciones JS; capturas inspeccionadas. Build correcto (667,04 kB, aviso conocido >500 kB). No nueva integración Laravel/DB ni certificación integral.
 
@@ -369,7 +2485,7 @@ README/contexto §17.97 sincronizados; RF/RN/reglas/CU funcionales/DER/backend i
 
 ## CU-14 — frontend fase 3 implementada (2026-10-22)
 
-**Objetivo/actores:** Recepción programa para ficha seleccionada y Paciente reserva para sí mismo, RF05–RF07/RN03–RN08/RN12–RN14 y precisiones propias vigentes, sin cambios de reglas. Frontend de revisión/creación/resultado local, no reprogramación/cancelación/avisos. Backend real sin modificaciones.
+**Objetivo/actores vigentes:** Administrador/Recepción programan para ficha seleccionada y Paciente reserva para sí mismo, RF05–RF07/RN03–RN08/RN12–RN14 y precisiones propias vigentes, sin cambios de reglas. Frontend de revisión/creación/resultado local, no reprogramación/cancelación/avisos. Backend real sin modificaciones en esta fase histórica.
 
 | Participante real | Responsabilidad/colaboración |
 | --- | --- |
@@ -388,7 +2504,7 @@ README/contexto §17.97 sincronizados; RF/RN/reglas/CU funcionales/DER/backend i
 
 ## CU-13 — frontend fase 2 implementada (2026-10-22)
 
-**Actores:** Recepcionista/Paciente, búsqueda orientativa para futura reserva propia/presencial; RF03/RF05/RF06 y RN04–RN08/RN12 según ficha, más anclaje/segundos/ocupación de Paciente decididos por backend. No se modifica regla funcional. CU-14 frontend todavía pendiente, sin POST de propuesta/guardado/resultado ni nuevos estados de cita.
+**Actores vigentes:** Administrador/Recepcionista/Paciente, búsqueda orientativa para programación administrativa por ficha o reserva propia/presencial; RF03/RF05/RF06 y RN04–RN08/RN12 según ficha, más anclaje/segundos/ocupación de Paciente decididos por backend. No se modifica regla funcional. CU-14 frontend todavía pendiente en esta fase histórica, sin POST de propuesta/guardado/resultado ni nuevos estados de cita.
 
 | Participante real | Responsabilidad/colaboración |
 | --- | --- |
@@ -412,7 +2528,7 @@ README/contexto §17.97 sincronizados; RF/RN/reglas/CU funcionales/DER/backend i
 | Participante previsto o reutilizado | Responsabilidad/colaboración |
 | --- | --- |
 | ReservarCitaPage (prevista) | Coordinar una instancia de flujo por actor, criterios, carga/selección/revisión/guardado/resultado; sin reglas autoritativas de disponibilidad |
-| Componentes de selector/criterios/turnos/revisión/resultado (previstos) | Presentación accesible según props; selector de ficha solo Recepción, turnos únicos con fecha/hora local completa y resumen antes de confirmar |
+| Componentes de selector/criterios/turnos/revisión/resultado (previstos) | Presentación accesible según props; selector de ficha para Administrador/Recepción, turnos únicos con fecha/hora local completa y resumen antes de confirmar |
 | reserva.service.js (previsto) | Seis llamadas API con whitelist, cookies/CSRF/sessionBound, shapes data/meta correctos y sin reintentos automáticos; no decide UI/permisos |
 | Hook/estado local del flujo (previsto si se justifica) | Secuencias/cancelación, invalidación de propuesta al cambiar selección/motivo, bloqueo síncrono doble submit y reconciliación explícita; no almacenamiento persistente/global |
 | api.js/AuthProvider/ProtectedRoute/RoleRoute/MainLayout (existentes) | Época de sesión, descarte transversal, identidad/guards y navegación; no almacenar motivo/propuesta/ficha dentro de AuthContext |
@@ -504,7 +2620,7 @@ README/contexto §17.97 sincronizados; RF/RN/reglas/CU funcionales/DER/backend i
 
 ## CU-13/CU-14 — backend fase 1: diseño de clases y colaboraciones (2026-10-22)
 
-**Estado:** análisis **previsto**, no CU implementados/cerrados. Fuente: fichas CU-13/CU-14, RF03/RF05–RF07, RN03–RN08/RN12–RN14 y precisiones aprobadas VS-HOR-12/VS-CIT-11–13. Actores Recepcionista/Paciente con sesión normal; no Administrador/Médico ni búsquedas públicas. Revisión del código real PHP 8.5.11/Laravel 13.37.0, rutas/capas/modelos/repositories y exclusiones de Cita; ninguna clase nueva creada por esta fase.
+**Estado histórico de esta fase:** análisis **previsto**, no CU implementados/cerrados entonces. Fuente: fichas CU-13/CU-14, RF03/RF05–RF07, RN03–RN08/RN12–RN14 y precisiones aprobadas VS-HOR-12/VS-CIT-11–13. Actores vigentes: Administrador/Recepcionista para Paciente seleccionado y Paciente para sí, con sesión normal; Médico no programa ni reserva, sin búsquedas públicas. Revisión del código real PHP 8.5.11/Laravel 13.37.0, rutas/capas/modelos/repositories y exclusiones de Cita; ninguna clase nueva creada por esta fase.
 
 | Participante previsto | Responsabilidad y colaboración |
 | --- | --- |
@@ -731,7 +2847,7 @@ README/contexto §17.97 sincronizados; RF/RN/reglas/CU funcionales/DER/backend i
 
 **Cierre de fase 1:** revisión documental/estática, sin pruebas funcionales nuevas porque aún no hay código nuevo. CU-11/CU-12 continúan pendientes de implementación; DER físico sin cambios y diagrama global expresamente aplazado.
 
-> **Ruta canónica:** `docs/ai/analisis-clases.md`  
+> **Ruta canónica:** `docs/ai/analisis-clases.md`\
 > **Módulos:** Usuarios y autenticación (`CU-01`–`CU-06`); Pacientes y perfil personal (`CU-07`/`CU-08`); Médicos y especialidades (`CU-09`/`CU-10`, backend administrativo y frontend fases 1–5 implementados con integración local); Bitácora (`CU-30`, backend fases 1–5 completado/verificado localmente, frontend/producción pendientes); Consultorios y horarios (`CU-11`/`CU-12`, backend administrativo fases 1–6 completado, integrado y verificado localmente; frontend/producción pendientes). Agenda posterior y diagrama global aplazado.
 > **Avance:** Usuarios backend fases 0–8, incluidas 7A/7B; Pacientes backend/frontend fases 1–6 revisados el 2026-10-20. Plan frontend de gestión administrativa, perfil y correo completado con integración real local. Consulta histórica de citas conserva dependencia de CU-21; no se acredita RF02 íntegro ni producción/Brevo real.
 > **Estado:** backend de Usuarios y autenticación cerrado con revisión integrada de fase 8. React fases 1–6 implementadas, revisión del cliente con 213 pruebas y AUT-21 local aprobada en Chrome/Laravel/PostgreSQL reales (§17.34 del contexto). Incluye sesión, contraseñas, cuentas y registro/vinculación con emisión presencial de Recepción. Correo capturado localmente: aceptación/entrega real Brevo y comprobación de producción pendientes. `diagrama-clases.md` aplazado por solicitud expresa del usuario.
@@ -786,7 +2902,7 @@ Las clases compartidas se importan desde su módulo propietario; no hay copias n
 
 ## CU-30 — fase 5: análisis de cierre del backend (2026-10-21)
 
-**Actor/objetivo/trazabilidad:** Administrador con cuenta habilitada/sesión normal investiga eventos persistidos sin modificarlos ni obtener permisos clínicos. Ampliación propia CU-30 / VS-AUD-01–06 compatible con RN12/RN14; no crea RF/RN oficiales ni un proceso manual para registrar eventos. Backend completo localmente, frontend/producción pendientes. Las entradas siguientes conservan el análisis incremental de fases anteriores; el estado vigente es este cierre.
+**Actor/objetivo/trazabilidad:** Administrador con cuenta habilitada/sesión normal investiga eventos persistidos sin modificarlos ni obtener permisos clínicos por consultar CU-30. Sus permisos clínicos expresos pertenecen a CU-22–CU-27 y no a la bitácora. Ampliación propia CU-30 / VS-AUD-01–06 compatible con RN12/RN14; no crea RF/RN oficiales ni un proceso manual para registrar eventos. Backend completo localmente, frontend/producción pendientes en esta fase histórica. Las entradas siguientes conservan el análisis incremental de fases anteriores.
 
 | Participante implementado | Responsabilidad y colaboración de cierre |
 | --- | --- |
@@ -1064,7 +3180,7 @@ Evidencia en contexto §17.52/README frontend: 377 pruebas correctas, build corr
 
 ## Pacientes — incremento frontend fase 1: consulta administrativa de CU-07 (2026-10-20)
 
-**Actor/objetivo:** Recepcionista con sesión normal localiza fichas por CI, nombres, apellidos y estado y abre su detalle administrativo; trazabilidad RF02/RN01 y VS-PAC-01/02/05/06. Avance parcial de CU-07: alta, edición, estado e integración de emisión desde ficha siguen en fases posteriores; CU-08 conserva implementación frontend pendiente.
+**Actores/objetivo vigentes:** Administrador o Recepcionista con sesión normal localizan fichas por CI, nombres, apellidos y estado y abren su detalle administrativo; trazabilidad RF02/RN01 y VS-PAC-01/02/05/06. Avance parcial histórico de CU-07: alta, edición, estado e integración de emisión desde ficha seguían en fases posteriores; CU-08 conservaba implementación frontend pendiente.
 
 **Frontera y colaboración real:** `PatientsPage` coordina filtros locales, paginación por `meta`, carga/vacío/error y reconsulta; `PatientsTable` presenta la proyección reducida y enlaces por ID textual. `PatientDetailPage` valida el ID BIGINT, consulta identidad/contacto/emergencia y distingue estado de ficha de mera vinculación de cuenta; nacimiento se representa como fecha civil sin conversión UTC. Los componentes React son funciones de interfaz, no nuevas clases PHP de dominio. `PatientFailure` y `describirErrorPaciente` presentan errores seguros, campos permitidos y Retry-After, sin cuerpos técnicos.
 
@@ -1076,7 +3192,7 @@ Evidencia en contexto §17.52/README frontend: 377 pruebas correctas, build corr
 
 ## Pacientes — incremento frontend fase 2: alta administrativa de CU-07 (2026-10-20)
 
-**Actor/alcance:** Recepcionista con sesión normal registra ficha por `/recepcion/pacientes/nuevo`, desde el listado. RF02/RN01 y VS-PAC-01/02/06: CI opcional en el alta administrativa (excepción aprobada del proyecto), sin omitir su obligatoriedad en CU-04. Se registran identidad, nacimiento como fecha civil, sexo opcional sin catálogo inventado, teléfono, correo de contacto/dirección opcionales y emergencia completa opcional. La operación no crea Usuario, código web, preferencias ni contenido clínico.
+**Actores/alcance vigentes:** Administrador o Recepcionista con sesión normal registran ficha por la ruta compartida `/recepcion/pacientes/nuevo`, desde el listado. RF02/RN01 y VS-PAC-01/02/06: CI opcional en el alta administrativa (excepción aprobada del proyecto), sin omitir su obligatoriedad en CU-04. Se registran identidad, nacimiento como fecha civil, sexo opcional sin catálogo inventado, teléfono, correo de contacto/dirección opcionales y emergencia completa opcional. La operación no crea Usuario, código web, preferencias ni contenido clínico.
 
 **Fronteras y coordinación:** `NewPatientPage` coordina borrador local, revisión de duplicados, validación de experiencia, envío y confirmación; `PatientForm` recibe datos/errores/callbacks y presenta campos administrativos y emergencia. `PatientDuplicateReview` consulta a través de `usePatientQuery`/`listarPacientes`: CI exacto o nombres/apellidos, sin combinarlos ni filtrar solo fichas activas. Presenta resultados paginados y permite abrir su detalle en otra pestaña sin abandonar el formulario; la semejanza o ausencia de coincidencias no demuestra identidad ni garantiza unicidad. Para registrar sin CI, una consulta exitosa habilita la declaración explícita `posibles_duplicados_revisados`; cambiar CI/nombres/apellidos/nacimiento invalida búsqueda y declaración. Respuestas antiguas se cancelan/descartan. No se fusionan fichas automáticamente.
 
@@ -1088,7 +3204,7 @@ Evidencia en contexto §17.52/README frontend: 377 pruebas correctas, build corr
 
 ## Pacientes — incremento frontend fase 3: mantenimiento y activación de CU-07 (2026-10-20)
 
-**Actor/alcance:** Recepcionista con sesión normal corrige la misma ficha, administra su estado y emite activación desde su detalle. RF02/RN01 y decisiones aprobadas de identidad, CI y separación ficha/cuenta; permanece pendiente integración real y cierre frontend del módulo.
+**Actores/alcance vigentes:** Administrador o Recepcionista con sesión normal corrigen la misma ficha, administran su estado y emiten activación desde su detalle. RF02/RN01 y decisiones aprobadas de identidad, CI y separación ficha/cuenta; integración real y cierre frontend del módulo pendientes en esta fase histórica.
 
 **Fronteras:** `EditPatientPage` carga la ficha y coordina borrador, cambios parciales, comprobación presencial/motivo de identidad y confirmación; reutiliza `PatientForm`. `patientDraft` prepara valores de formulario y diferencias de campos permitidos, incluido NULL de emergencia y no-op del mismo CI normalizado; no decide unicidad ni vinculaciones. `PatientStateAction` coordina motivo y confirmación de desactivar/reactivar desde `PatientDetailPage`, explica independencia de cuenta/sesiones/citas y reconsulta al guardar. `PatientActivationPage` consulta elegibilidad orientativa por CI/vínculo y reutiliza `ActivationCodePage` con identificador fijo y referencia administrativa visible, sin duplicar emisión. Estas fronteras son funciones React, no clases PHP de dominio.
 
@@ -1131,6 +3247,8 @@ Un 409 obsoleto o red/5xx/resultado no confirmado bloquea otro envío conservand
 **Colaboración contrastada con integración real:** `PatientsPage`/`NewPatientPage`/`PatientDetailPage`/`EditPatientPage`, `PatientDuplicateReview`/`PatientForm`/`PatientStateAction` y `PatientVersionReview` coordinan consulta, alta, cambios parciales y decisión explícita tras conflicto → `paciente.service` → Axios con cookies/CSRF/sessionBound → Controllers/Requests de Paciente → `PacienteService` y repositorios existentes → PostgreSQL. Activación seleccionada reutiliza `PatientActivationPage`/`ActivationCodePage` → servicio/controlador de código, sin crear cuenta. `MyProfilePage` usa `perfil.service` y la proyección propia de `MiPerfilService`; `ChangeEmailPage` usa `cambioCorreo.service`/`CambioCorreoService` y coordina el cierre público con `AuthContext.completeEmailChange`. Se conserva lo diseñado en los incrementos previos, sin nuevas clases, relaciones ni migraciones por esta revisión.
 
 **Evidencia integrada:** Chrome contra React/Laravel/PostgreSQL reales, base/rol aislados y esquema aleatorio, frontend temporal 5174 y backend 8001. Solo transporte de correo capturado localmente; CSRF real habilitado. Recorrido de Recepción: listado/paginación/búsqueda → alta sin CI con revisión → detalle → incorporación CI en misma ficha → activación seleccionada/ocultación → 409 de edición con conservación de borrador y adopción de versión → guardado → desactivar/reactivar con motivo/confirmación. Recorrido del titular: ficha inactiva editable → contacto/emergencia/preferencia → 409 propio/adopción → retirada y deshabilitación confirmadas → recarga/restauración → solicitud correo/código → 204/login → acceso con nuevo correo conservando ID, contraseña y correo de contacto → expiración/retirada de datos. Administrador/Médico rechazados en UI/API sin confundir 403 con logout.
+
+La última frase describe los rechazos del escenario histórico: CU-08 sigue rechazando a ambos roles; en CU-07 el Administrador está autorizado por la ampliación posterior y el Médico continúa sin acceso administrativo. No debe interpretarse como una prohibición administrativa vigente sobre CU-07.
 
 Respuestas reales 200/201/202/204/401/403/409/419/422/429, incluidas peticiones fetch autenticadas para negativos de CSRF/campos/permisos/límites. Cookies HttpOnly/SameSite Lax y CORS con credenciales contrastados; sin Web Storage/excepciones JS. Consulta SQL final confirma identidad/vínculo, estado independiente, correo nuevo y contraseña conservada, sin secretos de la fixture en bitácora. Seis vistas a 1440/768/390/320 sin overflow global, axe sin infracciones automáticas a 1440/390 y Tab correcto en perfil; capturas listado desktop/perfil móvil revisadas.
 
@@ -1196,7 +3314,7 @@ La instancia Axios marca peticiones protegidas con `sessionBound`; su intercepto
 
 ## Incremento frontend — fase 6: CU-04 y emisión parcial de CU-07 (2026-10-20)
 
-**Trazabilidad:** CU-04/PN03 y emisión de CU-07/PN04, RF01/RF02, RN01/RN12/RN14 y decisiones propias VS-AUT-13–22. Actores: Paciente anónimo para Nuevo/Vinculación/verificación y Recepcionista normal para emisión. CI obligatorio web, doble autorización para ficha histórica y límites son políticas aprobadas; React no sustituye la comprobación presencial ni decide unicidad o titularidad.
+**Trazabilidad:** CU-04/PN03 y emisión de CU-07/PN04, RF01/RF02, RN01/RN12/RN14 y decisiones propias VS-AUT-13–22. Actores vigentes: Paciente anónimo para Nuevo/Vinculación/verificación y Administrador o Recepcionista con sesión normal para emisión por CU-07, sin participar en los pasos personales de CU-04. CI obligatorio web, doble autorización para ficha histórica y límites son políticas aprobadas; React no sustituye la comprobación presencial ni decide unicidad o titularidad.
 
 **Fronteras públicas:** `RegisterPatientPage` presenta dos formularios separados según ruta, compartiendo controles y validación de contraseña; Nuevo incluye perfil/contacto permitido sin código de Recepción, Vinculación solo CI/código/correo/clave. `RegistrationSession` exige cierre previo de una sesión normal/restringida mediante el logout del servidor. `VerifyRegistrationPage` comparte correo/reenvío, mantiene códigos como texto, retira secretos tras envío y anuncia activación solo tras 204. El contexto de reanudación pertenece a la cookie HttpOnly, nunca a IDs de URL o estado de React. Los componentes son funciones de frontera, no nuevas entidades PHP.
 
@@ -1204,7 +3322,7 @@ La instancia Axios marca peticiones protegidas con `sessionBound`; su intercepto
 
 **Colaboración:** páginas → `registration.service` → Axios con cookies/CSRF → `RegistroPacienteController` y `RegistrarPacienteRequest`/`VincularPacienteRequest`/`VerificarRegistroPacienteRequest` → `RegistroPacienteService`, repositorios y entidades ya analizados en backend. Las respuestas 202 conservan privacidad y no acreditan envío; el error genérico de verificación no se transforma en diagnóstico de existencia, vencimiento o agotamiento. `useRegistrationSubmission` coordina duplicación, errores seguros/foco y espera derivada exclusivamente de Retry-After. Tras activación se reconsulta sesión y se ofrece login, sin autenticación automática. Un inicio que termina después de abandonar el formulario no navega otra pantalla.
 
-**Emisión de CU-07:** `RoleRoute`/`MainLayout` ofrecen `/recepcion/activacion-web` solo a Recepcionista normal. `ActivationCodePage` solicita ID interno de la ficha comprobada, declaración presencial y confirmación de reemplazo → `activation.service.emitirCodigoActivacion` → Axios con CSRF/`sessionBound` → `CodigoActivacionController`/`EmitirCodigoActivacionRequest` → `CodigoActivacionService`/Validator/repositorios existentes. No hay catálogo HTTP de fichas: se usa ID textual, sin inventar búsquedas por CI ni CRUD. El servidor decide elegibilidad; 201 entrega un secreto una sola vez en memoria local, con fecha UTC explícita. Ocultar, navegar o abandonar retira el código. La emisión no crea Usuario, no activa ficha ni permite leer clínica.
+**Emisión de CU-07, actores actualizados:** `RoleRoute`/`MainLayout` ofrecen la ruta compartida `/recepcion/activacion-web` a Administrador/Recepcionista con sesión normal. `ActivationCodePage` solicita ID interno de la ficha comprobada, declaración presencial y confirmación de reemplazo → `activation.service.emitirCodigoActivacion` → Axios con CSRF/`sessionBound` → `CodigoActivacionController`/`EmitirCodigoActivacionRequest` → `CodigoActivacionService`/Validator/repositorios existentes. En esta fase histórica aún no había catálogo HTTP de fichas: se usaba ID textual; su búsqueda/CRUD se incorporó posteriormente por CU-07. El servidor decide elegibilidad; 201 entrega un secreto una sola vez en memoria local, con fecha UTC explícita. Ocultar, navegar o abandonar retira el código. La emisión no crea Usuario, no activa ficha ni permite leer clínica.
 
 **Evidencia:** suite completa 201 pruebas/13 archivos, 34 nuevas; build y revisión de formato correctos. Incluye ambos escenarios, CI, ceros iniciales, BIGINT, exclusión de campos, limpieza, sesión normal/restringida, denegación de otros roles, respuestas tardías, duplicación y errores/reenvío/Retry-After. Chrome simulado completa ambos recorridos de activación y emisión; cinco vistas responsive 320–1440 px sin overflow global, capturas revisadas y axe sin infracciones automáticas WCAG 2 A/AA y 2.1 AA desktop/móvil. Sin excepciones JS. Integración real de fases 3–6, AUT-21 y Brevo pendientes por ausencia de escucha PostgreSQL en 5432. CU-07 conserva pendiente su CRUD restante; módulo frontend requiere fase 7 de integración/cierre. Backend/persistencia/DER sin cambios; diagrama global aplazado expresamente. Ver contexto §17.32 y README frontend.
 
@@ -1240,13 +3358,13 @@ El bloqueo anterior se resolvió al iniciar PostgreSQL. Chrome headless/CDP ejec
 
 ## CU-07 — fase 2 backend: consulta y registro administrativo implementados
 
-**Actor/objetivo:** Recepcionista con sesión normal registra/lista/busca/consulta fichas sin acceso clínico ni crear credenciales. Trazabilidad RF02, RN01/RN11/RN12/RN14; decisiones VS-PAC/VS-AUT y matriz CU-07/CU-08. No completa edición/estado ni consulta de citas de CU-21; CU-08 sigue previsto.
+**Actores/objetivo vigentes:** Administrador o Recepcionista con sesión normal registran/listan/buscan/consultan fichas sin contenido clínico por CU-07 ni crear credenciales. Trazabilidad RF02, RN01/RN11/RN12/RN14; decisiones VS-PAC/VS-AUT y matriz CU-07/CU-08. Esta fase histórica no completaba edición/estado ni consulta de citas de CU-21; CU-08 seguía previsto.
 
-**Fronteras reales:** PacienteController.index/show/store delega en PacienteService y devuelve PacienteListadoResource/PacienteAdministrativoResource. ListarPacientesRequest limita filtros y página, CrearPacienteRequest valida datos/CI opcional/declaración de revisión/contacto de emergencia y rechaza campos ajenos incluso anidados; CuentaRequest ya existente valida ID de detalle. Recursos proyectan claves explícitas: listado mínimo, detalle administrativo/indicador de vínculo sin id_usuario o correo de acceso, relaciones opcionales y timestamp con microsegundos. Middleware exige sesión/cuenta habilitada, sesión normal y rol Recepcionista; origen/cookies/CSRF/no-store siguen la infraestructura existente.
+**Fronteras reales:** PacienteController.index/show/store delega en PacienteService y devuelve PacienteListadoResource/PacienteAdministrativoResource. ListarPacientesRequest limita filtros y página, CrearPacienteRequest valida datos/CI opcional/declaración de revisión/contacto de emergencia y rechaza campos ajenos incluso anidados; CuentaRequest ya existente valida ID de detalle. Recursos proyectan claves explícitas: listado mínimo, detalle administrativo/indicador de vínculo sin id_usuario o correo de acceso, relaciones opcionales y timestamp con microsegundos. Según permisos vigentes, middleware exige sesión/cuenta habilitada, sesión normal y rol Administrador o Recepcionista; origen/cookies/CSRF/no-store siguen la infraestructura existente.
 
 **Control y entidades:** PacienteService revalida actor bajo lock en transacciones y aplica elegibilidad del alta y conflicto de CI definitivo/reservado. PacienteRepository consulta/crea Paciente y ContactoEmergencia; lee PreferenciaPaciente sin modificarla. RegistroPacienteRepository.coordinar/reservasPorDocumento/documentoRegistrado/invalidar reutiliza exclusión de CU-04, comprueba reservas vigentes y retira vencidas atómicamente. BitacoraRepository.pacienteCreado registra módulo PACIENTES, referencia ID y sin_documento; sin datos personales completos ni credenciales. No se genera Usuario, preferencia ficticia ni contenido clínico.
 
-**Flujo:** coordinación global de registro → revalidación de Recepción/sesión → CI/reservas (409 si no disponible) → alta con código aleatorio/estado activo → emergencia opcional → auditoría → commit → 201. PostgreSQL UQ refuerza unicidad y traduce conflicto a 409; errores de auditoría/emergencia revierten todo. Lecturas validan actor en transacción y detalle bloquea padre antes de cargar relaciones. La emisión de activación existente colabora directamente con las fichas nuevas, conservando su contrato. No se añaden tablas ni atributos.
+**Flujo con actores vigentes:** coordinación global de registro → revalidación de Administrador/Recepcionista y sesión → CI/reservas (409 si no disponible) → alta con código aleatorio/estado activo → emergencia opcional → auditoría → commit → 201. PostgreSQL UQ refuerza unicidad y traduce conflicto a 409; errores de auditoría/emergencia revierten todo. Lecturas validan actor en transacción y detalle bloquea padre antes de cargar relaciones. La emisión de activación existente colabora directamente con las fichas nuevas, conservando su contrato. No se añaden tablas ni atributos.
 
 **Pruebas:** 25 nuevas/223 aserciones correctas en ejecuciones focalizadas, permisos de cuatro roles, sesión anónima/restringida/revocada, CSRF real, validación, alta sin CI/revisión, preservación de ceros, datos semejantes sin fusión, consulta/búsqueda/paginación, proyección sin datos clínicos, rollback de auditoría y reservas. AutenticacionConcurrenteTest reutiliza worker con dos carreras HTTP reales de procesos/conexiones PostgreSQL independientes: altas iguales 201/409 con un evento y reserva web visible al revalidar tras lock. Pint/rutas correctos; resultado global de regresión se registra al finalizar. Documentación en README backend y contexto §17.36. DER sin cambios; diagrama global aplazado. La precondición de edición y los flujos CU-08 no se presentan implementados en esta fase.
 
@@ -1254,11 +3372,11 @@ El bloqueo anterior se resolvió al iniciar PostgreSQL. Chrome headless/CDP ejec
 
 ## CU-07 — fase 3 backend: actualización administrativa, CI y estado
 
-**Alcance implementado:** Recepción modifica ficha y emergencia autorizadas, incorpora/corrige CI y desactiva/reactiva ficha; no modifica cuenta, vínculo, credenciales ni información clínica. Misma trazabilidad RF02/RN01/RN11/RN12/RN14 y decisiones VS-PAC-06–10. Estado de cuenta, ficha y bloqueo independientes; CU-21 sigue siendo responsable de consultar citas anteriores. CU-08 todavía no implementado.
+**Alcance y actores vigentes:** Administrador/Recepción modifican ficha y emergencia autorizadas, incorporan/corrigen CI y desactivan/reactivan ficha; no modifican cuenta, vínculo, credenciales ni información clínica mediante CU-07. Misma trazabilidad RF02/RN01/RN11/RN12/RN14 y decisiones VS-PAC-06–10. Estado de cuenta, ficha y bloqueo independientes; CU-21 sigue siendo responsable de consultar citas anteriores. CU-08 todavía no estaba implementado en esta fase histórica.
 
 **Fronteras:** PacienteController.update/estado consume ActualizarPacienteRequest/CambiarEstadoPacienteRequest, ambos derivados de CuentaRequest para ID/clave permitida. ActualizarPacienteRequest reutiliza las reglas de campos de alta como PATCH parcial sin declaración de duplicados; validación estricta de emergencia y precondición UTC con seis decimales. Estado exige booleano/motivo. PacienteAdministrativoResource conserva proyección segura existente.
 
-**Control:** PacienteService.actualizar/cambiarEstado toma coordinación global de RegistroPacienteRepository → revalida Recepción/sesión bajo lock → ficha bloqueada/actualizado_en original → comprueba cambios. Corrección efectiva de identidad exige declaración presencial/motivo, CI no se retira, CI definitivo/reservado ajeno se rechaza. Cambio efectivo de CI invalida códigos con CodigoActivacionRepository y procesos/códigos de correo con RegistroPacienteRepository; conserva cuenta/historia. Escrituras obsoletas devuelven 409 antes de invalidar o persistir. Sin cambios reales no se avanza timestamp ni se duplican eventos; la precondición se exige igualmente.
+**Control con actores vigentes:** PacienteService.actualizar/cambiarEstado toma coordinación global de RegistroPacienteRepository → revalida Administrador/Recepcionista y sesión bajo lock → ficha bloqueada/actualizado_en original → comprueba cambios. Corrección efectiva de identidad exige declaración presencial/motivo, CI no se retira, CI definitivo/reservado ajeno se rechaza. Cambio efectivo de CI invalida códigos con CodigoActivacionRepository y procesos/códigos de correo con RegistroPacienteRepository; conserva cuenta/historia. Escrituras obsoletas devuelven 409 antes de invalidar o persistir. Sin cambios reales no se avanza timestamp ni se duplican eventos; la precondición se exige igualmente.
 
 **Datos:** PacienteRepository.guardar avanza timestamp padre estrictamente (máximo entre reloj actual y anterior + un microsegundo); guardarEmergencia crea/actualiza/elimina solo la relación opcional. Cambios únicamente en emergencia avanzan el padre, lectura/cambios coordinados por ficha. CodigoActivacionRepository recibe PacienteRepository por constructor y vincular reutiliza el mismo avance para preservar coherencia del snapshot ante CU-04. Ninguna columna de versión nueva. BitacoraRepository.pacienteModificado registra tipo permitido, referencia, nombres de campos y motivo administrativo, sin valores personales completos/códigos. Transacción incluye dato, invalidaciones, relaciones y evento; fallar auditoría revierte todo. Motivo de uso administrativo no implica inspección semántica automática de su contenido.
 
@@ -1298,22 +3416,3529 @@ El bloqueo anterior se resolvió al iniciar PostgreSQL. Chrome headless/CDP ejec
 
 **Evidencia de integración:** PacientesIntegracionTest (dos escenarios) usa todas las migraciones existentes en esquema efímero y correo simulado: alta administrativa sin CI → CI → reserva/corrección/reemisión → vinculación de misma ficha → perfil y conflictos bidireccionales con Recepción → inactividad de ficha → nuevo correo/revocación multidispositivo → recuperación al nuevo correo y nuevo login. Segundo escenario conserva filas completas de cita/consulta/antecedentes/solicitud/documento/versiones ficticias. Verifica proyección administrativa y bitácora sin secretos. AutenticacionConcurrenteTest añade respuesta tardía de login, sin restaurar sesión revocada por correo aunque se conserve contraseña. **Tres pruebas nuevas/185 aserciones adicionales; total 723 pruebas/7657 aserciones correctas**, 243,18 s. Pint tres PHP, sintaxis/rutas y documentación/diff revisados al cierre. README/contexto §17.40 sincronizados; regla de citas existentes preservada como explicación de VS-PAC-05/07 para retirar una etiqueta VS-PAC-06 duplicada. DER sin cambios; frontend pendiente.
 
+## CU-07/CU-08 — revisión por procedimientos: Fase 3 (2026-10-26)
+
+Se completan las representaciones de los procedimientos ya implementados y descritos en las entradas anteriores. **No se fusionan CU ni se implementan flujos nuevos.** CU-07 queda representado por consulta/alta (P17), actualización/CI/estado (P18) y emisión (P11, conservado en su ubicación de soporte del escenario B de CU-04). CU-08 mantiene separados perfil/contacto/preferencias (P19) y cambio verificado del correo de acceso (P20). P17–P20 son referencias documentales nuevas, no casos de uso nuevos ni diagramas originales recuperados.
+
+Se aplica el mismo perímetro de Fase 2: entrada Controller/Service, colaboradores de negocio, callbacks y errores; pipeline previo de origen/CSRF/rate limiting descrito por separado. Revalidación común de AutenticacionService y sus repositorios realmente invocados incluida en cada Control. Los campos de Boundary son claves de servicios frontend; `id` es parámetro de ruta y no `id_objetivo`, que el Request deriva internamente. `contacto_emergencia` es un objeto con claves reales `nombre`, `parentesco`, `telefono`, o null; no una cadena ni entidad enviada completa. Los atributos de entidades son una selección de los que se usan en ese procedimiento, no un inventario del modelo.
+
+**Cierre documental de Fase 3:** cinco vistas cotejadas (P11/P17–P20), sin fusionar procedimientos. Comprobación estática de llamadas desde sus Services y colaboradores: **103 participaciones de métodos de repositorio** en las cinco vistas, sin omisiones/adiciones frente al conjunto cotejado; no son 103 métodos distintos del software. Campos/funciones Boundary, declaraciones por capa y nombres de atributos contrastados con servicios HTTP, PHP, modelos y migraciones. Las cinco vistas pasan análisis/renderizado con Mermaid 10.9.5 en Chrome headless y revisión visual de sus capturas, sin recortes de texto observados. Evidencia JSON/SVG/capturas y herramientas temporales externas al repositorio, sin dependencias nuevas.
+
+Frente a la copia previa quedan **32 bloques intactos** (17 consolidados descartados y 15 procedimientos de Fase 2); solo se corrige P11 y se incorporan las cuatro representaciones que faltaban del análisis textual de CU-07/CU-08. Actores cotejados con rutas: Administrador/Recepcionista en CU-07; solo Paciente en CU-08. UTF-8/cercas Markdown y `git diff --check` comprobados al cierre. Sin cambios de código, persistencia, permisos, RF/RN, DER o UML global ni nueva ejecución de pruebas funcionales; la comprobación estática no acredita ejecución integral o producción. Fase 4 documental e integración administrativa Fase 5 frontend permanecen pendientes y separadas.
+
+### Fuentes y trazabilidad comunes de Fase 3
+
+| Fuente real | Participación |
+| --- | --- |
+| frontend/src/features/pacientes/services/paciente.service.js | listarPacientes, consultarPaciente, crearPaciente en P17; actualizarPaciente, cambiarEstadoPaciente en P18 |
+| frontend/src/features/pacientes/services/activation.service.js | emitirCodigoActivacion en P11 |
+| frontend/src/features/pacientes/services/perfil.service.js | consultarMiPerfil, actualizarMiPerfil en P19 |
+| frontend/src/features/pacientes/services/cambioCorreo.service.js | solicitarCambioCorreo, reenviarCambioCorreo, verificarCambioCorreo en P20 |
+| backend/src/presentation/controllers/pacientes/PacienteController.php | index/show/store en P17; update/estado en P18 |
+| backend/src/presentation/controllers/pacientes/CodigoActivacionController.php | emitir en P11 |
+| backend/src/presentation/controllers/pacientes/MiPerfilController.php | show/update en P19 |
+| backend/src/presentation/controllers/usuarios/CambioCorreoController.php | solicitar/reenviar/verificar en P20 |
+| backend/src/business/services/pacientes/PacienteService.php | listar/consultar/crear; actualizar/cambiarEstado y fichaVigente según contexto |
+| backend/src/business/services/pacientes/CodigoActivacionService.php | emitir en P11 |
+| backend/src/business/services/pacientes/MiPerfilService.php | consultar/actualizar y fichaPropia en P19 |
+| backend/src/business/services/usuarios/CambioCorreoService.php | solicitar/reenviar/verificar; emitir como auxiliar principal y callback post-commit en P20 |
+| backend/src/data/repositories/pacientes/PacienteRepository.php | Métodos de ficha/emergencia/preferencias enumerados por vista; no se invocan todos en cada una |
+| backend/src/data/repositories/pacientes/CodigoActivacionRepository.php | P11 consulta/invalida/crea autorización; P18 invalida al cambiar efectivamente CI |
+| backend/src/data/repositories/usuarios/RegistroPacienteRepository.php | Exclusión, reservas, invalidación de procesos/códigos; correoReservado solo en P20 |
+| backend/src/data/repositories/usuarios/CambioCorreoRepository.php | Emisión, límites, consulta y consumo de VerificacionCorreo en P20 |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | porId en revalidación; existeCorreo/guardar adicionales en P20 |
+| backend/src/data/repositories/usuarios/SesionRepository.php | Revalidación e internos guard/store/contexto; revocarUsuario/limpiarTrasFallo solo adicionales en P20 |
+| backend/src/data/repositories/usuarios/TokenAccesoRepository.php | temporalPorId en rechazo de sesión restringida; invalidarRecuperaciones adicional en P20 |
+| backend/src/data/repositories/bitacora/BitacoraRepository.php | pacienteCreado en P17; pacienteModificado en P18/P19; autenticacion en P11/P20 |
+| backend/src/presentation/routes/pacientes.php | CU-07 Administrador/Recepcionista; CU-08 exclusivamente Paciente |
+
+Las declaraciones y responsabilidades de revalidación, tablas técnicas, modelos y migraciones se resuelven con el mapa común de Fase 2. Los Requests concretos y los homónimos de cada vista se detallan debajo; el nombre dentro del diagrama no lleva prefijos de clase. No se crea un Validator PHP nuevo para llenar la caja: `rules()` pertenece a Form Requests reales.
+
+<a id="analisis-cu07-consulta-alta"></a>
+### CU-07 — consulta y registro administrativo de ficha (P17)
+
+**Actores:** Administrador/Recepcionista con sesión normal. **Boundary:** `PatientsPage`, `PatientDetailPage`, `NewPatientPage`, sus componentes/hooks y `paciente.service.js`. `activo` es filtro de listado, no campo que imponga el estado inicial del alta; `posibles_duplicados_revisados` solo se envía al registrar sin CI. La consulta de detalle no entrega correo de acceso ni datos clínicos. Crear ficha no crea cuenta, código de activación o preferencias.
+
+| Capa / clase real | Métodos seleccionados y contexto |
+| --- | --- |
+| PacienteController | index, show, store |
+| ListarPacientesRequest, CrearPacienteRequest, CuentaRequest | rules; los dos primeros en dtos/pacientes, CuentaRequest en dtos/usuarios |
+| PacienteService | listar, consultar, crear |
+| PacienteRepository | listar, consultar, crear |
+| RegistroPacienteRepository | coordinar, documentoRegistrado, reservasPorDocumento, invalidar, invalidarCodigos |
+| UsuarioRepository | porId, para revalidar el actor |
+| SesionRepository | usuarioId, guard, store, contexto, coincide, vigente, credencialTemporalId, actualizarActor, cerrar |
+| TokenAccesoRepository | temporalPorId, rama de rechazo de contexto restringido |
+| BitacoraRepository | pacienteCreado; las lecturas no registran un alta ficticia |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresFicha["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazFichaAlta["Consulta y alta de ficha"] {
+        <<boundary>>
+        String id
+        String documento_identidad
+        String nombres
+        String apellidos
+        String fecha_nacimiento
+        String sexo
+        String telefono
+        String correo_contacto
+        String direccion
+        Object contacto_emergencia
+        Boolean posibles_duplicados_revisados
+        Boolean activo
+        Integer page
+        Integer per_page
+        +listarPacientes()
+        +consultarPaciente()
+        +crearPaciente()
+    }
+    class ControlFichaAlta["CONTROL — Consultar o registrar ficha"] {
+        <<control>>
+        +index() [controller]
+        +show() [controller]
+        +store() [controller]
+        +rules() [validator]
+        +listar() [service]
+        +consultar() [service]
+        +crear() [service]
+        +coordinar() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +listar() [repository]
+        +consultar() [repository]
+        +documentoRegistrado() [repository]
+        +reservasPorDocumento() [repository]
+        +invalidar() [repository]
+        +invalidarCodigos() [repository]
+        +crear() [repository]
+        +pacienteCreado() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String? documento_identidad
+        String nombres
+        String apellidos
+        Date fecha_nacimiento
+        String? sexo
+        String telefono
+        String? correo_contacto
+        String? direccion
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class ContactoEmergencia {
+        <<entity>>
+        BigInt id_paciente
+        String nombre
+        String parentesco
+        String telefono
+    }
+    class PreferenciaPaciente {
+        <<entity>>
+        BigInt id_paciente
+        Boolean recordatorios_habilitados
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt id_registro_pendiente
+        String? documento_identidad
+        TimestampTZ expira_en
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+        String? password_hash_temporal
+        JSONB? datos_registro
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_registro_pendiente
+        String proposito
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        String resultado
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    ActoresFicha --> InterfazFichaAlta
+    InterfazFichaAlta ..> ControlFichaAlta
+    ControlFichaAlta ..> Paciente
+    Paciente --> ContactoEmergencia
+    Paciente --> PreferenciaPaciente : solo lectura en detalle
+    ControlFichaAlta ..> RegistroPacientePendiente : revisa reservas de CI
+    ControlFichaAlta ..> VerificacionCorreo : invalida reservas vencidas
+    ControlFichaAlta ..> Usuario : revalida operador
+    Usuario --> Rol
+    Usuario --> Medico : identidad de sesion
+    Usuario --> Paciente : identidad de sesion
+    ControlFichaAlta ..> TokenAcceso : rechazo de sesion restringida
+    ControlFichaAlta ..> Sesiones
+    ControlFichaAlta ..> Bitacora : solo alta
+    style ActoresFicha fill:#fff7ed,stroke:#9a3412
+    style InterfazFichaAlta fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlFichaAlta fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Recorrido:** consultas revalidan actor y delegan filtros/ID al Repository. Alta toma coordinación de registros antes del actor; si informa CI comprueba ficha y reserva vigente, retira reservas vencidas y crea la ficha/emergencia con auditoría atómica. Sin CI exige revisión de duplicados, no asigna documento ficticio ni fusiona fichas semejantes. Conflictos de unicidad se traducen a 409; el código de ficha y su estado inicial los determina el servidor. Datos de contacto/emergencia se consultan en detalle, no en listado mínimo. Preferencias solo se leen si ya existen.
+
+<a id="analisis-cu07-actualizacion"></a>
+### CU-07 — actualización administrativa, CI y estado de ficha (P18)
+
+**Actores:** Administrador/Recepcionista. **Boundary:** `EditPatientPage`, `PatientStateAction`, sus componentes/hooks y `paciente.service.js`. `actualizado_en_original` es obligatorio y procede de la lectura previa. PATCH de datos e intercambio de estado son operaciones distintas: `activo` solo se envía al endpoint de estado; corregir identidad exige `identidad_verificada`/`motivo` según el Service. El objeto de emergencia no permite campos extra.
+
+| Capa / clase real | Métodos seleccionados y contexto |
+| --- | --- |
+| PacienteController | update, estado |
+| ActualizarPacienteRequest, CambiarEstadoPacienteRequest | rules; dtos/pacientes, herencia de CuentaRequest y reglas de CrearPacienteRequest |
+| PacienteService | actualizar, cambiarEstado, fichaVigente como auxiliar de versión |
+| PacienteRepository | consultar, guardarEmergencia, guardar |
+| RegistroPacienteRepository | coordinar, documentoRegistrado, reservasPorDocumento, invalidar, invalidarCodigos, porPaciente |
+| CodigoActivacionRepository | invalidarAnteriores, solo si cambia efectivamente CI |
+| UsuarioRepository | porId, del actor autenticado |
+| SesionRepository | usuarioId, guard, store, contexto, coincide, vigente, credencialTemporalId, actualizarActor, cerrar |
+| TokenAccesoRepository | temporalPorId, en rechazo de sesión restringida |
+| BitacoraRepository | pacienteModificado, con campos/motivo seguros, sin valores personales completos |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresFicha["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazFichaCambio["Actualizar datos o estado de ficha"] {
+        <<boundary>>
+        String id
+        String documento_identidad
+        String nombres
+        String apellidos
+        String fecha_nacimiento
+        String sexo
+        String telefono
+        String correo_contacto
+        String direccion
+        Object contacto_emergencia
+        String actualizado_en_original
+        Boolean identidad_verificada
+        String motivo
+        Boolean activo
+        +actualizarPaciente()
+        +cambiarEstadoPaciente()
+    }
+    class ControlFichaCambio["CONTROL — Actualizar ficha o estado"] {
+        <<control>>
+        +update() [controller]
+        +estado() [controller]
+        +rules() [validator]
+        +actualizar() [service]
+        +cambiarEstado() [service]
+        -fichaVigente() [service]
+        +coordinar() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +consultar() [repository]
+        +documentoRegistrado() [repository]
+        +reservasPorDocumento() [repository]
+        +invalidar() [repository]
+        +invalidarCodigos() [repository]
+        +porPaciente() [repository]
+        +invalidarAnteriores() [repository]
+        +guardarEmergencia() [repository]
+        +guardar() [repository]
+        +pacienteModificado() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String? documento_identidad
+        String nombres
+        String apellidos
+        Date fecha_nacimiento
+        String? sexo
+        String telefono
+        String? correo_contacto
+        String? direccion
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class ContactoEmergencia {
+        <<entity>>
+        BigInt id_paciente
+        String nombre
+        String parentesco
+        String telefono
+    }
+    class PreferenciaPaciente {
+        <<entity>>
+        BigInt id_paciente
+        Boolean recordatorios_habilitados
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt id_registro_pendiente
+        BigInt? id_paciente
+        String? documento_identidad
+        TimestampTZ expira_en
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+        String? password_hash_temporal
+        JSONB? datos_registro
+    }
+    class CodigoActivacionPaciente {
+        <<entity>>
+        BigInt id_paciente
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_registro_pendiente
+        String proposito
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        String resultado
+        JSONB? referencias
+        JSONB? cambios_seguros
+        JSONB? metadatos_seguros
+    }
+    ActoresFicha --> InterfazFichaCambio
+    InterfazFichaCambio ..> ControlFichaCambio
+    ControlFichaCambio ..> Paciente
+    Paciente --> ContactoEmergencia
+    Paciente --> PreferenciaPaciente : solo lectura en respuesta
+    ControlFichaCambio ..> RegistroPacientePendiente : solo cambio efectivo de CI
+    ControlFichaCambio ..> CodigoActivacionPaciente : invalida autorizaciones previas
+    ControlFichaCambio ..> VerificacionCorreo : invalida codigos de procesos
+    ControlFichaCambio ..> Usuario : revalida operador
+    Usuario --> Rol
+    Usuario --> Medico : identidad de sesion
+    ControlFichaCambio ..> TokenAcceso : rechazo de sesion restringida
+    ControlFichaCambio ..> Sesiones
+    ControlFichaCambio ..> Bitacora
+    style ActoresFicha fill:#fff7ed,stroke:#9a3412
+    style InterfazFichaCambio fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlFichaCambio fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Recorrido:** coordinación → actor real → ficha bloqueada/versión → cambios autorizados. Un CI normalizado idéntico no es una corrección ni invalida nada; CI informado no se puede retirar. Un cambio efectivo comprueba unicidad/reservas y retira autorizaciones/procesos de la misma ficha; guardar emergencia o estado efectivo avanza el timestamp padre y audita. No-op conserva timestamp/evento, pero exige versión vigente; 409 permite reconsultar/revisar sin sobrescribir. Cambiar `activo` de ficha no modifica cuenta ni sus sesiones, no cancela citas y no edita antecedentes.
+
+<a id="analisis-cu08-perfil"></a>
+### CU-08 — consultar y actualizar el perfil propio (P19)
+
+**Actor:** exclusivamente Paciente titular. **Boundary:** `MyProfilePage`, `PatientForm`, hooks de consulta/envío y `perfil.service.js`. GET no recibe ID ni filtros de otra ficha; PATCH solo contacto/emergencia/preferencia y versión. Los datos identificativos, actividad y correo de acceso se muestran en la lectura, no se envían como modificaciones. No hay edición de clínica ni sustitución de correo de acceso en este procedimiento.
+
+| Capa / clase real | Métodos seleccionados y contexto |
+| --- | --- |
+| MiPerfilController | show, update |
+| MiPerfilRequest | rules; dtos/pacientes, GET sin campos y PATCH con lista cerrada |
+| MiPerfilService | consultar, actualizar, fichaPropia como auxiliar de titularidad |
+| PacienteRepository | porUsuario, guardarEmergencia, guardarRecordatorios, guardar |
+| UsuarioRepository | porId, revalidación de sesión |
+| SesionRepository | usuarioId, guard, store, contexto, coincide, vigente, credencialTemporalId, actualizarActor, cerrar |
+| TokenAccesoRepository | temporalPorId, en rechazo de contexto restringido |
+| BitacoraRepository | pacienteModificado, solo cambios efectivos del perfil |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorPaciente["Paciente"] {
+        <<actor>>
+    }
+    class InterfazPerfil["Mi perfil"] {
+        <<boundary>>
+        String telefono
+        String correo_contacto
+        String direccion
+        Object contacto_emergencia
+        Boolean recordatorios_habilitados
+        String actualizado_en_original
+        +consultarMiPerfil()
+        +actualizarMiPerfil()
+    }
+    class ControlPerfilPropio["CONTROL — Consultar o actualizar perfil propio"] {
+        <<control>>
+        +show() [controller]
+        +update() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +actualizar() [service]
+        -fichaPropia() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +porUsuario() [repository]
+        +guardarEmergencia() [repository]
+        +guardarRecordatorios() [repository]
+        +guardar() [repository]
+        +pacienteModificado() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String? documento_identidad
+        String nombres
+        String apellidos
+        Date fecha_nacimiento
+        String? sexo
+        String telefono
+        String? correo_contacto
+        String? direccion
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class ContactoEmergencia {
+        <<entity>>
+        BigInt id_paciente
+        String nombre
+        String parentesco
+        String telefono
+    }
+    class PreferenciaPaciente {
+        <<entity>>
+        BigInt id_paciente
+        Boolean recordatorios_habilitados
+        JSONB preferencias_privacidad
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String correo_acceso
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        String resultado
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    ActorPaciente --> InterfazPerfil
+    InterfazPerfil ..> ControlPerfilPropio
+    ControlPerfilPropio ..> Usuario : titular autenticado
+    Usuario --> Rol
+    Usuario --> Medico : comprobacion de identidad de sesion
+    Usuario --> Paciente : vinculo propio
+    ControlPerfilPropio ..> Paciente
+    Paciente --> ContactoEmergencia
+    Paciente --> PreferenciaPaciente
+    ControlPerfilPropio ..> TokenAcceso : rechazo de sesion restringida
+    ControlPerfilPropio ..> Sesiones
+    ControlPerfilPropio ..> Bitacora : solo cambios efectivos
+    style ActorPaciente fill:#fff7ed,stroke:#9a3412
+    style InterfazPerfil fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlPerfilPropio fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Recorrido:** la ficha se deriva del usuario de sesión, no de parámetros manipulables; se permite consultar/editar incluso con ficha inactiva. Se compara versión y solo se escriben cambios de contacto, emergencia o recordatorios elegidos. `preferencias_privacidad` aparece únicamente porque `guardarRecordatorios()` la inicializa vacía al crear una preferencia ausente; no es un campo editable del formulario ni se sobrescribe una preferencia existente. Cambios en relaciones avanzan la versión de ficha y auditan; no-op no crea preferencia ficticia. El rechazo a Administrador/Recepción/Médico se conserva; Medico en el diagrama solo pertenece a la revalidación transversal de identidad, no es actor autorizado.
+
+<a id="analisis-cu08-correo"></a>
+### CU-08 — solicitar, reenviar y verificar correo de acceso propio (P20)
+
+**Actor:** exclusivamente Paciente titular. **Boundary:** `ChangeEmailPage` y `cambioCorreo.service.js`. Solicitar envía correo nuevo/contraseña actual; reenviar no envía campos; verificar envía solo código. La interfaz no cambia el correo de contacto ni suplanta otras cuentas. La emisión informa el resultado real del transporte, no declara verificación; un 204 confirmado obliga a nuevo login.
+
+| Capa / clase real | Métodos seleccionados y contexto |
+| --- | --- |
+| CambioCorreoController | solicitar, reenviar, verificar |
+| CambioCorreoRequest | rules; dtos/usuarios, lista cerrada por acción |
+| CambioCorreoService | solicitar, reenviar, verificar; emitir como auxiliar de emisión/callback |
+| RegistroPacienteRepository | coordinar, correoReservado |
+| UsuarioRepository | porId, existeCorreo, guardar |
+| CambioCorreoRepository | ultimo, ultimoPorCorreo, emisionesHora, invalidar, codigoUtilizado, crear, guardar |
+| SesionRepository | usuarioId, guard, store, contexto, coincide, vigente, credencialTemporalId, actualizarActor, cerrar, revocarUsuario, limpiarTrasFallo |
+| TokenAccesoRepository | temporalPorId de revalidación; invalidarRecuperaciones al confirmar |
+| BitacoraRepository | autenticacion; solicitud, transporte y verificación con referencias seguras |
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorPaciente["Paciente"] {
+        <<actor>>
+    }
+    class InterfazCorreoPropio["Cambiar mi correo de acceso"] {
+        <<boundary>>
+        String correo_acceso
+        String current_password
+        String codigo
+        +solicitarCambioCorreo()
+        +reenviarCambioCorreo()
+        +verificarCambioCorreo()
+    }
+    class ControlCorreoPropio["CONTROL — Verificar cambio de correo propio"] {
+        <<control>>
+        +solicitar() [controller]
+        +reenviar() [controller]
+        +verificar() [controller]
+        +rules() [validator]
+        +solicitar() [service]
+        +reenviar() [service]
+        +verificar() [service]
+        -emitir() [service]
+        +coordinar() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +existeCorreo() [repository]
+        +correoReservado() [repository]
+        +ultimo() [repository]
+        +ultimoPorCorreo() [repository]
+        +emisionesHora() [repository]
+        +invalidar() [repository]
+        +codigoUtilizado() [repository]
+        +crear() [repository]
+        +guardar() [repository]
+        +guardar() [repository]
+        +invalidarRecuperaciones() [repository]
+        +revocarUsuario() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String correo_acceso
+        String? password_hash
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt id_verificacion
+        BigInt? id_usuario
+        String proposito
+        String correo_destino
+        String codigo_hash
+        TimestampTZ enviado_en
+        TimestampTZ expira_en
+        Integer intentos_fallidos
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        String correo_propuesto
+        TimestampTZ expira_en
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
+        String? causa_codigo
+    }
+    ActorPaciente --> InterfazCorreoPropio
+    InterfazCorreoPropio ..> ControlCorreoPropio
+    ControlCorreoPropio ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : comprueba titularidad
+    Usuario --> Medico : identidad de sesion rechazada si no es Paciente
+    ControlCorreoPropio ..> VerificacionCorreo
+    ControlCorreoPropio ..> RegistroPacientePendiente : correo reservado vigente
+    ControlCorreoPropio ..> TokenAcceso
+    ControlCorreoPropio ..> Sesiones
+    ControlCorreoPropio ..> Bitacora
+    style ActorPaciente fill:#fff7ed,stroke:#9a3412
+    style InterfazCorreoPropio fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCorreoPropio fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Homónimos y recorrido:** los dos `guardar()` son, en orden de lectura, CambioCorreoRepository (habilitación post-transporte, intentos/consumo) y UsuarioRepository (nuevo correo/verificación/timestamp al confirmar). `invalidar()` pertenece a CambioCorreoRepository; `coordinar()`/`correoReservado()` a RegistroPacienteRepository. Los internos `instantanea()`, `disponible()`, `limitar()` y `enTransporte()` existen en el Service y sus llamadas se cotejan para obtener el conjunto de repositorios, pero no se añaden todos como auxiliares al Control.
+
+La solicitud revalida titular/contraseña/disponibilidad; la emisión invalida anterior, aplica 60 segundos y cinco/hora por cuenta/destino y guarda el código no consumible durante transporte. El callback después del commit relee cuenta/última emisión y contrasta instantánea de seguridad para habilitar únicamente la versión todavía vigente; usa también `actualizado_en`, no un campo de snapshot nuevo del modelo. La instantánea incluye datos originales reales de Usuario, no un atributo persistido `instantanea`. Verificar comprueba vigencia/código/intentos, revalida disponibilidad, cambia el correo, consume e invalida solicitudes/enlaces y revoca sesiones. Ni timeout ni 202 equivalen a cambio confirmado; el servidor responde conflictos y fallos seguros. No modifica Paciente ni sus datos de contacto, actividad o clínica.
+
+## CU-09–CU-14 — revisión por procedimientos: Fase 4 (2026-10-26)
+
+Se representan por separado los procedimientos ya descritos e implementados de catálogos, actividad/habilitaciones, asignación, horarios, duración, búsqueda, disponibilidad, propuesta, confirmación y reconciliación. P21–P32 son referencias documentales, no nuevos CU. No se fusionan ni sustituyen las vistas corregidas de Fases 2/3; los seis consolidados anteriores de estos CU siguen descartados.
+
+**Cierre documental:** doce vistas cotejadas; **230 participaciones de métodos de repositorio** contrastadas estáticamente desde sus Services y colaboradores, sin diferencias frente al conjunto analizado (no son 230 métodos distintos). Para P32 se delimita expresamente `operar()` con guardar=false: no se atribuyen consultas de disponibilidad ni escritores de la rama de creación. Campos/funciones Boundary y declaraciones por capa se contrastan con servicios HTTP/Controllers/Requests/Services/Repositories; nombres de atributos con modelos/migraciones, sin presentar proyecciones como columnas.
+
+Las doce vistas pasan parser y renderizado de Mermaid 10.9.5 en Chrome headless; se revisan capturas de asignación/impacto, horarios, confirmación y resultado incierto sin recortes de texto observados. Los **37 bloques previos permanecen intactos**; hay 49 totales (17 antecedentes descartados y 32 procedimientos revisados). Actores cotejados con rutas: CU-09–CU-12 Administrador; CU-13/CU-14 Administrador/Recepcionista/Paciente con ámbitos propios. Evidencia JSON/SVG/capturas y herramientas temporales externas, sin dependencias nuevas. UTF-8/cercas/anclas y `git diff --check` comprobados al cierre. Sin nuevas pruebas funcionales, implementación, cambio de permisos, RF/RN, persistencia, DER o UML global; no certifica ejecución integral ni producción. Fases documentales 5/6 pendientes y Fase 5 frontend administrativa sigue pausada.
+
+Se conserva el perímetro Controller/Service y colaboradores de las fases anteriores, con todos los métodos de repositorio alcanzados dentro de cada contexto, incluidos revalidación e internos propios de sesión. Se seleccionan solo principales de Controller/Service/Request y algún auxiliar o validador de negocio relevante. El orden es de lectura, no una secuencia literal de llamadas; Laravel valida antes del Controller y las ramas se intercalan. `id`/`horario` son nombres de parámetros reales del servicio frontend; `id_objetivo` se deriva en el Request, no se inventa como campo enviado por React. No todos los campos de una caja Boundary se envían juntos. Las funciones auxiliares frontend de validación de recibos no son operaciones HTTP nuevas.
+
+### Fuentes comunes y homónimos de Fase 4
+
+Controllers y DTO/Requests residen en `backend/src/presentation/controllers/<modulo>/` y `backend/src/presentation/dtos/<modulo>/`; Services y Repositories en `backend/src/business/services/<modulo>/` y `backend/src/data/repositories/<modulo>/`. Se indican los módulos y clases concretos en cada procedimiento. Boundary corresponde a archivos de `frontend/src/features/<feature>/services/` y sus páginas/componentes/hooks consumidores. Modelos/columnas: `backend/src/data/models/` y `backend/src/data/database/migrations/`. No se crean clases de producción para el análisis.
+
+La revalidación compartida conserva UsuarioRepository.porId, los internos/operaciones de SesionRepository y TokenAccesoRepository.temporalPorId enumerados en las cajas, según el mapa de Fase 2. ContinuidadAdministrativaService.coordinar llama UsuarioRepository.coordinarAdministracion; **no** implica llamar existeAdministradorNormal/verificar si ese flujo no lo hace. PlanificacionRepository.coordinar es otra operación: bloqueo de planificación, no el de registros web ni una entidad Planificacion ficticia. Las entidades de seguridad muestran una selección mínima de atributos realmente utilizados; no se cargan perfiles clínicos por dibujar vínculo de sesión. La identidad profesional validada de la sesión no convierte al Administrador en el Médico responsable.
+
+| Ref. | CU y contexto | Actor | Servicio frontend / módulo backend |
+| --- | --- | --- | --- |
+| P21 | CU-09 catálogo/estado de especialidades | Administrador | especialidades/especialidad.service.js; medicos/EspecialidadController/Service/Repository |
+| P22 | CU-10 consulta, alta y datos profesionales | Administrador | medicos/medico.service.js; medicos/MedicoController/Service/Repository |
+| P23 | CU-10 actividad profesional y habilitaciones | Administrador | medicos/medico.service.js; medicos/MedicoController/Service/Repository |
+| P24 | CU-11 catálogo/estado de consultorios | Administrador | consultorios/consultorio.service.js; consultorios/ConsultorioController/Service/Repository |
+| P25 | CU-11 asignación, impacto y traslado de ubicación | Administrador | consultorios/asignacionConsultorio.service.js; consultorios/AsignacionConsultorioController/Service/Repository |
+| P26 | CU-12 horarios, impacto y guardado | Administrador | horarios/horario.service.js; horarios/HorarioController/Service/Repository |
+| P27 | CU-12 duración global | Administrador | horarios/configuracionCitas.service.js; horarios/ConfiguracionCitasController/Service/Repository |
+| P28 | CU-13 catálogos para reserva | Administrador/Recepcionista/Paciente | citas/reserva.service.js; citas/DisponibilidadController/Service/Repository |
+| P29 | CU-13 turnos orientativos | Administrador/Recepcionista/Paciente | citas/reserva.service.js; citas/DisponibilidadController/Service/Repository |
+| P30 | CU-14 propuesta revisada | Administrador/Recepcionista/Paciente | citas/reserva.service.js; citas/ReservaController/Service, DisponibilidadService |
+| P31 | CU-14 confirmación y repetición idempotente | Administrador/Recepcionista/Paciente | citas/reserva.service.js; citas/ReservaController/Service, CitaRepository |
+| P32 | CU-14 consultar resultado incierto | Administrador/Recepcionista/Paciente | citas/reserva.service.js; citas/ReservaController/Service, CitaRepository |
+
+En P28–P32, Paciente opera para sí mismo; Administrador/Recepción seleccionan ficha cuando el endpoint la exige. Médico no es actor de búsqueda/reserva. Autor ejecutor de Cita.creada_por y Médico responsable de Cita.id_medico se mantienen separados. BitacoraRepository aporta únicamente el escritor invocado en cada procedimiento, no operaciones de consulta CU-30.
+
+<a id="analisis-cu09-catalogo"></a>
+### CU-09 — catálogo y estado de especialidades (P21)
+
+**Boundary:** `especialidad.service.js`, pantallas de listado/detalle/editor del catálogo. Filtro `activa`, datos nombre/descripción, versión e ID por operación; creación no envía un estado impuesto por el cliente. **Trazabilidad:** EspecialidadController.index/show/store/update/estado → EspecialidadService.listar/consultar/crear/actualizar. `rules()` corresponde a ListarEspecialidadesRequest/CrearEspecialidadRequest/ActualizarEspecialidadRequest/CambiarEstadoEspecialidadRequest (dtos/medicos) y CuentaRequest (dtos/usuarios). Repositorios propios: EspecialidadRepository.listar/porIdBloqueado/crear/guardar y BitacoraRepository.especialidadModificada; los demás métodos son revalidación de sesión.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazEspecialidades["Catálogo de especialidades"] {
+        <<boundary>>
+        String id
+        String nombre
+        String descripcion
+        Boolean activa
+        String actualizado_en_original
+        Integer page
+        Integer per_page
+        +listarEspecialidades()
+        +consultarEspecialidad()
+        +crearEspecialidad()
+        +actualizarEspecialidad()
+        +cambiarEstadoEspecialidad()
+    }
+    class ControlEspecialidades["CONTROL — Gestionar catálogo de especialidades"] {
+        <<control>>
+        +index() [controller]
+        +show() [controller]
+        +store() [controller]
+        +update() [controller]
+        +estado() [controller]
+        +rules() [validator]
+        +listar() [service]
+        +consultar() [service]
+        +crear() [service]
+        +actualizar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +listar() [repository]
+        +porIdBloqueado() [repository]
+        +crear() [repository]
+        +guardar() [repository]
+        +especialidadModificada() [repository]
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        String? descripcion
+        Boolean activa
+        TimestampTZ actualizado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazEspecialidades
+    InterfazEspecialidades ..> ControlEspecialidades
+    ControlEspecialidades ..> Especialidad
+    ControlEspecialidades ..> Usuario : revalida actor
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlEspecialidades ..> TokenAcceso
+    ControlEspecialidades ..> Sesiones
+    ControlEspecialidades ..> Bitacora : solo cambios efectivos
+    style InterfazEspecialidades fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlEspecialidades fill:#dbeafe,stroke:#1d4ed8
+```
+
+Un cambio exige versión vigente antes de no-op; duplicado normalizado conocido produce 409. Desactivar no elimina referencias históricas ni ejecuta reprogramaciones. El estado usa `actualizar()` con su variante, no un método Service.estado inexistente.
+
+<a id="analisis-cu10-profesional"></a>
+### CU-10 — consulta, alta y edición de datos profesionales (P22)
+
+**Boundary:** `medico.service.js`, `DoctorsPage`/`DoctorDetailPage`/`DoctorEditorPage`. `activo`, `nombre`, `id_especialidad` son filtros del listado; alta envía campos profesionales y lista `especialidades`; edición no cambia habilitaciones. **Trazabilidad:** MedicoController.index/show/store/update → MedicoService.listar/consultar/crear/actualizar. `rules()` de ListarMedicosRequest/CrearMedicoRequest/ActualizarMedicoRequest y CuentaRequest. MedicoRepository.listar/porIdBloqueado/cargarEspecialidades/crear/guardar; EspecialidadRepository.porIdBloqueado comprueba IDs del alta; BitacoraRepository.medicoModificado. Hay dos `porIdBloqueado()` diferentes, en ese orden: MedicoRepository y EspecialidadRepository.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazMedicoDatos["Datos profesionales de médicos"] {
+        <<boundary>>
+        String id
+        String nombre
+        Boolean activo
+        String id_especialidad
+        Integer page
+        Integer per_page
+        String registro_profesional
+        String nombres
+        String apellidos
+        String telefono
+        String correo_contacto
+        Array especialidades
+        String actualizado_en_original
+        +listarMedicos()
+        +consultarMedico()
+        +crearMedico()
+        +actualizarMedico()
+    }
+    class ControlMedicoDatos["CONTROL — Consultar o guardar datos profesionales"] {
+        <<control>>
+        +index() [controller]
+        +show() [controller]
+        +store() [controller]
+        +update() [controller]
+        +rules() [validator]
+        +listar() [service]
+        +consultar() [service]
+        +crear() [service]
+        +actualizar() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +listar() [repository]
+        +porIdBloqueado() [repository]
+        +cargarEspecialidades() [repository]
+        +porIdBloqueado() [repository]
+        +crear() [repository]
+        +guardar() [repository]
+        +medicoModificado() [repository]
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+        String codigo_medico
+        String registro_profesional
+        String nombres
+        String apellidos
+        String telefono
+        String correo_contacto
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazMedicoDatos
+    InterfazMedicoDatos ..> ControlMedicoDatos
+    ControlMedicoDatos ..> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    ControlMedicoDatos ..> Usuario : revalida operador
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlMedicoDatos ..> TokenAcceso
+    ControlMedicoDatos ..> Sesiones
+    ControlMedicoDatos ..> Bitacora
+    style InterfazMedicoDatos fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlMedicoDatos fill:#dbeafe,stroke:#1d4ed8
+```
+
+No crea cuenta ni envía invitación: eso pertenece a CU-03. Registro profesional/correo de contacto no se convierten en credenciales ni se asumen únicos por el dibujo. Código/actividad inicial los fija el servidor; versión obsoleta se rechaza antes de escribir. Asignación de consultorio y horarios pertenecen a P25/P26.
+
+<a id="analisis-cu10-habilitaciones"></a>
+### CU-10 — actividad profesional y especialidades habilitadas (P23)
+
+**Boundary:** `medico.service.js`, acciones de detalle y `DoctorSpecialtiesPage`. Actividad y lista de especialidades son operaciones separadas; ambas usan versión. **Trazabilidad:** MedicoController.estado/especialidades → MedicoService.cambiarEstado/cambiarEspecialidades. `rules()` de CambiarEstadoMedicoRequest/CambiarEspecialidadesMedicoRequest. MedicoRepository.porIdBloqueado/guardar/cargarEspecialidades/pares/tieneCitasFuturas/guardarHabilitaciones y EspecialidadRepository.porIdBloqueado; UsuarioRepository.porId se reutiliza también para comprobar cuenta vinculada al activar. Los dos `porIdBloqueado()` corresponden a Médico y Especialidad, respectivamente.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazMedicoEstado["Actividad y habilitaciones profesionales"] {
+        <<boundary>>
+        String id
+        Boolean activo
+        Array especialidades
+        String actualizado_en_original
+        +cambiarEstadoMedico()
+        +cambiarEspecialidadesMedico()
+    }
+    class ControlMedicoEstado["CONTROL — Cambiar actividad o habilitaciones"] {
+        <<control>>
+        +estado() [controller]
+        +especialidades() [controller]
+        +rules() [validator]
+        +cambiarEstado() [service]
+        +cambiarEspecialidades() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +porIdBloqueado() [repository]
+        +pares() [repository]
+        +porIdBloqueado() [repository]
+        +tieneCitasFuturas() [repository]
+        +guardarHabilitaciones() [repository]
+        +guardar() [repository]
+        +cargarEspecialidades() [repository]
+        +medicoModificado() [repository]
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        String estado
+        TimestampTZ inicio_at
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazMedicoEstado
+    InterfazMedicoEstado ..> ControlMedicoEstado
+    ControlMedicoEstado ..> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    ControlMedicoEstado ..> Cita : solo obligaciones por retiro
+    ControlMedicoEstado ..> Usuario : operador y cuenta vinculada
+    Usuario --> Rol
+    Usuario --> Paciente : comprueba vinculo incompatible
+    Usuario --> Medico
+    ControlMedicoEstado ..> TokenAcceso
+    ControlMedicoEstado ..> Sesiones
+    ControlMedicoEstado ..> Bitacora
+    style InterfazMedicoEstado fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlMedicoEstado fill:#dbeafe,stroke:#1d4ed8
+```
+
+Actividad profesional no cambia estado de cuenta. No se retiran especialidades con citas futuras vigentes; se conservan pares históricos, mínimo una habilitación y versión estricta. No se consultan diagnósticos ni se cambian citas por este procedimiento. Cambiar rol/cerrar obligaciones clínicas sigue fuera de CU-10.
+
+<a id="analisis-cu11-catalogo"></a>
+### CU-11 — catálogo y estado de consultorios (P24)
+
+**Boundary:** `consultorio.service.js` y pantallas de catálogo/detalle/editor. `q`/`activo`/página son filtros; código/nombre son datos; el estado tiene su endpoint. **Trazabilidad:** ConsultorioController.index/show/store/update/estado → ConsultorioService.listar/consultar/crear/actualizar. `rules()` de ListarConsultoriosRequest/CrearConsultorioRequest/ActualizarConsultorioRequest/CambiarEstadoConsultorioRequest (dtos/consultorios) y CuentaRequest. ConsultorioRepository.listar/porIdBloqueado/resumen/crear/guardar; PlanificacionRepository.coordinar; UsuarioRepository.coordinarAdministracion/porId; BitacoraRepository.consultorioModificado, además de sesión. `resumen()` calcula conteos, no columnas nuevas `medicos_count`/`obligaciones_count` persistidas.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazConsultorios["Catálogo de consultorios"] {
+        <<boundary>>
+        String id
+        String q
+        Boolean activo
+        Integer page
+        Integer per_page
+        String codigo_consultorio
+        String nombre
+        String actualizado_en_original
+        +listarConsultorios()
+        +consultarConsultorio()
+        +crearConsultorio()
+        +actualizarConsultorio()
+        +cambiarEstadoConsultorio()
+    }
+    class ControlConsultorios["CONTROL — Gestionar catálogo de consultorios"] {
+        <<control>>
+        +index() [controller]
+        +show() [controller]
+        +store() [controller]
+        +update() [controller]
+        +estado() [controller]
+        +rules() [validator]
+        +listar() [service]
+        +consultar() [service]
+        +crear() [service]
+        +actualizar() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +listar() [repository]
+        +porIdBloqueado() [repository]
+        +resumen() [repository]
+        +crear() [repository]
+        +guardar() [repository]
+        +consultorioModificado() [repository]
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_consultorio
+        String estado
+        TimestampTZ fin_at
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazConsultorios
+    InterfazConsultorios ..> ControlConsultorios
+    ControlConsultorios ..> Consultorio
+    Consultorio --> Medico : cuenta asignaciones
+    Consultorio --> Cita : cuenta obligaciones vigentes
+    ControlConsultorios ..> Usuario
+    Usuario --> Rol
+    Usuario --> Medico : identidad de sesion
+    Usuario --> Paciente : identidad de sesion
+    ControlConsultorios ..> TokenAcceso
+    ControlConsultorios ..> Sesiones
+    ControlConsultorios ..> Bitacora
+    style InterfazConsultorios fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlConsultorios fill:#dbeafe,stroke:#1d4ed8
+```
+
+Desactivar exige ausencia de asignaciones y obligaciones vigentes según consultas reales. Renombrar catálogo no reescribe ubicación histórica de citas. Conflicto de versión incluso en no-op; código único y auditoría atómicos, sin asignar automáticamente un Médico.
+
+<a id="analisis-cu11-asignacion"></a>
+### CU-11 — asignación, impacto y confirmación de ubicación (P25)
+
+**Boundary:** `asignacionConsultorio.service.js` y `AsignacionConsultorioPage`. Consulta usa ID de Médico; impacto usa destino/versión/página; confirmar exige huella y aceptación de traslados. **Trazabilidad:** AsignacionConsultorioController.show/impacto/update → AsignacionConsultorioService.consultar/impacto/confirmar, auxiliar evaluar. Requests CuentaRequest/ImpactoAsignacionConsultorioRequest/ConfirmarAsignacionConsultorioRequest; `cubierto()` de business/validators/IntervalosAtencion.php. MedicoRepository.porIdBloqueado/guardar, ConsultorioRepository.porIdBloqueado (segundo homónimo), AsignacionConsultorioRepository.horarios/compartidos/citas/trasladar, PlanificacionRepository.coordinar y BitacoraRepository.asignacionConsultorio. `consulta_exists` es proyección de existencia, no atributo persistido; se representa ConsultaMedica.id_cita para esa consulta.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazAsignacion["Asignación e impacto de consultorio"] {
+        <<boundary>>
+        String id
+        String id_consultorio
+        String actualizado_en_original
+        String huella_impacto
+        Boolean confirmar_traslados
+        Integer page
+        Integer per_page
+        +consultarAsignacion()
+        +consultarImpactoAsignacion()
+        +confirmarAsignacion()
+    }
+    class ControlAsignacion["CONTROL — Revisar y confirmar asignación"] {
+        <<control>>
+        +show() [controller]
+        +impacto() [controller]
+        +update() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +impacto() [service]
+        +confirmar() [service]
+        -evaluar() [service]
+        +cubierto() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porIdBloqueado() [repository]
+        +porIdBloqueado() [repository]
+        +horarios() [repository]
+        +compartidos() [repository]
+        +citas() [repository]
+        +guardar() [repository]
+        +trasladar() [repository]
+        +asignacionConsultorio() [repository]
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        TimestampTZ actualizado_en
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        BigInt id_medico
+        BigInt id_consultorio
+        String estado
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+        String? estado_anterior
+        String estado_nuevo
+        JSONB? datos_anteriores
+        JSONB datos_nuevos
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazAsignacion
+    InterfazAsignacion ..> ControlAsignacion
+    ControlAsignacion ..> Medico
+    Medico --> Consultorio
+    Medico --> HorarioAtencion
+    ControlAsignacion ..> Cita
+    Cita --> ConsultaMedica : comprueba existencia
+    Cita --> CambioCita : solo traslado confirmado
+    ControlAsignacion ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlAsignacion ..> TokenAcceso
+    ControlAsignacion ..> Sesiones
+    ControlAsignacion ..> Bitacora
+    style InterfazAsignacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAsignacion fill:#dbeafe,stroke:#1d4ed8
+```
+
+Impacto no guarda. Confirmación reevalúa bajo locks, compara huella y exige aceptar los traslados detectados; no cambia fecha/hora ni estado de cita, ni interpreta una consulta existente como atención trasladable. CambioCita registra operación CAMBIO_UBICACION con ejecutor real; no acredita CU-15 implementado. Conflictos o huella obsoleta devuelven 409, preservando asignación/citas previas.
+
+<a id="analisis-cu12-horarios"></a>
+### CU-12 — horarios por Médico, impacto y guardado (P26)
+
+**Boundary:** `horario.service.js` y `HorariosMedicoPage`. `id` y `horario` son parámetros de ruta; `id_horario` solo va en el cuerpo del impacto EDITAR/ESTADO, no en PATCH de una ruta de horario. **Trazabilidad:** HorarioController.index/impacto/store/update/estado → HorarioService.ejecutar; Request HorarioRequest. Se seleccionan `cubierto()`/`turnos()` de IntervalosAtencion como validadores relevantes, no todos sus auxiliares. HorarioRepository.propios/compartidos/ocupacion/guardar, ConfiguracionCitasRepository.bloqueada, MedicoRepository.porIdBloqueado/guardar y ConsultorioRepository.porIdBloqueado; los dos `guardar()` son HorarioRepository y MedicoRepository. El Controller tiene un auxiliar `guardar()` real, no seleccionado como entrada adicional.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazHorarios["Horarios e impacto por Médico"] {
+        <<boundary>>
+        String id
+        String horario
+        String id_horario
+        String accion
+        Integer dia_semana
+        String hora_inicio
+        String hora_fin
+        Boolean activo
+        String actualizado_en_original
+        Integer page
+        Integer per_page
+        +listarHorarios()
+        +consultarImpactoHorario()
+        +crearHorario()
+        +actualizarHorario()
+        +cambiarEstadoHorario()
+    }
+    class ControlHorarios["CONTROL — Revisar y guardar horarios"] {
+        <<control>>
+        +index() [controller]
+        +impacto() [controller]
+        +store() [controller]
+        +update() [controller]
+        +estado() [controller]
+        +rules() [validator]
+        +ejecutar() [service]
+        +cubierto() [validator]
+        +turnos() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +bloqueada() [repository]
+        +porIdBloqueado() [repository]
+        +porIdBloqueado() [repository]
+        +propios() [repository]
+        +compartidos() [repository]
+        +ocupacion() [repository]
+        +guardar() [repository]
+        +guardar() [repository]
+        +planificacionModificada() [repository]
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        TimestampTZ actualizado_en
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        Boolean activo
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer duracion_turno_minutos
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        BigInt id_medico
+        BigInt id_consultorio
+        String estado
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazHorarios
+    InterfazHorarios ..> ControlHorarios
+    ControlHorarios ..> HorarioAtencion
+    HorarioAtencion --> Medico
+    Medico --> Consultorio
+    ControlHorarios ..> ConfiguracionClinica
+    ControlHorarios ..> Cita : cobertura y ocupacion
+    ControlHorarios ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlHorarios ..> TokenAcceso
+    ControlHorarios ..> Sesiones
+    ControlHorarios ..> Bitacora : solo guardado efectivo
+    style InterfazHorarios fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlHorarios fill:#dbeafe,stroke:#1d4ed8
+```
+
+Vista previa y guardado comparten reglas sin convertir impacto en autorización. Intervalos, consultorio, duración y citas futuras se revalidan al guardar; no se reprograman citas como efecto lateral. Guardado efectivo avanza versión del Médico y registra evento; no-op conserva versión/evento. Duración vigente se lee aquí, no se edita por este flujo.
+
+<a id="analisis-cu12-duracion"></a>
+### CU-12 — consulta, impacto y cambio de duración global (P27)
+
+**Boundary:** `configuracionCitas.service.js` y `ConfiguracionCitasPage`. Consulta sin campos; impacto duración/versión/página; guardar duración/versión sin paginación. **Trazabilidad:** ConfiguracionCitasController.show/impacto/update → ConfiguracionCitasService.ejecutar; ConfiguracionCitasRequest.rules e IntervalosAtencion.turnos. ConfiguracionCitasRepository.bloqueada/horariosActivos/guardar, PlanificacionRepository.coordinar, UsuarioRepository.coordinarAdministracion/porId, BitacoraRepository.planificacionModificada y repositorios de sesión. No se invoca CitaRepository ni se actualizan duraciones históricas.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazDuracion["Duración global e impacto"] {
+        <<boundary>>
+        Integer duracion_turno_minutos
+        String actualizado_en_original
+        Integer page
+        Integer per_page
+        +consultarConfiguracionCitas()
+        +consultarImpactoDuracion()
+        +actualizarDuracion()
+    }
+    class ControlDuracion["CONTROL — Revisar y cambiar duración"] {
+        <<control>>
+        +show() [controller]
+        +impacto() [controller]
+        +update() [controller]
+        +rules() [validator]
+        +ejecutar() [service]
+        +turnos() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +bloqueada() [repository]
+        +horariosActivos() [repository]
+        +guardar() [repository]
+        +planificacionModificada() [repository]
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer id_configuracion
+        Integer duracion_turno_minutos
+        String zona_horaria
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    Administrador --> InterfazDuracion
+    InterfazDuracion ..> ControlDuracion
+    ControlDuracion ..> ConfiguracionClinica
+    ControlDuracion ..> HorarioAtencion : valida turnos completos
+    ControlDuracion ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlDuracion ..> TokenAcceso
+    ControlDuracion ..> Sesiones
+    ControlDuracion ..> Bitacora
+    style InterfazDuracion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlDuracion fill:#dbeafe,stroke:#1d4ed8
+```
+
+La duración propuesta debe caber en todos los horarios activos, no implica cambiar las citas ya guardadas. Conflictos/versión obsoleta bloquean el cambio; impacto no escribe; cambio efectivo actualiza configuración y auditoría juntos.
+
+<a id="analisis-cu13-catalogos"></a>
+### CU-13 — catálogos específicos de búsqueda para reserva (P28)
+
+**Boundary:** `reserva.service.js`, `ReservaCatalogo` y criterios de `ReservarCitaPage`. Catálogos mínimos propios de reservas, no endpoints administrativos de CU-09/CU-10. **Trazabilidad:** DisponibilidadController.especialidades/medicos → DisponibilidadService.especialidades/medicos; DisponibilidadRequest.rules diferencia ambas acciones. DisponibilidadRepository.especialidades/medicos filtran actividad/habilitación/horarios/consultorio; los otros métodos de repositorio son coordinación administrativa y revalidación de sesión. Aquí no se comprueba ficha seleccionada ni ocupación de una fecha, no se invoca `turnos()`.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresReserva["Administrador · Recepcionista · Paciente"] {
+        <<actor>>
+    }
+    class InterfazCatalogosReserva["Buscar especialidad y Médico"] {
+        <<boundary>>
+        String nombre
+        String consultorio
+        String id_especialidad
+        Integer page
+        Integer per_page
+        +listarEspecialidadesReserva()
+        +listarMedicosReserva()
+    }
+    class ControlCatalogosReserva["CONTROL — Consultar catálogos de reserva"] {
+        <<control>>
+        +especialidades() [controller]
+        +medicos() [controller]
+        +rules() [validator]
+        +especialidades() [service]
+        +medicos() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +especialidades() [repository]
+        +medicos() [repository]
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_medico
+        Boolean activo
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    ActoresReserva --> InterfazCatalogosReserva
+    InterfazCatalogosReserva ..> ControlCatalogosReserva
+    ControlCatalogosReserva ..> Especialidad
+    ControlCatalogosReserva ..> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    Medico --> Consultorio
+    Medico --> HorarioAtencion : comprueba horario activo
+    ControlCatalogosReserva ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlCatalogosReserva ..> TokenAcceso
+    ControlCatalogosReserva ..> Sesiones
+    style InterfazCatalogosReserva fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCatalogosReserva fill:#dbeafe,stroke:#1d4ed8
+```
+
+Resultados paginados y orientativos, sin datos de ocupantes ni métodos de escritura/auditoría de reserva. Nombre de Médico y consultorio son filtros descriptivos, no credenciales o autorizaciones.
+
+<a id="analisis-cu13-turnos"></a>
+### CU-13 — consultar disponibilidad orientativa de turnos (P29)
+
+**Boundary:** `reserva.service.js`, `DisponibilidadTurnos` y criterios seleccionados. `id_paciente` solo en Administración/Recepción; Paciente no envía otro titular. **Trazabilidad:** DisponibilidadController.turnos → DisponibilidadService.turnos; DisponibilidadRequest.rules e IntervalosAtencion.candidatos como validador relevante. DisponibilidadRepository.medico/especialidad/habilitado/consultorio/horarios/paciente/ocupacion, ConfiguracionCitasRepository.bloqueada, PlanificacionRepository.coordinar y coordinación/revalidación comunes. PropuestaReserva.revision de `backend/src/shared/utils/PropuestaReserva.php` genera HMAC de revisión; no es una clase Service ni una entidad de turno persistido.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresReserva["Administrador · Recepcionista · Paciente"] {
+        <<actor>>
+    }
+    class InterfazTurnos["Consultar turnos orientativos"] {
+        <<boundary>>
+        String id_especialidad
+        String id_medico
+        String id_paciente
+        String fecha
+        Integer page
+        Integer per_page
+        +consultarDisponibilidad()
+    }
+    class ControlTurnos["CONTROL — Consultar disponibilidad por fecha"] {
+        <<control>>
+        +turnos() [controller]
+        +rules() [validator]
+        +turnos() [service]
+        +candidatos() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +bloqueada() [repository]
+        +medico() [repository]
+        +especialidad() [repository]
+        +habilitado() [repository]
+        +consultorio() [repository]
+        +horarios() [repository]
+        +paciente() [repository]
+        +ocupacion() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        Boolean activo
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+        TimestampTZ actualizado_en
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer duracion_turno_minutos
+        String nombre_sede
+        String? direccion_sede
+        TimestampTZ actualizado_en
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        BigInt id_medico
+        BigInt id_consultorio
+        BigInt id_paciente
+        String estado
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    ActoresReserva --> InterfazTurnos
+    InterfazTurnos ..> ControlTurnos
+    ControlTurnos ..> Paciente
+    ControlTurnos ..> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    Medico --> Consultorio
+    Medico --> HorarioAtencion
+    ControlTurnos ..> ConfiguracionClinica
+    ControlTurnos ..> Cita : solo ocupacion
+    ControlTurnos ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : titular si corresponde
+    ControlTurnos ..> TokenAcceso
+    ControlTurnos ..> Sesiones
+    style InterfazTurnos fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlTurnos fill:#dbeafe,stroke:#1d4ed8
+```
+
+Consulta coordina recursos/ficha/ocupación y revalida sesión después de esperas; descarta intervalos ya iniciados y conflictos del Médico, consultorio o Paciente, incluyendo franjas compartidas. Configuración/versiones participan en la revisión HMAC; no se persiste un turno ni se garantiza su reserva. La ficha inactiva se informa no reservable; la decisión de guardar se revalida por CU-14. Fecha/hora corresponden a America/La_Paz con contrato UTC explícito para instantes.
+
+<a id="analisis-cu14-propuesta"></a>
+### CU-14 — propuesta y resumen revisado antes de confirmar (P30)
+
+**Boundary:** `reserva.service.js`, `ReservaRegistro`/hook de propuesta. Se envían selección/revisión/motivo y ficha administrativa cuando corresponde; `inicioEsperado` es comprobación local de respuesta, no campo HTTP. **Trazabilidad:** ReservaController.propuesta → ReservaService.proponer, auxiliar seleccionar → DisponibilidadService.turnos. ReservaRequest.rules e IntervalosAtencion.candidatos. Repositorios de disponibilidad y configuración exactamente como P29; no se llama a CitaRepository.crear ni a BitacoraRepository.citaProgramada. PropuestaReserva.emitir/motivo/revision son utilidades criptográficas del archivo compartido, no métodos Service inventados ni entidades persistidas.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresReserva["Administrador · Recepcionista · Paciente"] {
+        <<actor>>
+    }
+    class InterfazPropuesta["Revisar propuesta de cita"] {
+        <<boundary>>
+        String id_especialidad
+        String id_medico
+        String id_paciente
+        String fecha
+        String hora_inicio
+        String revision_turno
+        String motivo_breve
+        +proponerReserva()
+    }
+    class ControlPropuesta["CONTROL — Preparar propuesta revisada"] {
+        <<control>>
+        +propuesta() [controller]
+        +rules() [validator]
+        +proponer() [service]
+        -seleccionar() [service]
+        +turnos() [service]
+        +candidatos() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +bloqueada() [repository]
+        +medico() [repository]
+        +especialidad() [repository]
+        +habilitado() [repository]
+        +consultorio() [repository]
+        +horarios() [repository]
+        +paciente() [repository]
+        +ocupacion() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+        TimestampTZ actualizado_en
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer duracion_turno_minutos
+        String nombre_sede
+        String? direccion_sede
+        TimestampTZ actualizado_en
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        BigInt id_medico
+        BigInt id_consultorio
+        BigInt id_paciente
+        String estado
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    ActoresReserva --> InterfazPropuesta
+    InterfazPropuesta ..> ControlPropuesta
+    ControlPropuesta ..> Paciente
+    ControlPropuesta ..> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    Medico --> Consultorio
+    Medico --> HorarioAtencion
+    ControlPropuesta ..> ConfiguracionClinica
+    ControlPropuesta ..> Cita : solo consulta ocupacion
+    ControlPropuesta ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : titular si corresponde
+    ControlPropuesta ..> TokenAcceso
+    ControlPropuesta ..> Sesiones
+    style InterfazPropuesta fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlPropuesta fill:#dbeafe,stroke:#1d4ed8
+```
+
+La propuesta verifica que la ficha sea reservable y reevalúa el turno/revisión antes de devolver resumen y token cifrado ligado a actor/rol/ficha/selección/motivo. No retiene el intervalo ni crea Cita; cambiar criterios o condiciones exige nueva revisión. `motivo_breve` es entrada y dato del resumen en memoria en este paso, no una escritura de Cita todavía.
+
+<a id="analisis-cu14-confirmacion"></a>
+### CU-14 — confirmar creación o reconciliar repetición de reserva (P31)
+
+**Boundary:** `reserva.service.js`, `ReservaRegistro` y `useReservaRegistro`. POST de confirmación envía exclusivamente `propuesta` y `motivo_breve`; IDs/rol/estado no se reemplazan desde el cliente. `pacienteEsperado` comprueba la respuesta localmente y no se envía. **Trazabilidad:** ReservaController.store → ReservaService.confirmar, auxiliar operar; este reutiliza DisponibilidadService.turnos solo al intentar una creación nueva. ReservaRequest.rules y candidatos de IntervalosAtencion. CitaRepository.porPropuesta/pacienteSolapado/crear; DisponibilidadRepository.paciente/medico/especialidad/habilitado/consultorio/horarios/ocupacion, ConfiguracionCitasRepository.bloqueada, PlanificacionRepository.coordinar; BitacoraRepository.citaProgramada solo al crear. Las consultas de catálogos `especialidades()`/`medicos()` no se ejecutan aquí.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresReserva["Administrador · Recepcionista · Paciente"] {
+        <<actor>>
+    }
+    class InterfazConfirmarReserva["Confirmar cita revisada"] {
+        <<boundary>>
+        String propuesta
+        String motivo_breve
+        +confirmarReserva()
+    }
+    class ControlConfirmarReserva["CONTROL — Confirmar o reconciliar reserva"] {
+        <<control>>
+        +store() [controller]
+        +rules() [validator]
+        +confirmar() [service]
+        -operar() [service]
+        +turnos() [service]
+        +candidatos() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porPropuesta() [repository]
+        +paciente() [repository]
+        +bloqueada() [repository]
+        +medico() [repository]
+        +especialidad() [repository]
+        +habilitado() [repository]
+        +consultorio() [repository]
+        +horarios() [repository]
+        +ocupacion() [repository]
+        +pacienteSolapado() [repository]
+        +crear() [repository]
+        +citaProgramada() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        UUID? id_propuesta_reserva
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        BigInt creada_por
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        String? motivo_breve
+        Integer version_programacion
+        TimestampTZ creada_en
+        TimestampTZ actualizada_en
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+        TimestampTZ actualizado_en
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer duracion_turno_minutos
+        String nombre_sede
+        String? direccion_sede
+        TimestampTZ actualizado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        JSONB? referencias
+        JSONB? cambios_seguros
+    }
+    ActoresReserva --> InterfazConfirmarReserva
+    InterfazConfirmarReserva ..> ControlConfirmarReserva
+    ControlConfirmarReserva ..> Cita
+    Cita --> Paciente
+    Cita --> Medico : responsable
+    Cita --> Usuario : ejecutor real
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    Medico --> Consultorio
+    Medico --> HorarioAtencion
+    ControlConfirmarReserva ..> ConfiguracionClinica : solo nueva creacion
+    Usuario --> Rol
+    ControlConfirmarReserva ..> TokenAcceso
+    ControlConfirmarReserva ..> Sesiones
+    ControlConfirmarReserva ..> Bitacora : solo nueva creacion
+    style InterfazConfirmarReserva fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlConfirmarReserva fill:#dbeafe,stroke:#1d4ed8
+```
+
+Token se abre mediante PropuestaReserva.abrir y se comprueba actor/rol/motivo. Si ya existe la propuesta, se relee ficha/cita bloqueadas y se devuelve su estado persistido sin insertar ni auditar otra creación. Si es nueva, se reevalúan disponibilidad/revisión/resumen/ficha/solapamiento/instante y se guardan Cita Programada y evento juntos. El auxiliar real `insertar()` limita el reintento técnico de colisión de código y no autoriza reintentos ciegos de escrituras HTTP. 409 por cambio/ocupación exige revisar otra propuesta; un timeout exige consultar resultado, no afirmar rollback.
+
+<a id="analisis-cu14-resultado"></a>
+### CU-14 — consultar resultado tras respuesta incierta (P32)
+
+**Boundary:** `reserva.service.js`, acción explícita de consulta en `useReservaRegistro`/`ReservaRegistro`. Solo `propuesta` viaja por HTTP; `pacienteEsperado` es comprobación local. **Trazabilidad:** ReservaController.resultado → ReservaService.resultado → operar con guardar=false. ReservaRequest.rules solo acepta propuesta. CitaRepository.porPropuesta y DisponibilidadRepository.paciente, PlanificacionRepository.coordinar y coordinación/revalidación comunes. No se invocan DisponibilidadService.turnos, ConfiguracionCitasRepository, CitaRepository.crear/pacienteSolapado ni BitacoraRepository.citaProgramada en esta rama.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresReserva["Administrador · Recepcionista · Paciente"] {
+        <<actor>>
+    }
+    class InterfazResultadoReserva["Consultar reserva de resultado incierto"] {
+        <<boundary>>
+        String propuesta
+        +consultarResultadoReserva()
+    }
+    class ControlResultadoReserva["CONTROL — Consultar resultado persistido"] {
+        <<control>>
+        +resultado() [controller]
+        +rules() [validator]
+        +resultado() [service]
+        -operar() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porPropuesta() [repository]
+        +paciente() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        UUID? id_propuesta_reserva
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        BigInt creada_por
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        String? motivo_breve
+        Integer version_programacion
+        TimestampTZ creada_en
+        TimestampTZ actualizada_en
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ expira_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    ActoresReserva --> InterfazResultadoReserva
+    InterfazResultadoReserva ..> ControlResultadoReserva
+    ControlResultadoReserva ..> Cita : solo lectura por propuesta
+    ControlResultadoReserva ..> Paciente : ficha y pertenencia
+    ControlResultadoReserva ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : titular si corresponde
+    Usuario --> Medico : identidad de sesion
+    ControlResultadoReserva ..> TokenAcceso
+    ControlResultadoReserva ..> Sesiones
+    style InterfazResultadoReserva fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlResultadoReserva fill:#dbeafe,stroke:#1d4ed8
+```
+
+Se comprueba token/actor/ficha y se espera a escritores compatibles antes de consultar la propuesta; registrada=false no crea una reserva ni habilita un reenvío automático. Si existe, devuelve la misma cita en su estado actual autorizado, sin restaurar Programada ni exigir las condiciones de una nueva reserva. Médico aparece solo en revalidación transversal de identidad; no se consulta el profesional responsable ni su actividad para reconciliar. El nombre de utilidad PropuestaReserva no implica una tabla de propuestas ni un token de sesión.
+
+## CU-20/CU-21/CU-30 — revisión por procedimientos: Fase 5 (2026-10-26)
+
+P33–P40 representan los procedimientos ya implementados y descritos en el expediente, no nuevos CU ni diagramas originales recuperados. Se separan selector de Médico, agenda seleccionada, agenda propia, historial por ficha, Mis citas, detalle compartido de cita, listado de bitácora y detalle de evento. No se fusionan las vistas anteriores ni se reactiva la consolidación descartada. Trazabilidad: CU-20/RF11/RN10–RN12/RN14, CU-21/RF12/RN01/RN10–RN12/RN14 y CU-30 como ampliación del proyecto compatible con RN12/RN14; reglas VS-HIS-01–08 y VS-AUD-01–06, matriz de `casos-de-us.md` §3.1.
+
+**Cierre documental:** ocho vistas cotejadas desde los Services de entrada y colaboradores/revalidación, con **113 participaciones de métodos de repositorio** sin omisiones/adiciones frente al conjunto estático analizado; no son 113 métodos distintos. Se incluyen internos de AgendaRepository.citasProyectadas/paginar y de BitacoraRepository.filtrarRecurso/compararReferencia/idSql únicamente donde se llaman. Agenda seleccionada/propia e historial administrativo/propio comparten operaciones de repositorio pero no entradas, actores ni titularidad; la comprobación estática no certifica ejecución de sus ramas. Declaraciones de Controller/Request concretos, Services, funciones/campos Boundary, uso de atributos y nombres de columnas se contrastan con código, Resources, modelos y migraciones.
+
+Las ocho vistas pasan parser/renderizado con Mermaid 10.9.5/Chrome headless; se revisan cinco capturas de agenda propia, Mis citas, detalle compartido, listado y detalle de bitácora, sin recortes de texto observados. Los **49 bloques previos permanecen intactos**: 57 totales, 17 antecedentes descartados y 40 vistas por procedimiento. UTF-8, cercas, ocho anclas únicas y `git diff --check` comprobados al cierre. Herramientas/evidencia JSON/SVG/capturas temporales externas, sin dependencias nuevas. Los trece CU pendientes conservan actores aprobados y soporte parcial identificado sin diagramas de ejecución inventados; se elimina de su nota de futuro la obligación descartada de un único diagrama por CU. Sin cambios de software, permisos, RF/RN, persistencia, DER o UML global ni nuevas pruebas funcionales. Fase documental 6 pendiente; integración administrativa Fase 5 frontend sigue pausada.
+
+### Fuentes comunes, perímetro y homónimos de Fase 5
+
+- **Boundary:** `frontend/src/features/agenda/services/agenda.service.js` o `frontend/src/features/bitacora/services/bitacora.service.js`, con páginas/componentes/hooks consumidores indicados debajo. Campos de criterio, ruta o presentación local, no copias de las respuestas como entradas. `signal` es cancelación de transporte. `rol` en consultarCita solo selecciona proyección local; no se envía como permiso HTTP. `id_objetivo` se deriva del ID de ruta en los Requests, no se envía como filtro.
+- **Entradas/validadores:** Controllers y DTO/Requests de `backend/src/presentation/controllers/{agenda,bitacora}/` y `backend/src/presentation/dtos/{agenda,bitacora}/`; CuentaRequest pertenece a `dtos/usuarios/`. Se selecciona `rules()` como principal; `withValidator()` y sus callbacks cierran entradas no permitidas. Laravel los ejecuta antes del Controller, aunque el orden visual empiece en este.
+- **Control/repositorios:** Services de `backend/src/business/services/{agenda,bitacora}/` y Repositories de `backend/src/data/repositories/{agenda,bitacora}/`. La revalidación compartida usa AutenticacionService.exigirSesionNormal/validarSesion/habilitado y CredencialTemporalValidator en su rama restringida; UsuarioRepository.porId; SesionRepository.usuarioId/guard/store/contexto/coincide/vigente/credencialTemporalId/actualizarActor/cerrar; TokenAccesoRepository.temporalPorId. Se incluyen todos esos métodos de repositorio alcanzables, también internos y errores, no constructores ni métodos heredados del framework.
+- **Homónimos:** `medicos()` [controller/service/repository] corresponde respectivamente a AgendaController/AgendaService/AgendaRepository en P33; `consultar()` [service] pertenece al Service de cada procedimiento. `porId()` [repository] es UsuarioRepository en las ocho vistas; P40 contiene un segundo `porId()` de BitacoraRepository. `store()` [repository] es el interno privado de SesionRepository, **no una escritura de cita/evento**. `contexto()` [repository] es su huella de identidad, no el contexto público de la respuesta. `vigente()` [repository] comprueba la sesión, no disponibilidad de citas.
+- **Entidades:** modelos de `backend/src/data/models/`, columnas contrastables en `backend/src/data/database/migrations/`. Se muestran atributos efectivamente usados, incluidos los de revalidación y su rama restringida; hashes son nombres de atributos internos, nunca valores ni datos de API. TokenAcceso solo interviene al comprobar una credencial temporal; ello no concede acceso normal. Sesiones es la tabla técnica `sessions`, no un Model propio. Las proyecciones SQL no son nuevas entidades ni columnas persistidas.
+
+No se invocan ContinuidadAdministrativaService, PlanificacionRepository ni escritores de auditoría por consultar agenda/historial/eventos. Revalidar puede cerrar una sesión rechazada; «solo lectura» significa ausencia de mutaciones de citas/eventos, no ausencia absoluta de operaciones técnicas de sesión. Middleware/origen/CSRF y manejo central de errores permanecen fuera de las cajas, como en las fases anteriores.
+
+| Ref. | Contexto | Actor | Entrada y servicio | Repositorio específico |
+| --- | --- | --- | --- | --- |
+| P33 | Selector mínimo para agenda | Administrador/Recepcionista | AgendaController.medicos → AgendaService.medicos | AgendaRepository.medicos/paginar |
+| P34 | Agenda por Médico seleccionado | Administrador/Recepcionista | AgendaController.index → AgendaService.consultar | AgendaRepository.medico/citas/citasProyectadas/paginar |
+| P35 | Agenda profesional propia | Médico vinculado | Mismas entradas que P34, rama propia | Mismas operaciones, sin selector HTTP ajeno |
+| P36 | Historial por ficha seleccionada | Administrador/Recepcionista | HistorialCitasController.paciente → HistorialCitasService.consultar | AgendaRepository.paciente/historial/citasProyectadas/paginar |
+| P37 | Mis citas | Paciente titular | HistorialCitasController.propias → HistorialCitasService.consultar | Mismas operaciones que P36, ficha desde sesión |
+| P38 | Detalle compartido de cita | Cuatro roles con ámbito/matriz propios | ConsultaCitaController.show → ConsultaCitaService.consultar | AgendaRepository.detalle/citasProyectadas |
+| P39 | Listado y filtros de eventos | Administrador | BitacoraController.index → BitacoraService.listar | BitacoraRepository.listar/filtrarRecurso/compararReferencia/idSql |
+| P40 | Detalle seguro de evento | Administrador | BitacoraController.show → BitacoraService.consultar | BitacoraRepository.porId |
+
+<a id="analisis-cu20-selector"></a>
+### CU-20 — selector mínimo de Médico para agenda (P33)
+
+**Boundary:** MedicoAgendaSelector y useAgendaQuery, consumidos por AgendaPage. `nombre` busca nombre/apellidos/código; seleccionar un resultado inicia P34, no consulta citas en este paso. **Trazabilidad:** AgendaController.medicos → AgendaService.medicos → AgendaRepository.medicos → paginar; AgendaRequest.rules en acción medicos y MedicoAgendaResource. No se usa el catálogo de reserva ni el catálogo administrativo completo de médicos.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresAgenda["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazSelectorAgenda["Seleccionar Médico de agenda"] {
+        <<boundary>>
+        String nombre
+        Integer page
+        Integer per_page
+        +listarMedicosAgenda()
+    }
+    class ControlSelectorAgenda["CONTROL — Consultar selector de agenda"] {
+        <<control>>
+        +medicos() [controller]
+        +rules() [validator]
+        +medicos() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +medicos() [repository]
+        -paginar() [repository]
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresAgenda --> InterfazSelectorAgenda
+    InterfazSelectorAgenda ..> ControlSelectorAgenda
+    ControlSelectorAgenda ..> Medico : proyeccion minima
+    ControlSelectorAgenda ..> Usuario : revalida operador
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlSelectorAgenda ..> TokenAcceso : solo rama restringida
+    ControlSelectorAgenda ..> Sesiones
+    style InterfazSelectorAgenda fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlSelectorAgenda fill:#dbeafe,stroke:#1d4ed8
+```
+
+Incluye profesionales inactivos: actividad se muestra, no filtra la lectura histórica. Orden apellidos/nombres/ID, filas y total en una sentencia mediante paginar. No expone contactos/credenciales del profesional ni evalúa disponibilidad. Médico no usa este selector; Paciente tampoco accede.
+
+<a id="analisis-cu20-seleccionada"></a>
+### CU-20 — agenda diaria del Médico seleccionado (P34)
+
+**Boundary:** AgendaPage/AgendaFilters/CitasTable, selección explícita de P33 y useAgendaQuery. **Trazabilidad:** AgendaController.index → AgendaService.consultar, rama administrativa; AgendaRequest.rules; AgendaRepository.medico/citas/citasProyectadas/paginar; CitaListadoResource. Se omiten del modelo de este recorrido actividad profesional, asignación actual, horarios y habilitaciones: no se leen para autorizar la consulta histórica.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresAgenda["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazAgendaSeleccionada["Agenda diaria seleccionada"] {
+        <<boundary>>
+        String id_medico
+        String fecha
+        String estado
+        Integer page
+        Integer per_page
+        +consultarAgenda()
+    }
+    class ControlAgendaSeleccionada["CONTROL — Consultar agenda seleccionada"] {
+        <<control>>
+        +index() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +medico() [repository]
+        +citas() [repository]
+        -citasProyectadas() [repository]
+        -paginar() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_medico
+        BigInt id_paciente
+        BigInt id_especialidad
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        TimestampTZ creada_en
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        String codigo_medico
+        String nombres
+        String apellidos
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        String codigo_paciente
+        String nombres
+        String apellidos
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresAgenda --> InterfazAgendaSeleccionada
+    InterfazAgendaSeleccionada ..> ControlAgendaSeleccionada
+    ControlAgendaSeleccionada ..> Cita
+    Cita --> Medico
+    Cita --> Paciente
+    Cita --> Especialidad
+    ControlAgendaSeleccionada ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlAgendaSeleccionada ..> TokenAcceso
+    ControlAgendaSeleccionada ..> Sesiones
+    style InterfazAgendaSeleccionada fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAgendaSeleccionada fill:#dbeafe,stroke:#1d4ed8
+```
+
+Fecha de America/La_Paz por defecto desde el servidor; se incluyen intervalos que intersectan el día (`inicio_at < finDelDia`, `fin_at > inicioDelDia`), orden inicio/ID ascendente. Filtro de estado opcional sin transiciones. Contexto del Médico incluso con cero citas. Ubicación conservada en Cita, no expansión de Consultorio actual; motivo/CI/teléfono/nacimiento no aparecen en el listado. Un resultado vacío no garantiza disponibilidad.
+
+<a id="analisis-cu20-propia"></a>
+### CU-20 — agenda profesional propia (P35)
+
+**Boundary:** la misma AgendaPage, rama own, sin MedicoAgendaSelector ni id_medico en la petición. **Trazabilidad:** AgendaController.index → AgendaService.consultar, rama Médico; AgendaRequest.rules y cierre de entradas adicionales; mismas operaciones de AgendaRepository que P34. `Medico.id_usuario` se usa aquí para verificar vínculo recíproco, además de la huella de sesión.
+
+```mermaid
+classDiagram
+    direction LR
+    class MedicoActor["Médico vinculado"] {
+        <<actor>>
+    }
+    class InterfazAgendaPropia["Mi agenda profesional"] {
+        <<boundary>>
+        String fecha
+        String estado
+        Integer page
+        Integer per_page
+        +consultarAgenda()
+    }
+    class ControlAgendaPropia["CONTROL — Consultar agenda propia"] {
+        <<control>>
+        +index() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +medico() [repository]
+        +citas() [repository]
+        -citasProyectadas() [repository]
+        -paginar() [repository]
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+        String codigo_medico
+        String nombres
+        String apellidos
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_medico
+        BigInt id_paciente
+        BigInt id_especialidad
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        TimestampTZ creada_en
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        String codigo_paciente
+        String nombres
+        String apellidos
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    MedicoActor --> InterfazAgendaPropia
+    InterfazAgendaPropia ..> ControlAgendaPropia
+    ControlAgendaPropia ..> Medico : propio desde sesion
+    ControlAgendaPropia ..> Cita
+    Cita --> Medico
+    Cita --> Paciente
+    Cita --> Especialidad
+    ControlAgendaPropia ..> Usuario
+    Usuario --> Rol
+    Usuario --> Medico : verifica vinculo reciproco
+    Usuario --> Paciente : rechaza vinculo incompatible
+    ControlAgendaPropia ..> TokenAcceso
+    ControlAgendaPropia ..> Sesiones
+    style InterfazAgendaPropia fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAgendaPropia fill:#dbeafe,stroke:#1d4ed8
+```
+
+El servidor determina el profesional por la sesión, rechaza seleccionar otro y no añade id_medico a los enlaces paginados del Médico. Profesional inactivo con cuenta válida conserva lectura; no se le exigen horarios/habilitación actuales. Hereda fechas/orden/proyección mínima de P34, sin acceso al historial general de una ficha ni contenido clínico. Administrador no ejecuta esta rama como Médico: usa P34 con su propia identidad.
+
+<a id="analisis-cu21-ficha"></a>
+### CU-21 — historial administrativo por ficha seleccionada (P36)
+
+**Boundary:** HistorialCitasPage → HistorialCitas, useAgendaQuery y filtros de período/estado. SeleccionarPacienteHistorialPage reutiliza PatientsPage para localizar la ficha: ese paso consume paciente.service y conserva el procedimiento de consulta de P17, no un nuevo AgendaRepository.listarPacientes inexistente. **Trazabilidad:** HistorialCitasController.paciente extrae id_objetivo de la ruta y lo retira de filtros → HistorialCitasService.consultar; HistorialCitasRequest.rules; AgendaRepository.paciente/historial/citasProyectadas/paginar; CitaListadoResource.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresHistorial["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazHistorialFicha["Historial de ficha seleccionada"] {
+        <<boundary>>
+        String id
+        String periodo
+        String estado
+        Integer page
+        Integer per_page
+        +consultarHistorialPaciente()
+    }
+    class ControlHistorialFicha["CONTROL — Consultar historial por ficha"] {
+        <<control>>
+        +paciente() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +paciente() [repository]
+        +historial() [repository]
+        -citasProyectadas() [repository]
+        -paginar() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        String codigo_paciente
+        String nombres
+        String apellidos
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        TimestampTZ creada_en
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        String codigo_medico
+        String nombres
+        String apellidos
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresHistorial --> InterfazHistorialFicha
+    InterfazHistorialFicha ..> ControlHistorialFicha
+    ControlHistorialFicha ..> Paciente : seleccion de ruta
+    ControlHistorialFicha ..> Cita
+    Cita --> Paciente
+    Cita --> Medico
+    Cita --> Especialidad
+    ControlHistorialFicha ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlHistorialFicha ..> TokenAcceso
+    ControlHistorialFicha ..> Sesiones
+    style InterfazHistorialFicha fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlHistorialFicha fill:#dbeafe,stroke:#1d4ed8
+```
+
+Ficha por ID de ruta, nunca id_paciente/id_objetivo manipulables en query. Consulta no exige cuenta web, CI o actividad de ficha, ni cambia esos datos; esos atributos no se seleccionan aquí. Por defecto Todas, orden inicio/ID descendente; filtros por período y estado independientes. Próximas usa Programada/Confirmada y fin_at > instante del servidor, orden ascendente; Anteriores fin_at <= instante, cualquier estado; Todas incluye Canceladas futuras. Estado pasado no se transforma automáticamente. Contexto mínimo de ficha incluso sin citas; detalle adicional en P38, nunca historia clínica.
+
+<a id="analisis-cu21-propias"></a>
+### CU-21 — Mis citas de la ficha vinculada (P37)
+
+**Boundary:** MisCitasPage → HistorialCitas con own; mismo servicio de consultas y filtros que P36, sin ID de ficha como entrada. **Trazabilidad:** HistorialCitasController.propias → HistorialCitasService.consultar, rama Paciente; HistorialCitasRequest.rules sin id_objetivo; AgendaRepository.paciente/historial/citasProyectadas/paginar. El ID de sesión se obtiene en servidor y no lo reemplaza un selector local.
+
+```mermaid
+classDiagram
+    direction LR
+    class PacienteActor["Paciente titular"] {
+        <<actor>>
+    }
+    class InterfazMisCitas["Mis citas"] {
+        <<boundary>>
+        String periodo
+        String estado
+        Integer page
+        Integer per_page
+        +consultarMisCitas()
+    }
+    class ControlMisCitas["CONTROL — Consultar citas propias"] {
+        <<control>>
+        +propias() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +paciente() [repository]
+        +historial() [repository]
+        -citasProyectadas() [repository]
+        -paginar() [repository]
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String nombres
+        String apellidos
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        TimestampTZ creada_en
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        String codigo_medico
+        String nombres
+        String apellidos
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    PacienteActor --> InterfazMisCitas
+    InterfazMisCitas ..> ControlMisCitas
+    ControlMisCitas ..> Paciente : propio desde sesion
+    ControlMisCitas ..> Cita
+    Cita --> Paciente
+    Cita --> Medico
+    Cita --> Especialidad
+    ControlMisCitas ..> Usuario
+    Usuario --> Rol
+    Usuario --> Paciente : verifica vinculo reciproco
+    Usuario --> Medico : rechaza vinculo incompatible
+    ControlMisCitas ..> TokenAcceso
+    ControlMisCitas ..> Sesiones
+    style InterfazMisCitas fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlMisCitas fill:#dbeafe,stroke:#1d4ed8
+```
+
+Por defecto Próximas; puede consultar Todas/Anteriores y combinar estado, con las definiciones de P36 y paginación íntegra. Cuenta válida con ficha inactiva conserva historial, sin nueva reserva implícita. No cancela ni reprograma, no modifica perfil ni consulta antecedentes. Vínculo no recíproco o ambiguo se rechaza. Administrador autorizado en CU-21 usa P36, no el endpoint personal Mis citas.
+
+<a id="analisis-cu20-cu21-detalle"></a>
+### CU-20/CU-21 — detalle compartido de cita y matriz por rol (P38)
+
+**Boundary:** CitaDetallePage/CitaDetalle y useAgendaQuery; origen/retorno se conserva en AgendaWorkspace, sin enviarlo como autorización. `id` es ruta; `rol` es argumento de proyección local de consultarCita, **no query ni cuerpo**. **Trazabilidad:** ConsultaCitaController.show → ConsultaCitaService.consultar; ConsultaCitaRequest.rules; AgendaRepository.detalle/citasProyectadas; CitaDetalleResource reutiliza CitaListadoResource. Solo aquí se seleccionan motivo y extras por rol, con scope SQL para titulares antes de materializar filas.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresDetalle["Administrador · Recepcionista · Médico · Paciente"] {
+        <<actor>>
+    }
+    class InterfazDetalleCita["Detalle autorizado de cita"] {
+        <<boundary>>
+        String id
+        String rol
+        +consultarCita()
+    }
+    class ControlDetalleCita["CONTROL — Consultar detalle autorizado"] {
+        <<control>>
+        +show() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +detalle() [repository]
+        -citasProyectadas() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_medico
+        BigInt id_paciente
+        BigInt id_especialidad
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        TimestampTZ creada_en
+        String? motivo_breve
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String nombres
+        String apellidos
+        String? documento_identidad
+        String telefono
+        Date fecha_nacimiento
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+        String codigo_medico
+        String nombres
+        String apellidos
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    ActoresDetalle --> InterfazDetalleCita
+    InterfazDetalleCita ..> ControlDetalleCita
+    ControlDetalleCita ..> Cita : ambito SQL segun actor
+    Cita --> Paciente
+    Cita --> Medico : responsable conservado
+    Cita --> Especialidad
+    ControlDetalleCita ..> Usuario : actor real
+    Usuario --> Rol
+    Usuario --> Paciente : titularidad si Paciente
+    Usuario --> Medico : titularidad si Medico
+    ControlDetalleCita ..> TokenAcceso
+    ControlDetalleCita ..> Sesiones
+    style InterfazDetalleCita fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlDetalleCita fill:#dbeafe,stroke:#1d4ed8
+```
+
+| Actor revalidado en servidor | Ámbito SQL | Extras sobre listado mínimo |
+| --- | --- | --- |
+| Administrador/Recepcionista | Consulta administrativa | motivo_breve, documento_identidad nullable y teléfono del Paciente |
+| Médico | citas.id_medico = profesional vinculado recíprocamente | motivo_breve y nacimiento; Resource tolera NULL defensivamente, pero la columna nacimiento es NOT NULL; sin CI/teléfono |
+| Paciente | citas.id_paciente = ficha vinculada recíprocamente | motivo_breve; sin extras administrativos/profesionales |
+
+La caja de Paciente reúne **ramas alternativas**, no una respuesta que entregue todos los extras juntos. id_usuario de Médico/Paciente se comprueba en titularidad, no se expone por esos Resources. Cita ajena e inexistente dan 404 uniforme; campos/ámbito no se reciben de React. No se consultan Consultorio/horarios actuales, antecedentes, consultas, laboratorios, versiones ni creada_por de la cita. No se atribuye la lectura administrativa al Médico; consultar no marca Atendida. Los datos listados permanecen mínimos, aunque se abra el detalle desde agenda o historial.
+
+<a id="analisis-cu30-listado"></a>
+### CU-30 — listado, filtros y paginación de eventos (P39)
+
+**Boundary:** BitacoraPage/BitacoraFilters/BitacoraTable, useCatalogQuery y BitacoraWorkspace; borrador y filtros aplicados separados, reinicio de página al aplicar/limpiar. **Trazabilidad:** BitacoraController.index → BitacoraService.listar → BitacoraRepository.listar; ListarBitacoraRequest.rules y withValidator; BitacoraListadoResource. Se incluyen los tres auxiliares privados de repositorio realmente invocados al filtrar un recurso: filtrarRecurso/compararReferencia/idSql, no solo listar.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazListadoBitacora["Consultar eventos del sistema"] {
+        <<boundary>>
+        String fecha_desde
+        String fecha_hasta
+        String id_usuario_responsable
+        String id_usuario_objetivo
+        String tipo_actor
+        String modulo
+        String operacion
+        String tipo_evento
+        String resultado
+        String direccion_ip
+        String entidad_referida
+        String registro_referido
+        Integer page
+        Integer per_page
+        +listarBitacora()
+    }
+    class ControlListadoBitacora["CONTROL — Filtrar y consultar eventos"] {
+        <<control>>
+        +index() [controller]
+        +rules() [validator]
+        +listar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +listar() [repository]
+        -filtrarRecurso() [repository]
+        -compararReferencia() [repository]
+        -idSql() [repository]
+    }
+    class Bitacora {
+        <<entity>>
+        BigInt id_evento
+        String tipo_evento
+        String tipo_actor
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        BigInt? id_usuario_objetivo
+        String? rol_objetivo
+        String modulo
+        String operacion
+        String resultado
+        String? causa_codigo
+        TimestampTZ ocurrido_en
+        TimestampTZ registrado_en
+        Inet? direccion_ip
+        String? entidad_referida
+        String? registro_referido
+        JSONB? referencias
+        JSONB? cambios_seguros
+        Integer version_formato
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    Administrador --> InterfazListadoBitacora
+    InterfazListadoBitacora ..> ControlListadoBitacora
+    ControlListadoBitacora ..> Bitacora : proyeccion y filtros
+    ControlListadoBitacora ..> Usuario : revalida lector
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlListadoBitacora ..> TokenAcceso
+    ControlListadoBitacora ..> Sesiones
+    style InterfazListadoBitacora fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlListadoBitacora fill:#dbeafe,stroke:#1d4ed8
+```
+
+Orden registrado_en/ID descendente; filtros temporales sobre ocurrido_en con días de America/La_Paz y extremo superior exclusivo del día siguiente. Filtrar recurso revisa referencia principal, cuenta objetivo o IDs JSON conocidos según entidad; `idSql()` normaliza referencias históricas sin casts numéricos inseguros y `compararReferencia()` enlaza el valor con binding o prueba existencia. `cambios_seguros` participa **solo como columna de filtro** para referencias históricas de Paciente, no se selecciona/devuelve en listado. ReferenciasBitacora.registro/adicionales son utilidades de formato y listas permitidas, no Services/Repositories nuevos.
+
+No se expanden fichas/cuentas objetivo ni recursos referidos; Usuario del dibujo es el lector revalidado, no un JOIN de cada autor histórico. Roles/IDs del hecho proceden de Bitacora. No se llama a escritores como autenticacion/citaProgramada ni se registra un evento manual por consultar. Recursos sin coincidencias dan lista vacía; filtros inválidos 422, sin secretos ni JSON indiscriminado.
+
+<a id="analisis-cu30-detalle"></a>
+### CU-30 — detalle de evento con proyección segura (P40)
+
+**Boundary:** BitacoraDetailPage/BitacoraEventData y useCatalogQuery; id de ruta, retorno al listado conservado en memoria del módulo. **Trazabilidad:** BitacoraController.show → BitacoraService.consultar → BitacoraRepository.porId; CuentaRequest.rules; BitacoraDetalleResource hereda BitacoraListadoResource y filtra cambios/metadatos por evento/versión. Los dos `porId()` del Control corresponden a UsuarioRepository (lector) y BitacoraRepository (evento), respectivamente. No se invocan listar/filtrarRecurso/compararReferencia/idSql en este recorrido.
+
+```mermaid
+classDiagram
+    direction LR
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazDetalleBitacora["Detalle seguro de evento"] {
+        <<boundary>>
+        String id
+        +consultarEvento()
+    }
+    class ControlDetalleBitacora["CONTROL — Consultar evento persistido"] {
+        <<control>>
+        +show() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +porId() [repository]
+    }
+    class Bitacora {
+        <<entity>>
+        BigInt id_evento
+        String tipo_evento
+        String tipo_actor
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        BigInt? id_usuario_objetivo
+        String? rol_objetivo
+        String modulo
+        String operacion
+        String resultado
+        String? causa_codigo
+        TimestampTZ ocurrido_en
+        TimestampTZ registrado_en
+        Inet? direccion_ip
+        String? entidad_referida
+        String? registro_referido
+        JSONB? referencias
+        String? procedencia_ip
+        UUID correlacion
+        BigInt? id_evento_relacionado
+        Integer version_formato
+        JSONB? cambios_seguros
+        JSONB? metadatos_seguros
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    Administrador --> InterfazDetalleBitacora
+    InterfazDetalleBitacora ..> ControlDetalleBitacora
+    ControlDetalleBitacora ..> Bitacora : evento sin expansion de relaciones
+    ControlDetalleBitacora ..> Usuario : revalida lector
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlDetalleBitacora ..> TokenAcceso
+    ControlDetalleBitacora ..> Sesiones
+    style InterfazDetalleBitacora fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlDetalleBitacora fill:#dbeafe,stroke:#1d4ed8
+```
+
+La consulta carga un evento inmutable sin bloquearlo para edición; el Service sí bloquea/revalida al lector. Referencias y evento relacionado son identificadores, no acceso expandido a otras fichas o al evento vinculado. Versión desconocida no vuelca JSON: cambios/metadatos/referencias adicionales quedan vacíos según Resource. CITA_PROGRAMADA permite orígenes PROPIA/RECEPCION/ADMINISTRACION con estado/duración seguros; conserva autor real y Médico referenciado separados. Las listas de campos modificados no exponen valores personales ni contenido clínico. 404 para evento inexistente; no edición, borrado, carga o publicación de documentos por CU-30.
+
+### Referencias de los 13 CU pendientes: alcance revisado en Fase 5
+
+La matriz siguiente actualiza la lectura de las referencias históricas, sin añadir diagramas de ejecución ni copiar como existentes las clases **previstas** del UML global. Se contrastan `casos-de-us.md` §3.1, reglas vigentes, modelos, repositorios, rutas registradas en `backend/src/presentation/routes/`, router y navegación React. Soporte de esquema/modelo, datos ficticios de pruebas o una etiqueta de estado no acreditan un flujo funcional.
+
+| CU pendiente | Actores autorizados vigentes | Soporte localizado y límite real |
+| --- | --- | --- |
+| CU-15 — Reprogramar | Administrador/Recepcionista | Cita, CambioCita y disponibilidad; sin operación funcional de reprogramación. AsignacionConsultorioRepository.trasladar registra CAMBIO_UBICACION de CU-11, no cambia fecha/hora/estado ni implementa CU-15. |
+| CU-16 — Cancelar | Administrador/Recepcionista | Estado Cancelada y persistencia de Cita/CambioCita; sin flujo de cancelación. Leer Canceladas en P36/P37 no cancela ni borra. |
+| CU-17 — Confirmar llegada | Administrador/Recepcionista | Estado Confirmada y persistencia; sin flujo de llegada. Confirmar reserva de P31 crea Programada, no Confirmada. |
+| CU-18 — Registrar inasistencia | Administrador/Recepcionista | Estado Inasistencia y persistencia; sin flujo de ausencia comprobada. Anteriores no cambia Programada a Inasistencia. |
+| CU-19 — Marcar Atendida | Administrador/Médico responsable | Estado Atendida y relaciones; sin flujo de transición. Lectura de agenda/detalle no acredita atención ni modifica estado. |
+| CU-22 — Consultar historia clínica | Administrador/Médico autorizado/Paciente titular | ConsultaMedica, VersionConsulta y VersionAntecedente con relaciones; sin consulta clínica funcional. CU-21 no la sustituye; Recepción no obtiene acceso clínico. |
+| CU-23 — Consulta y antecedentes | Administrador/Médico responsable | Modelos/versiones con id_autor de Usuario y vínculo de consulta de origen; sin flujo de registro/corrección clínica. Mantener responsable y ejecutor real, versiones y atención autorizada; no crear consulta ficticia ni cambiar Atendida al guardar. |
+| CU-24 — Solicitar estudios | Administrador/Médico responsable | SolicitudLaboratorio ligada a ConsultaMedica; sin flujo de solicitud. Evaluar separación del usuario ejecutor frente al responsable antes de implementar, no atribuir solicitud administrativa al Médico. |
+| CU-25 — Incorporar documentos | Administrador | DocumentoLaboratorio/VersionResultado y autor/cargado_por Usuario; sin carga/corrección protegida funcional. Guardar ruta privada en esquema no acredita endpoint seguro. |
+| CU-26 — Revisar/publicar | Administrador/Médico solicitante | RevisionResultado liga versión e id_medico; usuario revisor real separado del Médico aún requiere diseño/soporte. Sin flujo de revisión, devolución o publicación; no inventar atributo implementado id_revisor. |
+| CU-27 — Consultar/descargar resultados | Administrador/Médico autorizado/Paciente titular | Relaciones de solicitud/versiones/documentos/revisión; sin listado ni entrega protegida de bytes. Permisos por recurso y versión publicada siguen obligatorios. |
+| CU-28 — Consultar recordatorios | Administrador por ficha/Paciente titular | Recordatorio ligado a Cita y preferencias de ficha; sin generación programada/consulta funcional. No hay generación manual administrativa, reactivación de preferencias ajenas ni uso de Brevo para citas. |
+| CU-29 — Reportes | Administrador | Sin módulo funcional de reportes. Agenda/historial/bitácora no sustituyen agregados/mínimos RF13; no inventar entidad persistida Reporte. |
+
+Administrador conserva 28/30 CU y queda excluido de CU-04/CU-08; autorización aprobada no equivale a implementación de estos 13. Paciente no cancela/reprograma; Recepción no marca Atendida ni modifica información clínica. No se cambian permisos, esquema, RF/RN ni decisiones abiertas por revisar esta tabla. Los diseños del UML global continúan previstos y separados de las operaciones reales aquí cotejadas.
+
 ## Guía de lectura y convenciones
+
+**Estado acumulado (2026-10-26):** las 15 vistas P01–P10/P12–P16 de CU-01–CU-06 se revisaron en Fase 2. Fase 3 revisa P11 y añade P17–P20 para CU-07/CU-08; Fase 4 añade P21–P32 para CU-09–CU-14; Fase 5 añade P33–P40 para CU-20/CU-21/CU-30. En total hay 40 vistas por procedimiento cotejadas a partir de flujos reales ya implementados, sin sustituirlas por los consolidados descartados. Fase 6 completa el cotejo conjunto y corrige anotaciones físicas sin cambiar procedimientos. Los resultados de pruebas y notas de despliegue antiguas se conservan como evidencia de su fecha; no son ejecuciones nuevas ni significan que React siga inexistente. Las seis fases documentales están cerradas con los límites del cierre integral.
 
 La lectura principal se organiza por caso de uso. Los procedimientos de un mismo CU conservan su identificador y se separan únicamente cuando requieren otro actor, interfaz o flujo. La explicación fuera del diagrama contiene la correspondencia con las clases reales, contratos, alternativas, seguridad y pruebas.
 
-**Fuentes:** los tres `AGENTS.md`; `casos-de-us.md` §4.1; `reglas-negocio.md` §4; `requerimientos.md` §§3–5; `contexto-maestro.md` §§17.17–17.26; diccionario y notas técnicas de `diagrama-entidad-relacion.md`; rutas, Controllers, FormRequests, Services, Validators, Repositories, modelos y pruebas existentes. CADEFAR se emplea como referencia metodológica descrita por el usuario; no se dispone de su documento original para un cotejo nuevo.
+**Fuentes:** los tres `AGENTS.md`; matriz y fichas vigentes de `casos-de-us.md` §§3.1/4; reglas de cada módulo de `reglas-negocio.md`; `requerimientos.md` §§3–5; `contexto-maestro.md` §17.117 y §§17.128–17.133, además de evidencias históricas de implementación; diccionario y avances de `diagrama-entidad-relacion.md`; separación E/P del UML global; rutas, Controllers, FormRequests, Services, Validators, Repositories, Resources, modelos/migraciones y consumidores frontend existentes. Las pruebas históricas no se vuelven a ejecutar en esta revisión. CADEFAR se emplea como referencia metodológica descrita por el usuario; no se dispone de su documento original para un cotejo nuevo.
 
 - `<<actor>>`: solo los roles participantes; una caja con varios nombres agrupa roles oficiales, no crea otro rol.
-- `<<boundary>>`: interfaz conceptual con React pendiente. No contiene funciones inventadas ni afirma una pantalla implementada.
+- `<<boundary>>`: en los procedimientos revisados de CU-01–CU-14/CU-20/CU-21/CU-30, campos y funciones reales del servicio frontend correspondiente; no clases React nuevas ni interfaces pendientes. Se distingue payload, ID de ruta, proyección local y transporte por cookies fuera de la caja.
 - `<<control>>`: agrupación documental de operaciones; **no es una clase PHP nueva**. `[controller]`, `[service]`, `[validator]` y `[repository]` identifican responsabilidades reales. Los FormRequests se etiquetan como validadores de entrada, sin confundirlos con validadores de negocio.
 - Controller primero; después Services, Validators y Repositories. Es orden visual por responsabilidad, **no una secuencia literal**: Laravel valida el FormRequest antes de invocar el Controller y el Service intercala llamadas a repositorios.
 - Los paréntesis vacíos abrevian la firma; los parámetros y retornos reales permanecen en el software. Las etiquetas entre corchetes indican responsabilidad, no tipos de retorno, aunque Mermaid inserte visualmente `:` antes de ellas. Los métodos repetidos se desambiguan en la tabla contigua. `+` indica público, `#` protegido y `-` privado.
 - `<<entity>>`: modelos existentes; solo se muestran atributos usados o establecidos en ese procedimiento, con nombres y tipos contrastables con el DER y las migraciones. `?` significa nullable. Se usan alias legibles de tipo: `String` incluye los `VARCHAR(n)` del diccionario; `BigInt`/`TimestampTZ` corresponden también a `BIGINT`/`TIMESTAMPTZ`. Longitudes y restricciones exactas permanecen en el DER y el código. No se agregan métodos heredados de Eloquent ni se interpretan los atributos del diagrama como una respuesta pública de la API.
 - Las cardinalidades son estructurales; una relación opcional en persistencia puede ser obligatoria para un rol o acción por validación del Service. Las flechas CONTROL → ENTITY resumen acceso mediado por los Repositories incluidos en el bloque.
-- Middlewares, Resources, limitadores, correo, utilidades criptográficas y auditoría se explican fuera del diagrama. La sesión usa la tabla nativa `sessions`; no existe un modelo propio `Sesion`.
+- Middlewares, Resources, limitadores, correo y utilidades criptográficas se explican fuera del diagrama. La escritura de auditoría y los repositorios colaboradores del recorrido sí se incluyen en las vistas revisadas. La sesión usa la tabla nativa `sessions`; no existe un modelo propio `Sesion`.
 
-**Origen de las decisiones:** RF01–RF13 y RN01–RN14 conservan su significado oficial. Políticas como correo como identificador, códigos, plazos, cuatro roles fijos y recuperación son concreciones aprobadas del proyecto. URL, nombres de clases, HMAC, bloqueos y parámetros técnicos no son nuevos RF/RN. El modelo de persistencia conserva **28 entidades, 239 atributos y 43 relaciones**.
+### Perímetro y mapa común de trazabilidad — Fase 2
+
+Cada diagrama comienza en sus endpoints de negocio y sigue los métodos invocados desde su Controller/Service, incluidas ramas de denegación, fallos y callbacks diferidos del mismo procedimiento. Los repositorios incluyen **todas las operaciones alcanzables en ese contexto**, incluso internos propios (`guard()`, `store()`, `contexto()`) y colaboradores llamados desde otro repositorio. No se agregan constructores, métodos heredados de Laravel/Eloquent, ni operaciones de endpoints preparatorios diferentes. El pipeline HTTP de sesión/origen/CSRF y limitación previo a la entrada se conserva explicado fuera de la caja: no se mezcla todo el módulo de rate limiting en cada Control.
+
+En CU-04, P10 considera el contexto `Nuevo` y P13 `Vinculacion`: se muestran las ramas efectivamente ejecutables de `verificar()` en cada escenario, no todos los métodos del Service compartido. P09/P12 sí pueden comprobar reservas históricas durante conflictos, por eso incluyen las consultas de autorizaciones encontradas. El reenvío anónimo de código no tiene un FormRequest propio; `rules()` en P09 pertenece al alta, no al endpoint de reenvío. Logout no tiene Request de validación propio ni se inventa `rules()` en P02.
+
+Las funciones de Boundary son las exportaciones reales de servicios frontend, no métodos PHP; sus campos son claves HTTP o el ID de ruta utilizado por esas funciones. Cookies de sesión/contexto y CSRF no se presentan como atributos enviados manualmente. Los campos alternativos de un procedimiento no se envían todos juntos. En P03, por ejemplo, Médico envía `id_medico` y no nombres del personal.
+
+**Rutas reales:** Controllers de esta fase en `backend/src/presentation/controllers/usuarios/`; Form Requests y Resources en `backend/src/presentation/dtos/usuarios/`; Services en `backend/src/business/services/usuarios/`. Modelos de entidades en `backend/src/data/models/<Nombre>.php`, atributos contrastados con `backend/src/data/database/migrations/`. Las tablas de cada procedimiento identifican las clases concretas; este mapa resuelve sus archivos y las operaciones transversales sin prefijar los nombres dentro del dibujo.
+
+| Clase / archivo real | Operaciones que aparecen en las vistas donde se invocan |
+| --- | --- |
+| frontend/src/features/auth/services/auth.service.js | iniciarSesion, cerrarSesion; consultarSesion/me se explican aparte como restauración |
+| frontend/src/features/auth/services/invitation.service.js | aceptarInvitacion |
+| frontend/src/features/auth/services/password.service.js | cambiarClave, solicitarRecuperacion, restablecerClave, completarClaveTemporal |
+| frontend/src/features/auth/services/registration.service.js | registrarPaciente, vincularPaciente, reenviarCodigoRegistro, verificarRegistro |
+| frontend/src/features/usuarios/services/usuario.service.js | crearPersonal, reenviarInvitacion, listarCuentas, consultarCuenta, cambiarEstadoCuenta, cambiarRolCuenta, emitirCredencialTemporal |
+| backend/src/business/services/usuarios/AutenticacionService.php | iniciar, validarSesion, cerrar, exigirSesionNormal, exigirSesionRestringida; se seleccionan según procedimiento |
+| backend/src/data/repositories/usuarios/SesionRepository.php | usuarioId, guard, store, contexto, coincide, vigente, credencialTemporalId, actualizarActor, iniciar, cerrar, revocarUsuario, limpiarTrasFallo |
+| backend/src/data/repositories/usuarios/UsuarioRepository.php | porId, porCorreoBloqueado, guardar, rolPorNombre, crearPersonal, crearPaciente, listadoAdministrativo, coordinarAdministracion, existeAdministradorNormal |
+| backend/src/data/repositories/usuarios/TokenAccesoRepository.php | porHash, ultimo, emisionesDesde, primeraEmisionDesde, invalidarInvitaciones, emitir, consumir, recuperacionPorHash, invalidarRecuperaciones, emitirRecuperacion, temporalPorId, ultimoTemporal, emisionesTemporalesDesde, primeraTemporalDesde, invalidarTemporales, emitirTemporal |
+| backend/src/data/repositories/usuarios/CambioCorreoRepository.php | invalidar |
+| backend/src/data/repositories/usuarios/RegistroPacienteRepository.php | coordinar, porContexto, porPaciente, reservas, documentoRegistrado, crear, guardar, invalidar, ultimoCodigo, invalidarCodigos, guardarCodigo, codigoUtilizado, emitirCodigo, emisionesHora, crearPaciente |
+| backend/src/data/repositories/medicos/MedicoRepository.php | porIdBloqueado, vincular, tieneAtencionesSinCierreComprobable |
+| backend/src/data/repositories/pacientes/CodigoActivacionRepository.php | pacientePorId, pacientePorDocumento, ultimo, porId, guardar, vincular |
+| backend/src/data/repositories/pacientes/PacienteRepository.php | guardar; llamado desde CodigoActivacionRepository.vincular solo en P13 |
+| backend/src/data/repositories/bitacora/BitacoraRepository.php | autenticacion; no se incluyen consultas de CU-30 ni escritores de otros módulos |
+| backend/src/business/validators/CredencialTemporalValidator.php | vigente en login/logout/completado; personalHabilitado seleccionado en emisión |
+| backend/src/business/validators/CodigoActivacionValidator.php | vigente, seleccionado en vinculación histórica; también participa al comprobar reservas históricas en inicio/reenvío |
+
+**Revalidación compartida:** `exigirSesionNormal()`/`exigirSesionRestringida()` llaman `validarSesion()`. Se siguen `usuarioId()` → `porId()` → `coincide()`/`vigente()` → `actualizarActor()`, con `credencialTemporalId()`/`temporalPorId()` en la rama restringida y `cerrar()` en rechazo. `guard()`/`store()`/`contexto()` son internos reales de SesionRepository, no Services ni entidades. `limpiarTrasFallo()` solo se muestra donde el Service invoca esa recuperación. No se presupone que todas esas ramas se ejecutan en una petición correcta.
+
+**Homónimos:** `vigente() [repository]` es de SesionRepository; `vigente() [validator]` es del validador señalado por procedimiento. En P10 los dos `crearPaciente()` son, en orden, UsuarioRepository y RegistroPacienteRepository. En P13 los tres `guardar()` son, en orden de lectura, PacienteRepository (dentro de `vincular()`), CodigoActivacionRepository y RegistroPacienteRepository. `guardarCodigo()` siempre es de RegistroPacienteRepository. Los distintos `invalidar()` se atribuyen en sus tablas: CambioCorreoRepository para cuentas/contraseñas y RegistroPacienteRepository para procesos de registro.
+
+Las entidades de apoyo no conceden permisos nuevos: Paciente/Medico pueden aparecer únicamente por comprobación de vínculo o elegibilidad; Cita/ConsultaMedica en P06 solo comprueban obligaciones al retirar rol profesional, sin leer ni editar contenido clínico. Sesiones es tabla técnica; su `payload` solo se dibuja al iniciar/renovar sesión, no como dato accesible de React. Los atributos de Bitacora son una selección del evento real `autenticacion()`; no se expone el contenido completo del evento al solicitante.
+
+**Origen de las decisiones:** RF01–RF13 y RN01–RN14 conservan su significado oficial. Políticas como correo como identificador, códigos, plazos, cuatro roles fijos y recuperación son concreciones aprobadas del proyecto. URL, nombres de clases, HMAC, bloqueos y parámetros técnicos no son nuevos RF/RN. El esquema vigente documentado en el DER conserva **28 entidades, 244 atributos y 43 relaciones**; los 239 atributos de su fuente original permanecen como antecedente histórico, no como cifra actual tras las migraciones aditivas.
 
 ### Índice y estado real
 
@@ -1353,15 +6978,20 @@ El cierre backend se registra en [fase 8](#cierre-backend-usuarios). Por decisi�
 
 ### Boundary y clases participantes
 
-**Boundary:** interfaz de acceso conceptual, pendiente de React; captura credenciales y muestra resultado/validaciones.
+**Boundary comprobado (P01):** `LoginPage` y `auth.service.js`, `iniciarSesion()`, envían exclusivamente correo/contraseña. Se conserva este diagrama de inicio; `consultarSesion()`/`me()` son restauración, descrita aparte, no se mezclan como otro formulario. Incluye ramas de login normal/restringido, rechazo de sesión previa y limpieza tras fallo.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
 | `login()` [controller] | `AutenticacionController` | Entrada validada/contexto → Service → Resource. |
 | `iniciar()` [service] | `AutenticacionService` | Credenciales, bloqueo, habilitación y coordinación de sesión/auditoría. |
-| `prepareForValidation()`, `rules()` [validator] | `LoginRequest` | Normalización de correo y validación estructural. |
+| `rules()` [validator] | `LoginRequest` | Validación estructural; normalización previa real fuera de la selección visual. |
 | `porCorreoBloqueado()`, `guardar()` [repository] | `UsuarioRepository` | Consulta FOR UPDATE y persistencia de contador/bloqueo. |
 | `iniciar()` [repository] | `SesionRepository` | Guard web, regeneración y persistencia efectiva de sesión. |
+| `usuarioId()`, `guard()`, `porId()` | `SesionRepository` (primeros dos), `UsuarioRepository` (último) | Identidad previa y revalidación de cuenta si ya hay sesión. |
+| `store()`, `contexto()`, `coincide()`, `vigente()`, `credencialTemporalId()`, `actualizarActor()`, `cerrar()`, `revocarUsuario()`, `limpiarTrasFallo()` [repository] | `SesionRepository` | Operaciones e internos realmente invocados por login/revalidación/errores. |
+| `ultimoTemporal()`, `temporalPorId()` [repository] | `TokenAccesoRepository` | Credencial temporal de login o de sesión previa restringida. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Login exitoso/rechazado. |
+| `vigente()` [validator] | `CredencialTemporalValidator` | Validación del temporal; no confundir con `SesionRepository.vigente`. |
 
 ### Diagrama de análisis — flujo principal
 
@@ -1371,18 +7001,37 @@ classDiagram
     class Actores["Administrador · Recepcionista · Médico · Paciente"] {
         <<actor>>
     }
-    class InterfazAcceso["Interfaz de acceso — React pendiente"] {
+    class InterfazAcceso["Inicio de sesión"] {
         <<boundary>>
+        String correo_acceso
+        String password
+        +iniciarSesion()
     }
     class ControlCU01["CONTROL — Iniciar sesión"] {
         <<control>>
         +login() [controller]
-        +iniciar() [service]
-        #prepareForValidation() [validator]
         +rules() [validator]
+        +iniciar() [service]
+        +validarSesion() [service]
+        +vigente() [validator]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
         +porCorreoBloqueado() [repository]
+        +ultimoTemporal() [repository]
         +guardar() [repository]
+        +revocarUsuario() [repository]
         +iniciar() [repository]
+        +autenticacion() [repository]
+        +cerrar() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
@@ -1397,6 +7046,7 @@ classDiagram
         TimestampTZ? bloqueado_hasta
         String? nombres_personal
         String? apellidos_personal
+        TimestampTZ actualizado_en
     }
     class Rol {
         <<entity>>
@@ -1414,9 +7064,38 @@ classDiagram
         String nombres
         String apellidos
     }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        String token_hash
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        String payload
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String resultado
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        TimestampTZ ocurrido_en
+    }
     Actores --> InterfazAcceso : introduce credenciales
     InterfazAcceso ..> ControlCU01 : solicita inicio de sesion
     ControlCU01 ..> Usuario : consulta y actualiza
+    ControlCU01 ..> TokenAcceso : valida temporal si corresponde
+    ControlCU01 ..> Sesiones : crea o revalida
+    ControlCU01 ..> Bitacora : registra resultado
     Usuario "0..*" -- "1" Rol : tiene asignado
     Usuario "0..1" -- "0..1" Paciente : ficha vinculada
     Usuario "0..1" -- "0..1" Medico : identidad profesional
@@ -1460,7 +7139,7 @@ Correo máximo 254 y password máximo técnico 1024. Credenciales/cuenta inexist
 
 ### Boundary y clases participantes
 
-**Boundary:** opción de cierre y retorno al acceso, conceptual/React pendiente.
+**Boundary comprobado (P02):** acción de cierre de `MainLayout`/sesión y `auth.service.js`, `cerrarSesion()`. No envía atributos de negocio; cookies/CSRF son transporte. Incluye cierre normal, restringido y repetido; no presupone un FormRequest de logout inexistente.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1469,6 +7148,9 @@ Correo máximo 254 y password máximo técnico 1024. Credenciales/cuenta inexist
 | `porId()` [repository] | `UsuarioRepository` | Recuperar/bloquear la cuenta de la sesión. |
 | `cerrar()` [repository] | `SesionRepository` | Destruir ID previo, limpiar guards y renovar CSRF. |
 | `autenticacion()` [repository] | `BitacoraRepository` | Registrar el cierre con responsable real. |
+| `usuarioId()`, `guard()`, `store()`, `contexto()`, `coincide()`, `vigente()`, `credencialTemporalId()`, `revocarUsuario()`, `limpiarTrasFallo()` [repository] | `SesionRepository` | Consulta de sesión, internos, alternativa restringida y fallo. |
+| `temporalPorId()`, `invalidarTemporales()` [repository] | `TokenAccesoRepository` | Solo para cierre de una credencial restringida todavía vigente. |
+| `vigente()` [validator] | `CredencialTemporalValidator` | Temporal perteneciente al usuario que cierra. |
 
 ### Diagrama de análisis
 
@@ -1478,34 +7160,85 @@ classDiagram
     class Actores["Administrador · Recepcionista · Médico · Paciente"] {
         <<actor>>
     }
-    class InterfazCierre["Opción Cerrar sesión — React pendiente"] {
+    class InterfazCierre["Cerrar sesión"] {
         <<boundary>>
+        +cerrarSesion()
     }
     class ControlCU02["CONTROL — Cerrar sesión"] {
         <<control>>
         +logout() [controller]
         +cerrar() [service]
+        +vigente() [validator]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
         +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +invalidarTemporales() [repository]
+        +revocarUsuario() [repository]
         +cerrar() [repository]
         +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        String? password_hash
+        TimestampTZ? correo_verificado_en
         Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
     }
     class Bitacora {
         <<entity>>
-        BigInt id_evento
         BigInt? id_usuario_responsable
         String tipo_evento
         String resultado
         TimestampTZ ocurrido_en
     }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
     Actores --> InterfazCierre : solicita salir
     InterfazCierre ..> ControlCU02 : solicita cierre
     ControlCU02 ..> Usuario : identifica cuenta
     ControlCU02 ..> Bitacora : registra cierre confirmado
+    ControlCU02 ..> Sesiones : invalida dispositivo
+    ControlCU02 ..> TokenAcceso : invalida temporal vigente
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente
     Usuario "0..1" -- "0..*" Bitacora : responsable
     style Actores fill:#fff7ed,stroke:#9a3412
     style InterfazCierre fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
@@ -1537,7 +7270,7 @@ Logout repetido con origen/CSRF válidos sigue siendo 204 sin duplicar evento de
 
 ### Procedimiento: alta y reenvío de invitación del personal
 
-**Boundary:** formulario administrativo de personal/reenvío, conceptual/React pendiente. Actor exclusivo Administrador.
+**Boundary comprobado (P03):** `NewStaffPage`/acciones de `AccountDetailPage` y `usuarios/services/usuario.service.js`. Alta envía rol/correo y nombres o ID de Médico; reenvío solo el ID de ruta. Actor exclusivo Administrador. Se incluyen alta, reenvío y su envío post-commit, no aceptación.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1546,6 +7279,11 @@ Logout repetido con origen/CSRF válidos sigue siendo 204 sin duplicar evento de
 | `rules()` [validator] | `CrearPersonalRequest`, `ReenviarInvitacionRequest` | Validar campos por rol o BIGINT de ruta; una operación resumida en el dibujo para sus respectivas solicitudes. |
 | `crearPersonal()` [repository] | `UsuarioRepository` | Insertar la cuenta con valores fijados por servidor. |
 | `emitir()` [repository] | `TokenAccesoRepository` | Persistir invitación inicial. |
+| `rolPorNombre()`, `porId()` [repository] | `UsuarioRepository` | Catálogo fijo, actor y objetivo de reenvío. |
+| `porIdBloqueado()`, `vincular()` [repository] | `MedicoRepository` | Vínculo de Médico libre, solo rama de alta profesional. |
+| `ultimo()`, `emisionesDesde()`, `primeraEmisionDesde()`, `invalidarInvitaciones()` [repository] | `TokenAccesoRepository` | Espera/cupo del reenvío e invalidación previa. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Creación, emisión y resultado del transporte. |
+| Revalidación de sesión | `AutenticacionService` y repositorios de sesión | Véase mapa común Fase 2; sus operaciones aparecen en Control. |
 
 ```mermaid
 classDiagram
@@ -1553,18 +7291,46 @@ classDiagram
     class Administrador {
         <<actor>>
     }
-    class InterfazAlta["Alta y reenvío de personal — React pendiente"] {
+    class InterfazAlta["Alta y reenvío de personal"] {
         <<boundary>>
+        String id
+        String rol
+        String correo_acceso
+        String nombres_personal
+        String apellidos_personal
+        String id_medico
+        +crearPersonal()
+        +reenviarInvitacion()
     }
     class ControlAlta["CONTROL — Alta e invitación"] {
         <<control>>
         +store() [controller]
         +reenviar() [controller]
+        +rules() [validator]
         +crear() [service]
         +reenviar() [service]
-        +rules() [validator]
+        -emitir() [service]
+        +porId() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +rolPorNombre() [repository]
+        +porIdBloqueado() [repository]
         +crearPersonal() [repository]
+        +vincular() [repository]
+        +ultimo() [repository]
+        +emisionesDesde() [repository]
+        +primeraEmisionDesde() [repository]
+        +invalidarInvitaciones() [repository]
         +emitir() [repository]
+        +autenticacion() [repository]
     }
     class Usuario {
         <<entity>>
@@ -1574,6 +7340,9 @@ classDiagram
         String estado_cuenta
         String? nombres_personal
         String? apellidos_personal
+        String? password_hash
+        TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
     }
     class Medico {
         <<entity>>
@@ -1587,12 +7356,42 @@ classDiagram
         String proposito
         String token_hash
         TimestampTZ expira_en
+        TimestampTZ emitido_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Rol {
+        <<entity>>
+        BigInt id_rol
+        String nombre
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
+        String? causa_codigo
     }
     Administrador --> InterfazAlta : registra o reenvia
     InterfazAlta ..> ControlAlta : solicita operacion
     ControlAlta ..> Usuario : crea o recupera pendiente
     Usuario "0..1" -- "0..1" Medico : vinculo compatible
     Usuario "1" -- "0..*" TokenAcceso : invitaciones
+    Usuario --> Rol
+    Usuario --> Paciente : elegibilidad del reenvio
+    ControlAlta ..> Sesiones
+    ControlAlta ..> Bitacora
     style Administrador fill:#fff7ed,stroke:#9a3412
     style InterfazAlta fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlAlta fill:#dbeafe,stroke:#1d4ed8
@@ -1605,7 +7404,7 @@ El Service revalida al Administrador bajo bloqueo, obtiene el rol fijo y bloquea
 
 ### Procedimiento: aceptar invitación y establecer primera contraseña
 
-**Boundary:** aceptación de invitación, conceptual/React pendiente. Participan únicamente los tres roles del personal como titulares invitados.
+**Boundary comprobado (P04):** `AcceptInvitationPage` y `auth/services/invitation.service.js`, `aceptarInvitacion()`. El token del fragmento del enlace se envía con password/confirmación. Participan únicamente los tres roles del personal como titulares invitados; no incluye alta ni reenvío.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1614,6 +7413,11 @@ El Service revalida al Administrador bajo bloqueo, obtiene el rol fijo y bloquea
 | `rules()` [validator] | `AceptarInvitacionRequest` | Token y reglas compartidas de `ClaveRequest`. |
 | `porHash()`, `consumir()` [repository] | `TokenAccesoRepository` | Consultar invitación por propósito y consumirla. |
 | `guardar()` [repository] | `UsuarioRepository` | Persistir hash, correo verificado y estado Activa. |
+| `porId()` [repository] | `UsuarioRepository` | Cuenta titular bloqueada antes de consumir. |
+| `invalidarInvitaciones()` [repository] | `TokenAccesoRepository` | Retirar invitaciones hermanas. |
+| `invalidar()` [repository] | `CambioCorreoRepository` | Retirar verificaciones de cambio de correo. |
+| `usuarioId()`, `guard()`, `store()`, `revocarUsuario()`, `cerrar()`, `limpiarTrasFallo()` [repository] | `SesionRepository` | Exigir contexto anónimo, revocar/cerrar y limpiar errores. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Aceptación o denegación. |
 
 ```mermaid
 classDiagram
@@ -1621,38 +7425,97 @@ classDiagram
     class Personal["Administrador · Recepcionista · Médico"] {
         <<actor>>
     }
-    class InterfazInvitacion["Aceptar invitación — React pendiente"] {
+    class InterfazInvitacion["Aceptar invitación"] {
         <<boundary>>
+        String token
+        String password
+        String password_confirmation
+        +aceptarInvitacion()
     }
     class ControlInvitacion["CONTROL — Aceptar invitación"] {
         <<control>>
         +aceptar() [controller]
-        +aceptar() [service]
         +rules() [validator]
+        +aceptar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
         +porHash() [repository]
-        +consumir() [repository]
+        +porId() [repository]
         +guardar() [repository]
+        +invalidar() [repository]
+        +consumir() [repository]
+        +invalidarInvitaciones() [repository]
+        +revocarUsuario() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String? password_hash
         String estado_cuenta
         TimestampTZ? correo_verificado_en
+        Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
     }
     class TokenAcceso {
         <<entity>>
+        BigInt id_token
         BigInt id_usuario
+        String proposito
         String token_hash
         TimestampTZ emitido_en
         TimestampTZ expira_en
         TimestampTZ? consumido_en
         TimestampTZ? invalidado_en
     }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_usuario
+        String proposito
+        TimestampTZ enviado_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String resultado
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+    }
     Personal --> InterfazInvitacion : establece primera clave
     InterfazInvitacion ..> ControlInvitacion : presenta token y clave
     ControlInvitacion ..> Usuario : activa cuenta
     Usuario "1" -- "0..*" TokenAcceso : invitaciones
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente : exclusion de cuentas Paciente
+    ControlInvitacion ..> VerificacionCorreo
+    ControlInvitacion ..> Sesiones
+    ControlInvitacion ..> Bitacora
     style Personal fill:#fff7ed,stroke:#9a3412
     style InterfazInvitacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlInvitacion fill:#dbeafe,stroke:#1d4ed8
@@ -1664,7 +7527,7 @@ No exige contraseña anterior inexistente. Orden Usuario→Token, nueva comproba
 
 ### Procedimiento: listado y consulta administrativa
 
-**Boundary:** listado/detalle administrativo, conceptual/React pendiente. Actor Administrador; el Paciente listado es recurso, no actor.
+**Boundary comprobado (P05):** `AccountsPage`/`AccountDetailPage` y `usuarios/services/usuario.service.js`, `listarCuentas()`/`consultarCuenta()`. Filtros opcionales y paginación del listado; `id` solo en la ruta del detalle. Actor Administrador; el Paciente listado es recurso, no actor. La lectura no escribe auditoría de modificación de cuentas.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1672,6 +7535,7 @@ No exige contraseña anterior inexistente. Orden Usuario→Token, nueva comproba
 | `listar()`, `consultar()` [service] | `AdministracionCuentaService` | Revalidar al Administrador y limitar el objetivo accesible. |
 | `rules()` [validator] | `ListarCuentasRequest`, `CuentaRequest` | Filtros/paginación o ID de ruta. |
 | `listadoAdministrativo()`, `porId()` [repository] | `UsuarioRepository` | Consultas administrativas; paginación y vínculos. |
+| Revalidación de sesión | `AutenticacionService` y repositorios de sesión | Mapa común Fase 2; no invoca `guardar()` ni escritores administrativos. |
 
 ```mermaid
 classDiagram
@@ -1679,34 +7543,87 @@ classDiagram
     class Administrador {
         <<actor>>
     }
-    class InterfazCuentas["Listado y detalle — React pendiente"] {
+    class InterfazCuentas["Listado y detalle de cuentas"] {
         <<boundary>>
+        String id
+        String rol
+        String estado_cuenta
+        String correo_acceso
+        Integer page
+        Integer per_page
+        +listarCuentas()
+        +consultarCuenta()
     }
     class ControlConsulta["CONTROL — Consultar cuentas"] {
         <<control>>
         +index() [controller]
         +show() [controller]
+        +rules() [validator]
         +listar() [service]
         +consultar() [service]
-        +rules() [validator]
-        +listadoAdministrativo() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
         +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +listadoAdministrativo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String correo_acceso
         String estado_cuenta
         TimestampTZ? correo_verificado_en
+        String? nombres_personal
+        String? apellidos_personal
+        String? password_hash
+        Boolean cambio_clave_obligatorio
     }
     class Rol {
         <<entity>>
         String nombre
     }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        String nombres
+        String apellidos
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
     Administrador --> InterfazCuentas : consulta
     InterfazCuentas ..> ControlConsulta : solicita listado o detalle
     ControlConsulta ..> Usuario : recupera datos permitidos
     Usuario "0..*" -- "1" Rol : filtra por rol fijo
+    Usuario --> Medico : identidad visible
+    Usuario --> Paciente : comprueba vinculo
+    ControlConsulta ..> Sesiones
+    ControlConsulta ..> TokenAcceso : rechazo de sesion restringida
     style Administrador fill:#fff7ed,stroke:#9a3412
     style InterfazCuentas fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlConsulta fill:#dbeafe,stroke:#1d4ed8
@@ -1718,7 +7635,7 @@ El Service revalida sesión normal/Admin dentro de transacción; `CuentaAdminist
 
 ### Procedimiento: estado de acceso y rol
 
-**Boundary:** administración de acceso/rol, conceptual/React pendiente. Actor Administrador.
+**Boundary comprobado (P06):** acciones de `AccountDetailPage` y `usuarios/services/usuario.service.js`, `cambiarEstadoCuenta()`/`cambiarRolCuenta()`. ID de ruta y campos de cada operación separados; no envía contraseña ni vincula cuentas Paciente. Actor Administrador.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1728,6 +7645,12 @@ El Service revalida sesión normal/Admin dentro de transacción; `CuentaAdminist
 | `rules()` [validator] | `CambiarEstadoCuentaRequest`, `CambiarRolCuentaRequest` | Campos permitidos, estado/rol y declaración de identidad. |
 | `guardar()` [repository] | `UsuarioRepository` | Persistir cambios de cuenta. |
 | `revocarUsuario()` [repository] | `SesionRepository` | Invalidar dispositivos de la cuenta. |
+| `porId()`, `coordinarAdministracion()`, `existeAdministradorNormal()`, `rolPorNombre()` [repository] | `UsuarioRepository` | Actor/objetivo, exclusión global, último Administrador y rol destino. |
+| `porIdBloqueado()`, `vincular()`, `tieneAtencionesSinCierreComprobable()` [repository] | `MedicoRepository` | Identidad y obligaciones solo en transiciones profesionales. |
+| `invalidar()` [repository] | `CambioCorreoRepository` | Invalida verificaciones de correo del objetivo. |
+| `invalidarRecuperaciones()`, `invalidarTemporales()` [repository] | `TokenAccesoRepository` | Revoca contextos anteriores al cambio administrativo. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Evento confirmado o denegación tras rollback. |
+| Revalidación/cierre/errores de sesión | `SesionRepository`, `TokenAccesoRepository` | Mapa común Fase 2 más `limpiarTrasFallo()`; todas las operaciones se incluyen abajo. |
 
 ```mermaid
 classDiagram
@@ -1735,20 +7658,49 @@ classDiagram
     class Administrador {
         <<actor>>
     }
-    class InterfazAccesoRol["Estado y rol de cuentas — React pendiente"] {
+    class InterfazAccesoRol["Estado y rol de cuentas"] {
         <<boundary>>
+        String id
+        String estado_cuenta
+        String rol
+        String id_medico
+        Boolean identidad_verificada
+        +cambiarEstadoCuenta()
+        +cambiarRolCuenta()
     }
     class ControlAccesoRol["CONTROL — Modificar acceso o rol"] {
         <<control>>
         +estado() [controller]
         +rol() [controller]
+        +rules() [validator]
         +cambiarEstado() [service]
         +cambiarRol() [service]
         +coordinar() [service]
         +verificar() [service]
-        +rules() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +rolPorNombre() [repository]
+        +porIdBloqueado() [repository]
+        +vincular() [repository]
+        +tieneAtencionesSinCierreComprobable() [repository]
         +guardar() [repository]
+        +invalidar() [repository]
+        +invalidarRecuperaciones() [repository]
+        +invalidarTemporales() [repository]
+        +existeAdministradorNormal() [repository]
         +revocarUsuario() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
@@ -1757,9 +7709,15 @@ classDiagram
         String estado_cuenta
         TimestampTZ? correo_verificado_en
         Boolean cambio_clave_obligatorio
+        String correo_acceso
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
     }
     class Rol {
         <<entity>>
+        BigInt id_rol
         String nombre
     }
     class Medico {
@@ -1770,11 +7728,65 @@ classDiagram
         String apellidos
         Boolean activo
     }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        BigInt id_medico
+        String estado
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_usuario
+        String proposito
+        TimestampTZ enviado_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
+        String? causa_codigo
+        JSONB? cambios_seguros
+    }
     Administrador --> InterfazAccesoRol : solicita cambio
     InterfazAccesoRol ..> ControlAccesoRol : presenta datos permitidos
     ControlAccesoRol ..> Usuario : revalida y modifica
     Usuario "0..*" -- "1" Rol : asignacion fija
     Usuario "0..1" -- "0..1" Medico : conserva identidad
+    Usuario --> Paciente : verifica tipo de cuenta
+    ControlAccesoRol ..> Cita : comprueba obligaciones
+    Cita --> ConsultaMedica : comprueba existencia
+    ControlAccesoRol ..> TokenAcceso
+    ControlAccesoRol ..> VerificacionCorreo
+    ControlAccesoRol ..> Sesiones
+    ControlAccesoRol ..> Bitacora
     style Administrador fill:#fff7ed,stroke:#9a3412
     style InterfazAccesoRol fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlAccesoRol fill:#dbeafe,stroke:#1d4ed8
@@ -1793,7 +7805,7 @@ classDiagram
 
 ### Procedimiento: emitir credencial temporal excepcional
 
-**Boundary:** restablecimiento administrativo con comprobación presencial, conceptual/React pendiente. Actor Administrador; objetivo exclusivamente personal Activo/verificado.
+**Boundary comprobado (P07):** acción de `AccountDetailPage` y `usuarios/services/usuario.service.js`, `emitirCredencialTemporal()`, con ID de ruta e `identidad_verificada`. Actor Administrador; objetivo exclusivamente personal Activo/verificado. No incluye el completado posterior del titular.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1804,6 +7816,11 @@ classDiagram
 | `personalHabilitado()` [validator] | `CredencialTemporalValidator` | Validación de negocio de personal elegible. |
 | `emitirTemporal()` [repository] | `TokenAccesoRepository` | Persistir HMAC/propósito y fechas del temporal. |
 | `revocarUsuario()` [repository] | `SesionRepository` | Retirar sesiones anteriores. |
+| `porId()`, `guardar()`, `coordinarAdministracion()`, `existeAdministradorNormal()` [repository] | `UsuarioRepository` | Actor/objetivo, marca obligatoria y continuidad. |
+| `ultimoTemporal()`, `emisionesTemporalesDesde()`, `primeraTemporalDesde()`, `invalidarTemporales()`, `invalidarRecuperaciones()` [repository] | `TokenAccesoRepository` | Espera/cupo e invalidación antes de emitir. |
+| `invalidar()` [repository] | `CambioCorreoRepository` | Verificaciones de correo previas. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Emisión/denegación con actor y objetivo. |
+| Revalidación/cierre/errores de sesión | `SesionRepository`, `TokenAccesoRepository` | Mapa común Fase 2 y limpieza de fallo; enumerados en Control. |
 
 ```mermaid
 classDiagram
@@ -1811,39 +7828,111 @@ classDiagram
     class Administrador {
         <<actor>>
     }
-    class InterfazTemporal["Restablecimiento presencial — React pendiente"] {
+    class InterfazTemporal["Restablecimiento presencial"] {
         <<boundary>>
+        String id
+        Boolean identidad_verificada
+        +emitirCredencialTemporal()
     }
     class ControlEmision["CONTROL — Emitir temporal"] {
         <<control>>
         +emitir() [controller]
+        +rules() [validator]
         +emitir() [service]
         +verificar() [service]
-        +rules() [validator]
         +personalHabilitado() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +ultimoTemporal() [repository]
+        +emisionesTemporalesDesde() [repository]
+        +primeraTemporalDesde() [repository]
+        +guardar() [repository]
+        +invalidar() [repository]
+        +existeAdministradorNormal() [repository]
+        +invalidarTemporales() [repository]
+        +invalidarRecuperaciones() [repository]
         +emitirTemporal() [repository]
         +revocarUsuario() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String estado_cuenta
         String? password_hash
         TimestampTZ? correo_verificado_en
         Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
     }
     class TokenAcceso {
         <<entity>>
+        BigInt id_token
         BigInt id_usuario
         String proposito
         String token_hash
         TimestampTZ emitido_en
         TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_usuario
+        String proposito
+        TimestampTZ enviado_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
+        String? causa_codigo
     }
     Administrador --> InterfazTemporal : verifica identidad
     InterfazTemporal ..> ControlEmision : solicita emision
     ControlEmision ..> Usuario : restringe acceso
     Usuario "1" -- "0..*" TokenAcceso : temporales
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente : excluye objetivos Paciente
+    ControlEmision ..> VerificacionCorreo
+    ControlEmision ..> Sesiones
+    ControlEmision ..> Bitacora
     style Administrador fill:#fff7ed,stroke:#9a3412
     style InterfazTemporal fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlEmision fill:#dbeafe,stroke:#1d4ed8
@@ -1855,7 +7944,7 @@ Credencial aleatoria de **20 caracteres**, visible una sola vez al Administrador
 
 ### Procedimiento: completar cambio obligatorio del personal
 
-**Boundary:** formulario exclusivo de contraseña definitiva, conceptual/React pendiente. Actores titulares Administrador/Recepcionista/Médico con sesión restringida obtenida por CU-01.
+**Boundary comprobado (P08):** `RestrictedAccessPage` y `auth/services/password.service.js`, `completarClaveTemporal()`. Solo password/confirmación; identidad y temporal se derivan de la sesión, no se envían como campos. Actores titulares Administrador/Recepcionista/Médico con sesión restringida obtenida por CU-01.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1867,6 +7956,11 @@ Credencial aleatoria de **20 caracteres**, visible una sola vez al Administrador
 | `guardar()` [repository] | `UsuarioRepository` | Definitiva y eliminación de cambio obligatorio. |
 | `consumir()` [repository] | `TokenAccesoRepository` | Uso definitivo del temporal. |
 | `revocarUsuario()` [repository] | `SesionRepository` | Retirar todas las sesiones, incluida la restringida. |
+| `porId()` [repository] | `UsuarioRepository` | Revalidación bajo bloqueo del titular. |
+| `temporalPorId()`, `invalidarTemporales()`, `invalidarRecuperaciones()` [repository] | `TokenAccesoRepository` | Consulta y retiro de los contextos anteriores. |
+| `invalidar()` [repository] | `CambioCorreoRepository` | Verificaciones de correo anteriores. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Cambio definitivo confirmado. |
+| Revalidación/cierre/errores de sesión | `SesionRepository` | Mapa común Fase 2 y `limpiarTrasFallo()`, enumerados en Control. |
 
 ```mermaid
 classDiagram
@@ -1874,38 +7968,104 @@ classDiagram
     class Personal["Administrador · Recepcionista · Médico"] {
         <<actor>>
     }
-    class InterfazDefinitiva["Contraseña definitiva — React pendiente"] {
+    class InterfazDefinitiva["Contraseña definitiva"] {
         <<boundary>>
+        String password
+        String password_confirmation
+        +completarClaveTemporal()
     }
     class ControlDefinitiva["CONTROL — Completar cambio obligatorio"] {
         <<control>>
         +completar() [controller]
+        +rules() [validator]
         +completar() [service]
         +exigirSesionRestringida() [service]
-        +rules() [validator]
         +vigente() [validator]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
         +guardar() [repository]
+        +invalidar() [repository]
         +consumir() [repository]
+        +invalidarTemporales() [repository]
+        +invalidarRecuperaciones() [repository]
         +revocarUsuario() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String? password_hash
         Boolean cambio_clave_obligatorio
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
     }
     class TokenAcceso {
         <<entity>>
         BigInt id_token
         BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
         TimestampTZ expira_en
         TimestampTZ? consumido_en
         TimestampTZ? invalidado_en
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_usuario
+        String proposito
+        TimestampTZ enviado_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
     }
     Personal --> InterfazDefinitiva : establece y confirma
     InterfazDefinitiva ..> ControlDefinitiva : solicita cambio definitivo
     ControlDefinitiva ..> Usuario : actualiza credencial
     Usuario "1" -- "0..*" TokenAcceso : consumo unico
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente : excluye titular Paciente
+    ControlDefinitiva ..> VerificacionCorreo
+    ControlDefinitiva ..> Sesiones
+    ControlDefinitiva ..> Bitacora
     style Personal fill:#fff7ed,stroke:#9a3412
     style InterfazDefinitiva fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlDefinitiva fill:#dbeafe,stroke:#1d4ed8
@@ -1941,13 +8101,13 @@ Mutaciones administrativas requieren Admin normal; aceptación es pública con o
 
 ### Actores, objetivo y trazabilidad
 
-**Actor:** Paciente sin sesión autenticada. Recepcionista interviene previamente en escenario B mediante CU-07, no en el alta nueva. **Objetivo:** crear/vincular cuenta propia con CI y única ficha, sin apropiarse de una ficha histórica ni perder su identificador. **Trazabilidad:** RF01/RF02, RN01/RN12/RN14, PN03; VS-AUT-13–22. **Estado:** escenarios A/7A y B/7B implementados en backend, incluida emisión autorizada de Recepción; integración final y React pendientes.
+**Actor de CU-04:** Paciente sin sesión autenticada; Administrador no ejecuta este CU. Administrador o Recepcionista intervienen previamente en escenario B exclusivamente mediante emisión por CU-07, no en el alta nueva ni en los pasos personales de vinculación/verificación. **Objetivo:** crear/vincular cuenta propia con CI y única ficha, sin apropiarse de una ficha histórica ni perder su identificador. **Trazabilidad:** RF01/RF02, RN01/RN12/RN14, PN03; VS-AUT-13–22. **Estado histórico:** escenarios A/7A y B/7B implementados en backend; integración final y React pendientes entonces. Emisión administrativa ampliada posteriormente según matriz vigente.
 
 **Precondiciones A:** CI y datos de registro válidos, contraseña aprobada y correo al que accede el solicitante; backend revalida reservas/unicidad. **Postcondición A:** únicamente tras verificar se crean Usuario Activa/rol Paciente y ficha activa vinculada en una transacción; sin login automático. CI obligatorio es decisión del proyecto; CU-07 conserva documento nullable para ficha administrativa excepcional.
 
 ### Escenario A — inicio y reenvío
 
-**Boundary:** registro de Paciente nuevo y solicitud de reenvío, conceptual/React pendiente.
+**Boundary comprobado (P09):** `RegisterPatientPage` (modo nuevo), `VerifyRegistrationPage` (reenvío) y `auth/services/registration.service.js`. `registrarPaciente()` filtra los once campos listados; `reenviarCodigoRegistro()` no envía identidad ni código, solo usa cookies/CSRF. Se mantiene el escenario A; la lectura de autorizaciones históricas solo comprueba reservas ajenas al intentar iniciar un Nuevo, no realiza el vínculo del escenario B.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -1955,6 +8115,11 @@ Mutaciones administrativas requieren Admin normal; aceptación es pública con o
 | `iniciar()`, `reenviar()` [service] | `RegistroPacienteService` | Reserva/reanudación y emisión diferida controlada. |
 | `rules()` [validator] | `RegistrarPacienteRequest` | CI/datos/clave y campos permitidos. Reenvío usa cookie, no otro formulario de identidad. |
 | `crear()`, `emitirCodigo()` [repository] | `RegistroPacienteRepository` | Crear pendiente y código de correo, sin ficha definitiva. |
+| `coordinar()`, `porContexto()`, `reservas()`, `invalidar()`, `invalidarCodigos()`, `documentoRegistrado()`, `ultimoCodigo()`, `emisionesHora()`, `codigoUtilizado()` [repository] | `RegistroPacienteRepository` | Coordinación, reintento propio, conflictos/expiraciones y política de reenvío. |
+| `porCorreoBloqueado()` [repository] | `UsuarioRepository` | Correo ya ocupado; no modifica la cuenta encontrada. |
+| `pacientePorId()`, `porId()` [repository] | `CodigoActivacionRepository` | Solo al comprobar vigencia de una reserva de tipo Vinculacion encontrada entre reservas existentes. |
+| `usuarioId()`, `guard()` [repository] | `SesionRepository` | Exigir solicitante sin sesión. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Solicitud/inicio, emisión limitada y resultado de envío. |
 
 ```mermaid
 classDiagram
@@ -1962,18 +8127,47 @@ classDiagram
     class ActorPaciente["Paciente"] {
         <<actor>>
     }
-    class InterfazRegistro["Registro nuevo y reenvío — React pendiente"] {
+    class InterfazRegistro["Registro nuevo y reenvío"] {
         <<boundary>>
+        String documento_identidad
+        String nombres
+        String apellidos
+        String fecha_nacimiento
+        String telefono
+        String sexo
+        String direccion
+        String correo_contacto
+        String correo_acceso
+        String password
+        String password_confirmation
+        +registrarPaciente()
+        +reenviarCodigoRegistro()
     }
     class ControlRegistro["CONTROL — Iniciar o reenviar"] {
         <<control>>
         +iniciar() [controller]
         +reenviar() [controller]
+        +rules() [validator]
         +iniciar() [service]
         +reenviar() [service]
-        +rules() [validator]
+        -emitir() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        +coordinar() [repository]
+        +porContexto() [repository]
+        +reservas() [repository]
+        +pacientePorId() [repository]
+        +porId() [repository]
+        +invalidar() [repository]
+        +invalidarCodigos() [repository]
+        +documentoRegistrado() [repository]
+        +porCorreoBloqueado() [repository]
         +crear() [repository]
+        +ultimoCodigo() [repository]
+        +emisionesHora() [repository]
+        +codigoUtilizado() [repository]
         +emitirCodigo() [repository]
+        +autenticacion() [repository]
     }
     class RegistroPacientePendiente {
         <<entity>>
@@ -1985,18 +8179,57 @@ classDiagram
         JSONB? datos_registro
         TimestampTZ iniciado_en
         TimestampTZ expira_en
+        BigInt? id_paciente
+        BigInt? id_codigo_activacion
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
     }
     class VerificacionCorreo {
         <<entity>>
+        BigInt id_verificacion
         BigInt? id_registro_pendiente
+        String proposito
+        String correo_destino
         String codigo_hash
         TimestampTZ enviado_en
         TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String? documento_identidad
+    }
+    class CodigoActivacionPaciente {
+        <<entity>>
+        BigInt id_codigo_activacion
+        BigInt id_paciente
+        Integer intentos_fallidos
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Usuario {
+        <<entity>>
+        String correo_acceso
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String resultado
+        String? causa_codigo
     }
     ActorPaciente --> InterfazRegistro : solicita cuenta propia
     InterfazRegistro ..> ControlRegistro : envia datos o pide reenvio
     ControlRegistro ..> RegistroPacientePendiente : reserva o reanuda
     RegistroPacientePendiente "0..1" -- "0..*" VerificacionCorreo : codigos por proceso
+    ControlRegistro ..> Paciente : consulta documento o reserva existente
+    ControlRegistro ..> CodigoActivacionPaciente : vigencia de reserva existente
+    ControlRegistro ..> Usuario : consulta correo ocupado
+    ControlRegistro ..> Bitacora
     style ActorPaciente fill:#fff7ed,stroke:#9a3412
     style InterfazRegistro fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlRegistro fill:#dbeafe,stroke:#1d4ed8
@@ -2012,7 +8245,7 @@ Inicio genera/reutiliza secreto de contexto aleatorio de 256 bits en cookie cifr
 
 ### Escenario A — verificación y creación definitiva
 
-**Boundary:** introducción del código de correo del mismo contexto, conceptual/React pendiente.
+**Boundary comprobado (P10):** `VerifyRegistrationPage` y `auth/services/registration.service.js`, `verificarRegistro()`. Solo `codigo`; el contexto Nuevo se recibe por cookie protegida, no como ID enviado por React. Este dibujo no crea ni modifica una ficha histórica.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -2022,6 +8255,10 @@ Inicio genera/reutiliza secreto de contexto aleatorio de 256 bits en cookie cifr
 | `porContexto()`, `ultimoCodigo()` [repository] | `RegistroPacienteRepository` | Recuperar y bloquear proceso/código propios. |
 | Primer `crearPaciente()` [repository] | `UsuarioRepository` | Insertar cuenta Activa/verificada con rol fijado por servidor. |
 | Segundo `crearPaciente()` [repository] | `RegistroPacienteRepository` | Insertar ficha enlazada con datos administrativos validados. |
+| `coordinar()`, `invalidar()`, `documentoRegistrado()`, `guardarCodigo()`, `guardar()`, `invalidarCodigos()` [repository] | `RegistroPacienteRepository` | Unicidad, errores/consumo del código y finalización del pendiente. |
+| `porCorreoBloqueado()`, `rolPorNombre()` [repository] | `UsuarioRepository` | Correo único y rol Paciente fijado por servidor. |
+| `usuarioId()`, `guard()`, `store()`, `cerrar()`, `limpiarTrasFallo()` [repository] | `SesionRepository` | Contexto anónimo, cierre tras verificar y limpieza de fallos. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Verificación inválida o activación confirmada. |
 
 ```mermaid
 classDiagram
@@ -2029,22 +8266,44 @@ classDiagram
     class ActorPaciente["Paciente"] {
         <<actor>>
     }
-    class InterfazVerificacion["Verificación de correo — React pendiente"] {
+    class InterfazVerificacion["Verificar registro nuevo"] {
         <<boundary>>
+        String codigo
+        +verificarRegistro()
     }
     class ControlVerificacion["CONTROL — Verificar registro nuevo"] {
         <<control>>
         +verificar() [controller]
-        +verificar() [service]
         +rules() [validator]
+        +verificar() [service]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        +coordinar() [repository]
         +porContexto() [repository]
+        +invalidar() [repository]
         +ultimoCodigo() [repository]
+        +guardarCodigo() [repository]
+        +documentoRegistrado() [repository]
+        +porCorreoBloqueado() [repository]
+        +rolPorNombre() [repository]
         +crearPaciente() [repository]
         +crearPaciente() [repository]
+        +guardar() [repository]
+        +invalidarCodigos() [repository]
+        +autenticacion() [repository]
+        +cerrar() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class RegistroPacientePendiente {
         <<entity>>
         BigInt id_registro_pendiente
+        String tipo_registro
+        String? documento_identidad
+        String correo_propuesto
+        String? password_hash_temporal
+        JSONB? datos_registro
+        TimestampTZ iniciado_en
         TimestampTZ expira_en
         TimestampTZ? completado_en
         TimestampTZ? invalidado_en
@@ -2052,8 +8311,10 @@ classDiagram
     class VerificacionCorreo {
         <<entity>>
         BigInt? id_registro_pendiente
+        String proposito
         String codigo_hash
         Integer intentos_fallidos
+        TimestampTZ enviado_en
         TimestampTZ expira_en
         TimestampTZ? consumido_en
         TimestampTZ? invalidado_en
@@ -2061,7 +8322,9 @@ classDiagram
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String correo_acceso
+        String? password_hash
         String estado_cuenta
         TimestampTZ? correo_verificado_en
     }
@@ -2070,7 +8333,31 @@ classDiagram
         BigInt id_paciente
         BigInt? id_usuario
         String? documento_identidad
+        String codigo_paciente
+        String nombres
+        String apellidos
+        Date fecha_nacimiento
+        String telefono
+        String? sexo
+        String? correo_contacto
+        String? direccion
         Boolean activo
+    }
+    class Rol {
+        <<entity>>
+        BigInt id_rol
+        String nombre
+    }
+    class Sesiones {
+        <<table>>
+        String id
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String resultado
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
     }
     ActorPaciente --> InterfazVerificacion : introduce codigo
     InterfazVerificacion ..> ControlVerificacion : solicita verificacion
@@ -2078,6 +8365,9 @@ classDiagram
     RegistroPacientePendiente "0..1" -- "0..*" VerificacionCorreo : verifica codigo propio
     ControlVerificacion ..> Usuario : crea cuenta autorizada
     Usuario "0..1" -- "0..1" Paciente : vincula ficha nueva
+    Usuario --> Rol
+    ControlVerificacion ..> Sesiones
+    ControlVerificacion ..> Bitacora
     style ActorPaciente fill:#fff7ed,stroke:#9a3412
     style InterfazVerificacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlVerificacion fill:#dbeafe,stroke:#1d4ed8
@@ -2103,18 +8393,24 @@ CI: string hasta 50 sin controles Unicode; recorta solo U+0020 exteriores, conse
 <a id="analisis-cu07-emision"></a>
 ### CU-07 — emisión de código de Recepción (alcance parcial necesario para 7B)
 
-**Actor:** Recepcionista con sesión normal y cuenta habilitada. **Objetivo:** autorizar presencialmente la vinculación de una ficha existente sin crear la cuenta. **Trazabilidad:** RF02, RN01/RN11/RN12/RN14, PN04; VS-AUT-15/18/19/22. **Precondiciones:** ficha existente con CI válido y sin cuenta, identidad/CI comprobados presencialmente y declaración expresa de Recepción. **Resultado:** código seguro para entrega presencial y evento con responsable, sin datos clínicos. Una ficha inactiva también puede vincular acceso propio; conserva su estado y no obtiene permiso de nuevas reservas.
+**Actores:** Administrador o Recepcionista con sesión normal y cuenta habilitada. **Objetivo:** autorizar presencialmente la vinculación de una ficha existente sin crear la cuenta ni ejecutar CU-04. **Trazabilidad:** RF02, RN01/RN11/RN12/RN14, PN04; VS-AUT-15/18/19/22. **Precondiciones:** ficha existente con CI válido y sin cuenta, identidad/CI comprobados presencialmente y declaración expresa del operador real. **Resultado:** código seguro para entrega presencial y evento con responsable, sin datos clínicos. Una ficha inactiva también puede vincular acceso propio; conserva su estado y no obtiene permiso de nuevas reservas.
 
-**Boundary:** formulario de emisión/reemplazo y entrega presencial, conceptual/React pendiente. El CRUD de fichas, incorporación de CI y consulta administrativa de citas de CU-07 siguen fuera de este bloque.
+**Boundary comprobado (P11, Fase 3):** `PatientActivationPage`/`ActivationCodePage` y `activation.service.js`, `emitirCodigoActivacion()`. Solo ID de ficha en ruta y declaración `identidad_verificada`; no CI, contraseña o rol autoasignado enviados como autorización. Se conserva su ubicación como soporte de CU-04, pero el actor ejecuta CU-07. Consulta/alta y actualización/CI/estado están representados por P17/P18; historial pertenece a CU-21.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
 | `emitir()` [controller] | `CodigoActivacionController` | ID de ruta/declaración → Service → 201 y entrega única. |
-| `emitir()` [service] | `CodigoActivacionService` | Revalidar Recepción/ficha, sustituir autorización y auditar en transacción. |
+| `emitir()` [service] | `CodigoActivacionService` | Revalidar Administrador/Recepcionista/ficha, sustituir autorización y auditar en transacción. |
 | `exigirSesionNormal()` [service] | `AutenticacionService` | Revalidar cuenta/sesión después de esperar el bloqueo global. |
 | `rules()` [validator] | `EmitirCodigoActivacionRequest` | BIGINT de ruta y comprobación presencial expresa; hereda rechazo de campos ajenos de `CuentaRequest`. |
 | `documentoValido()` [validator] | `CodigoActivacionValidator` | CI presente, no vacío, máximo 50 y sin controles Unicode. |
 | `crear()` [repository] | `CodigoActivacionRepository` | Persistir exclusivamente HMAC, emisor, ficha y vigencias. |
+| `pacientePorId()`, `invalidarAnteriores()` [repository] | `CodigoActivacionRepository` | Ficha original y sustitución de autorizaciones anteriores. |
+| `coordinar()`, `porPaciente()`, `invalidar()`, `invalidarCodigos()` [repository] | `RegistroPacienteRepository` | Exclusión y retiro de pendientes/códigos de correo del vínculo sustituido. |
+| `porId()` [repository] | `UsuarioRepository` | Revalidación bajo bloqueo del operador real. |
+| `usuarioId()`, `guard()`, `store()`, `contexto()`, `coincide()`, `vigente()`, `credencialTemporalId()`, `actualizarActor()`, `cerrar()` [repository] | `SesionRepository` | Revalidación de sesión, incluidos internos/rechazos; sin revocar sesiones de la ficha por emitir. |
+| `temporalPorId()` [repository] | `TokenAccesoRepository` | Rama de rechazo de contexto restringido. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Evento de emisión con emisor real y referencias de ficha/código. |
 
 ```mermaid
 classDiagram
@@ -2122,17 +8418,41 @@ classDiagram
     class Recepcionista {
         <<actor>>
     }
-    class InterfazCodigo["Código presencial — React pendiente"] {
+    class Administrador {
+        <<actor>>
+    }
+    class InterfazCodigo["Emitir o reemplazar código presencial"] {
         <<boundary>>
+        String id
+        Boolean identidad_verificada
+        +emitirCodigoActivacion()
     }
     class ControlCodigo["CONTROL — Emitir código de Recepción"] {
         <<control>>
         +emitir() [controller]
+        +rules() [validator]
         +emitir() [service]
         +exigirSesionNormal() [service]
-        +rules() [validator]
         +documentoValido() [validator]
+        +coordinar() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +pacientePorId() [repository]
+        +porPaciente() [repository]
+        +invalidar() [repository]
+        +invalidarCodigos() [repository]
+        +invalidarAnteriores() [repository]
         +crear() [repository]
+        +autenticacion() [repository]
     }
     class Paciente {
         <<entity>>
@@ -2143,32 +8463,104 @@ classDiagram
     class CodigoActivacionPaciente {
         <<entity>>
         BigInt id_codigo_activacion
+        BigInt id_paciente
         BigInt id_recepcionista
         String codigo_hash
         TimestampTZ emitido_en
         TimestampTZ expira_en
+        TimestampTZ? consumido_en
         TimestampTZ? invalidado_en
     }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt id_registro_pendiente
+        BigInt? id_paciente
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+        String? password_hash_temporal
+        JSONB? datos_registro
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_registro_pendiente
+        String proposito
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        String? rol_responsable
+        String resultado
+        JSONB? cambios_seguros
+    }
     Recepcionista --> InterfazCodigo : comprueba identidad y CI
+    Administrador --> InterfazCodigo : comprueba identidad y CI
     InterfazCodigo ..> ControlCodigo : solicita emision o reemplazo
     ControlCodigo ..> Paciente : revalida ficha sin cuenta
     Paciente "1" -- "0..*" CodigoActivacionPaciente : autorizaciones presenciales
+    CodigoActivacionPaciente --> Usuario : emisor real
+    Usuario --> Rol
+    Usuario --> Medico : identidad de sesion
+    Usuario --> Paciente : identidad de sesion
+    ControlCodigo ..> RegistroPacientePendiente : retira procesos anteriores
+    ControlCodigo ..> VerificacionCorreo : retira codigos anteriores
+    ControlCodigo ..> TokenAcceso : rechazo de sesion restringida
+    ControlCodigo ..> Sesiones
+    ControlCodigo ..> Bitacora
     style Recepcionista fill:#fff7ed,stroke:#9a3412
+    style Administrador fill:#fff7ed,stroke:#9a3412
     style InterfazCodigo fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlCodigo fill:#dbeafe,stroke:#1d4ed8
     style Paciente fill:#dcfce7,stroke:#15803d
     style CodigoActivacionPaciente fill:#dcfce7,stroke:#15803d
 ```
 
-POST `/api/pacientes/{id}/codigo-activacion` recibe solo `identidad_verificada=true`; 201 con `data.id_paciente` string, `codigo_activacion` y `expira_en`. La declaración representa una comprobación humana, no una identificación automática por CI. `ExigirRol:Recepcionista`, cuenta/sesión normal, origen/CSRF y `LimitarCodigoActivacion` preceden al Service. La autorización también se revalida bajo bloqueo transaccional. Administrador no hereda esta facultad.
+POST `/api/pacientes/{id}/codigo-activacion` recibe solo `identidad_verificada=true`; 201 con `data.id_paciente` string, `codigo_activacion` y `expira_en`. La declaración representa una comprobación humana, no una identificación automática por CI. El guard de rol admite Administrador/Recepcionista; cuenta/sesión normal, origen/CSRF y `LimitarCodigoActivacion` preceden al Service. La autorización también se revalida bajo bloqueo transaccional. Administrador ejerce esta facultad por autorización expresa de CU-07, sin omitir verificaciones. `id_recepcionista` conserva el nombre histórico de la FK a Usuario y registra al emisor real de cualquiera de ambos roles.
 
 Protocolo `(736202,1)` → actor → ficha/códigos/reservas. Sustitución invalida autorizaciones anteriores y los procesos pendientes de esa ficha, limpia hash/datos y sus códigos de correo, luego genera **12 caracteres aleatorios entre 62 símbolos**, HMAC-SHA256 separado por propósito y ligado a ID de Paciente, **24 horas** y cinco errores. Se entrega una vez para uso presencial; ni correo ni Bitácora contienen el secreto. Fallo de auditoría/escritura revierte también las invalidaciones, conservando el proceso previo. Datos de ficha, cuenta y clínica no se modifican por emitir.
 
-Errores: 401 de sesión, 403 de rol/restricción/origen, 404 ficha inexistente, 409 `ACTIVACION_NO_PERMITIDA` si no reúne CI/ausencia de cuenta/identidad, 419 CSRF, 422 campos, 429 límite técnico o 500 seguro. Límite técnico reutilizado: 20 solicitudes/minuto/IP y cinco/minuto/Recepcionista, compartido entre dispositivos; no es un nuevo plazo funcional de reemisión. El resto de CU-07 continúa pendiente y no se declara cerrado su módulo.
+Errores: 401 de sesión, 403 de rol/restricción/origen, 404 ficha inexistente, 409 `ACTIVACION_NO_PERMITIDA` si no reúne CI/ausencia de cuenta/identidad, 419 CSRF, 422 campos, 429 límite técnico o 500 seguro. El límite por operador se aplica al usuario autenticado real de cualquiera de ambos roles y se comparte entre sus dispositivos; no es un nuevo plazo funcional de reemisión. Los números técnicos se contrastan con LimitarCodigoActivacion/configuración, no son atributos del modelo. Consulta/alta y actualización de CU-07 ya tienen implementación y se documentan por separado en P17/P18; este diagrama no acredita por sí solo el cierre funcional integral o la integración frontend administrativa pendiente.
 
 ### Escenario B — reservar la vinculación histórica
 
-**Precondiciones:** código presencial vigente/correspondiente, CI obligatorio, ficha sin cuenta y correo disponible; cookie anónima del solicitante. **Boundary:** formulario «Ya tengo código de activación», conceptual/React pendiente, sin editar identidad ni ficha.
+**Precondiciones:** código presencial vigente/correspondiente, CI obligatorio, ficha sin cuenta y correo disponible; cookie anónima del solicitante. **Boundary comprobado (P12):** modo vinculación de `RegisterPatientPage` y `auth/services/registration.service.js`, `vincularPaciente()`. CI/código presencial/correo/password/confirmación; no edita identidad ni ficha. Incluye reintento propio con reenvío, no confirmación del vínculo.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -2178,6 +8570,11 @@ Errores: 401 de sesión, 403 de rol/restricción/origen, 404 ficha inexistente, 
 | `vigente()` [validator] | `CodigoActivacionValidator` | Comprobar fechas, contador, invalidación y consumo del código presencial. |
 | `pacientePorDocumento()`, `ultimo()` [repository] | `CodigoActivacionRepository` | Bloquear ficha localizada por CI y su autorización más reciente. |
 | `crear()` [repository] | `RegistroPacienteRepository` | Guardar reserva Vinculacion, hash temporal y HMAC de contexto. |
+| `coordinar()`, `porContexto()`, `porPaciente()`, `reservas()`, `invalidar()`, `ultimoCodigo()`, `emisionesHora()`, `codigoUtilizado()`, `invalidarCodigos()`, `emitirCodigo()` [repository] | `RegistroPacienteRepository` | Exclusividad, conflictos/agotamiento y emisión del segundo código. |
+| `pacientePorId()`, `porId()`, `guardar()` [repository] | `CodigoActivacionRepository` | Vigencia de reservas y contador del código presencial incorrecto. |
+| `porCorreoBloqueado()` [repository] | `UsuarioRepository` | No reservar un correo ya ocupado. |
+| `usuarioId()`, `guard()` [repository] | `SesionRepository` | Exigir solicitante sin sesión. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Denegación/inicio/emisión/envío. |
 
 ```mermaid
 classDiagram
@@ -2185,18 +8582,42 @@ classDiagram
     class ActorPaciente["Paciente"] {
         <<actor>>
     }
-    class InterfazVincular["Vinculación histórica — React pendiente"] {
+    class InterfazVincular["Iniciar vinculación histórica"] {
         <<boundary>>
+        String documento_identidad
+        String codigo_activacion
+        String correo_acceso
+        String password
+        String password_confirmation
+        +vincularPaciente()
     }
     class ControlVincular["CONTROL — Reservar vinculación"] {
         <<control>>
         +vincular() [controller]
-        +vincular() [service]
         +rules() [validator]
+        +vincular() [service]
+        -emitir() [service]
         +vigente() [validator]
+        +usuarioId() [repository]
+        -guard() [repository]
+        +coordinar() [repository]
+        +porContexto() [repository]
         +pacientePorDocumento() [repository]
         +ultimo() [repository]
+        +pacientePorId() [repository]
+        +porId() [repository]
+        +porPaciente() [repository]
+        +invalidar() [repository]
+        +invalidarCodigos() [repository]
+        +guardar() [repository]
+        +reservas() [repository]
+        +porCorreoBloqueado() [repository]
         +crear() [repository]
+        +ultimoCodigo() [repository]
+        +emisionesHora() [repository]
+        +codigoUtilizado() [repository]
+        +emitirCodigo() [repository]
+        +autenticacion() [repository]
     }
     class Paciente {
         <<entity>>
@@ -2207,23 +8628,60 @@ classDiagram
     class CodigoActivacionPaciente {
         <<entity>>
         BigInt id_codigo_activacion
+        BigInt id_paciente
         String codigo_hash
         Integer intentos_fallidos
+        TimestampTZ emitido_en
         TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
     }
     class RegistroPacientePendiente {
         <<entity>>
+        BigInt id_registro_pendiente
         BigInt? id_paciente
         BigInt? id_codigo_activacion
         String tipo_registro
         String correo_propuesto
+        String? documento_identidad
+        String? password_hash_temporal
+        JSONB? datos_registro
+        TimestampTZ iniciado_en
         TimestampTZ expira_en
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt id_verificacion
+        BigInt? id_registro_pendiente
+        String proposito
+        String correo_destino
+        String codigo_hash
+        TimestampTZ enviado_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Usuario {
+        <<entity>>
+        String correo_acceso
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String resultado
+        String? causa_codigo
+        JSONB? cambios_seguros
     }
     ActorPaciente --> InterfazVincular : presenta CI y autorizacion
     InterfazVincular ..> ControlVincular : solicita vinculo propio
     ControlVincular ..> Paciente : comprueba ficha original
     Paciente "1" -- "0..*" CodigoActivacionPaciente : autoriza inicio
     CodigoActivacionPaciente "0..1" -- "0..*" RegistroPacientePendiente : reserva exclusiva vigente
+    ControlVincular ..> VerificacionCorreo : segundo codigo
+    ControlVincular ..> Usuario : consulta correo ocupado
+    ControlVincular ..> Bitacora
     style ActorPaciente fill:#fff7ed,stroke:#9a3412
     style InterfazVincular fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlVincular fill:#dbeafe,stroke:#1d4ed8
@@ -2238,7 +8696,7 @@ Tras hash uniforme, el mismo 202 delimitado difiere las consultas/transacción. 
 
 ### Escenario B — confirmar correo y vincular atómicamente
 
-**Boundary:** código de correo del contexto reservado, conceptual/React pendiente. **Postcondición:** Usuario Activa/verificada de rol Paciente vinculado a la misma ficha, ambos códigos consumidos; sin login automático ni activación de una ficha inactiva.
+**Boundary comprobado (P13):** `VerifyRegistrationPage` y `auth/services/registration.service.js`, `verificarRegistro()`. Solo código de correo; no vuelve a enviar CI, código presencial o contraseña. **Postcondición:** Usuario Activa/verificada de rol Paciente vinculado a la misma ficha, ambos códigos consumidos; sin login automático ni activación de una ficha inactiva.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -2249,6 +8707,12 @@ Tras hash uniforme, el mismo 202 delimitado difiere las consultas/transacción. 
 | `crearPaciente()` [repository] | `UsuarioRepository` | Crear exclusivamente la cuenta Activa de rol Paciente. |
 | `vincular()`, `guardar()` [repository] | `CodigoActivacionRepository` | Asignar id_usuario en ficha y guardar consumo presencial. |
 | `guardarCodigo()` [repository] | `RegistroPacienteRepository` | Consumir el código de correo dentro de la misma transacción. |
+| `coordinar()`, `porContexto()`, `invalidar()`, `ultimoCodigo()`, `guardar()`, `invalidarCodigos()` [repository] | `RegistroPacienteRepository` | Proceso propio y finalización/errores; aquí `guardar()` es del pendiente. |
+| `porCorreoBloqueado()`, `rolPorNombre()` [repository] | `UsuarioRepository` | Unicidad de correo y rol fijo. |
+| `pacientePorId()`, `porId()` [repository] | `CodigoActivacionRepository` | Releer ficha y autorización originales antes/después de la escritura. |
+| `guardar()` [repository] | `PacienteRepository` | Invocado dentro de `CodigoActivacionRepository.vincular()`; conserva ficha y avanza `actualizado_en`. |
+| `usuarioId()`, `guard()`, `store()`, `cerrar()`, `limpiarTrasFallo()` [repository] | `SesionRepository` | Contexto anónimo, cierre/limpieza. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Cuenta vinculada o código inválido. |
 
 ```mermaid
 classDiagram
@@ -2256,42 +8720,107 @@ classDiagram
     class ActorPaciente["Paciente"] {
         <<actor>>
     }
-    class InterfazConfirmar["Confirmar vinculación — React pendiente"] {
+    class InterfazConfirmar["Confirmar vinculación"] {
         <<boundary>>
+        String codigo
+        +verificarRegistro()
     }
     class ControlConfirmar["CONTROL — Confirmar vínculo histórico"] {
         <<control>>
         +verificar() [controller]
-        +verificar() [service]
         +rules() [validator]
+        +verificar() [service]
         +vigente() [validator]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        +coordinar() [repository]
+        +porContexto() [repository]
+        +pacientePorId() [repository]
+        +porId() [repository]
+        +invalidar() [repository]
+        +ultimoCodigo() [repository]
+        +porCorreoBloqueado() [repository]
+        +rolPorNombre() [repository]
         +crearPaciente() [repository]
         +vincular() [repository]
         +guardar() [repository]
+        +guardar() [repository]
+        +guardar() [repository]
         +guardarCodigo() [repository]
+        +invalidarCodigos() [repository]
+        +autenticacion() [repository]
+        +cerrar() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Paciente {
         <<entity>>
         BigInt id_paciente
         BigInt? id_usuario
-        Boolean activo
+        String? documento_identidad
+        TimestampTZ actualizado_en
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String correo_acceso
+        String? password_hash
         String estado_cuenta
         TimestampTZ? correo_verificado_en
     }
     class CodigoActivacionPaciente {
         <<entity>>
+        BigInt id_codigo_activacion
+        BigInt id_paciente
+        Integer intentos_fallidos
+        TimestampTZ emitido_en
         TimestampTZ expira_en
         TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
     }
     class VerificacionCorreo {
         <<entity>>
+        BigInt? id_registro_pendiente
+        String proposito
+        String codigo_hash
+        Integer intentos_fallidos
+        TimestampTZ enviado_en
         TimestampTZ expira_en
         TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class RegistroPacientePendiente {
+        <<entity>>
+        BigInt id_registro_pendiente
+        BigInt? id_paciente
+        BigInt? id_codigo_activacion
+        String tipo_registro
+        String? documento_identidad
+        String correo_propuesto
+        String? password_hash_temporal
+        JSONB? datos_registro
+        TimestampTZ iniciado_en
+        TimestampTZ expira_en
+        TimestampTZ? completado_en
+        TimestampTZ? invalidado_en
+    }
+    class Rol {
+        <<entity>>
+        BigInt id_rol
+        String nombre
+    }
+    class Sesiones {
+        <<table>>
+        String id
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
+        JSONB? cambios_seguros
     }
     ActorPaciente --> InterfazConfirmar : confirma el buzon propio
     InterfazConfirmar ..> ControlConfirmar : presenta segundo codigo
@@ -2299,6 +8828,10 @@ classDiagram
     Paciente "0..1" -- "0..1" Usuario : vincula cuenta unica
     ControlConfirmar ..> CodigoActivacionPaciente : consume autorizacion
     ControlConfirmar ..> VerificacionCorreo : consume verificacion
+    ControlConfirmar ..> RegistroPacientePendiente : completa y limpia
+    Usuario --> Rol
+    ControlConfirmar ..> Sesiones
+    ControlConfirmar ..> Bitacora
     style ActorPaciente fill:#fff7ed,stroke:#9a3412
     style InterfazConfirmar fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlConfirmar fill:#dbeafe,stroke:#1d4ed8
@@ -2327,7 +8860,7 @@ Confirmación revalida unicidad de correo, crea la cuenta y vuelve a comprobar *
 
 ### Boundary y clases participantes
 
-**Boundary:** formulario de cambio propio, conceptual/React pendiente.
+**Boundary comprobado (P14):** `ChangePasswordPage` y `auth/services/password.service.js`, `cambiarClave()`. Solo actual/password/confirmación; el usuario se deriva de la sesión. El cambio obligatorio pertenece a P08, no a este procedimiento.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -2337,6 +8870,11 @@ Confirmación revalida unicidad de correo, crea la cuenta y vuelve a comprobar *
 | `rules()` [validator] | `CambiarClaveRequest` | Añadir actual a la política heredada de `ClaveRequest`. |
 | `guardar()` [repository] | `UsuarioRepository` | Persistir hash. |
 | `revocarUsuario()`, `iniciar()` [repository] | `SesionRepository` | Revocar IDs anteriores y persistir sesión renovada. |
+| `porId()` [repository] | `UsuarioRepository` | Titular revalidado bajo bloqueo. |
+| `invalidar()` [repository] | `CambioCorreoRepository` | Invalida verificaciones anteriores de correo. |
+| `invalidarRecuperaciones()` [repository] | `TokenAccesoRepository` | Revoca enlaces emitidos antes de cambiar la clave. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Cambio confirmado o contraseña actual incorrecta. |
+| Revalidación/cierre/errores de sesión | `SesionRepository`, `TokenAccesoRepository` | Mapa común Fase 2, más `iniciar()` y `limpiarTrasFallo()`, enumerados en Control. |
 
 ### Diagrama de análisis
 
@@ -2346,29 +8884,104 @@ classDiagram
     class Actores["Administrador · Recepcionista · Médico · Paciente"] {
         <<actor>>
     }
-    class InterfazClave["Cambio de contraseña propia — React pendiente"] {
+    class InterfazClave["Cambio de contraseña propia"] {
         <<boundary>>
+        String current_password
+        String password
+        String password_confirmation
+        +cambiarClave()
     }
     class ControlCU05["CONTROL — Cambiar contraseña propia"] {
         <<control>>
         +update() [controller]
+        +rules() [validator]
         +cambiar() [service]
         +exigirSesionNormal() [service]
-        +rules() [validator]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
         +guardar() [repository]
+        +invalidar() [repository]
+        +invalidarRecuperaciones() [repository]
         +revocarUsuario() [repository]
         +iniciar() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String? password_hash
         String estado_cuenta
         Boolean cambio_clave_obligatorio
+        TimestampTZ? correo_verificado_en
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_usuario
+        String proposito
+        TimestampTZ enviado_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        String payload
+        Integer last_activity
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        String resultado
+        String? causa_codigo
     }
     Actores --> InterfazClave : introduce actual y nueva
     InterfazClave ..> ControlCU05 : solicita cambio propio
     ControlCU05 ..> Usuario : verifica y actualiza credencial
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente
+    ControlCU05 ..> TokenAcceso
+    ControlCU05 ..> VerificacionCorreo
+    ControlCU05 ..> Sesiones
+    ControlCU05 ..> Bitacora
     style Actores fill:#fff7ed,stroke:#9a3412
     style InterfazClave fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlCU05 fill:#dbeafe,stroke:#1d4ed8
@@ -2396,7 +9009,7 @@ Actual incorrecta: 422 `AUTH_CLAVE_ACTUAL_INVALIDA`, evento DENEGADO confirmado 
 
 ### Procedimiento: solicitar enlace
 
-**Boundary:** solicitud de recuperación, conceptual/React pendiente.
+**Boundary comprobado (P15):** `ForgotPasswordPage` y `auth/services/password.service.js`, `solicitarRecuperacion()`. Solo correo; no contraseña, token, CI ni selector de rol. La respuesta no confirma cuenta ni envío.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -2405,6 +9018,8 @@ Actual incorrecta: 422 `AUTH_CLAVE_ACTUAL_INVALIDA`, evento DENEGADO confirmado 
 | `rules()` [validator] | `SolicitarRecuperacionRequest` | Correo válido con normalización uniforme. |
 | `porCorreoBloqueado()` [repository] | `UsuarioRepository` | Recuperar y bloquear cuenta durante trabajo diferido. |
 | `emitirRecuperacion()` [repository] | `TokenAccesoRepository` | Emitir exclusivamente propósito RecuperacionClave. |
+| `invalidarRecuperaciones()` [repository] | `TokenAccesoRepository` | Revocar enlaces previos antes de emitir. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Solicitud no aplicable, emisión y resultado de transporte. |
 
 ```mermaid
 classDiagram
@@ -2412,24 +9027,32 @@ classDiagram
     class Actores["Administrador · Recepcionista · Médico · Paciente"] {
         <<actor>>
     }
-    class InterfazSolicitud["Solicitar recuperación — React pendiente"] {
+    class InterfazSolicitud["Solicitar recuperación"] {
         <<boundary>>
+        String correo_acceso
+        +solicitarRecuperacion()
     }
     class ControlSolicitud["CONTROL — Solicitar enlace"] {
         <<control>>
         +solicitar() [controller]
-        +solicitar() [service]
         +rules() [validator]
+        +solicitar() [service]
         +porCorreoBloqueado() [repository]
+        +invalidarRecuperaciones() [repository]
         +emitirRecuperacion() [repository]
+        +autenticacion() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String correo_acceso
+        String? password_hash
         String estado_cuenta
         TimestampTZ? correo_verificado_en
         Boolean cambio_clave_obligatorio
+        String? nombres_personal
+        String? apellidos_personal
     }
     class TokenAcceso {
         <<entity>>
@@ -2438,11 +9061,36 @@ classDiagram
         String token_hash
         TimestampTZ emitido_en
         TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_objetivo
+        String resultado
+        String? causa_codigo
     }
     Actores --> InterfazSolicitud : informa correo
     InterfazSolicitud ..> ControlSolicitud : solicita enlace
     ControlSolicitud ..> Usuario : evalua elegibilidad
     Usuario "1" -- "0..*" TokenAcceso : recuperaciones
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente
+    ControlSolicitud ..> Bitacora
     style Actores fill:#fff7ed,stroke:#9a3412
     style InterfazSolicitud fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlSolicitud fill:#dbeafe,stroke:#1d4ed8
@@ -2454,7 +9102,7 @@ POST `/api/auth/password/forgot` recibe `correo_acceso` y devuelve **202** con m
 
 ### Procedimiento: restablecer mediante el enlace
 
-**Boundary:** nueva contraseña desde enlace seguro, conceptual/React pendiente.
+**Boundary comprobado (P16):** `ResetPasswordPage` y `auth/services/password.service.js`, `restablecerClave()`. Token del enlace/password/confirmación, sin correo ni ID de cuenta adicional. Solicitar otro enlace permanece en P15.
 
 | Método del diagrama | Clase real | Responsabilidad |
 | --- | --- | --- |
@@ -2464,6 +9112,11 @@ POST `/api/auth/password/forgot` recibe `correo_acceso` y devuelve **202** con m
 | `recuperacionPorHash()`, `consumir()` [repository] | `TokenAccesoRepository` | Consultar propósito correcto y consumir enlace. |
 | `guardar()` [repository] | `UsuarioRepository` | Persistir nueva credencial. |
 | `revocarUsuario()` [repository] | `SesionRepository` | Revocar dispositivos del titular. |
+| `porId()` [repository] | `UsuarioRepository` | Bloqueo del titular a partir de la referencia del token. |
+| `invalidarRecuperaciones()` [repository] | `TokenAccesoRepository` | Retiro de enlaces hermanos tras consumir. |
+| `invalidar()` [repository] | `CambioCorreoRepository` | Verificaciones de cambio de correo anteriores. |
+| `usuarioId()`, `guard()`, `store()`, `cerrar()`, `limpiarTrasFallo()` [repository] | `SesionRepository` | No cerrar sesión ajena; limpieza al fallar. |
+| `autenticacion()` [repository] | `BitacoraRepository` | Consumo confirmado o enlace inválido. |
 
 ```mermaid
 classDiagram
@@ -2471,39 +9124,97 @@ classDiagram
     class Actores["Administrador · Recepcionista · Médico · Paciente"] {
         <<actor>>
     }
-    class InterfazRecuperacion["Nueva contraseña por enlace — React pendiente"] {
+    class InterfazRecuperacion["Nueva contraseña por enlace"] {
         <<boundary>>
+        String token
+        String password
+        String password_confirmation
+        +restablecerClave()
     }
     class ControlRecuperacion["CONTROL — Restablecer contraseña"] {
         <<control>>
         +restablecer() [controller]
-        +restablecer() [service]
         +rules() [validator]
+        +restablecer() [service]
         +recuperacionPorHash() [repository]
-        +consumir() [repository]
+        +porId() [repository]
         +guardar() [repository]
+        +invalidar() [repository]
+        +consumir() [repository]
+        +invalidarRecuperaciones() [repository]
         +revocarUsuario() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        +cerrar() [repository]
+        +autenticacion() [repository]
+        +limpiarTrasFallo() [repository]
     }
     class Usuario {
         <<entity>>
         BigInt id_usuario
+        BigInt id_rol
         String? password_hash
         String estado_cuenta
         Boolean cambio_clave_obligatorio
+        TimestampTZ? correo_verificado_en
+        String? nombres_personal
+        String? apellidos_personal
+        TimestampTZ actualizado_en
     }
     class TokenAcceso {
         <<entity>>
         BigInt id_usuario
         String token_hash
+        String proposito
         TimestampTZ emitido_en
         TimestampTZ expira_en
         TimestampTZ? consumido_en
         TimestampTZ? invalidado_en
     }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+    }
+    class VerificacionCorreo {
+        <<entity>>
+        BigInt? id_usuario
+        String proposito
+        TimestampTZ enviado_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        BigInt? id_usuario_responsable
+        BigInt? id_usuario_objetivo
+        String resultado
+        String? causa_codigo
+    }
     Actores --> InterfazRecuperacion : confirma nueva clave
     InterfazRecuperacion ..> ControlRecuperacion : presenta enlace y clave
     ControlRecuperacion ..> Usuario : actualiza credencial propia
     Usuario "1" -- "0..*" TokenAcceso : enlace de un solo uso
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente
+    ControlRecuperacion ..> VerificacionCorreo
+    ControlRecuperacion ..> Sesiones
+    ControlRecuperacion ..> Bitacora
     style Actores fill:#fff7ed,stroke:#9a3412
     style InterfazRecuperacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlRecuperacion fill:#dbeafe,stroke:#1d4ed8
@@ -2580,7 +9291,7 @@ Las referencias externas a `analisis-clases.md §N` siguen localizándose en el 
 - Se validaron 27 anclas explícitas, enlaces internos, cercas Markdown y diferencias Git sin errores de espacios. Una comparación normalizada confirmó que las secciones históricas 1–21 conservan íntegro el contenido previo; solo cambian su nivel de encabezado y las anclas añadidas.
 - Esta comprobación es documental. Los resultados automatizados de Laravel citados conservan sus fechas/fases originales; la suite backend no se volvió a ejecutar como parte de esta edición.
 
-**Mantenimiento:** cada CU futuro conservará Boundary conceptual hasta existir React, un CONTROL resumido por diagrama y correspondencia de métodos/clases fuera de él. Al incorporar implementación se revisarán escenarios, métodos, atributos, permisos, contratos, pruebas y estado. El diagrama global se actualiza al cerrar módulo y el DER solo ante cambios de persistencia; esta reorganización no implementa CU ni cambia requisitos.
+**Mantenimiento vigente:** cada procedimiento conservará su división; Boundary y Control mostrarán exclusivamente elementos verificables en el código de ese contexto, con métodos principales de controlador/servicio/validador y todos los de repositorio participantes. Si todavía no existe interfaz o flujo, se señala la ausencia sin dibujar operaciones conceptuales como implementadas. La correspondencia de métodos/clases queda fuera del diagrama. Al incorporar implementación se revisarán escenarios, atributos, permisos, contratos, pruebas y estado. El UML global se mantiene separado y el DER solo cambia ante modificaciones de persistencia; esta revisión documental no implementa CU ni cambia requisitos.
 
 ## Expediente técnico e histórico — secciones originales 1–21
 
@@ -2694,7 +9405,7 @@ Login y me devolverán el mismo Resource, con envoltura `data`:
 }
 ```
 
-El ejemplo es ficticio y no identifica una cuenta instalada. El ID se representa como cadena decimal para preservar BIGINT en JavaScript. `rol` utiliza exactamente Administrador, Recepcionista, Médico o Paciente; React no necesita adivinar sus IDs. `nombre_visible` usa nombres/apellidos personales para Administrador/Recepcionista, la ficha profesional para Médico y la ficha propia para Paciente. Un vínculo profesional histórico no convierte al Administrador/Recepcionista en Médico ni le concede permisos clínicos.
+El ejemplo es ficticio y no identifica una cuenta instalada. El ID se representa como cadena decimal para preservar BIGINT en JavaScript. `rol` utiliza exactamente Administrador, Recepcionista, Médico o Paciente; React no necesita adivinar sus IDs. `nombre_visible` usa nombres/apellidos personales para Administrador/Recepcionista, la ficha profesional para Médico y la ficha propia para Paciente. Un vínculo profesional histórico no convierte al Administrador/Recepcionista en Médico ni concede permisos por ese vínculo: el Administrador tiene autorización clínica expresa en sus CU, con ejecutor y Médico responsable separados; Recepción no tiene autorización clínica.
 
 El Resource proyecta estos campos expresamente: no serializa el modelo completo, hash, contadores, bloqueo, tokens, sesiones, CI, antecedentes o relaciones clínicas. Los IDs de recursos operativos se derivarán y autorizarán en sus propios CU.
 
@@ -2865,7 +9576,7 @@ React seguirá Page → Feature Service → Axios. `features/auth/` contendrá l
 | AUT-08 | Límites por IP y correo+IP se aplican igual a existentes/inexistentes; frontera, ventana, Retry-After, clave no legible y concurrencia comprobados. |
 | AUT-09 | ID de sesión cambia al login; ID anónimo anterior no autoriza y no hay remember token/bearer token emitido. Sesión cifrada y cookies con atributos correctos. |
 | AUT-10 | Me rechaza ausencia, expiración o revocación, restaura sesión válida y no permite seleccionar un usuario mediante ID del cliente. |
-| AUT-11 | Rol/vínculo incompatible o cambio obligatorio impiden sesión normal; ficha inactiva con cuenta habilitada mantiene acceso autorizado. Rol administrativo con vínculo médico histórico no gana permisos clínicos. |
+| AUT-11 | Rol/vínculo incompatible o cambio obligatorio impiden sesión normal; ficha inactiva con cuenta habilitada mantiene acceso autorizado. El vínculo médico histórico no concede permisos: Administrador actúa por autorización expresa del CU, sin suplantar al Médico; Recepción no gana permisos clínicos. |
 | AUT-12 | Un bloqueo de login no desactiva cuenta/ficha ni revoca por sí solo sesiones normales anteriores. |
 | AUT-13 | Logout devuelve 204 sin cuerpo, destruye ID previo, renueva CSRF y deja otros dispositivos ordinarios según su alcance. Logout repetido no duplica eventos. |
 | AUT-14 | Desactivar y revocar varias sesiones impide usarlas; reactivar no las recupera. En fase 1, simular la operación futura de forma coordinada desde el entorno de prueba. |

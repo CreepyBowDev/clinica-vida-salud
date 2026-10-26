@@ -42,6 +42,41 @@ afterEach(() => { api.defaults.adapter = original; });
 const dato = (region, name) => within(region).getByText(name, { selector: 'dt' }).parentElement;
 
 describe('detalle seguro CU-30 fase 3', () => {
+  it.each([
+    ['ADMINISTRACION', 'Administrador', 'Programación administrativa'],
+    ['RECEPCION', 'Recepcionista', 'Programación por Recepción'],
+    ['PROPIA', 'Paciente', 'Reserva propia del Paciente'],
+  ])('CITA_PROGRAMADA presenta origen %s sin confundir ejecutor y Médico', async (origen, rol, etiqueta) => {
+    current = { ...base, tipo_evento: 'CITA_PROGRAMADA', modulo: 'CITAS', operacion: 'CITA_PROGRAMADA',
+      rol_responsable: rol, entidad_referida: 'Cita', registro_referido: '91',
+      referencias: { id_cita: '91', id_paciente: '31', id_medico: '81', id_especialidad: '9', id_consultorio: '41', secreto: 'NO-SALIR' },
+      cambios_seguros: { origen, estado: 'Programada', duracion_minutos: 15, motivo_breve: 'NO-SALIR', token: 'NO-SALIR' } };
+    mount(); const cambios = await screen.findByRole('region', { name: 'Cambios registrados' });
+    expect(dato(cambios, 'Origen de la reserva')).toHaveTextContent(etiqueta);
+    expect(dato(cambios, 'Estado al registrar')).toHaveTextContent('Programada');
+    expect(dato(cambios, 'Duración al registrar')).toHaveTextContent('15 minutos');
+    const recursos = screen.getByRole('region', { name: 'Recursos referidos' });
+    for (const [label, value] of [['ID de Cita', '91'], ['ID de Paciente', '31'], ['ID de Médico', '81'], ['ID de Consultorio', '41']]) expect(dato(recursos, label)).toHaveTextContent(value);
+    const cabecera = screen.getByRole('region', { name: `Evento #${id}` });
+    expect(dato(cabecera, 'ID de usuario responsable')).toHaveTextContent(base.id_usuario_responsable);
+    expect(dato(cabecera, 'Rol histórico del responsable')).toHaveTextContent(rol);
+    expect(screen.getByRole('main')).not.toHaveTextContent('NO-SALIR');
+    expect(within(recursos).queryByRole('link')).not.toBeInTheDocument();
+    expect(calls.every(c => c.method === 'get')).toBe(true);
+  });
+  it.each(['origen', 'estado', 'duracion', 'formato', 'otro_evento'])('no interpreta metadata de reserva %s inválida o fuera de contexto', async tipo => {
+    current = { ...base, tipo_evento: 'CITA_PROGRAMADA', cambios_seguros: { origen: 'ADMINISTRACION', estado: 'Programada', duracion_minutos: 15 } };
+    if (tipo === 'origen') current.cambios_seguros.origen = 'OrigenPrivado';
+    if (tipo === 'estado') current.cambios_seguros.estado = 'EstadoPrivado';
+    if (tipo === 'duracion') current.cambios_seguros.duracion_minutos = -1;
+    if (tipo === 'formato') current.version_formato = 2;
+    if (tipo === 'otro_evento') current.tipo_evento = 'CUENTA_ROL_CAMBIADO';
+    mount(); const cambios = await screen.findByRole('region', { name: 'Cambios registrados' });
+    if (['origen', 'formato', 'otro_evento'].includes(tipo)) expect(within(cambios).queryByText('Origen de la reserva')).not.toBeInTheDocument();
+    if (['estado', 'formato', 'otro_evento'].includes(tipo)) expect(within(cambios).queryByText('Estado al registrar')).not.toBeInTheDocument();
+    if (['duracion', 'formato', 'otro_evento'].includes(tipo)) expect(within(cambios).queryByText('Duración al registrar')).not.toBeInTheDocument();
+    expect(cambios).not.toHaveTextContent(/OrigenPrivado|EstadoPrivado/);
+  });
   it('consulta por BIGINT y diferencia fechas originales, responsables/objetivos y estados históricos', async () => {
     mount(); const cabecera = await screen.findByRole('region', { name: `Evento #${id}` });
     expect(dato(cabecera, 'Fecha del hecho')).toHaveTextContent('21/10/2026, 22:30:01');
@@ -152,6 +187,7 @@ describe('detalle seguro CU-30 fase 3', () => {
     let terminar, signal;
     respond = config => new Promise(resolve => { signal = config.signal; terminar = () => resolve(response(config, { data: { ...base, tipo_evento: 'DETALLE_OBSOLETO' } })); });
     const router = mount(); await screen.findByText('Consultando evento…');
+    await waitFor(() => expect(terminar).toBeTypeOf('function'));
     respond = config => response(config, { data: { ...base, id_evento: '2', tipo_evento: 'DETALLE_ACTUAL' } });
     await act(async () => router.navigate(`${root}/2`)); await screen.findByText('DETALLE_ACTUAL');
     expect(signal.aborted).toBe(true); await act(async () => terminar());

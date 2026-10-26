@@ -146,11 +146,12 @@ describe('verificación compartida', () => {
   });
 });
 
-describe('emisión presencial de Recepción', () => {
-  beforeEach(() => consultarSesion.mockResolvedValue(userData('Recepcionista')));
+describe.each(['Administrador', 'Recepcionista'])('emisión presencial administrativa — %s', operador => {
+  beforeEach(() => { consultarSesion.mockResolvedValue(userData(operador)); });
   it('confirma reemplazo y entrega una vez sin persistir el código', async () => {
     emitirCodigoActivacion.mockResolvedValue(receipt);
     const user = userEvent.setup(); mount('/recepcion/activacion-web');
+    expect(await screen.findByRole('link', { name: 'Buscar ficha de paciente' })).toHaveAttribute('href', '/recepcion/pacientes');
     await screen.findByLabelText('Identificador de la ficha'); field('Identificador de la ficha', '17');
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Revisar emisión' }));
@@ -164,7 +165,7 @@ describe('emisión presencial de Recepción', () => {
     await user.click(screen.getByRole('button', { name: 'Ya comuniqué el código; ocultar' }));
     expect(screen.queryByText(receipt.codigo_activacion)).not.toBeInTheDocument();
   });
-  it.each(['Administrador', 'Médico', 'Paciente'])('rol %s no recibe emisión', async rol => {
+  it.each(['Médico', 'Paciente'])('rol %s no recibe emisión', async rol => {
     consultarSesion.mockResolvedValue(userData(rol)); mount('/recepcion/activacion-web');
     await screen.findByRole('heading', { name: 'Acceso no permitido' });
     expect(emitirCodigoActivacion).not.toHaveBeenCalled();

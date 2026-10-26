@@ -25,10 +25,10 @@ class PacienteService
         private CodigoActivacionRepository $activaciones,
     ) {}
 
-    private function recepcionista(): Usuario
+    private function actorAdministrativo(): Usuario
     {
         $actor = $this->autenticacion->exigirSesionNormal(bloquear: true);
-        if ($actor->rol->nombre !== 'Recepcionista') {
+        if (! in_array($actor->rol->nombre, ['Administrador', 'Recepcionista'], true)) {
             throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
         }
 
@@ -38,7 +38,7 @@ class PacienteService
     public function listar(array $filtros): LengthAwarePaginator
     {
         return DB::transaction(function () use ($filtros): LengthAwarePaginator {
-            $this->recepcionista();
+            $this->actorAdministrativo();
 
             return $this->pacientes->listar($filtros);
         });
@@ -47,7 +47,7 @@ class PacienteService
     public function consultar(int|string $id): Paciente
     {
         return DB::transaction(function () use ($id): Paciente {
-            $this->recepcionista();
+            $this->actorAdministrativo();
 
             return $this->pacientes->consultar($id)
                 ?? throw new AppError('RECURSO_NO_ENCONTRADO', 'No se encontró la ficha solicitada.');
@@ -59,7 +59,7 @@ class PacienteService
         try {
             return DB::transaction(function () use ($datos, $contexto): Paciente {
                 $this->registros->coordinar();
-                $actor = $this->recepcionista();
+                $actor = $this->actorAdministrativo();
                 $ci = $datos['documento_identidad'] ?? null;
                 if ($ci !== null) {
                     if ($this->registros->documentoRegistrado($ci)) {
@@ -105,7 +105,7 @@ class PacienteService
         try {
             return DB::transaction(function () use ($id, $datos, $contexto): Paciente {
                 $this->registros->coordinar();
-                $actor = $this->recepcionista();
+                $actor = $this->actorAdministrativo();
                 $paciente = $this->fichaVigente($id, $datos['actualizado_en_original']);
                 $motivo = $datos['motivo'] ?? null;
                 $verificada = (bool) ($datos['identidad_verificada'] ?? false);
@@ -171,7 +171,7 @@ class PacienteService
     {
         return DB::transaction(function () use ($id, $datos, $contexto): Paciente {
             $this->registros->coordinar();
-            $actor = $this->recepcionista();
+            $actor = $this->actorAdministrativo();
             $paciente = $this->fichaVigente($id, $datos['actualizado_en_original']);
             if ($paciente->activo !== (bool) $datos['activo']) {
                 $paciente->activo = (bool) $datos['activo'];

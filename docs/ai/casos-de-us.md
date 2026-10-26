@@ -1,10 +1,30 @@
 # Casos de uso — Clínica Vida Salud
 
+> **Administrador, Fase 4 frontend (2026-10-25):** historial por ficha compartido verificado, detalle administrativo con motivo/CI/teléfono y bitácora con origen seguro de reservas. Listados mínimos y ámbitos de Médico/Paciente conservados; sin nuevos endpoints o escrituras. 316 dirigidas/11 archivos, suite global 1601/68 y build correctos con sesión/API simuladas. Integración real y revisión visual nuevas quedan para Fase 5; contexto §17.126.
+
+> **Administrador, Fase 3 frontend (2026-10-24):** programación compartida ahora requiere selección de Paciente para Administración/Recepción, misma búsqueda/propuesta/confirmación/resultado incierto; reserva propia permanece exclusiva del Paciente. 255 pruebas citas/5 archivos y suite global 1549/68 correctas, build correcto. Sesión/API simuladas, integración real nueva pendiente Fase 5. Resuelve el pendiente funcional señalado por Fases 1/2; detalle/auditoría aún Fase 4. Contexto §17.125.
+
+> **Administrador, Fase 2 frontend (2026-10-24):** CU-07 revisado con los mismos listados/formularios/estado y emisión de códigos para Administración/Recepción. Baterías parametrizadas, 275 dirigidas/9 archivos y suite global 1438/68 correctas, build correcto; API/sesión simuladas, no nueva integración real. Emisión independiente añade enlace a búsqueda de ficha, no nuevos endpoints/roles ni credenciales de Pacientes. CU-04/CU-08 conservan exclusividad. Contexto §17.124; Fases 3–5 pendientes.
+
+> **Administrador, Fase 1 frontend (2026-10-24):** guards de diez rutas existentes/Inicio/sidebar permiten accesos administrativos de pacientes/códigos, programación e historial; sin páginas/endpoints duplicados. 1352 pruebas/68 archivos y build correctos; nuevas pruebas de rutas con páginas de negocio simuladas, no flujos completos. CU-04/CU-08 permanecen personales y Ciclo 2 solo pendiente sin enlaces. Fases 2–4 revisarán pacientes, selección administrativa de reserva y campos del detalle; no considerar utilizable programación del Administrador hasta Fase 3. Contexto §17.123. No nueva integración React/Laravel ni backend modificado.
+
+> **Cierre posterior Fase 5 con PostgreSQL (2026-10-24):** autorización exclusiva de entorno aislado, suite completa **2535 pruebas/25681 aserciones correcta** (15 min 10,998 s), incluidas integración/sesiones database/rollback/exclusiones y concurrencia multiproceso. Pendientes SQL históricos resueltos para esta ampliación backend; correcciones solo en contraseñas ficticias de dos tests, sin cambios de negocio. Contexto §17.122. No implementa Ciclo 2 ni adapta React; producción intacta.
+
+> **Fase 5 administrativa (2026-10-24):** regresión sin SQL completada, cierre integral pendiente. Matriz de 58 operaciones por rol/70 API y rechazos con AutenticacionService real/repositorios simulados; 725 pruebas/3525 aserciones correctas sumando fases previas, infraestructura/correo simulados y política de claves sin SQL. Gates positivos no ejecutan cada CU. Flujos positivos heredados y garantías PostgreSQL pendientes por migraciones prohibidas; 2535 casos descubiertos no equivalen a suite ejecutada. React no iniciado. Contexto §17.121.
+
+> **Avance administrativo Fase 4 (2026-10-24):** historial CU-21 por ficha y detalle administrativo ampliados en backend; CU-20 revisado sin reimplementar agenda. Administrador comparte motivo/CI/teléfono del detalle con Recepción, nunca listados ni contenido clínico; Médico/Paciente conservan ámbitos propios. 44 pruebas nuevas + 84 previas: 128/935 correctas con persistencia/sesión simuladas. 89 regresiones heredadas descubiertas, no ejecutadas por migraciones prohibidas. PostgreSQL real/React/Fase 5 pendientes. Contexto §17.120 sustituye exclusiones administrativas históricas del detalle.
+
 > **Ruta canónica:** `docs/ai/casos-de-us.md`.  
 > **Base vigente:** `Clinica_Vida_Salud_Captura_Actualizada(3).pdf` (104 páginas), especialmente capítulo 4, apartados 4.1–4.3.  
 > **Referencia superior:** examen oficial del Segundo Parcial de Ingeniería de Requisitos, `RF01`–`RF13` y `RN01`–`RN14`.  
 > **Estado documental:** los 30 casos están **especificados** en el PDF; su implementación y pruebas deben verificarse en el repositorio.  
 > **Revisión documental:** 18 de octubre de 2026.
+
+> **Actualización de permisos 2026-10-24 — Fase 1:** decisión definitiva del responsable: Administrador autorizado en 28/30 CU, excepto CU-04 y CU-08. Catálogo y §3.1 son la matriz vigente; sustituyen las exclusiones administrativas de la versión fuente sin afirmar cotejo de un nuevo Word/PDF. Las fichas conservan sus recorridos de origen: en los CU ampliados, sus apartados Actores/Iniciador y menciones exclusivas de Recepción/Médico se interpretan con la participación adicional del Administrador según §3.1, **sin ampliar los permisos de los otros roles ni atribuir al Médico acciones administrativas**. No acredita implementación de nuevos permisos.
+
+> **Avance posterior — Fase 2:** backend CU-07 ampliado en rutas y Services para Administrador/Recepcionista, sin nuevos endpoints. 44 pruebas/222 aserciones correctas con sesión/persistencia simuladas; 42 casos de regresión heredados para Administración descubiertos pero no ejecutados por invocar migraciones. Persistencia/rollback/concurrencia reales pendientes; React sin adaptar. CU-04/CU-08 continúan excluidos. Contexto §17.118. Fases 3–5 no iniciadas.
+
+> **Avance posterior — Fase 3:** backend CU-13/CU-14 ampliado para Administrador por flujo administrativo existente; selección de Paciente en Requests/Services y tokens administrativos ligados al ejecutor. 40 casos nuevos y 44 de Fase 2: 84 pruebas/763 aserciones correctas sin DB real. 173 regresiones heredadas preparadas, no ejecutadas por migraciones; concurrencia/persistencia reales pendientes. Metadata de bitácora distingue ADMINISTRACION sin cambiar PROPIA/RECEPCION. Contexto §17.119; React y Fase 4 todavía pendientes.
 
 ## 1. Objetivo y forma de uso
 
@@ -20,7 +40,7 @@ Fuente operativa de consulta para implementar los **30 casos de uso** con la num
 
 | Actor | Responsabilidad y prohibiciones principales |
 | --- | --- |
-| Administrador | Cuentas de personal, roles predefinidos y estado de acceso de cuentas de Pacientes previamente verificadas; médicos, especialidades, consultorios, horarios, reportes, bitácora y documentación de laboratorio. No cambia credenciales, rol o vínculo de Pacientes, modifica antecedentes, diagnostica, publica resultados, marca Atendida ni reprograma fechas u horas. |
+| Administrador | Todas las operaciones de CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30. CU-07 incluye emisión administrativa de códigos; no realiza el proceso personal CU-04 ni edita el perfil por CU-08. CU-03 conserva límites de credenciales, rol y vínculo de cuentas de Pacientes. Conserva identidad real del ejecutor separada de Paciente/Médico responsable, estados, versiones y controles de integridad. |
 | Recepcionista | Fichas de pacientes, verificación presencial, códigos de activación, programación/reprogramación/cancelación, llegadas e inasistencias. No administra credenciales de pacientes ni modifica contenidos clínicos. |
 | Médico | Agenda e información clínica autorizadas, consultas médicas propias y mantenimiento de antecedentes durante una atención real y autorizada, solicitudes y revisión/publicación de laboratorio y Atendida solo de citas propias. |
 | Paciente | Registro/activación de su cuenta, perfil permitido, reserva únicamente para sí, historial, información clínica autorizada, resultados publicados y recordatorios internos. No edita antecedentes, reprograma ni cancela citas. |
@@ -37,32 +57,81 @@ En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y r
 | [CU-04](#cu-04) | Registrar cuenta del Paciente y vincular su registro | Paciente | 1 | Alto | p. 73 |
 | [CU-05](#cu-05) | Cambiar contraseña propia | Administrador, Recepcionista, Médico y Paciente | 1 | Alto | p. 75 |
 | [CU-06](#cu-06) | Recuperar contraseña mediante correo electrónico | Administrador, Recepcionista, Médico y Paciente | 1 | Alto | p. 76 |
-| [CU-07](#cu-07) | Gestionar el registro administrativo de pacientes | Recepcionista | 1 | Alto | p. 77 |
+| [CU-07](#cu-07) | Gestionar el registro administrativo de pacientes | Administrador, Recepcionista | 1 | Alto | p. 77 |
 | [CU-08](#cu-08) | Actualizar el perfil personal | Paciente | 1 | Alto | p. 78 |
 | [CU-09](#cu-09) | Gestionar especialidades médicas | Administrador | 1 | Medio | p. 79 |
 | [CU-10](#cu-10) | Gestionar médicos y sus especialidades | Administrador | 1 | Alto | p. 80 |
 | [CU-11](#cu-11) | Gestionar consultorios y su asignación fija | Administrador | 1 | Alto | p. 81 |
 | [CU-12](#cu-12) | Configurar horarios y duración de citas | Administrador | 1 | Alto | p. 82 |
-| [CU-13](#cu-13) | Buscar médicos y consultar disponibilidad | Recepcionista, Paciente | 1 | Medio | p. 83 |
-| [CU-14](#cu-14) | Programar o reservar una cita presencial | Recepcionista, Paciente | 1 | Alto | p. 84 |
-| [CU-15](#cu-15) | Reprogramar una cita | Recepcionista | 2 | Alto | p. 85 |
-| [CU-16](#cu-16) | Cancelar una cita | Recepcionista | 2 | Alto | p. 86 |
-| [CU-17](#cu-17) | Confirmar la llegada del Paciente | Recepcionista | 2 | Medio | p. 87 |
-| [CU-18](#cu-18) | Registrar la inasistencia del Paciente | Recepcionista | 2 | Alto | p. 88 |
-| [CU-19](#cu-19) | Marcar una cita como Atendida | Médico | 2 | Alto | p. 89 |
+| [CU-13](#cu-13) | Buscar médicos y consultar disponibilidad | Administrador, Recepcionista, Paciente | 1 | Medio | p. 83 |
+| [CU-14](#cu-14) | Programar o reservar una cita presencial | Administrador, Recepcionista, Paciente | 1 | Alto | p. 84 |
+| [CU-15](#cu-15) | Reprogramar una cita | Administrador, Recepcionista | 2 | Alto | p. 85 |
+| [CU-16](#cu-16) | Cancelar una cita | Administrador, Recepcionista | 2 | Alto | p. 86 |
+| [CU-17](#cu-17) | Confirmar la llegada del Paciente | Administrador, Recepcionista | 2 | Medio | p. 87 |
+| [CU-18](#cu-18) | Registrar la inasistencia del Paciente | Administrador, Recepcionista | 2 | Alto | p. 88 |
+| [CU-19](#cu-19) | Marcar una cita como Atendida | Administrador, Médico | 2 | Alto | p. 89 |
 | [CU-20](#cu-20) | Consultar la agenda médica | Administrador, Recepcionista, Médico | 1 | Medio | p. 90 |
-| [CU-21](#cu-21) | Consultar el historial y seguimiento de citas | Recepcionista, Paciente | 1 | Medio | p. 91 |
-| [CU-22](#cu-22) | Consultar la historia clínica autorizada | Médico, Paciente | 2 | Alto | p. 92 |
-| [CU-23](#cu-23) | Registrar o actualizar una consulta médica | Médico | 2 | Alto | p. 93 |
-| [CU-24](#cu-24) | Solicitar estudios de laboratorio | Médico | 2 | Medio | p. 94 |
+| [CU-21](#cu-21) | Consultar el historial y seguimiento de citas | Administrador, Recepcionista, Paciente | 1 | Medio | p. 91 |
+| [CU-22](#cu-22) | Consultar la historia clínica autorizada | Administrador, Médico, Paciente | 2 | Alto | p. 92 |
+| [CU-23](#cu-23) | Registrar o actualizar una consulta médica | Administrador, Médico | 2 | Alto | p. 93 |
+| [CU-24](#cu-24) | Solicitar estudios de laboratorio | Administrador, Médico | 2 | Medio | p. 94 |
 | [CU-25](#cu-25) | Cargar o corregir documentos de laboratorio | Administrador | 2 | Alto | p. 95 |
-| [CU-26](#cu-26) | Revisar y autorizar la publicación de resultados | Médico | 2 | Alto | p. 96 |
-| [CU-27](#cu-27) | Consultar solicitudes y descargar resultados autorizados | Médico, Paciente | 2 | Alto | p. 97 |
-| [CU-28](#cu-28) | Consultar recordatorios internos de próximas citas | Paciente | 2 | Medio | p. 98 |
+| [CU-26](#cu-26) | Revisar y autorizar la publicación de resultados | Administrador, Médico | 2 | Alto | p. 96 |
+| [CU-27](#cu-27) | Consultar solicitudes y descargar resultados autorizados | Administrador, Médico, Paciente | 2 | Alto | p. 97 |
+| [CU-28](#cu-28) | Consultar recordatorios internos de próximas citas | Administrador, Paciente | 2 | Medio | p. 98 |
 | [CU-29](#cu-29) | Generar reportes administrativos | Administrador | 2 | Medio | p. 99 |
-| [CU-30](#cu-30) | Consultar bitácora del sistema | Administrador | 2 | Medio | p. 100 |
+| [CU-30](#cu-30) | Consultar bitácora del sistema | Administrador | 1 | Medio | p. 100 |
 
 **Nota sobre el ciclo:** el examen y la priorización indican entregas por fases; el catálogo identifica funciones, no el orden exacto de programación. Todos los casos aquí son especificaciones, no tareas terminadas.
+
+### 3.1. Matriz administrativa vigente y estado real — 2026-10-24
+
+**Decisión expresa:** 28/30 CU autorizados; CU-04 y CU-08 excluidos. Priorización vigente de esta entrega: **Ciclo 1 = CU-01–CU-14, CU-20, CU-21 y CU-30 (17)**, con 15 autorizados para Administración; **Ciclo 2 = CU-15–CU-19 y CU-22–CU-29 (13)**. CU-30 se incluye en Ciclo 1 por la priorización actual y su implementación existente; su ficha/PDF conservan el antecedente de ciclo 2, no se modifica el académico. El estado siguiente procede de inspección de rutas/servicios/React, no de una nueva ejecución de pruebas funcionales.
+
+| CU | Autorización Administrador | Estado vigente / evidencia pendiente |
+| --- | --- | --- |
+| CU-01 | Sí, sesión propia | Existente; regresión completa PostgreSQL Fase 5 correcta |
+| CU-02 | Sí, sesión propia | Existente; regresión completa PostgreSQL Fase 5 correcta |
+| CU-03 | Sí, administración de cuentas según sus límites | Existente; sin habilitar creación/vinculación o credenciales de Pacientes |
+| CU-04 | **No** | Flujo personal público del Paciente; probar que Administración no actúe por terceros ni omita comprobaciones |
+| CU-05 | Sí, contraseña propia | Existente; no permite cambiar contraseñas ajenas |
+| CU-06 | Sí, recuperación propia | Existente; no permite recuperar cuentas de terceros como operación administrativa |
+| CU-07 | Sí, ficha y código administrativo | Backend ampliado/verificado; frontend cinco fases completadas localmente, integración real de alta/CI/edición/estado/código y revisión visual correctas (§17.134) |
+| CU-08 | **No** | Perfil propio exclusivo del Paciente; conservar rechazo a Administración |
+| CU-09 | Sí | Existente; regresión completa PostgreSQL Fase 5 correcta |
+| CU-10 | Sí | Existente; regresión completa PostgreSQL Fase 5 correcta |
+| CU-11 | Sí | Existente; regresión completa PostgreSQL Fase 5 correcta |
+| CU-12 | Sí | Existente; regresión completa PostgreSQL Fase 5 correcta |
+| CU-13 | Sí, contexto administrativo | Backend verificado; frontend selección administrativa/búsqueda/turnos compartidos integrados con Laravel/PostgreSQL reales en Fase 5 local (§17.134) |
+| CU-14 | Sí, para paciente seleccionado | Backend verificado; frontend revisión/confirmación/resultado incierto administrativo integrado, incluida respuesta cortada tras 201 sin duplicación, Fase 5 local (§17.134) |
+| CU-15 | Sí | CambioCita/Cita y disponibilidad aportan soporte; sin flujo funcional de reprogramación |
+| CU-16 | Sí | Estados/persistencia aportan soporte; sin flujo funcional de cancelación |
+| CU-17 | Sí | Estados/persistencia aportan soporte; sin flujo funcional de llegada |
+| CU-18 | Sí | Estados/persistencia aportan soporte; sin flujo funcional de inasistencia |
+| CU-19 | Sí, conservando Médico responsable | Estados/persistencia aportan soporte; sin flujo funcional de atención |
+| CU-20 | Sí, selección de Médico | Agenda/backend verificados; frontend agenda seleccionada/detalle administrativo integrados en Fase 5 local, límites de Médico propio conservados (§17.134) |
+| CU-21 | Sí, historial administrativo por paciente | Backend verificado; frontend historial por ficha → detalle → retorno integrado en Fase 5 local; paginación/variantes adicionales con cobertura simulada previa (§17.134) |
+| CU-22 | Sí, consulta clínica | Models/persistencia existentes; sin rutas/Services/UI funcionales |
+| CU-23 | Sí, consulta/antecedentes con versiones | Models/persistencia existentes; sin flujo funcional; separar ejecutor y Médico |
+| CU-24 | Sí, solicitud ligada a consulta | Models/persistencia existentes; sin flujo funcional; conservar solicitante/responsable |
+| CU-25 | Sí, carga/corrección documental | Models/persistencia existentes; sin flujo funcional de archivos protegidos |
+| CU-26 | Sí, revisión/devolución/publicación | Models/persistencia existentes; falta resolver usuario revisor separado de Médico antes de implementar |
+| CU-27 | Sí, consulta/descarga autorizada | Models/persistencia existentes; sin flujo funcional; autorizar también entrega de bytes |
+| CU-28 | Sí, consulta administrativa por paciente | Model/persistencia y preferencias existentes; sin scheduler/consulta funcional; no generación manual ni edición CU-08 |
+| CU-29 | Sí | Sin módulo funcional de reportes; agenda y bitácora no lo sustituyen |
+| CU-30 | Sí, solo lectura | Backend verificado; frontend origen administrativo/Recepción/propio y referencias seguras integrados en Fase 5 local, exclusivo de Administrador (§17.134) |
+
+**Evidencia Fase 5 aplicable a las filas existentes:** suite completa 2535/25681 correcta en PostgreSQL aislado, incluidas regresiones positivas/integradas/concurrentes heredadas y administrativas nuevas. Los 15 CU administrativos del Ciclo 1 mantienen implementación con regresión backend local verificada, no aceptación de producción. No habilita los 13 CU pendientes del Ciclo 2 ni acredita UI React ampliada. CU-04/CU-08 siguen personales, sin nuevos permisos para otros roles; contexto §17.122.
+
+**Cierre posterior Fase 5 frontend (2026-10-26):** ampliación administrativa React completada localmente tras reanudación: suite nueva 1601 pruebas/68 archivos y build correctos; recorrido Chrome/React/Laravel/PostgreSQL real de 19 comprobaciones, 56 disposiciones y 23 axe sin infracciones automáticas. Cuatro citas/cuatro eventos con autores/orígenes correctos y sin duplicar la reserva de respuesta incierta. Sesión/CSRF/revocación y límites de otros roles conservados; esquema/credenciales/servidores temporales propios retirados, public/esquemas ajenos intactos. No código productivo nuevo ni reglas cambiadas, no nueva suite backend completa ni certificación de producción/correo real; incidencias y límites en contexto §17.134. Sustituye los pendientes de integración de esta ampliación, no implementa los trece CU restantes ni amplía permisos por navegar.
+
+**Aplicación común a las fichas:** Administrador reutiliza las operaciones administrativas de Recepción en CU-07/CU-13/CU-14/CU-21, y las operaciones autorizadas de asistencia/clínica/laboratorio cuando se implementen. No se cambia su rol ni se exige que sea el Médico para ejecutar la operación administrativa; sí se valida que la cita/consulta/solicitud tenga el Paciente y Médico responsable correctos. Conservar estados, atención real, ausencia comprobada, horarios, disponibilidad, idempotencia, versiones y auditoría. Ningún permiso nuevo para Recepción, Médico o Paciente.
+
+**Límite CU-07/CU-04:** Administrador puede verificar identidad y emitir/reemitir el código administrativo con las mismas restricciones (CI, 24 h, cinco intentos, uso único). El Paciente sigue introduciendo CI/código/correo/contraseña y verificando correo por CU-04; emitir el código no autoriza a Administración a realizar esos pasos ni a crear la cuenta. La etiqueta histórica «código de Recepción» no cambia formato ni contrato por esta ampliación.
+
+**Trazabilidad y dependencias futuras:** Cita.creada_por y Bitacora.id_usuario_responsable identifican al ejecutor; Cita.id_medico conserva al responsable. CodigoActivacionPaciente.id_recepcionista es FK a Usuario, no a un registro profesional ni a un rol: reutilizable con el ID real del emisor sin migración en esta fase. VersionConsulta/VersionAntecedente/VersionResultado tienen id_autor a Usuario; RevisionResultado tiene id_medico a Médico y no un campo separado de usuario revisor: documentar diseño y justificar cualquier ampliación antes de desarrollar CU-26, sin atribución falsa ni migraciones ahora. Models/fixtures no acreditan CU funcionales.
+
+**Alcance de Fase 1:** solo política/documentación y diagnóstico PostgreSQL de solo lectura. No cambian rutas, permisos ejecutables, contratos efectivos, PHP/React, esquemas ni datos. Fases 2–5 requieren autorización individual; Word/PDF/draw.io intactos.
 
 ## 4. Fichas de los casos de uso
 
@@ -386,11 +455,11 @@ Mantener las fichas administrativas y emitir códigos para vincular cuentas de p
 
 **Actores**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Iniciador**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Precondición**
 
@@ -442,7 +511,7 @@ La ficha mantiene su identidad e historia, también sin CI, y permite las citas 
 
 **Excepciones**
 
-Paciente inexistente, identidad no comprobada, CI ausente para vinculación web, cuenta ya vinculada o petición sin permiso: no emitir código. CI duplicado o datos inválidos: rechazar cambios y permitir revisar el registro existente. La ausencia de CI no impide el alta administrativa excepcional. Revisar posibles duplicados reduce errores, pero conocer nombres, nacimiento o teléfono no prueba identidad; no fusionar fichas por semejanza. La resolución de identidades dudosas queda pendiente del diseño administrativo. Código vencido o agotado: solo Recepción puede emitir otro tras verificar nuevamente la identidad y las condiciones de vinculación. Recepción no establece contraseñas del Paciente, no accede a ellas ni modifica antecedentes, diagnósticos u otros contenidos clínicos. La desactivación no elimina fichas, citas ni cuentas relacionadas.
+Paciente inexistente, identidad no comprobada, CI ausente para vinculación web, cuenta vinculada o petición sin permiso: no emitir código. CI duplicado/datos inválidos: rechazar cambios; ausencia de CI no impide alta administrativa excepcional. No fusionar fichas por semejanza ni asumir identidad por nombres/nacimiento/teléfono; identidades dudosas siguen pendientes de diseño administrativo. Código vencido/agotado: Administrador o Recepción emiten otro tras nueva comprobación de identidad/condiciones. Ninguno establece o consulta contraseñas del Paciente ni modifica contenido clínico por CU-07. La desactivación conserva fichas/citas/cuentas e historial.
 
 <a id="cu-08"></a>
 #### CU-08 — Actualizar el perfil personal
@@ -594,7 +663,7 @@ Un médico puede pertenecer a varias especialidades y cada especialidad a varios
 
 **Decisión aprobada — retiro de habilitación (2026-10-21):** el Administrador puede retirar una especialidad para nuevas reservas sin borrar la asociación histórica. Si el par tiene citas Programadas/Confirmadas cuyo inicio es mayor o igual al instante actual del servidor, se rechaza el retiro con 409 y no se guarda ningún cambio parcial. La comprobación y el retiro se coordinan transaccionalmente con las nuevas obligaciones concurrentes. Tras desaparecer el impedimento se permite retirar la habilitación, manteniendo al menos una especialidad habilitada del profesional conforme a su requisito de una o varias especialidades. La actividad del catálogo es independiente: conservar una asociación no garantiza disponibilidad. El retiro conserva las citas y la atención/revisión previa autorizada; no cambia cuenta, rol ni consultorio.
 
-Recepción resuelve las citas mediante sus flujos ordinarios. CU-15 conserva Médico y especialidad: desplazar la fecha de una cita al futuro no habilita por sí mismo el retiro, ni permite trasladarla a otro profesional. Cancelar corresponde exclusivamente a Recepción por CU-16. CU-10 no cancela ni reprograma automáticamente. Rehabilitar un par conserva su misma identidad; no genera turnos ni reactiva Médico, catálogo o cuenta.
+Administrador o Recepción resuelven citas por sus flujos ordinarios cuando existan. CU-15 conserva Médico/especialidad: desplazar fecha no habilita retiro ni traslado a otro profesional. Cancelación por CU-16, también autorizada a Administración. CU-10 no cancela/reprograma automáticamente. Rehabilitar un par conserva identidad, sin generar turnos ni reactivar Médico/catálogo/cuenta.
 
 **Estado de desarrollo (2026-10-21):** CU-09 backend implementado en fase 1; CU-10 fase 2 incorpora listado/detalle/alta/edición de datos, con especialidades iniciales existentes, código aleatorio generado por servidor y control de edición obsoleta. Alta y pares/evento atómicos, sin crear cuenta ni consultorio. Filtros administrativos exclusivos de Administrador normal y recursos mínimos. No añade unicidad del registro profesional ni correo de contacto. La actividad del catálogo es independiente del par: asociar no genera turnos ni reactiva especialidades. Fase 3 incorpora PATCH de actividad profesional con versión/auditoría atómicas, preservación de sesiones/obligaciones e integración concurrente CU-03. Reactivar con cuenta vinculada exige rol Médico y vínculo recíproco compatible; no activa cuentas ni levanta bloqueos. Retirar el rol sigue exigiendo inactividad y ausencia comprobable de obligaciones; reactivación profesional no devuelve roles retirados. Fase 4 incorpora sustitución de habilitaciones por PUT: pares históricos conservados, mínimo una habilitación, control de versión y rechazo atómico por citas futuras según VS-MED-07. Listado/filtro usa pares habilitados; detalle incluye retirados con su marca. Retiro frente a escritura de reserva se verifica mediante protocolo simulado de pruebas, sin acreditar CU-14/CU-15. Fase 5 integra catálogo/médico/invitación/cuentas/sesiones e historia clínica/laboratorio preservada mediante pruebas de todos los componentes. Alcance administrativo backend CU-09/CU-10 implementado; evidencia y contratos en README/contexto §§17.56–17.59. Frontend específico, agenda CU-20 y aceptación de producción pendientes. Consultorio fijo/horarios se desarrollan en CU-11/CU-12.
 
@@ -745,11 +814,11 @@ Encontrar médicos activos de una especialidad y conocer sus turnos presenciales
 
 **Actores**
 
-Recepcionista, Paciente
+Administrador, Recepcionista, Paciente
 
 **Iniciador**
 
-Recepcionista, Paciente
+Administrador, Recepcionista, Paciente
 
 **Precondición**
 
@@ -800,11 +869,11 @@ Registrar una cita válida y sin conflictos para el propio Paciente o para un pa
 
 **Actores**
 
-Recepcionista, Paciente
+Administrador, Recepcionista, Paciente
 
 **Iniciador**
 
-Recepcionista, Paciente
+Administrador, Recepcionista, Paciente
 
 **Precondición**
 
@@ -812,7 +881,7 @@ Existe sesión autorizada y un paciente válido; el Paciente dispone de su cuent
 
 **Flujo principal**
 
-1. Recepción selecciona al paciente; si actúa el Paciente, el sistema utiliza exclusivamente su registro vinculado.
+1. Administrador o Recepción seleccionan al paciente mediante el flujo administrativo; si actúa el Paciente, se utiliza exclusivamente su registro vinculado.
 2. El usuario elige especialidad, médico activo, fecha y hora disponible; el motivo breve es opcional.
 3. El sistema muestra el detalle con modalidad Presencial y consultorio fijo obtenido del médico.
 4. El usuario solicita guardar la reserva.
@@ -869,11 +938,11 @@ Cambiar fecha y hora de una cita sin perder integridad, historial ni la disponib
 
 **Actores**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Iniciador**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Precondición**
 
@@ -909,11 +978,11 @@ Cancelar una reserva antes de la atención, liberar su turno y conservar el regi
 
 **Actores**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Iniciador**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Precondición**
 
@@ -934,7 +1003,7 @@ La cita está Cancelada, no consume disponibilidad y continúa visible en consul
 
 **Excepciones**
 
-Cita Atendida, Cancelada o con Inasistencia: rechazar el cambio ordinario. Intento del Paciente, Administrador u otro rol: denegar, incluso mediante petición directa. Fallo al actualizar: conservar la situación anterior y no informar una cancelación exitosa.
+Cita Atendida, Cancelada o con Inasistencia: rechazar cambio ordinario. Solo Administrador/Recepción autorizados; Paciente/Médico u otro actor sin permiso: denegar incluso por petición directa. Fallo al actualizar: conservar situación anterior y no informar cancelación exitosa.
 
 **Notas y verificaciones de la ficha**
 
@@ -955,11 +1024,11 @@ Registrar que Recepción verificó la presencia efectiva del Paciente para su ci
 
 **Actores**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Iniciador**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Precondición**
 
@@ -972,7 +1041,7 @@ Recepción tiene sesión válida; el Paciente está presencialmente identificado
 3. El servidor utiliza la fecha y hora local de la clínica, America/La_Paz, y valida el mismo día, turno no finalizado, estado Programada y atención no registrada.
 4. Permite llegada anticipada dentro del mismo día; vuelve a comprobar el estado ante cambios simultáneos.
 5. Registra Confirmada, fecha y hora y responsable; genera el evento de auditoría y muestra el estado.
-6. No crea una consulta ni marca Atendida: CU-19 permanece exclusivo del Médico responsable.
+6. No crea consulta ni marca Atendida: son operaciones separadas, CU-19 autorizado a Administrador o Médico responsable, no a Recepción/Paciente.
 
 **Postcondición**
 
@@ -998,11 +1067,11 @@ Registrar la ausencia comprobada cuando ya terminó el intervalo de una cita.
 
 **Actores**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Iniciador**
 
-Recepcionista
+Administrador, Recepcionista
 
 **Precondición**
 
@@ -1040,11 +1109,11 @@ Registrar que el Médico responsable realizó la atención de su propia cita.
 
 **Actores**
 
-Médico
+Administrador, Médico
 
 **Iniciador**
 
-Médico
+Administrador, Médico
 
 **Precondición**
 
@@ -1064,7 +1133,7 @@ La cita queda Atendida; la consulta clínica permanece vinculada pero su registr
 
 **Excepciones**
 
-Otro médico, Administrador, Recepción o Paciente: denegar la operación. Cancelada, Inasistencia, Atendida o atención no realizada: rechazar el cambio ordinario.
+Médico ajeno, Recepción o Paciente: denegar. Administrador autorizado por CU-19 conserva ejecutor real distinto del Médico responsable. Cancelada, Inasistencia, Atendida o atención no realizada: rechazar cambio ordinario.
 
 **Notas y verificaciones de la ficha**
 
@@ -1144,11 +1213,11 @@ Recuperar las citas de un paciente y seguir su situación sin perder las pasadas
 
 **Actores**
 
-Recepcionista, Paciente
+Administrador, Recepcionista, Paciente
 
 **Iniciador**
 
-Recepcionista, Paciente
+Administrador, Recepcionista, Paciente
 
 **Precondición**
 
@@ -1165,7 +1234,7 @@ Existe sesión válida; Recepción consulta el paciente localizado y el Paciente
 
 **Precisiones aprobadas (2026-10-22):** Paciente inicia en Próximas, cita más cercana primero; Recepción abre desde ficha y muestra inicialmente Todas, orden más recientes primero. Primera entrega con filtros período temporal y estado, más paginación en servidor para recuperar todo el historial. Próximas comprende Programada/Confirmada con fin_at > instante actual del servidor, incluidas en curso; Anteriores comprende fin_at <= ese instante cualquiera sea su estado; Todas no aplica restricción temporal. Canceladas futuras permanecen en Todas y son filtrables por estado. Los criterios no son estados ni una partición exhaustiva; Programada pasada no cambia a Inasistencia/Atendida automáticamente. No filtros iniciales por Médico/especialidad/intervalo de fechas. Ficha inactiva con cuenta válida conserva consulta propia; Recepción puede consultar historial de ficha sin cuenta/CI dentro de sus atribuciones.
 
-Motivo breve exclusivamente en detalle de Recepción autorizada/Paciente titular; en ningún listado. No contenido clínico, contacto personal del Médico ni datos de otros Pacientes. Matriz de detalles VS-HIS-05 y contrato previsto del detalle compartido con CU-20 en `backend/README.md`. Administrador no obtiene por este CU el historial por Paciente, aunque consulte agenda/detalle administrativo por CU-20.
+Motivo breve solo en detalle administrativo autorizado de Administrador/Recepción o del Paciente titular; nunca en listados. Sin contenido clínico ni contacto personal del Médico. Matriz VS-HIS-04/05: Administración selecciona Paciente y consulta historial reutilizando el flujo administrativo. La ampliación ejecutable/proyecciones sigue pendiente de Fase 4; el README distingue contratos actuales de política aprobada.
 
 **Estado de desarrollo (fase 3, 2026-10-22):** consultas GET /api/mis-citas y /api/pacientes/{id}/citas implementadas para Paciente titular/Recepción respectivamente, con defaults/tiempo/estado/paginación/contexto autorizados, proyección mínima compartida con agenda y sin efectos de dominio. 48 pruebas nuevas; regresión dirigida de siete clases **220/2273 correcta** con kernel/sesiones/PostgreSQL aislados. Resultado global 1423/16794 recibido ahora corresponde a fase 2, no ejecución completa de esta fase. Detalle conserva fase 4; refuerzo/integración fases 5/6 pendientes, sin declarar módulo/RF12 integral terminado. CU-15–CU-19 se posponen, no se eliminan del alcance obligatorio.
 
@@ -1210,11 +1279,11 @@ Acceder a los antecedentes y atenciones pertinentes del paciente conforme a la r
 
 **Actores**
 
-Médico, Paciente
+Administrador, Médico, Paciente
 
 **Iniciador**
 
-Médico, Paciente
+Administrador, Médico, Paciente
 
 **Precondición**
 
@@ -1238,7 +1307,7 @@ Paciente ajeno o relación clínica no autorizada: denegar el acceso. Sin atenci
 
 **Notas y verificaciones de la ficha**
 
-Recepción no obtiene acceso clínico por gestionar reservas ni el Administrador por gestionar el acceso de cuentas. CU-22 no permite editar antecedentes; su registro, ampliación o corrección corresponde exclusivamente al Médico responsable durante una atención real y autorizada por CU-23. El Paciente solo consulta su información clínica autorizada.
+Recepción no obtiene acceso clínico por gestionar reservas. Administrador accede por autorización expresa de CU-22, no por gestionar cuentas. CU-22 no edita antecedentes; su mantenimiento corresponde a Administrador o Médico responsable por CU-23 durante atención real/autorizada, con ejecutor separado del responsable. Paciente solo consulta información propia permitida.
 
 <a id="cu-23"></a>
 #### CU-23 — Registrar o actualizar una consulta médica
@@ -1252,11 +1321,11 @@ Documentar la atención realizada por el Médico responsable y registrar, comple
 
 **Actores**
 
-Médico
+Administrador, Médico
 
 **Iniciador**
 
-Médico
+Administrador, Médico
 
 **Precondición**
 
@@ -1279,7 +1348,7 @@ Existe una única consulta por cita y los antecedentes registrados, completados 
 
 **Excepciones**
 
-Cita Cancelada o con Inasistencia, atención no realizada o ficticia, cita ajena, cuenta desactivada o datos inválidos: rechazar. Administrador, Recepción y Paciente no pueden modificar antecedentes ni otros datos clínicos, incluso mediante petición directa. Segunda consulta simultánea: rechazar y abrir la existente. El Médico profesionalmente inactivo con cuenta activa puede completar atenciones ya asignadas, sin recibir nuevas citas. Un fallo no confirma consulta, antecedentes ni versión parcial. Las versiones clínicas permanecen protegidas.
+Cita Cancelada/Inasistencia, atención ficticia/no realizada, recurso no autorizado, cuenta desactivada o datos inválidos: rechazar. Administrador o Médico responsable pueden modificar antecedentes/consulta por CU-23; Recepción/Paciente no, incluso por petición directa. No asignar al Médico autoría del Administrador. Segunda consulta simultánea: rechazar y abrir existente. Médico inactivo con cuenta activa conserva atenciones asignadas, sin nuevas citas. Fallo no confirma consulta/antecedentes/versiones parciales; preservar versiones protegidas.
 
 
 ### 4.10. Laboratorio digital (`CU-24` a `CU-27`)
@@ -1296,11 +1365,11 @@ Registrar los estudios requeridos para una atención y relacionarlos con su cons
 
 **Actores**
 
-Médico
+Administrador, Médico
 
 **Iniciador**
 
-Médico
+Administrador, Médico
 
 **Precondición**
 
@@ -1382,11 +1451,11 @@ Comprobar la correspondencia del resultado y autorizar su publicación o devolve
 
 **Actores**
 
-Médico
+Administrador, Médico
 
 **Iniciador**
 
-Médico
+Administrador, Médico
 
 **Precondición**
 
@@ -1430,11 +1499,11 @@ Consultar el seguimiento de estudios y acceder a documentos de resultado únicam
 
 **Actores**
 
-Médico, Paciente
+Administrador, Médico, Paciente
 
 **Iniciador**
 
-Médico, Paciente
+Administrador, Médico, Paciente
 
 **Precondición**
 
@@ -1476,11 +1545,11 @@ Consultar los avisos automáticos de próximas atenciones desde la cuenta del Pa
 
 **Actores**
 
-Paciente
+Administrador, Paciente
 
 **Iniciador**
 
-Paciente para consultar; generación automática interna sin sesión.
+Administrador para consultar avisos del Paciente seleccionado; Paciente para consultar los propios. Generación automática interna sin sesión, sin operación manual nueva.
 
 **Precondición**
 

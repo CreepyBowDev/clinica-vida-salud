@@ -130,7 +130,9 @@ class BitacoraRepository
             'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
             'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
             'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
-            'referencias' => $referencias, 'cambios_seguros' => ['origen' => $actor->rol->nombre === 'Paciente' ? 'PROPIA' : 'RECEPCION',
+            'referencias' => $referencias, 'cambios_seguros' => ['origen' => match ($actor->rol->nombre) {
+                'Paciente' => 'PROPIA', 'Administrador' => 'ADMINISTRACION', default => 'RECEPCION',
+            },
                 'estado' => 'Programada', 'duracion_minutos' => $cita->duracion_minutos]])->saveOrFail();
     }
 

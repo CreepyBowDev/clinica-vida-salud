@@ -16,6 +16,6 @@ Route::prefix('agenda')->middleware(['auth:sanctum', VerificarCuentaHabilitada::
 
 Route::middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class])->group(function (): void {
     Route::get('mis-citas', [HistorialCitasController::class, 'propias'])->middleware(ExigirRol::class.':Paciente');
-    Route::get('pacientes/{id}/citas', [HistorialCitasController::class, 'paciente'])->middleware(ExigirRol::class.':Recepcionista');
+    Route::get('pacientes/{id}/citas', [HistorialCitasController::class, 'paciente'])->middleware(ExigirRol::class.':Administrador,Recepcionista');
     Route::get('citas/{id}', [ConsultaCitaController::class, 'show'])->middleware(ExigirRol::class.':Administrador,Recepcionista,Médico,Paciente');
 });

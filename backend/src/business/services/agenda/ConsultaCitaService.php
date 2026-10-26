@@ -32,9 +32,9 @@ class ConsultaCitaService
                 }
                 $ambito = ['citas.id_paciente' => (string) $paciente->getKey()];
                 $campos = ['citas.motivo_breve'];
-            } elseif ($rol === 'Recepcionista') {
+            } elseif (in_array($rol, ['Administrador', 'Recepcionista'], true)) {
                 $campos = ['citas.motivo_breve', 'p.documento_identidad as paciente_documento_identidad', 'p.telefono as paciente_telefono'];
-            } elseif ($rol !== 'Administrador') {
+            } else {
                 throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
             }
             $cita = $this->agenda->detalle($id, $ambito, $campos)

@@ -11,7 +11,7 @@ import { api } from '../../../../api/api';
 vi.mock('../../../auth/services/auth.service', () => ({ consultarSesion: vi.fn(), iniciarSesion: vi.fn(), cerrarSesion: vi.fn() }));
 const original = api.defaults.adapter;
 const id = '9223372036854775807';
-let calls, role, patients, specialties, doctors, slots, reservable, request, selectedPage;
+let calls, role, userId, patients, specialties, doctors, slots, reservable, request, selectedPage;
 const specialty = { id_especialidad: '1', nombre: 'General ficticia' };
 const doctor = { id_medico: '9007199254740993', nombres: 'Médico', apellidos: 'Ficticio', codigo_medico: 'MED-1', consultorio: { id_consultorio: '3', codigo_consultorio: 'SALA-1', nombre: 'Sala ficticia' } };
 const slot = { inicio_at: '2026-11-01T12:00:01.000000Z', fin_at: '2026-11-01T12:15:01.000000Z', hora_inicio: '08:00:01', revision_turno: 'a'.repeat(64) };
@@ -20,7 +20,7 @@ const error = (config, status, code = 'VALIDACION', details) => {
   if (status === 429) e.response.headers['retry-after'] = '60';
   return e;
 };
-function session(rol = role) { return { id_usuario: '7', nombre_visible: 'Persona ficticia', correo_acceso: 'persona@example.test', rol }; }
+function session(rol = role) { return { id_usuario: userId, nombre_visible: 'Persona ficticia', correo_acceso: 'persona@example.test', rol }; }
 const meta = (total, page = 1) => ({ total, current_page: page, last_page: selectedPage ? 2 : 1, per_page: 10 });
 function response(config) {
   const page = config.params?.page ?? 1;
@@ -38,7 +38,7 @@ function mount(path) {
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>); return router;
 }
 beforeEach(() => {
-  vi.resetAllMocks(); calls = []; role = 'Paciente'; reservable = true; request = null; selectedPage = false;
+  vi.resetAllMocks(); calls = []; role = 'Paciente'; userId = '7'; reservable = true; request = null; selectedPage = false;
   specialties = [specialty]; doctors = [doctor]; slots = [slot];
   patients = [{ id_paciente: id, nombres: 'Paciente', apellidos: 'Sin documento', codigo_paciente: 'PAC-1', documento_identidad: null, activo: true }];
   consultarSesion.mockImplementation(async () => session()); cerrarSesion.mockResolvedValue();
@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 afterEach(() => { api.defaults.adapter = original; });
 async function select(user) {
-  if (role === 'Recepcionista') await user.click(await screen.findByRole('button', { name: /Paciente Sin documento · PAC-1/ }));
+  if (['Administrador', 'Recepcionista'].includes(role)) await user.click(await screen.findByRole('button', { name: /Paciente Sin documento · PAC-1/ }));
   await user.click(await screen.findByRole('button', { name: 'General ficticia' }));
   await user.click(await screen.findByRole('button', { name: /Médico Ficticio · MED-1/ }));
 }
@@ -56,11 +56,11 @@ async function search(user, date = '2026-11-01') {
   await user.click(screen.getByRole('button', { name: 'Consultar turnos' }));
   await screen.findByRole('heading', { name: 'Turnos disponibles' });
 }
-it.each(['Administrador', 'Médico'])('deniega ambas rutas a %s sin peticiones de reserva', async rol => {
+it.each(['Médico'])('deniega ambas rutas a %s sin peticiones de reserva', async rol => {
   role = rol; const router = mount('/reservar-cita'); await screen.findByRole('heading', { name: 'Acceso no permitido' });
   await act(() => router.navigate('/recepcion/citas/nueva')); await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);
 });
-it.each([['Paciente', '/recepcion/citas/nueva'], ['Recepcionista', '/reservar-cita']])('deniega %s en ruta %s', async (rol, path) => {
+it.each([['Paciente', '/recepcion/citas/nueva'], ['Recepcionista', '/reservar-cita'], ['Administrador', '/reservar-cita']])('deniega %s en ruta %s', async (rol, path) => {
   role = rol; mount(path); await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);
 });
 it('solo ofrece Reservar cita al Paciente y consulta disponibilidad propia con segundos', async () => {
@@ -73,16 +73,16 @@ it('solo ofrece Reservar cita al Paciente y consulta disponibilidad propia con s
   expect(calls.every(c => c.method === 'get')).toBe(true); expect(document.title).toBe('Reservar cita | Clínica Vida Salud');
   expect(screen.getByRole('button', { name: 'Revisar cita' })).toBeEnabled();
 });
-it('Recepción selecciona ficha sin CI y no necesita cuenta web', async () => {
-  role = 'Recepcionista'; const user = userEvent.setup(); mount(); await search(user);
+it.each(['Administrador', 'Recepcionista'])('%s selecciona ficha sin CI y no necesita cuenta web', async operador => {
+  role = operador; const user = userEvent.setup(); mount('/recepcion/citas/nueva'); await search(user);
   await screen.findByRole('radio', { name: '08:00:01' });
   expect(screen.getByRole('link', { name: 'Programar cita' })).toBeInTheDocument();
   expect(screen.getByText(/Paciente seleccionado: Paciente Sin documento/)).toBeInTheDocument();
   expect(calls.find(c => c.url.endsWith('/disponibilidad')).params.id_paciente).toBe(id);
   expect(document.title).toBe('Programar cita | Clínica Vida Salud');
 });
-it('no consulta especialidades ni turnos hasta seleccionar ficha en Recepción', async () => {
-  role = 'Recepcionista'; mount(); await screen.findByRole('button', { name: /Paciente Sin documento/ });
+it.each(['Administrador', 'Recepcionista'])('%s no consulta especialidades ni turnos hasta seleccionar ficha', async operador => {
+  role = operador; mount('/recepcion/citas/nueva'); await screen.findByRole('button', { name: /Paciente Sin documento/ });
   expect(calls.map(c => c.url)).toEqual(['/pacientes']); expect(screen.queryByLabelText('Fecha de atención')).not.toBeInTheDocument();
 });
 it('ficha inactiva permite consultar pero no seleccionar turno', async () => {
@@ -110,8 +110,8 @@ it('editar especialidad invalida los catálogos dependientes', async () => {
   fireEvent.change(screen.getByLabelText('Nombre de especialidad'), { target: { value: 'Otra' } });
   expect(screen.queryByLabelText('Nombre del Médico')).not.toBeInTheDocument(); expect(screen.queryByRole('radio')).not.toBeInTheDocument();
 });
-it('editar ficha invalida especialidad y Médico sin persistir selección', async () => {
-  role = 'Recepcionista'; const user = userEvent.setup(); mount(); await search(user); await screen.findByRole('radio');
+it.each(['Administrador', 'Recepcionista'])('%s: editar ficha invalida especialidad y Médico sin persistir selección', async operador => {
+  role = operador; const user = userEvent.setup(); mount('/recepcion/citas/nueva'); await search(user); await screen.findByRole('radio');
   fireEvent.change(screen.getByLabelText('Nombres del Paciente'), { target: { value: 'Otra ficha' } });
   expect(screen.queryByText(/Paciente seleccionado:/)).not.toBeInTheDocument(); expect(screen.queryByLabelText('Nombre de especialidad')).not.toBeInTheDocument();
 });
@@ -168,15 +168,15 @@ it('descarta respuesta tardía tras editar fecha', async () => {
   fireEvent.change(screen.getByLabelText('Fecha de atención'), { target: { value: '2026-11-02' } }); await act(async () => resolve());
   expect(screen.queryByRole('radio')).not.toBeInTheDocument();
 });
-it('salir y volver no conserva ficha, criterios ni resultados en history o Web Storage', async () => {
-  const storage = vi.spyOn(Storage.prototype, 'setItem'); role = 'Recepcionista';
-  const user = userEvent.setup(); const router = mount(); await search(user); await user.click(await screen.findByRole('radio'));
+it.each(['Administrador', 'Recepcionista'])('%s: salir y volver no conserva ficha, criterios ni resultados en history o Web Storage', async operador => {
+  const storage = vi.spyOn(Storage.prototype, 'setItem'); role = operador;
+  const user = userEvent.setup(); const router = mount('/recepcion/citas/nueva'); await search(user); await user.click(await screen.findByRole('radio'));
   expect(router.state.location.state).toBeNull(); expect(router.state.location.search).toBe('');
   await act(() => router.navigate('/inicio')); await act(() => router.navigate('/recepcion/citas/nueva')); await screen.findByLabelText('CI (si existe)');
   expect(screen.queryByText(/Paciente seleccionado:/)).not.toBeInTheDocument(); expect(screen.queryByRole('radio')).not.toBeInTheDocument(); expect(storage).not.toHaveBeenCalled(); storage.mockRestore();
 });
-it('pagehide limpia selección y formularios privados', async () => {
-  role = 'Recepcionista'; const user = userEvent.setup(); mount(); await search(user); await screen.findByRole('radio');
+it.each(['Administrador', 'Recepcionista'])('%s: pagehide limpia selección y formularios privados', async operador => {
+  role = operador; const user = userEvent.setup(); mount('/recepcion/citas/nueva'); await search(user); await screen.findByRole('radio');
   act(() => window.dispatchEvent(new Event('pagehide'))); expect(screen.queryByRole('radio')).not.toBeInTheDocument(); expect(screen.getByLabelText('Nombres del Paciente')).toHaveValue('');
 });
 it('consulta filtrada de Médicos usa nombre/consultorio y no endpoints administrativos', async () => {
@@ -223,4 +223,24 @@ it('cambio de rol al recuperar foco elimina el flujo privado', async () => {
   const user = userEvent.setup(); mount(); await search(user); await user.click(await screen.findByRole('radio'));
   role = 'Administrador'; act(() => window.dispatchEvent(new Event('focus')));
   await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+});
+it.each(['rol', 'identidad'])('cambio administrativo de %s no hereda ficha ni disponibilidad de la sesión anterior', async cambio => {
+  role = 'Recepcionista'; const user = userEvent.setup(); mount('/recepcion/citas/nueva');
+  await search(user); await user.click(await screen.findByRole('radio'));
+  if (cambio === 'rol') role = 'Administrador'; else userId = '8';
+  act(() => window.dispatchEvent(new Event('focus')));
+  await waitFor(() => expect(screen.queryByText(/Paciente seleccionado:/)).not.toBeInTheDocument());
+  await screen.findByRole('button', { name: /Paciente Sin documento/ });
+  expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Nombre de especialidad')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Programar cita' })).toBeInTheDocument();
+  expect(calls.filter(c => c.url.endsWith('/disponibilidad'))).toHaveLength(1);
+});
+it.each(['Administrador', 'Recepcionista'])('%s muestra advertencia de ficha inactiva y no permite turno si servidor la rechaza', async operador => {
+  role = operador; patients = patients.map(p => ({ ...p, activo: false })); reservable = false;
+  const user = userEvent.setup(); mount('/recepcion/citas/nueva'); await search(user);
+  expect(screen.getByText(/La ficha seleccionada está inactiva/)).toBeInTheDocument();
+  expect(await screen.findByRole('radio')).toBeDisabled();
+  expect(screen.queryByText(/La reserva es únicamente para tu propia ficha/)).not.toBeInTheDocument();
+  expect(calls.find(c => c.url.endsWith('/disponibilidad')).params.id_paciente).toBe(id);
 });

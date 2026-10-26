@@ -27,7 +27,7 @@ class CodigoActivacionService
             // Mismo protocolo que Nuevo/Vinculacion: global antes de cualquier ficha o reserva.
             $this->registros->coordinar();
             $actor = $this->autenticacion->exigirSesionNormal(bloquear: true);
-            if ($actor->rol->nombre !== 'Recepcionista') {
+            if (! in_array($actor->rol->nombre, ['Administrador', 'Recepcionista'], true)) {
                 throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
             }
             $paciente = $this->codigos->pacientePorId($id);
@@ -49,6 +49,7 @@ class CodigoActivacionService
             for ($i = 0; $i < 12; $i++) {
                 $valor .= $alfabeto[random_int(0, 61)];
             }
+            // Nombre histórico de la FK a Usuario: siempre conserva al emisor real, incluido Administrador.
             $codigo = $this->codigos->crear(['id_paciente' => $id, 'id_recepcionista' => $actor->getKey(),
                 'codigo_hash' => RegistroPacienteContexto::recepcion($id, $valor),
                 'emitido_en' => $ahora, 'expira_en' => $ahora->addHours(24)]);

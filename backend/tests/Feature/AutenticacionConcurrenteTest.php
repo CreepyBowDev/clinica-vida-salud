@@ -1891,7 +1891,7 @@ class AutenticacionConcurrenteTest extends TestCase
     {
         [$usuario, $token] = $this->recuperacionPendiente();
         $cookies = $this->csrfAuth();
-        $reset = $this->worker('', 'Nueva clave recuperada 456', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
+        $reset = $this->worker('', 'Nueva clave recuperada 456!', mode: 'recuperacion-reset', extra: compact('cookies', 'token'));
         $cookies = $this->csrfAuth();
         $emision = $this->worker($usuario->correo_acceso, '', mode: 'recuperacion-solicitar', extra: compact('cookies'));
         DB::beginTransaction();
@@ -1906,7 +1906,7 @@ class AutenticacionConcurrenteTest extends TestCase
         $this->assertSame(202, json_decode($this->line($emision), true)['status']);
         $this->assertSame(2, DB::table('tokens_acceso')->count());
         $this->assertSame(1, DB::table('tokens_acceso')->whereNull('invalidado_en')->whereNull('consumido_en')->count());
-        $this->assertTrue(Hash::check($status === 204 ? 'Nueva clave recuperada 456' : self::PASSWORD, $usuario->fresh()->password_hash));
+        $this->assertTrue(Hash::check($status === 204 ? 'Nueva clave recuperada 456!' : self::PASSWORD, $usuario->fresh()->password_hash));
     }
 
     public function test_recovery_and_normal_password_change_cannot_both_confirm_from_original_credentials(): void

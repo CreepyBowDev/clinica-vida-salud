@@ -33,8 +33,9 @@ beforeEach(() => {
   listarPacientes.mockResolvedValue(listing()); crearPaciente.mockResolvedValue(patient);
 });
 
-describe('alta administrativa CU-07', () => {
-  it.each(['Administrador', 'Médico', 'Paciente'])('deniega alta a %s sin consultar o escribir', async rol => {
+describe.each(['Administrador', 'Recepcionista'])('alta administrativa CU-07 — %s', operador => {
+  beforeEach(() => { consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'personal@example.test', rol: operador }); });
+  it.each(['Médico', 'Paciente'])('deniega alta a %s sin consultar o escribir', async rol => {
     consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'persona@example.test', rol });
     mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
     expect(crearPaciente).not.toHaveBeenCalled(); expect(listarPacientes).not.toHaveBeenCalled(); expect(consultarPaciente).not.toHaveBeenCalled();

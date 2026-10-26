@@ -134,11 +134,11 @@ class VinculacionPacienteTest extends TestCase
 
     public static function rolesNoAutorizados(): array
     {
-        return [['Administrador'], ['Médico'], ['Paciente']];
+        return [['Médico'], ['Paciente']];
     }
 
     #[DataProvider('rolesNoAutorizados')]
-    public function test_only_reception_can_issue_even_administrator_has_no_permission(string $rol): void
+    public function test_roles_without_administrative_permission_cannot_issue(string $rol): void
     {
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $this->usuarioAuth($rol))->assertOk();

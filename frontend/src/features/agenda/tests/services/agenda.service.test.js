@@ -61,17 +61,18 @@ it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('detalle %s u
   const result = await consultarCita({ id: cita.id_cita, rol });
   expect(calls[0].url).toBe(`/citas/${cita.id_cita}`); expect(calls[0].params).toBeUndefined(); expect(calls[0].data).toBeUndefined();
   expect(result.id_cita).toBe(cita.id_cita); expect(JSON.stringify(result)).not.toContain('NO-SALIR');
-  expect(Object.hasOwn(result, 'motivo_breve')).toBe(rol !== 'Administrador');
-  expect(Object.hasOwn(result.paciente, 'telefono')).toBe(rol === 'Recepcionista');
+  expect(result.motivo_breve).toBe('0');
+  expect(Object.hasOwn(result.paciente, 'telefono')).toBe(['Administrador', 'Recepcionista'].includes(rol));
+  expect(Object.hasOwn(result.paciente, 'documento_identidad')).toBe(['Administrador', 'Recepcionista'].includes(rol));
   expect(Object.hasOwn(result.paciente, 'fecha_nacimiento')).toBe(rol === 'Médico');
 });
 it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('contrato exacto %s admite omisión o null según autorización', async rol => {
   body = { data: detalle(rol) };
-  if (rol !== 'Administrador') body.data.motivo_breve = null;
+  body.data.motivo_breve = null;
   if (rol === 'Médico') body.data.paciente.fecha_nacimiento = null;
   const result = await consultarCita({ id: cita.id_cita, rol });
-  if (rol !== 'Administrador') expect(result.motivo_breve).toBeNull();
-  if (rol === 'Recepcionista') expect(result.paciente.documento_identidad).toBeNull();
+  expect(result.motivo_breve).toBeNull();
+  if (['Administrador', 'Recepcionista'].includes(rol)) expect(result.paciente.documento_identidad).toBeNull();
 });
 it.each(['0', '01', '-1', '1/ruta', '9223372036854775808', 17, null])('ID inválido %s se rechaza antes de HTTP', async id => {
   await expect(consultarCita({ id, rol: 'Paciente' })).rejects.toThrow();
@@ -82,7 +83,7 @@ it.each([{ page: ['1'] }, { page: 0 }, { per_page: 101 }, { page: '1e2' }, { est
   await expect(consultarAgenda(filtros)).rejects.toThrow(); expect(calls).toHaveLength(0);
 });
 it.each([null, { data: null }, { data: {} }, { data: { ...cita, id_cita: '1' } }, { data: { ...cita, fin_at: cita.inicio_at } },
-  { data: { ...cita, paciente: null } }, { data: { ...cita, inicio_at: '2026-02-30T12:00:00.000000Z' } }, { data: detalle('Administrador') }])('detalle malformado se rechaza con mensaje seguro', async value => {
+  { data: { ...cita, paciente: null } }, { data: { ...cita, inicio_at: '2026-02-30T12:00:00.000000Z' } }, { data: { ...detalle('Administrador'), motivo_breve: undefined } }])('detalle malformado se rechaza con mensaje seguro', async value => {
   body = value; await expect(consultarCita({ id: cita.id_cita, rol: 'Paciente' })).rejects.toThrow('No se pudo verificar');
 });
 it.each(['zona', 'contexto', 'filtro', 'filas', 'total', 'links'])('agenda con %s incongruente no se publica', async change => {
@@ -111,4 +112,22 @@ it('respuesta tardía de sesión sustituida es descartada por Axios existente', 
   await vi.waitFor(() => expect(complete).toBeTypeOf('function'));
   avanzarSesion(); complete();
   await expect(pending).rejects.toMatchObject({ code: 'SESSION_SUPERSEDED' });
+});
+it.each(['Administrador', 'Recepcionista'].flatMap(rol => ['motivo_ausente', 'motivo_largo', 'motivo_objeto', 'ci_ausente', 'telefono_ausente'].map(campo => [rol, campo])))('%s rechaza detalle administrativo incompleto o inválido: %s', async (rol, campo) => {
+  body = { data: detalle(rol) };
+  if (campo === 'motivo_ausente') delete body.data.motivo_breve;
+  if (campo === 'motivo_largo') body.data.motivo_breve = 'a'.repeat(501);
+  if (campo === 'motivo_objeto') body.data.motivo_breve = { secreto: 'NO-SALIR' };
+  if (campo === 'ci_ausente') delete body.data.paciente.documento_identidad;
+  if (campo === 'telefono_ausente') delete body.data.paciente.telefono;
+  await expect(consultarCita({ id: cita.id_cita, rol })).rejects.toThrow('No se pudo verificar');
+});
+it('historial administrativo minimiza filas y contexto aun si contienen motivo, contacto o datos clínicos', async () => {
+  const paciente = { ...cita.paciente, documento_identidad: 'NO-SALIR', telefono: 'NO-SALIR', diagnostico: 'NO-SALIR' };
+  body = pagina([{ ...cita, paciente, motivo_breve: 'NO-SALIR', creada_por: 'NO-SALIR' }], {
+    paciente, filtros: { periodo: 'todas', estado: null }, diagnostico: 'NO-SALIR',
+  });
+  const result = await consultarHistorialPaciente({ id: '31', id_paciente: '99', id_usuario: '71', rol: 'Administrador', include: 'clinica' });
+  expect(JSON.stringify(result)).not.toContain('NO-SALIR');
+  expect(calls[0]).toMatchObject({ url: '/pacientes/31/citas', params: { page: 1, per_page: 20 } });
 });

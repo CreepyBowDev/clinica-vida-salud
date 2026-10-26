@@ -24,7 +24,8 @@ function mount(path = '/recepcion/pacientes') {
 beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockResolvedValue(person('Recepcionista')); listarPacientes.mockResolvedValue(listing()); consultarPaciente.mockResolvedValue(patient); });
 afterEach(() => { api.defaults.adapter = original; });
 
-describe('consulta administrativa de pacientes CU-07', () => {
+describe.each(['Administrador', 'Recepcionista'])('consulta administrativa de pacientes CU-07 — %s', operador => {
+  beforeEach(() => { consultarSesion.mockResolvedValue(person(operador)); });
   it('tabla adaptable conserva CI ausente, código, estado y destino de ficha', async () => {
     mount(); const table = await screen.findByRole('table');
     expect(table.parentElement).toHaveClass('query-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
@@ -32,7 +33,7 @@ describe('consulta administrativa de pacientes CU-07', () => {
     expect(within(table).getByRole('link', { name: 'Ver ficha de Persona Ficticia' })).toHaveAttribute('href', `/recepcion/pacientes/${patient.id_paciente}`);
     expect(screen.getByRole('navigation', { name: 'Paginación de pacientes' })).toHaveClass('pagination'); expect(listarPacientes).toHaveBeenCalledTimes(1);
   });
-  it.each(['Administrador', 'Médico', 'Paciente'])('deniega listado y detalle a %s sin consultar pacientes', async rol => {
+  it.each(['Médico', 'Paciente'])('deniega listado y detalle a %s sin consultar pacientes', async rol => {
     consultarSesion.mockResolvedValue(person(rol));
     const router = mount();
     await screen.findByRole('heading', { name: 'Acceso no permitido' });
@@ -106,7 +107,7 @@ describe('consulta administrativa de pacientes CU-07', () => {
     expect(screen.getByText(/Sin contacto de emergencia/)).toBeInTheDocument();
     expect(screen.getAllByText('No registrado')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Reactivar ficha' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /contraseña|eliminar|recordatorio/i })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('main')).queryByRole('button', { name: /contraseña|eliminar|recordatorio/i })).not.toBeInTheDocument();
   });
   it('muestra contacto y emergencia autorizados sin representar campos clínicos ajenos', async () => {
     consultarPaciente.mockResolvedValue({ ...patient, activo: true, documento_identidad: '1234', correo_contacto: 'contacto@example.test', cuenta_vinculada: false, contacto_emergencia: { nombre: 'Contacto Ficticio', parentesco: 'Hermana', telefono: '71111111' }, antecedentes: 'NO MOSTRAR', password: 'NO MOSTRAR' });

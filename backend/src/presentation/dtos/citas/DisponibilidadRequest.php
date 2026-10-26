@@ -30,7 +30,7 @@ class DisponibilidadRequest extends FormRequest
         if ($metodo === 'turnos') {
             $reglas['id_medico'] = $id;
             $reglas['fecha'] = ['required', 'date_format:Y-m-d', 'regex:/\A(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}\z/'];
-            if ($this->user()?->rol?->nombre === 'Recepcionista') {
+            if (in_array($this->user()?->rol?->nombre, ['Administrador', 'Recepcionista'], true)) {
                 $reglas['id_paciente'] = $id;
             }
         }

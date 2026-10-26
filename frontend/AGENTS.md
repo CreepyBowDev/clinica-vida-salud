@@ -404,6 +404,8 @@ No considerar que un usuario está autenticado únicamente porque quede un objet
 
 ## 14. ProtectedRoute, RoleRoute y permisos
 
+**Decisión definitiva 2026-10-24:** Administrador autorizado en **28/30 CU (CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30)**; CU-04/CU-08 siguen personales del Paciente. Los demás roles no cambian. Sustituye prohibiciones administrativas anteriores: ver matriz/estado en `docs/ai/casos-de-us.md` §3.1 y contexto §17.117. Política aprobada no significa UI/backend ya ampliados; frontend se adaptará en etapa posterior. Reutilizar páginas/componentes/servicios y sidebar modular, sin identificadores CU visibles ni duplicaciones por rol. Mantener identidad visual, responsive y rutas de los demás roles.
+
 Mantener archivos:
 
 ```text
@@ -425,7 +427,7 @@ export const ROLES = {
 
 No inventar IDs numéricos de roles si el backend todavía no los fijó. No usar números mágicos ni comparaciones dispersas cuando existan constantes.
 
-- **Administrador:** cuentas del personal, consulta administrativa mínima y desactivación/reactivación de cuentas de Pacientes previamente verificadas según CU-03, especialidades, médicos, consultorios, horarios, reportes, carga documental de laboratorio y consulta de bitácora.
+- **Administrador:** operaciones de los 28 CU autorizados; incluye gestión de pacientes/códigos CU-07, programación administrativa e historial por paciente; operaciones de asistencia/clínica/laboratorio/avisos solo cuando sus funcionalidades estén implementadas. No ejecutar CU-04/CU-08 ni alterar límites de credenciales de Pacientes en CU-03; no usar reserva personal como sustituto de programación administrativa. Conservar ejecutor real y Médico responsable separados.
 - **Recepcionista:** registros administrativos de pacientes, generación de códigos de activación, programación, reprogramación, cancelación, confirmación de llegada e inasistencia.
 - **Médico:** propia agenda, consultas y registro/actualización de antecedentes durante una atención real y autorizada según CU-23, y estudios autorizados; solo el responsable marca `Atendida` y autoriza publicar resultados propios.
 - **Paciente:** activa cuenta, consulta y actualiza propio perfil, reserva para sí mismo, consulta historial y resultados publicados; no cancela ni reprograma.
@@ -480,7 +482,7 @@ Los formularios administrativos de Recepción de CU-07 sí permiten excepcionalm
 
 ### Paciente previamente registrado por Recepción (`CU-04` y `CU-07`)
 
-1. Recepción verifica presencialmente la identidad y el CI de la ficha y entrega el código de activación.
+1. Administrador o Recepción verifican presencialmente identidad/CI y entregan el código por CU-07; el Administrador no realiza los pasos personales posteriores de CU-04.
 2. El Paciente abre «Ya tengo un código de activación».
 3. Introduce **CI, código de Recepción, correo electrónico y contraseña**.
 4. Laravel valida la primera autorización y establece el proceso pendiente.
@@ -585,13 +587,13 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 ## 21. Citas, disponibilidad y concurrencia (`CU-13` a `CU-19`)
 
-- Mostrar únicamente opciones de reserva permitidas al Paciente para sí mismo; Recepción programa para pacientes administrativamente registrados y activos.
+- Mostrar opciones de reserva del Paciente solo para sí mismo; Administrador y Recepción reutilizan programación para pacientes seleccionados, registrados y activos cuando la ampliación esté implementada.
 - La pantalla de búsqueda muestra **disponibilidad orientativa**. Un turno visible **no garantiza** su reserva.
 - La confirmación real exige que Laravel verifique paciente, médico activo, especialidad, horario, consultorio y ausencia de superposición al guardar.
 - Citas presenciales de una sola sede, con consultorio fijo del Médico.
 - Los cinco estados son **Programada, Confirmada, Atendida, Cancelada, Inasistencia**. No inventar un sexto estado de cita.
-- Paciente **no** cancela ni reprograma desde el frontend; esos controles corresponden a Recepción.
-- Recepción registra llegada e inasistencia; **únicamente el Médico responsable** marca `Atendida`.
+- Paciente **no** cancela ni reprograma; esos controles corresponden a Administrador/Recepción por sus CU cuando existan.
+- Administrador o Recepción registran llegada e inasistencia; Administrador o Médico responsable marcan `Atendida`, cuando esos CU estén implementados, conservando identidades y precondiciones.
 - Reprogramar conserva la cita y puede retornar `Confirmada` a `Programada`. Cancelar no elimina la historia.
 - Ante `409` por conflicto concurrente, mostrar el problema, actualizar disponibilidad y permitir otra elección; no simular que la cita fue confirmada.
 - Paciente con ficha inactiva no recibe nuevas reservas ni por Recepción; si su cuenta sigue activa consulta su historial autorizado.
@@ -606,7 +608,7 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 - Consultorios pueden compartirse entre Médicos únicamente en horarios compatibles; mantener consultorio fijo por Médico.
 - La duración inicial de cita es 15 minutos y puede configurarse; no modificar en pantalla duraciones históricas al cambiar la configuración vigente.
 - Al modificar consultorio u horario, mostrar citas futuras afectadas y conflictos **según el resultado del backend**; no actualizar silenciosamente reservas anteriores.
-- Si el cambio exige fecha/hora distinta, la reprogramación corresponde a Recepción por CU-15; no crear ese permiso para el Administrador.
+- Si el cambio exige fecha/hora distinta, usar CU-15 por Administrador o Recepción cuando exista; no reprogramar automáticamente como efecto de administrar consultorios/horarios.
 - Mantener la sede única y no ofrecer modalidades virtuales.
 
 ---
@@ -617,7 +619,7 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 - El Paciente no puede cambiar arbitrariamente el identificador de su ficha o vincularse con otra persona.
 - Diferenciar **correo de contacto** y **correo de acceso**. Cambiar el primero no cambia el segundo; cambiar el correo de acceso exige el procedimiento de verificación definido por el servidor.
 - Un Paciente puede tener ficha y citas antiguas sin cuenta web. La activación conserva historial y no crea un segundo registro.
-- El Paciente consulta su historial de citas; Recepción consulta historial administrativo según permisos; Médico consulta su propia agenda.
+- Paciente consulta historial propio; Administrador/Recepción consultan historial administrativo por paciente seleccionado; Médico conserva agenda propia. No duplicar páginas por rol.
 - Si una cuenta activa corresponde a una ficha de Paciente inactiva, puede consultar historial e información autorizada, pero no registrar nuevas reservas.
 - Mostrar motivo de consulta breve únicamente cuando el rol y el vínculo lo permiten.
 
@@ -625,11 +627,11 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 ## 24. Historia clínica y consultas (`CU-22`, `CU-23`)
 
-- Acceso clínico exclusivamente cuando exista autorización y relación asistencial; no exponer historias ajenas en tablas administrativas.
+- Acceso clínico por autorización del CU: Médico con relación asistencial, Paciente titular y Administrador por permiso administrativo expreso, sin inventar vínculo profesional; no cargar historias clínicas en tablas administrativas.
 - Cada cita tiene como máximo **una consulta**; una consulta puede originar varias solicitudes de laboratorio.
 - Registrar o actualizar una consulta no cambia automáticamente a `Atendida`.
 - El Médico responsable puede registrar, completar o corregir antecedentes durante una atención real y autorizada por CU-23, y completar/corregir información de atenciones previas conforme a las reglas aprobadas. Consultar primero los antecedentes existentes y enviar solo modificaciones permitidas; Laravel valida cuenta, rol y relación asistencial y conserva versiones, responsables y fechas. No crear consultas ficticias ni marcar Atendida automáticamente al guardar antecedentes.
-- CU-22 permanece de consulta para Médico y Paciente dentro de sus permisos. La edición clínica de CU-23 no se ofrece a Administrador, Recepción o Paciente; la bitácora general solo contiene referencias y metadatos seguros, sin contenido de antecedentes.
+- CU-22 permanece de consulta para Administrador, Médico y Paciente dentro de sus permisos. CU-23 permite edición clínica por Administrador o Médico responsable, no por Recepción/Paciente; conservar ejecutor y Médico responsable separados y versiones. No habilitar una UI inexistente anticipadamente; bitácora general solo con referencias/metadatos seguros.
 - Mostrar antecedentes, diagnósticos y observaciones solo a usuarios autorizados por la API; no usar estado de frontend para conceder acceso.
 - Formularios médicos deben evitar filtraciones en errores, mensajes, consola, analytics y persistencia del navegador.
 - No hacer copia de seguridad local de datos clínicos en `localStorage` o `sessionStorage`.
@@ -638,9 +640,9 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 ## 25. Laboratorio digital y documentos protegidos (`CU-24` a `CU-27`)
 
-- El Médico solicita estudios y revisa los resultados correspondientes.
+- Administrador o Médico responsable solicitan estudios/revisan resultados por CU-24/CU-26 cuando existan los flujos, preservando actor auténtico y responsable.
 - El Administrador incorpora el PDF o imagen emitido externamente y puede corregir asociaciones o documentos devueltos, sin alterar interpretación médica.
-- Únicamente el Médico solicitante revisa, devuelve para corrección y autoriza publicar su resultado.
+- Médico solicitante o Administrador revisan, devuelven y autorizan publicación por CU-26 cuando esté implementado; conservar usuario ejecutor real, Médico responsable y versión revisada sin falsificar autoría.
 - Estados internos: **Pendiente**, **En revisión**, **Disponible**; no convertirlos en estados de cita.
 - Un documento correcto se publica directamente tras autorización; un documento incorrecto sigue el circuito de devolución, corrección y nueva revisión.
 - El Paciente ve **Pendiente** hasta que esté **Disponible**, sin acceso al archivo En revisión.
@@ -653,7 +655,7 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 ## 26. Recordatorios internos (`CU-28`)
 
-- Mostrar únicamente avisos propios del Paciente, procedentes de la API.
+- Paciente ve solo avisos propios de la API; Administrador consulta los del Paciente seleccionado por CU-28 cuando esté implementado, sin editar preferencias personales ni generar avisos manualmente.
 - El backend genera recordatorios automáticamente, **aunque el Paciente no esté conectado**.
 - El proyecto establece un aviso **24 horas antes de la fecha y hora programadas** de la cita. Para reservas registradas exitosamente con menos de 24 horas de anticipación, el backend lo genera después de guardar correctamente la reserva en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el aviso siga siendo válido y el intervalo no haya finalizado. La frecuencia del programador se definirá durante el diseño técnico; la interfaz no debe asumirla.
 - La generación es independiente del estado `Confirmada` y no modifica la cita: las nuevas reservas permanecen inicialmente `Programadas`; las `Confirmadas` pueden conservar avisos vigentes. `Confirmada` significa exclusivamente llegada presencial verificada por Recepción, no guardado exitoso de una reserva.

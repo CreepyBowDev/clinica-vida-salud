@@ -37,25 +37,24 @@ it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('%s ve solo d
   expect(region).toHaveTextContent('Sala conservada ficticia'); expect(region).toHaveTextContent('Programada');
   expect(region).toHaveTextContent('31/10/2026'); expect(region).toHaveTextContent('22:30');
   expect(screen.getByRole('region', { name: 'Paciente' })).toHaveTextContent('Paciente De prueba');
-  expect(main.textContent.includes('CI-FICTICIO')).toBe(rol === 'Recepcionista');
-  expect(main.textContent.includes('TEL-FICTICIO')).toBe(rol === 'Recepcionista');
+  expect(main.textContent.includes('CI-FICTICIO')).toBe(['Administrador', 'Recepcionista'].includes(rol));
+  expect(main.textContent.includes('TEL-FICTICIO')).toBe(['Administrador', 'Recepcionista'].includes(rol));
   expect(main.textContent.includes('01/01/1990')).toBe(rol === 'Médico');
-  expect(screen.queryByRole('region', { name: 'Motivo breve' }) !== null).toBe(rol !== 'Administrador');
-  if (rol !== 'Administrador') expect(screen.getByRole('region', { name: 'Motivo breve' })).toHaveTextContent('0');
+  expect(screen.getByRole('region', { name: 'Motivo breve' })).toHaveTextContent('0');
   expect(main).not.toHaveTextContent('NO-SALIR'); expect(within(main).queryByRole('button')).not.toBeInTheDocument();
   expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Agenda e historial');
   expect(document.title).toBe('Detalle de cita | Clínica Vida Salud'); expect(main).toHaveFocus();
   expect(screen.queryByRole('link', { name: 'Consultar agenda médica' }) !== null).toBe(rol !== 'Paciente');
-  expect(screen.queryByRole('link', { name: 'Consultar historial de citas' }) !== null).toBe(rol === 'Recepcionista');
+  expect(screen.queryByRole('link', { name: 'Consultar historial de citas' }) !== null).toBe(['Administrador', 'Recepcionista'].includes(rol));
   expect(calls).toHaveLength(1); expect(calls[0]).toMatchObject({ method: 'get', sessionBound: true, url: `/citas/${cita.id_cita}` });
   expect(localStorage.length).toBe(0); expect(sessionStorage.length).toBe(0);
 });
-it.each(['Recepcionista', 'Médico', 'Paciente'])('%s distingue valores autorizados ausentes de claves prohibidas', async role => {
+it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('%s distingue valores autorizados ausentes de claves prohibidas', async role => {
   rol = role; const data = detalle(rol); data.motivo_breve = null;
   if (rol === 'Médico') data.paciente.fecha_nacimiento = null;
   respond = config => response(config, data); mount();
   await screen.findByText('Sin motivo registrado');
-  if (rol === 'Recepcionista') expect(screen.getByText('Sin CI registrado')).toBeInTheDocument();
+  if (['Administrador', 'Recepcionista'].includes(rol)) expect(screen.getByText('Sin CI registrado')).toBeInTheDocument();
   if (rol === 'Médico') expect(screen.getByText('No registrado')).toBeInTheDocument();
 });
 it.each(['0', '01', 'invalido', '9223372036854775808'])('identificador %s inválido no genera HTTP', async id => {
@@ -110,7 +109,7 @@ it('cambio de usuario/rol elimina proyección privada anterior aunque se manteng
   await waitFor(() => expect(complete).toBeTypeOf('function'));
   expect(screen.queryByText('70000000')).not.toBeInTheDocument(); expect(screen.queryByText('MOTIVO-FICTICIO')).not.toBeInTheDocument();
   await act(async () => complete()); await screen.findByRole('region', { name: 'Paciente' });
-  expect(screen.queryByRole('region', { name: 'Motivo breve' })).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Motivo breve' })).toHaveTextContent('MOTIVO-FICTICIO');
 });
 it('logout cancela una lectura pendiente y la respuesta tardía no restaura datos', async () => {
   let complete, signal;

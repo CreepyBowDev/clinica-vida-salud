@@ -128,7 +128,7 @@ it.each(['Administrador', 'Recepcionista', 'Médico'])('%s listado → detalle �
   await screen.findByRole('region', { name: `Cita ${cita.codigo_cita}` });
   expect(screen.getByRole('main')).toHaveFocus();
   expect(screen.getByRole('link', { name: 'Volver a agenda médica' })).toHaveAttribute('href', '/agenda');
-  if (rol === 'Administrador') expect(screen.queryByRole('region', { name: 'Motivo breve' })).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Motivo breve' })).toHaveTextContent('MOTIVO-FICTICIO');
   await user.click(screen.getByRole('link', { name: 'Volver a agenda médica' }));
   await screen.findByRole('link', { name: 'Ver cita CIT-21' });
   expect(agendaCalls()).toHaveLength(3); expect(agendaCalls().at(-1).params).toMatchObject({ page: 2, fecha: '2026-10-31' });

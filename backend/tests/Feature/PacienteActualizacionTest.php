@@ -19,6 +19,8 @@ class PacienteActualizacionTest extends TestCase
 {
     use AutenticacionFixtures, CitasFixtures;
 
+    protected const ROL_OPERADOR = 'Recepcionista';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,7 +33,7 @@ class PacienteActualizacionTest extends TestCase
 
     private function recepcion(): array
     {
-        $actor = $this->usuarioAuth('Recepcionista');
+        $actor = $this->usuarioAuth(static::ROL_OPERADOR);
         $cookies = $this->csrfAuth();
         $this->loginAuth($cookies, $actor)->assertOk();
 
@@ -246,6 +248,6 @@ class PacienteActualizacionTest extends TestCase
 
     public static function rolesAjenos(): array
     {
-        return [['Administrador'], ['Médico'], ['Paciente']];
+        return [['Médico'], ['Paciente']];
     }
 }

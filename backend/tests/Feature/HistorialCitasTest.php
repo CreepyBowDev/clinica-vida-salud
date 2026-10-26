@@ -85,7 +85,7 @@ class HistorialCitasTest extends TestCase
 
     public static function roles(): array
     {
-        return [['Paciente', 'proximas'], ['Recepcionista', 'todas']];
+        return [['Paciente', 'proximas'], ['Recepcionista', 'todas'], ['Administrador', 'todas']];
     }
 
     #[DataProvider('roles')]
@@ -96,7 +96,7 @@ class HistorialCitasTest extends TestCase
         $otra = $this->usuarioAuth('Paciente');
         $this->cita($r, '2026-11-02T12:00:00Z', ['id_paciente' => $otra->paciente->getKey(), 'motivo_breve' => 'AJENO_NO_REVELAR']);
         $before = $this->snapshot();
-        $response = $this->consultar($cookies, $r, recepcion: $rol === 'Recepcionista')->assertOk()
+        $response = $this->consultar($cookies, $r, recepcion: $rol !== 'Paciente')->assertOk()
             ->assertHeader('Cache-Control', 'no-store, private')->assertJsonPath('meta.filtros.periodo', $periodo)
             ->assertJsonPath('meta.filtros.estado', null)->assertJsonPath('meta.paciente.id_paciente', (string) $r['patient'])
             ->assertJsonPath('meta.consultado_en', '2026-11-01T12:20:00.000001Z')->assertJsonPath('meta.zona_horaria', 'America/La_Paz');
@@ -207,7 +207,7 @@ class HistorialCitasTest extends TestCase
 
     public static function denegados(): array
     {
-        return [['Administrador', '/api/mis-citas'], ['Administrador', '/api/pacientes/1/citas'],
+        return [['Administrador', '/api/mis-citas'],
             ['Médico', '/api/mis-citas'], ['Médico', '/api/pacientes/1/citas'],
             ['Recepcionista', '/api/mis-citas'], ['Paciente', '/api/pacientes/1/citas']];
     }

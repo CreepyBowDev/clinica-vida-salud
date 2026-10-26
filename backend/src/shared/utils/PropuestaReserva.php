@@ -40,7 +40,7 @@ class PropuestaReserva
         $id = ['required', 'string', 'regex:/\A[1-9][0-9]{0,18}\z/', 'integer', 'max:9223372036854775807'];
         if (! is_array($datos) || Validator::make($datos, [
             'proposito' => ['required', 'in:reserva_cita'], 'version' => ['required', 'integer', 'in:1'],
-            'id_propuesta' => ['required', 'uuid'], 'actor' => $id, 'rol' => ['required', 'in:Recepcionista,Paciente'],
+            'id_propuesta' => ['required', 'uuid'], 'actor' => $id, 'rol' => ['required', 'in:Administrador,Recepcionista,Paciente'],
             'id_paciente' => $id, 'seleccion' => ['required', 'array'], 'seleccion.id_medico' => $id,
             'seleccion.id_especialidad' => $id, 'seleccion.fecha' => ['required', 'date_format:Y-m-d', 'regex:/\A(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}\z/'],
             'seleccion.hora_inicio' => ['required', 'date_format:H:i:s'],

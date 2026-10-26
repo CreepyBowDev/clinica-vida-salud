@@ -13,8 +13,8 @@ export const NAVIGATION = [
     page('contrasena', 'Cambiar contraseña', '/mi-cuenta/contrasena', all, ['CU-05']),
   ] },
   { id: 'pacientes', label: 'Pacientes y perfil personal', icon: 'user', items: [
-    page('pacientes', 'Gestionar pacientes', '/recepcion/pacientes', [R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
-    page('activacion', 'Activación web', '/recepcion/activacion-web', [R], ['CU-07']),
+    page('pacientes', 'Gestionar pacientes', '/recepcion/pacientes', [A, R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
+    page('activacion', 'Activación web', '/recepcion/activacion-web', [A, R], ['CU-07']),
     page('perfil', 'Mi perfil', '/mi-perfil', [P], ['CU-08'], ['/mi-perfil/correo']),
   ] },
   { id: 'medicos', label: 'Médicos y especialidades', icon: 'people', items: [
@@ -26,32 +26,32 @@ export const NAVIGATION = [
     page('horarios', 'Configurar horarios', '/administracion/horarios', [A], ['CU-12'], ['/administracion/horarios/configuracion', '/administracion/horarios/medicos/:id']),
   ] },
   { id: 'reserva', label: 'Búsqueda y reserva de citas', icon: 'calendar', items: [
-    page('programar', 'Programar cita', '/recepcion/citas/nueva', [R], ['CU-13', 'CU-14']),
+    page('programar', 'Programar cita', '/recepcion/citas/nueva', [A, R], ['CU-13', 'CU-14']),
     page('reservar', 'Reservar cita', '/reservar-cita', [P], ['CU-13', 'CU-14']),
   ] },
   { id: 'bitacora', label: 'Bitácora del Sistema', icon: 'info', items: [
     page('eventos', 'Bitácora del Sistema', '/administracion/bitacora', [A], ['CU-30'], ['/administracion/bitacora/:id']),
   ] },
   { id: 'reprogramacion', label: 'Reprogramación y cancelación', icon: 'calendar', items: [
-    pending('reprogramar', 'Reprogramar cita', [R], ['CU-15']), pending('cancelar', 'Cancelar cita', [R], ['CU-16']),
+    pending('reprogramar', 'Reprogramar cita', [A, R], ['CU-15']), pending('cancelar', 'Cancelar cita', [A, R], ['CU-16']),
   ] },
   { id: 'asistencia', label: 'Asistencia y estados', icon: 'check', items: [
-    pending('llegada', 'Confirmar llegada', [R], ['CU-17']), pending('inasistencia', 'Registrar inasistencia', [R], ['CU-18']),
-    pending('atendida', 'Marcar cita atendida', [M], ['CU-19']),
+    pending('llegada', 'Confirmar llegada', [A, R], ['CU-17']), pending('inasistencia', 'Registrar inasistencia', [A, R], ['CU-18']),
+    pending('atendida', 'Marcar cita atendida', [A, M], ['CU-19']),
   ] },
   { id: 'agenda', label: 'Agenda e historial', icon: 'calendar', items: [
     page('agenda', 'Consultar agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
-    page('historial', 'Consultar historial de citas', '/recepcion/historial-citas', [R], ['CU-21'], ['/recepcion/pacientes/:id/citas', '/recepcion/historial-citas/:id']),
+    page('historial', 'Consultar historial de citas', '/recepcion/historial-citas', [A, R], ['CU-21'], ['/recepcion/pacientes/:id/citas', '/recepcion/historial-citas/:id']),
     page('mis-citas', 'Mis citas', '/mis-citas', [P], ['CU-21'], ['/mis-citas/:id']),
   ] },
   { id: 'historia', label: 'Historia clínica y consultas', icon: 'people', items: [
-    pending('historia', 'Consultar historia clínica', [M, P], ['CU-22']), pending('consulta', 'Registrar consulta médica', [M], ['CU-23']),
+    pending('historia', 'Consultar historia clínica', [A, M, P], ['CU-22']), pending('consulta', 'Registrar consulta médica', [A, M], ['CU-23']),
   ] },
   { id: 'laboratorio', label: 'Laboratorio digital', icon: 'grid', items: [
-    pending('solicitar', 'Solicitar estudios', [M], ['CU-24']), pending('incorporar', 'Incorporar resultados', [A], ['CU-25']),
-    pending('revisar', 'Revisar y autorizar resultados', [M], ['CU-26']), pending('resultados', 'Consultar resultados publicados', [M, P], ['CU-27']),
+    pending('solicitar', 'Solicitar estudios', [A, M], ['CU-24']), pending('incorporar', 'Incorporar resultados', [A], ['CU-25']),
+    pending('revisar', 'Revisar y autorizar resultados', [A, M], ['CU-26']), pending('resultados', 'Consultar resultados publicados', [A, M, P], ['CU-27']),
   ] },
-  { id: 'recordatorios', label: 'Recordatorios internos', icon: 'calendar', items: [pending('avisos', 'Consultar recordatorios', [P], ['CU-28'])] },
+  { id: 'recordatorios', label: 'Recordatorios internos', icon: 'calendar', items: [pending('avisos', 'Consultar recordatorios', [A, P], ['CU-28'])] },
   { id: 'reportes', label: 'Reportes administrativos', icon: 'grid', items: [pending('reportes', 'Consultar reportes', [A], ['CU-29'])] },
 ];
 

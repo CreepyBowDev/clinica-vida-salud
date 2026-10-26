@@ -6,7 +6,7 @@ import ActionGroup from '../../../components/ActionGroup';
 function hora(value) {
   return new Intl.DateTimeFormat('es-BO', { dateStyle: 'long', timeStyle: 'medium', hourCycle: 'h23', timeZone: 'America/La_Paz' }).format(new Date(value));
 }
-export default function ReservaRegistro({ registro, recepcion, onVolver }) {
+export default function ReservaRegistro({ registro, administrativa, onVolver }) {
   const heading = useRef(null);
   const { status, propuesta: p, cita, failure, remaining } = registro;
   useEffect(() => { heading.current?.focus(); }, [status, failure]);
@@ -53,7 +53,7 @@ export default function ReservaRegistro({ registro, recepcion, onVolver }) {
     </>}
     <ActionGroup className="form-actions">
       {['revision', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0} onClick={registro.confirmar}>
-        {status === 'ausente' ? 'Confirmar nuevamente esta propuesta' : recepcion ? 'Programar cita' : 'Reservar cita'}</Button>}
+        {status === 'ausente' ? 'Confirmar nuevamente esta propuesta' : administrativa ? 'Programar cita' : 'Reservar cita'}</Button>}
       {['incierto', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0 || failure?.status === 403} onClick={registro.consultar}>Consultar resultado</Button>}
       {!busy && status !== 'incierto' && <Button variant="secondary" disabled={remaining > 0} onClick={onVolver}>
         {status === 'registrada' ? 'Buscar otro turno' : 'Volver a buscar y revisar'}</Button>}

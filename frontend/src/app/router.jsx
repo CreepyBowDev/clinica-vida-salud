@@ -81,13 +81,13 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
           { path: '/mis-citas', element: <MisCitasPage /> },
           { path: '/mis-citas/:id', element: <CitaDetallePage origin="mis-citas" /> },
         ] },
-        { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [
+        { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA]} />, children: [
           { path: '/recepcion/pacientes/:id/citas', element: <HistorialCitasPage /> },
           { path: '/recepcion/historial-citas/:id', element: <CitaDetallePage origin="historial" /> },
         ] },
       ] },
       { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [{ path: '/reservar-cita', element: <ReservarCitaPage /> }, { path: '/mi-perfil', element: <MyProfilePage /> }, { path: '/mi-perfil/correo', element: <ChangeEmailPage /> }] },
-      { element: <RoleRoute roles={[ROLES.RECEPCIONISTA]} />, children: [
+      { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA]} />, children: [
         { path: '/recepcion/historial-citas', element: <SeleccionarPacienteHistorialPage /> },
         { path: '/recepcion/citas/nueva', element: <ReservarCitaPage /> },
         { path: '/recepcion/activacion-web', element: <ActivationCodePage /> },

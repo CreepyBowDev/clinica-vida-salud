@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError } from 'axios';
 import { AuthProvider } from '../../../auth/context/AuthContext';
 import { consultarSesion, cerrarSesion } from '../../../auth/services/auth.service';
@@ -15,8 +15,10 @@ let calls, role, confirmTask, resultTask, proposalTask, csrfTask;
 const ok = (config, data, status = 200) => ({ config, status, headers: {}, data });
 const fail = (config, status, code, details) => new AxiosError('SQL secreto', undefined, config, null, status ? { status, headers: {}, data: { error: { code, message: 'SQL secreto', details } } } : undefined);
 const posts = path => calls.filter(c => c.method === 'post' && c.url === path);
+const rutaReserva = () => role === 'Paciente' ? '/reservar-cita' : '/recepcion/citas/nueva';
+const accionReserva = () => role === 'Paciente' ? 'Reservar cita' : 'Programar cita';
 function mount() {
-  const router = createMemoryRouter(crearRutas(), { initialEntries: [role === 'Paciente' ? '/reservar-cita' : '/recepcion/citas/nueva'] });
+  const router = createMemoryRouter(crearRutas(), { initialEntries: [rutaReserva()] });
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>); return router;
 }
 beforeEach(() => {
@@ -40,7 +42,7 @@ beforeEach(() => {
 });
 afterEach(() => { api.defaults.adapter = original; });
 async function elegir(user, motivo = '0') {
-  if (role === 'Recepcionista') await user.click(await screen.findByRole('button', { name: /Paciente Ficticio · PAC-FICTICIO/ }));
+  if (role !== 'Paciente') await user.click(await screen.findByRole('button', { name: /Paciente Ficticio · PAC-FICTICIO/ }));
   await user.click(await screen.findByRole('button', { name: 'General ficticia' }));
   await user.click(await screen.findByRole('button', { name: /Médico Ficticio · MED-FICTICIO/ }));
   fireEvent.change(screen.getByLabelText('Fecha de atención'), { target: { value: seleccion.fecha } });
@@ -50,8 +52,10 @@ async function elegir(user, motivo = '0') {
 }
 async function revisar(user) { await user.click(screen.getByRole('button', { name: 'Revisar cita' })); await screen.findByRole('heading', { name: 'Revisar cita' }); }
 async function confirmar(user) { await user.click(screen.getByRole('button', { name: role === 'Paciente' ? 'Reservar cita' : 'Programar cita' })); }
-it.each(['Paciente', 'Recepcionista'])('guía de %s conserva revisión, resultado y payload sin navegación ficticia', async rol => {
-  role = rol; const user = userEvent.setup(); mount(); await elegir(user);
+describe.each(['Administrador', 'Recepcionista', 'Paciente'])('registro y resultado de reserva — %s', operador => {
+beforeEach(() => { role = operador; });
+it('guía conserva revisión, resultado y payload sin navegación ficticia', async () => {
+  const user = userEvent.setup(); mount(); await elegir(user);
   const progress = screen.getByRole('list', { name: 'Etapas de la reserva' });
   expect(progress.querySelector('[aria-current="step"]')).toHaveTextContent('Buscar turno'); expect(within(progress).queryByRole('button')).not.toBeInTheDocument();
   await revisar(user); expect(progress.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar y registrar'); expect(posts('/citas')).toHaveLength(0);
@@ -65,10 +69,10 @@ it('la etapa de resultado incierto no declara éxito ni permite otra creación',
   expect(screen.getByRole('list', { name: 'Etapas de la reserva' }).querySelector('[aria-current="step"]')).toHaveTextContent('Resultado de la reserva');
   expect(screen.queryByRole('heading', { name: 'Cita registrada' })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
   expect(screen.getByText(/Este resumen es una propuesta; no acredita/)).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument();
 });
-it.each(['Paciente', 'Recepcionista'])('navegación modular conserva selección y revisión de %s sin nuevas peticiones', async rol => {
-  role = rol; const user = userEvent.setup(); const router = mount(); await elegir(user, 'Motivo ficticio');
+it('navegación modular conserva selección y revisión sin nuevas peticiones', async () => {
+  const user = userEvent.setup(); const router = mount(); await elegir(user, 'Motivo ficticio');
   const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
   const count = calls.length;
   await user.click(navigation.getByRole('button', { name: 'Búsqueda y reserva de citas' }));
@@ -91,13 +95,15 @@ it('desplegar durante resultado incierto no activa salida ni reenvía la reserva
   expect(calls).toHaveLength(count); expect(posts('/citas')).toHaveLength(1);
   expect([...router.state.blockers.values()].every(blocker => blocker.state === 'unblocked')).toBe(true);
 });
-it.each(['Paciente', 'Recepcionista'])('revisión explícita y registro correcto para %s con resumen real', async rol => {
-  role = rol; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user);
+it('revisión explícita y registro correcto con resumen real', async () => {
+  const user = userEvent.setup(); mount(); await elegir(user); await revisar(user);
   expect(posts('/citas')).toHaveLength(0); expect(screen.getByText('Dirección ficticia')).toBeInTheDocument();
   expect(screen.getByText('08:00:01', { exact: false })).toBeInTheDocument(); expect(screen.getByText('0', { selector: 'dd' })).toBeInTheDocument();
   expect(screen.queryByText(propuesta.propuesta)).not.toBeInTheDocument(); expect(screen.queryByText(propuesta.id_propuesta)).not.toBeInTheDocument();
   const body = JSON.parse(posts('/reservas/propuesta')[0].data);
-  expect(body).toEqual({ ...seleccion, ...(rol === 'Recepcionista' ? { id_paciente: '3' } : {}) });
+  expect(body).toEqual({ ...seleccion, ...(role !== 'Paciente' ? { id_paciente: '3' } : {}) });
+  expect(screen.getByText('Paciente Ficticio · PAC-FICTICIO', { selector: 'dd' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: role === 'Paciente' ? 'Programar cita' : 'Reservar cita' })).not.toBeInTheDocument();
   await confirmar(user); await screen.findByRole('heading', { name: 'Cita registrada' });
   expect(screen.getByText('Programada')).toBeInTheDocument(); expect(screen.getByText('CIT-FICTICIO')).toBeInTheDocument();
   expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
@@ -114,7 +120,7 @@ it('motivo demasiado largo se valida antes de solicitar propuesta', async () => 
 });
 it.each([undefined, 500])('resultado incierto %s solo consulta y recupera la misma cita', async status => {
   confirmTask = c => { throw fail(c, status); }; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
-  await screen.findByRole('heading', { name: 'Consultar resultado de la reserva' }); expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument();
+  await screen.findByRole('heading', { name: 'Consultar resultado de la reserva' }); expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument();
   expect(screen.queryByText('SQL secreto')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
   await user.click(screen.getByRole('button', { name: 'Consultar resultado' })); await screen.findByRole('heading', { name: 'Cita registrada' });
   expect(screen.getByText('CIT-FICTICIO')).toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1); expect(JSON.parse(posts('/reservas/resultado')[0].data)).toEqual({ propuesta: propuesta.propuesta });
@@ -130,7 +136,7 @@ it('resultado ausente no reenvía y solo una confirmación explícita usa el mis
 it('consulta fallida mantiene incertidumbre sin volver a habilitar creación', async () => {
   confirmTask = c => { throw fail(c, 500); }; resultTask = c => { throw fail(c, 500); };
   const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user); await user.click(await screen.findByRole('button', { name: 'Consultar resultado' }));
-  await screen.findByRole('alert'); expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
+  await screen.findByRole('alert'); expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
 });
 it('200 de repetición y consulta muestran estado vigente sin fingir Programada', async () => {
   confirmTask = c => ok(c, { data: { ...cita, estado: 'Cancelada', duracion_minutos: 20, consultorio_atencion: 'Sala vigente distinta' }, meta: { repetida: true } });
@@ -143,7 +149,7 @@ it('respuesta 201 inválida queda incierta y no declara éxito', async () => {
 });
 it.each(['CITA_PROPUESTA_OBSOLETA', 'CITA_TURNO_NO_DISPONIBLE', 'CITA_PACIENTE_SOLAPADO', 'CITA_PACIENTE_NO_DISPONIBLE'])('409 %s exige volver a buscar, no sustituye propuesta', async code => {
   confirmTask = c => { throw fail(c, 409, code); }; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
-  await screen.findByRole('heading', { name: 'Revisa la selección' }); expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1); expect(posts('/reservas/propuesta')).toHaveLength(1);
+  await screen.findByRole('heading', { name: 'Revisa la selección' }); expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1); expect(posts('/reservas/propuesta')).toHaveLength(1);
 });
 it('fallo previo de CSRF no envía reserva ni fuerza consulta de resultado', async () => {
   const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); csrfTask = c => { throw fail(c); }; await confirmar(user);
@@ -151,16 +157,16 @@ it('fallo previo de CSRF no envía reserva ni fuerza consulta de resultado', asy
 });
 it('419 no reenvía automáticamente y conserva revisión para otra acción explícita', async () => {
   confirmTask = c => { throw fail(c, 419); }; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user); await screen.findByRole('alert');
-  expect(posts('/citas')).toHaveLength(1); expect(screen.getByRole('button', { name: 'Reservar cita' })).toBeEnabled(); expect(screen.queryByText('SQL secreto')).not.toBeInTheDocument();
+  expect(posts('/citas')).toHaveLength(1); expect(screen.getByRole('button', { name: accionReserva() })).toBeEnabled(); expect(screen.queryByText('SQL secreto')).not.toBeInTheDocument();
 });
 it('422 solo muestra campos seguros y obliga a revisar otra vez', async () => {
   confirmTask = c => { throw fail(c, 422, 'VALIDACION', { motivo_breve: ['Revisa el motivo.'], password: ['NO-MOSTRAR'] }); };
   const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user); await screen.findByText('Motivo: Revisa el motivo.');
-  expect(screen.queryByText('NO-MOSTRAR')).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument();
+  expect(screen.queryByText('NO-MOSTRAR')).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument();
 });
 it('doble submit en revisión envía una sola confirmación', async () => {
   let resolve; confirmTask = c => new Promise(done => { resolve = () => done(ok(c, { data: cita, meta: { repetida: false } }, 201)); });
-  const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); const button = screen.getByRole('button', { name: 'Reservar cita' });
+  const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); const button = screen.getByRole('button', { name: accionReserva() });
   fireEvent.click(button); fireEvent.click(button); await waitFor(() => expect(resolve).toBeTypeOf('function')); expect(posts('/citas')).toHaveLength(1);
   await act(async () => resolve()); await screen.findByRole('heading', { name: 'Cita registrada' });
 });
@@ -172,7 +178,7 @@ it('salir con resultado incierto exige advertencia y no persiste el comprobante'
   const storage = vi.spyOn(Storage.prototype, 'setItem'); confirmTask = c => { throw fail(c, 500); };
   const user = userEvent.setup(); const router = mount(); await elegir(user); await revisar(user); await confirmar(user); await screen.findByRole('button', { name: 'Consultar resultado' });
   await user.click(screen.getByRole('link', { name: 'Inicio' })); await screen.findByText(/Si sales perderás esta comprobación/);
-  await user.click(screen.getByRole('button', { name: 'Permanecer y consultar' })); expect(router.state.location.pathname).toBe('/reservar-cita');
+  await user.click(screen.getByRole('button', { name: 'Permanecer y consultar' })); expect(router.state.location.pathname).toBe(rutaReserva());
   expect(router.state.location.state).toBeNull(); expect(storage).not.toHaveBeenCalled(); storage.mockRestore();
 });
 it('401 en confirmación limpia propuesta y permite login sin conservarla', async () => {
@@ -182,7 +188,7 @@ it('401 en confirmación limpia propuesta y permite login sin conservarla', asyn
 it('429 mantiene revisión pero bloquea confirmación hasta Retry-After', async () => {
   confirmTask = c => { const e = fail(c, 429); e.response.headers['retry-after'] = '60'; throw e; };
   const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user); await screen.findByText(/Espera 60 segundos/);
-  expect(screen.getByRole('button', { name: 'Reservar cita' })).toBeDisabled(); expect(posts('/citas')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: accionReserva() })).toBeDisabled(); expect(posts('/citas')).toHaveLength(1);
 });
 it('logout durante guardado descarta la respuesta tardía sin mostrar recibo', async () => {
   let resolve; confirmTask = c => new Promise(done => { resolve = () => done(ok(c, { data: cita, meta: { repetida: false } }, 201)); });
@@ -194,7 +200,7 @@ it('abandono explícito descarta token y no recupera revisión al volver', async
   confirmTask = c => { throw fail(c, 500); }; const user = userEvent.setup(); const router = mount(); await elegir(user); await revisar(user); await confirmar(user);
   await screen.findByRole('button', { name: 'Consultar resultado' }); await user.click(screen.getByRole('link', { name: 'Inicio' }));
   await user.click(await screen.findByRole('button', { name: 'Salir sin conservar la comprobación' })); await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'));
-  await act(() => router.navigate('/reservar-cita')); await screen.findByLabelText('Nombre de especialidad');
+  await act(() => router.navigate(rutaReserva())); await screen.findByLabelText(role === 'Paciente' ? 'Nombre de especialidad' : 'CI (si existe)');
   expect(screen.queryByRole('button', { name: 'Consultar resultado' })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
 });
 it('logout fallido durante POST no deja Registrando bloqueado al descartar una época anterior', async () => {
@@ -209,20 +215,20 @@ it('logout fallido durante POST no deja Registrando bloqueado al descartar una �
 it('403 al preparar CSRF no deja confirmar una revisión ya no autorizada', async () => {
   const user = userEvent.setup(); mount(); await elegir(user); await revisar(user);
   csrfTask = c => { throw fail(c, 403); }; await confirmar(user); await screen.findByRole('alert');
-  expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument(); expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(0);
+  expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument(); expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(0);
 });
 it.each([403, 404, 419, 422, 429, 500, undefined])('propuesta HTTP %s no habilita guardado ni consulta resultado de una reserva inexistente', async status => {
   proposalTask = c => { throw fail(c, status, 'VALIDACION', { propuesta: ['NO-RENDERIZAR-SECRETO'] }); };
   const user = userEvent.setup(); mount(); await elegir(user); await user.click(screen.getByRole('button', { name: 'Revisar cita' }));
   await screen.findByRole('heading', { name: 'Revisa la selección' });
-  expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Consultar resultado' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Consultar resultado' })).not.toBeInTheDocument();
   expect(screen.queryByText('NO-RENDERIZAR-SECRETO')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(0);
 });
 it.each([403, 404, 419, 422, 429, 500, undefined])('consulta de resultado HTTP %s mantiene incertidumbre sin recrear reserva', async status => {
   confirmTask = c => { throw fail(c, 500); }; resultTask = c => { throw fail(c, status); };
   const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
   await user.click(await screen.findByRole('button', { name: 'Consultar resultado' })); await screen.findByRole('alert');
-  expect(screen.queryByRole('button', { name: 'Reservar cita' })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
+  expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
   expect(screen.queryByText('SQL secreto')).not.toBeInTheDocument();
   if (status === 403) { expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Consultar resultado' })).toBeDisabled(); }
 });
@@ -238,7 +244,7 @@ it.each(['propuesta', 'resultado'])('cambio de rol descarta respuesta tardía de
   if (etapa === 'propuesta') { proposalTask = pending; await user.click(screen.getByRole('button', { name: 'Revisar cita' })); }
   else { await revisar(user); confirmTask = c => { throw fail(c, 500); }; await confirmar(user); resultTask = pending; await user.click(await screen.findByRole('button', { name: 'Consultar resultado' })); }
   await waitFor(() => expect(resolve).toBeTypeOf('function'));
-  role = 'Administrador'; act(() => window.dispatchEvent(new Event('focus')));
+  role = 'Médico'; act(() => window.dispatchEvent(new Event('focus')));
   await screen.findByRole('heading', { name: 'Acceso no permitido' }); await act(async () => resolve());
   expect(screen.queryByText('CIT-FICTICIO')).not.toBeInTheDocument(); expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument();
 });
@@ -256,5 +262,38 @@ it('advertencia de salida desaparece al completarse guardado y no arrastra naveg
   await screen.findByText(/Si sales perderás esta comprobación/); await act(async () => resolve());
   await screen.findByRole('heading', { name: 'Cita registrada' });
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Permanecer y consultar' })).not.toBeInTheDocument());
-  expect(router.state.location.pathname).toBe('/reservar-cita');
+  expect(router.state.location.pathname).toBe(rutaReserva());
+});
+it('respuesta de confirmación de otra ficha no anuncia éxito ni crea otra automáticamente', async () => {
+  confirmTask = c => ok(c, { data: { ...cita, id_paciente: '99' }, meta: { repetida: false } }, 201);
+  const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
+  await screen.findByRole('button', { name: 'Consultar resultado' });
+  expect(screen.queryByRole('heading', { name: 'Cita registrada' })).not.toBeInTheDocument();
+  expect(posts('/citas')).toHaveLength(1);
+});
+it('resultado de otra ficha conserva incertidumbre sin mostrar recibo ajeno', async () => {
+  confirmTask = c => { throw fail(c, 500); };
+  resultTask = c => ok(c, { data: { registrada: true, cita: { ...cita, id_paciente: '99', codigo_cita: 'AJENA-NO-MOSTRAR' } } });
+  const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
+  await user.click(await screen.findByRole('button', { name: 'Consultar resultado' }));
+  await screen.findByRole('alert');
+  expect(screen.queryByText('AJENA-NO-MOSTRAR')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Cita registrada' })).not.toBeInTheDocument();
+  expect(posts('/citas')).toHaveLength(1); expect(posts('/reservas/resultado')).toHaveLength(1);
+});
+it('respuesta tardía de propuesta no se conserva al cambiar de rol, incluso entre operadores permitidos', async () => {
+  let resolve;
+  proposalTask = c => new Promise(done => { resolve = () => done(ok(c, { data: propuesta })); });
+  const user = userEvent.setup(); mount(); await elegir(user);
+  await user.click(screen.getByRole('button', { name: 'Revisar cita' }));
+  await waitFor(() => expect(resolve).toBeTypeOf('function'));
+  role = operador === 'Administrador' ? 'Recepcionista' : 'Administrador';
+  act(() => window.dispatchEvent(new Event('focus')));
+  if (operador === 'Paciente') await screen.findByRole('heading', { name: 'Acceso no permitido' });
+  else await screen.findByLabelText('CI (si existe)');
+  await act(async () => resolve());
+  expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Revisar cita' })).not.toBeInTheDocument();
+  expect(posts('/citas')).toHaveLength(0);
+});
 });

@@ -32,7 +32,7 @@ class DisponibilidadService
     {
         $this->continuidad->coordinar();
         $actor = $this->autenticacion->exigirSesionNormal(bloquear: true);
-        if (! in_array($actor->rol->nombre, ['Recepcionista', 'Paciente'], true)) {
+        if (! in_array($actor->rol->nombre, ['Administrador', 'Recepcionista', 'Paciente'], true)) {
             throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
         }
 

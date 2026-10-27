@@ -1,10 +1,23 @@
 <?php
 
+use Clinica\presentation\controllers\citas\DisponibilidadController;
+use Clinica\presentation\controllers\citas\GestionCitaController;
 use Clinica\presentation\controllers\citas\ReservaController;
 use Clinica\presentation\middlewares\ExigirRol;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\VerificarCuentaHabilitada;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class,
+    ExigirRol::class.':Administrador,Recepcionista'])->group(function (): void {
+        Route::get('citas/{id}/gestion', [GestionCitaController::class, 'consultar']);
+        Route::patch('citas/{id}/reprogramacion', [GestionCitaController::class, 'reprogramar']);
+        Route::patch('citas/{id}/cancelacion', [GestionCitaController::class, 'cancelar']);
+    });
+
+Route::get('citas/{id}/disponibilidad-reprogramacion', [DisponibilidadController::class, 'reprogramacion'])
+    ->middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class,
+        ExigirRol::class.':Administrador,Recepcionista']);
 
 Route::middleware(['auth:sanctum', VerificarCuentaHabilitada::class,
     ExigirSesionNormal::class, ExigirRol::class.':Administrador,Recepcionista,Paciente'])->group(function (): void {

@@ -35,6 +35,24 @@ class BitacoraDetalleResource extends BitacoraListadoResource
             return (object) [];
         }
         $salida = [];
+        if (in_array($this->tipo_evento, ['CITA_REPROGRAMADA', 'CITA_CANCELADA'], true)) {
+            foreach (['antes', 'despues'] as $clave) {
+                $estado = $origen->{$clave} ?? null;
+                $valores = [];
+                $estados = $this->tipo_evento === 'CITA_CANCELADA' && $clave === 'despues'
+                    ? ['Cancelada'] : ['Programada', 'Confirmada'];
+                if (is_object($estado) && in_array($estado->estado ?? null, $estados, true)) {
+                    $valores['estado'] = $estado->estado;
+                }
+                if (is_object($estado) && is_int($estado->version_programacion ?? null)
+                    && $estado->version_programacion > 0 && $estado->version_programacion <= 2147483647) {
+                    $valores['version_programacion'] = $estado->version_programacion;
+                }
+                if ($valores !== []) {
+                    $salida[$clave] = (object) $valores;
+                }
+            }
+        }
         if ($this->tipo_evento === 'CITA_PROGRAMADA') {
             if (in_array($origen->origen ?? null, ['PROPIA', 'RECEPCION', 'ADMINISTRACION'], true)) {
                 $salida['origen'] = $origen->origen;

@@ -104,8 +104,8 @@ En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y r
 | CU-12 | Sí | Existente; regresión completa PostgreSQL Fase 5 correcta |
 | CU-13 | Sí, contexto administrativo | Backend verificado; frontend selección administrativa/búsqueda/turnos compartidos integrados con Laravel/PostgreSQL reales en Fase 5 local (§17.134) |
 | CU-14 | Sí, para paciente seleccionado | Backend verificado; frontend revisión/confirmación/resultado incierto administrativo integrado, incluida respuesta cortada tras 201 sin duplicación, Fase 5 local (§17.134) |
-| CU-15 | Sí | CambioCita/Cita y disponibilidad aportan soporte; sin flujo funcional de reprogramación |
-| CU-16 | Sí | Estados/persistencia aportan soporte; sin flujo funcional de cancelación |
+| CU-15 | Sí | Backend cerrado localmente, Fase 6: integración para ambos operadores y suite global 2845/29851 correctas; contexto §17.140. Frontend/producción pendientes |
+| CU-16 | Sí | Backend cerrado localmente, Fase 6: historia/avisos/auditoría/turno liberado y suite global 2845/29851 correctas; contexto §17.140. Frontend/producción pendientes |
 | CU-17 | Sí | Estados/persistencia aportan soporte; sin flujo funcional de llegada |
 | CU-18 | Sí | Estados/persistencia aportan soporte; sin flujo funcional de inasistencia |
 | CU-19 | Sí, conservando Médico responsable | Estados/persistencia aportan soporte; sin flujo funcional de atención |
@@ -948,6 +948,16 @@ Administrador, Recepcionista
 
 Recepción tiene sesión válida. La cita está Programada o Confirmada sin atención realizada; Médico y especialidad están activos. Se admite la misma cita de un Paciente inactivo, sin crear otra.
 
+**Precisiones aprobadas 2026-10-26 (VS-CIT-14–16):** Administrador o Recepcionista con sesión normal, inicio original estrictamente posterior al instante del servidor y ausencia de cualquier ConsultaMedica asociada, incluso si iniciada_en es NULL. La nueva selección debe cambiar el inicio: elegir fecha/hora idénticas se rechaza, sin reajuste de duración/ubicación o pérdida de Confirmada por ese intento. Son concreciones del proyecto; no modifican RF/RN oficiales. Fase 1 define contratos/participantes E/P en README/análisis/contexto §17.135.
+
+**Avance Fase 2 backend:** GET `/api/citas/{id}/disponibilidad-reprogramacion` implementado para Administrador/Recepcionista. Deriva recursos de cita persistida, excluye solo ocupación propia y mismo inicio, admite esa ficha inactiva, conserva barreras de destino/ocupantes ajenos y revalida cita/sesión/tiempo/consulta tras esperas. Entrada cerrada fecha/paginación, respuesta mínima/versiones/HMAC contextual, sin cambios de negocio. 49 pruebas/385 aserciones dirigidas y regresión dirigida 836/5556 correctas; P41 validado/renderizado. Evidencia/límites en contexto §17.136. No gestión GET ni PATCH, cancelación, avisos o frontend; CU-15 parcial, Fases 3–6 pendientes.
+
+**Avance posterior Fase 3 backend:** GET gestión y PATCH reprogramación implementados para ambos operadores. Escritura atómica de misma cita/CambioCita/invalidación de avisos/bitácora con autor real; preserva identidad/creación/motivo/UUID, aplica duración/ubicación revisadas y Confirmada→Programada. Control estricto de originales/HMAC/recursos/elegibilidad y revalidación antes de UPDATE; repetición obsoleta 409, sin replay. Consulta de gestión mínima permite revisar estado persistido sin prueba inequívoca de causalidad de petición perdida. 57/651 dirigidas y 1075/8234 regresión dirigida correctas; P42/P43 cotejados/renderizados, contexto §17.137. Sin cancelación/frontend/generación CU-28; robustez/integración/cierre conservan Fases 5/6. No CU-16 implementado por compartir clases.
+
+**Avance Fase 5 backend:** seguridad/concurrencia ampliadas; control de plazo original también después de última consulta de existencia antes de UPDATE. Mismos procedimientos y contratos, no nueva regla. Pruebas multiproceso verifican gestión/reserva/planificación/revocaciones/SQL con commit/rollback y PID/esperas PostgreSQL independientes; fixtures de consulta clínica no acreditan CU-23. Evidencia y límites en contexto §17.139; frontend y cierre integral Fase 6 pendientes.
+
+**Avance Fase 6 backend:** integración reserva→reprogramación→agenda/historial/detalle→nueva sesión/gestión→cancelación→auditoría→nueva reserva válida, parametrizada por Administrador/Recepcionista. Traslado CU-11 real invalida originales anteriores; misma ficha inactiva admite CU-15, pero no nuevas reservas CU-14. Cuatro pruebas/298 aserciones correctas en GestionCitaIntegracionTest para el grupo CU-15/CU-16, sin sumar como casos distintos a la suite global; evidencia final en contexto §17.140. No se crean cuentas/profesionales ficticios para atribuir autoría ni se implementa frontend/avisos CU-28/clínica. Análisis P41–P44 y UML global acumulativo sincronizados; persistencia conservada.
+
 **Flujo principal**
 
 1. Recepción recupera la cita y su programación vigente.
@@ -987,6 +997,14 @@ Administrador, Recepcionista
 **Precondición**
 
 Recepción inició sesión; existe una cita Programada o Confirmada cuya atención todavía no se realizó.
+
+**Precisiones aprobadas 2026-10-26 (VS-CIT-14/15):** Administrador o Recepcionista con sesión normal; rechazar al llegar el inicio original del turno y si existe cualquier ConsultaMedica, incluso con iniciada_en NULL. No exigir ficha/Médico/especialidad activos para cancelar una cita por lo demás elegible. Motivo continúa opcional y no se elimina historial. Estas precisiones no significan endpoint implementado: Fase 1 backend solo análisis/contratos, contexto §17.135.
+
+**Avance posterior Fase 4 backend:** PATCH `/api/citas/{id}/cancelacion` implementado en GestionCitaController/Request/Service existentes, compartido por ambos operadores. Originales obligatorios de programación/timestamp y motivo opcional privado, sin query/IDs de recursos/estado impuesto por cliente. Coordinación/actor/planificación/cita bloqueada, comparación/revalidación de sesión/estado/plazo/consulta y reloj antes de UPDATE. Misma fila Cancelada/programación/versión conservadas, timestamp creciente; CambioCita CANCELACION/invalidación de avisos/CITA_CANCELADA atómicos con ejecutor real. GET gestión agrega acciones.cancelar y permite revisar resultado persistido sin reenvío automático. Repetición/estado final/originales obsoletos rechazan 409 sin duplicaciones. No disponibilidad de destino/actividad de recursos exigidas ni borrado/generación CU-28. 50 pruebas/628 aserciones dirigidas correctas, incluida nueva reserva real en intervalo liberado; evidencia de regresión/documentación P44 en contexto §17.138. Frontend y cierre integral Fases 5/6 pendientes.
+
+**Avance Fase 5 backend:** cancelación verificada frente a otra cancelación/reprogramación y reserva SQL de intervalo original en procesos independientes, commit/rollback. La liberación no es visible antes de confirmar; rollback conserva cita/avisos/historial/auditoría y exclusiones existentes. Revocación tras middleware y espera, sesión restringida/proyecciones privadas verificadas sin nuevos permisos/estados/esquema. P44 conserva sus participantes/diagrama; evidencia/límites en contexto §17.139. Fase 6 y frontend pendientes.
+
+**Avance Fase 6 backend:** cancelación integrada con reserva/reprogramación previas, historial/detalle/bitácora y nueva reserva HTTP sobre intervalo liberado para ambos operadores. Misma identidad/creación/UUID/motivo original y programación/versión conservadas, motivo de cancelación solo privado en CambioCita, avisos invalidados sin generador. Repetición de creación devuelve el estado actual Cancelada sin restaurar ni duplicar la cita. GET gestión con sesión nueva permite revisar estado, no adjudica causalidad inequívoca de petición perdida. Grupo integrado 4/298 correcto, cierre/suite global en contexto §17.140; P44/UML acumulativos y DER sin cambio estructural. Frontend/producción/otros módulos pendientes.
 
 **Flujo principal**
 

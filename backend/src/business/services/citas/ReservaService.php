@@ -19,6 +19,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class ReservaService
 {
@@ -215,6 +216,8 @@ class ReservaService
                 }
             }
         }
+
+        throw new LogicException('La creación de la cita terminó sin devolver un resultado.');
     }
 
     private function detalle(Cita $cita): array

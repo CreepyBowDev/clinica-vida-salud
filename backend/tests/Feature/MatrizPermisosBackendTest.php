@@ -89,7 +89,9 @@ class MatrizPermisosBackendTest extends TestCase
             'GET configuracion-citas', 'PATCH configuracion-citas', 'POST configuracion-citas/impacto', 'GET bitacora', 'GET bitacora/{id}',
         ]);
         $agregar('Administrador,Recepcionista', ['GET pacientes', 'POST pacientes', 'GET pacientes/{id}', 'PATCH pacientes/{id}',
-            'PATCH pacientes/{id}/estado', 'POST pacientes/{id}/codigo-activacion', 'GET pacientes/{id}/citas', 'GET agenda/medicos']);
+            'PATCH pacientes/{id}/estado', 'POST pacientes/{id}/codigo-activacion', 'GET pacientes/{id}/citas', 'GET agenda/medicos',
+            'GET citas/{id}/disponibilidad-reprogramacion', 'GET citas/{id}/gestion', 'PATCH citas/{id}/reprogramacion',
+            'PATCH citas/{id}/cancelacion']);
         $agregar('Administrador,Recepcionista,Paciente', ['GET reservas/especialidades', 'GET reservas/medicos', 'GET reservas/disponibilidad',
             'POST reservas/propuesta', 'POST reservas/resultado', 'POST citas']);
         $agregar('Administrador,Recepcionista,Médico', ['GET agenda']);

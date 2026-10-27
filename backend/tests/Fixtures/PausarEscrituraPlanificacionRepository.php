@@ -13,6 +13,18 @@ use RuntimeException;
 
 class PausarEscrituraPlanificacionRepository extends BitacoraRepository
 {
+    public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        parent::citaReprogramada($cita, $actor, $contexto, $antes);
+        $this->pausar();
+    }
+
+    public function citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        parent::citaCancelada($cita, $actor, $contexto, $antes);
+        $this->pausar();
+    }
+
     public function citaProgramada(Cita $cita, Usuario $actor, array $contexto): void
     {
         parent::citaProgramada($cita, $actor, $contexto);

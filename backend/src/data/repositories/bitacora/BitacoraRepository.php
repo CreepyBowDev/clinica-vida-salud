@@ -136,6 +136,42 @@ class BitacoraRepository
                 'estado' => 'Programada', 'duracion_minutos' => $cita->duracion_minutos]])->saveOrFail();
     }
 
+    public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        $referencias = [];
+        foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
+            $referencias[$campo] = (string) $cita->getAttribute($campo);
+        }
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CITA_REPROGRAMADA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CITAS', 'operacion' => 'CITA_REPROGRAMADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => $referencias, 'cambios_seguros' => [
+                'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
+                'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
+    }
+
+    public function citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        $referencias = [];
+        foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
+            $referencias[$campo] = (string) $cita->getAttribute($campo);
+        }
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CITA_CANCELADA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CITAS', 'operacion' => 'CITA_CANCELADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => $referencias, 'cambios_seguros' => [
+                'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
+                'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
+    }
+
     public function asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
     {
         $evento = new Bitacora;

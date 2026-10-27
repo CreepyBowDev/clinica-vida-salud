@@ -8,7 +8,13 @@
 
 **Fase 1 completada como inventario, no como corrección de diagramas:** se localizaron entonces **33 bloques `classDiagram`: 17 consolidados anteriores y 16 por procedimiento**, estos últimos almacenados en bloques `text` antes de su revisión. Los 17 consolidados se conservan como antecedente descartado, no como análisis vigente ni como plantilla obligatoria. Ningún bloque se eliminó ni fusionó en Fase 1. **Cierre acumulado de Fase 6:** 57 bloques, de los cuales 17 son antecedentes descartados y 40 son vistas por procedimiento cotejadas/reactivadas como Mermaid; cuatro se incorporaron en Fase 3, doce en Fase 4 y ocho en Fase 5 a partir del análisis textual y el software existentes, no como diagramas originales recuperados. La revisión integral corrige doce anotaciones de tipo/nulabilidad en once vistas, sin cambiar procedimientos, actores, métodos ni relaciones.
 
-No hay 30 CU con diagramas de ejecución: los flujos implementados de CU-01–CU-14/CU-20/CU-21/CU-30 quedan representados por P01–P40, con distinta cantidad de vistas según sus procedimientos reales, sin imponer una por CU. CU-15–CU-19 y CU-22–CU-29 permanecen pendientes de implementación. El conteo de diagramas no demuestra cobertura funcional; la comprobación de métodos por contexto y sus límites se registran en el cierre de Fase 6.
+**Estado actual tras CU-15 Fase 2 backend:** 58 bloques, 41 procedimientos y 17 antecedentes descartados; P41 añade únicamente disponibilidad de reprogramación. P01–P40 y el cierre histórico de seis fases anterior se conservan intactos. No hay 30 CU con diagramas de ejecución: CU-15 es parcial (sin escritura); CU-16–CU-19 y CU-22–CU-29 siguen pendientes. El conteo no demuestra cobertura funcional. P41 tiene validación propia de 23 participaciones de repositorio, render Mermaid e imagen inspeccionada; no hereda la evidencia de P01–P40.
+
+**Avance posterior CU-15 Fase 3 backend:** 60 bloques/43 procedimientos/17 antecedentes. P42 consulta gestión y P43 guarda reprogramación; 16/28 participaciones de repositorio cotejadas, Mermaid renderizados e imágenes inspeccionadas. Las vistas P01–P41 anteriores quedan intactas. CU-15 incorpora escritura local; no implica cierre integral del módulo (Fases 5/6) ni cancelación CU-16 (Fase 4). El estado de Fase 2 arriba se conserva como antecedente, no como estado funcional actual.
+
+**Avance actual CU-16 Fase 4 backend:** 61 bloques/44 procedimientos/17 antecedentes. P44 añade cancelación de la misma cita con 20 participaciones de repositorio. GET gestión P42 agrega `acciones.cancelar` sin cambiar sus participantes ni el diagrama; esa elegibilidad no promete disponibilidad de reprogramación. P01–P43 se conservan. El módulo aún requiere seguridad/concurrencia ampliadas e integración/regresión global de Fases 5/6; no se impone un diagrama único por CU.
+
+**Avance actual Fase 6 backend CU-15/CU-16:** integración de cuatro recorridos (298 aserciones) correcta, uno de cada recorrido por Administrador/Recepcionista. Se mantienen P41–P44 y 61 bloques/44 procedimientos/17 antecedentes, sin inventar Boundary React ni agregar diagramas por obligación de CU. El UML global se actualiza acumulativamente; evidencia final de suite/cierre en contexto §17.140 y en [cierre del grupo CU-15/CU-16](#analisis-cu15-cu16-cierre-backend). Los estados de Fases 2–5 arriba son antecedentes cronológicos.
 
 ### Criterio de revisión aplicado en las seis fases
 
@@ -66,6 +72,10 @@ Identificadores `P01`–`P40` solo para este inventario documental; no son nuevo
 | P38 | [CU-20/CU-21 — Detalle compartido](#analisis-cu20-cu21-detalle) | Consultar detalle autorizado | Cuatro roles, ámbito/matriz propios | A1 / Fase 5 |
 | P39 | [CU-30 — Listado/filtros](#analisis-cu30-listado) | Filtrar y consultar eventos | Administrador | B1 / Fase 5 |
 | P40 | [CU-30 — Detalle de evento](#analisis-cu30-detalle) | Consultar evento persistido | Administrador | B1 / Fase 5 |
+| P41 | [CU-15 — Alternativas de reprogramación](#analisis-cu15-disponibilidad) | Consultar turnos de la misma cita | Administrador/Recepcionista | Fase 2 backend CU-15; parcial, sin escritura |
+| P42 | [CU-15 — Consultar gestión](#analisis-cu15-gestion) | Programación/versiones/impedimentos y último cambio | Administrador/Recepcionista | Fase 3 backend; sin cancelación |
+| P43 | [CU-15 — Guardar reprogramación](#analisis-cu15-reprogramar) | Cambio atómico de la misma cita | Administrador/Recepcionista | Fase 3 backend; cierre integral Fases 5/6 |
+| P44 | [CU-16 — Cancelar cita](#analisis-cu16-cancelar) | Cancelación atómica sin borrado | Administrador/Recepcionista | Fase 4 backend; cierre integral Fases 5/6 |
 
 P11 está físicamente dentro de la sección histórica de CU-04 porque soporta su escenario B, pero **pertenece a CU-07**. No se incorpora al actor Administrador en los diagramas personales P09/P10/P12/P13 ni se mueve esa sección en esta fase.
 
@@ -2009,6 +2019,818 @@ ControlCU30 ..> Usuario
 El diseño previsto en el UML global sigue siendo planificación, no evidencia de estos CU. Esta tarea no altera ese archivo ni convierte sus clases previstas en implementación. **Aclaración de Fase 5:** al implementar cada caso se añadirán vistas comprobables según sus procedimientos/contextos reales, sin imponer un único diagrama por CU. El detalle de soporte y límites actuales se revisa en la tabla de pendientes de Fase 5.
 
 ## Expediente de evolución y análisis por procedimientos
+
+<a id="analisis-cu15-cu16-cierre-backend"></a>
+### CU-15/CU-16 — Fase 6 backend: integración y cierre del módulo
+
+**Cierre backend local confirmado:** cuatro pruebas/298 aserciones de integración y suite global nueva **2845/29851 correcta**, sin sumar ejecuciones. Inventario PostgreSQL pre/post preservado; UML/análisis/rutas/sintaxis/estilo verificados. CU-15/CU-16 terminados en alcance backend aprobado; frontend/producción y demás módulos pendientes. Evidencia/límites en contexto §17.140.
+
+**Unidad analizada:** Reprogramación y cancelación, CU-15/RF08 con RN04–RN08/RN10/RN12–RN14 según ficha; CU-16/RF09/RN09/RN12/RN14. Administrador y Recepcionista comparten los cuatro endpoints, sin permisos nuevos para Médico/Paciente y sin sustituir al Médico responsable por el ejecutor. Las concreciones VS-CIT-14–16 conservan corte estricto de inicio original, impedimento por cualquier consulta y rechazo de mismo inicio. Sin nueva regla oficial, estado, tabla o clase propia por este cierre.
+
+**Vistas reales del módulo:** P41 consulta alternativas, P42 consulta gestión/último cambio, P43 guarda reprogramación y P44 guarda cancelación. Boundary siguen siendo los Requests HTTP reales, no páginas React futuras. Controller adapta solicitud/respuesta; Service autoriza y coordina transacción; Repositories consultan/escriben sobre Eloquent; PostgreSQL conserva exclusiones/unicidad/FK y los registros inmutables. GestionCitaController/GestionCitaService son compartidos; disponibilidad usa DisponibilidadController/Service existentes; RecordatorioService/Repository solo invalidación interna. Recursos JSON de disponibilidad/bitácora y JsonResource de gestión proyectan datos explícitos, no modelos clínicos completos. Principales/homónimos/entidades/atributos de cada contexto se conservan en sus cuatro vistas, sin consolidarlas ni duplicar diagramas anteriores.
+
+**Colaboraciones integradas:** CU-09/CU-10 catálogos/profesional → CU-11 asignación/traslado → CU-12 horarios/duración → CU-07 ficha presencial sin CI/cuenta → CU-14 reserva → CU-15 misma cita → CU-16 cancelación → CU-20/CU-21 detalle/agenda/historial y CU-30 auditoría. ReservaService se utiliza solo desde sus endpoints de creación/resultado/repetición, no como Service interno de reprogramación. Resultado/repetición de propuesta de creación muestran programación/estado actuales tras gestionar, sin restaurar la reserva original ni agregar eventos. Consulta de gestión permite revisar resultado incierto incluso tras logout/nuevo login, pero no prueba causalidad inequívoca de petición perdida. Reprogramación cambia duración/ubicación revisadas/versión y devuelve Confirmada a Programada; cancelación conserva programación/versión y libera intervalo solo tras commit, sin borrar registro.
+
+**Evidencia de integración nueva:** GestionCitaIntegracionTest usa kernel HTTP/cookies/CSRF/sesión database/PostgreSQL reales; cuatro pruebas/298 aserciones correctas. Solo identidades ya verificadas son fixtures (no nueva prueba de alta/invitación); catálogos/Médico/consultorio/horarios/ficha/reserva/cambios de duración/inactividad/traslado se preparan por APIs reales. Avisos se insertan como fixtures de invalidación, no prueba de generador CU-28. Recorrido principal: reservar → duración vigente distinta → alternativas → reprogramar → consultar agenda/historial/detalle → sesión nueva/GET de gestión → reconciliar propuesta de creación sin reinsertar → cancelar con motivo privado → consultar historia/auditoría → reservar otra cita válida en intervalo liberado. Conserva ID/código/Paciente/Médico/especialidad/creación/UUID/motivo originales, autor auténtico y un evento/cambio por escritura; privados ausentes en listados/bitácora/gestión.
+
+Segundo recorrido por cada operador: inactivar misma ficha por CU-07 y trasladar ubicación mediante CU-11 real con impacto/confirmación → originales anteriores rechazan → nueva revisión de misma cita permite CU-15 aun con ficha inactiva → CU-14 sigue rechazando nueva reserva → cancelar mantiene una cita y los tres cambios (ubicación/reprogramación/cancelación). No se acredita atención/laboratorio ni operación CU-17/CU-23 por crear fixtures. Antecedentes/documentos clínicos no se tocan. El historial administrativo se distingue de la historia clínica.
+
+**Verificación estructural acumulativa:** UML global conserva 124 participantes diseñados, con 100 clases E en cuatro familias y 23 solo P más Sesion R; 411 firmas propias de 73 clases operativas cotejadas con reflexión, 207 dependencias de inyección representadas y sin ciclos reales Service→Service. Las 19 vistas PlantUML se verifican/renderizan localmente y se inspeccionan seis vistas representativas; no se envía el documento a render remoto. Revisión de P41–P44 conserva método por contexto y diagramas previos. Vista de entidades del UML/DER/modelos/migraciones sin cambios estructurales; no P ficticios convertidos en implementación. La excepción de respaldo solicitada aparte en ReservaService.insertar no cambia sus firmas ni las vistas, y conserva prueba de reintento.
+
+**Límites del cierre:** backend local, no frontend/producción ni sistema completo. RecordatorioService solo invalida avisos existentes, sin scheduler/generación/consulta CU-28; asistencia, clínica, laboratorio y reportes siguen sus módulos pendientes. Evidencia de suite global y salvaguarda pre/post de inventario PostgreSQL en README/contexto §17.140; no sustituir esa verificación por suites históricas ni sumar ejecuciones como casos distintos.
+
+### CU-15/CU-16 — Fase 5 backend: seguridad, plazo tras espera y concurrencia
+
+**Cierre local verificado:** 114 pruebas multiproceso/2010 aserciones y regresión dirigida final 1431/14154 correctas (los nuevos casos ya están incluidos). Sin nuevos procedimientos ni diagramas; integración/suite global/cierre integral conservan Fase 6. Evidencia completa y límites en contexto §17.139.
+
+**Extensión de verificación de P41–P44, no nuevo procedimiento ni diagrama consolidado.** Permanecen 61 bloques/44 procedimientos/17 antecedentes. GestionCitaService.reprogramar comprueba ahora también `inicio_at` original frente al instante obtenido **después de la última consulta de existencia** y antes del UPDATE; antes comprobaba allí solo el destino. Es una corrección de VS-CIT-14 para una posible espera, no cambio funcional aprobado nuevo ni firma/participante adicional. P43 mantiene sus métodos/entidades y recorrido; cancelar ya tenía ese cierre temporal. No cambios de clases o persistencia de negocio que requieran nuevas cajas/DER.
+
+**Frontera/clases reales conservadas:** P41 disponibilidad, P42 gestión, P43 reprogramación y P44 cancelación siguen usando los mismos Requests/Controllers/Services/Repositories. Los fixtures nuevos no son Boundary de negocio ni UML de aplicación: GestionCitaConcurrenteTest/GestionCitaSeguridadTest, modo gestion-http de autenticacion-worker y extensiones de PausarEscrituraPlanificacionRepository solo instrumentan pruebas. La barrera PausarConsultaAgenda existente se reutiliza para detener la petición después de middleware de sesión/rol y antes del Service; su nombre histórico no crea un procedimiento de agenda dentro de CU-15/CU-16. Pausa de auditoría ocurre tras INSERT real, con transacción sin confirmar, y permite elegir commit/rollback por stdin. Workers tienen PHP/PID PostgreSQL distintos y verifican identidad de la base/rol de tests y esquema permitido; no rutas de depuración/pausas en producción.
+
+**Cobertura multiproceso diseñada y ejecutada por contextos:** pares de gestión sobre misma cita en cuatro combinaciones, ambos operadores primero, commit/rollback; dos citas hacia un mismo destino por Médico/Paciente y turnos contiguos; reserva HTTP real frente a reprogramación en ambos órdenes; INSERT SQL sin protocolo frente a reprogramación y cancelación para Médico/sala/Paciente; cuatro endpoints frente a estado/rol/sesión/hash de clave cambiados después de middleware y de espera real; gestión frente a cambios de planificación y consulta NULL simulados con protocolo; endpoints reales de duración/horario frente a reprogramación en ambos órdenes. Las esperas se acreditan con pg_stat_activity/Lock, no solo temporizadores. Salidas no confirmadas no son visibles al observador; commits conflictivos conservan un resultado/cambio/evento, rollbacks permiten continuar al segundo escritor. El SQL sin protocolo prueba restricciones existentes, no se presenta como endpoint clínico/reserva autorizado. Los cambios administrativos simulados son fixtures incluso cuando resultan incompatibles, no prueba de que CU-11/CU-12 admitan ese cambio; los dos endpoints de planificación reales tienen comprobación separada. Revisor de sesión conserva distinción entre los dos operadores; la matriz de revocación los alterna, no prueba todas las combinaciones cartesianas de roles.
+
+**Seguridad adicional:** sesión restringida real de credencial temporal rechazada por los cuatro endpoints; HEAD/GET privados sin escritura ni datos de creación/motivos; proyección de bitácora rechaza motivo/clínica/revisión/IDs inválidos/versiones fuera de rango aun al inyectarlos al Resource. Prueba dirigida de reloj avanza exactamente al inicio original al volver la cuarta consulta de existencia en reprogramación: rechaza y no cambia cita/historia/avisos/auditoría. ReprogramacionCitaTest pasa de 57 a 58; junto con tres casos de GestionCitaSeguridadTest, 61/705 correctos en la ejecución dirigida inicial de esta fase. Evidencia final de concurrencia/regresión y límites en README/contexto §17.139. No aceptación productiva, CU-23/CU-28/frontend ni cierre integral del módulo; Fase 6 pendiente.
+
+<a id="analisis-cu16-cancelar"></a>
+### CU-16 — Fase 4 backend: cancelar la misma cita atómicamente (P44)
+
+**Implementado localmente:** PATCH `/api/citas/{id}/cancelacion`, compartido Administrador/Recepcionista con sesión normal. RF09/RN09/RN12/RN14 y VS-CIT-14/15; las condiciones de cita/actor e historia se conservan, no se modifican RF/RN oficiales. Boundary HTTP real GestionCitaRequest (`backend/src/presentation/dtos/citas/`): ID de ruta, originales de programación/timestamp y motivo opcional nullable hasta 500 caracteres, recortado y vacío→NULL. Sin query/estado/actor/IDs de recursos/revisión de turno; sin funciones React ficticias. La normalización prepareForValidation solo actúa en cancelar: los contextos anteriores de GET/reprogramación conservan sus contratos.
+
+**Control y propietarios:** cancelar [controller] pertenece a GestionCitaController; cancelar/originales/revalidar/impedimentos/detalle/ultimoCambio [service] a GestionCitaService; invalidarPorCita [service] a RecordatorioService; rules [validator] y Boundary a GestionCitaRequest. Repositorios participantes completos (20): UsuarioRepository.coordinarAdministracion/porId; SesionRepository.usuarioId/guard/store/contexto/coincide/vigente/credencialTemporalId/actualizarActor/cerrar; TokenAccesoRepository.temporalPorId; PlanificacionRepository.coordinar; CitaRepository.porId/tieneConsulta/guardar/agregarCambio/ultimoCambio; RecordatorioRepository.invalidarPorCita; BitacoraRepository.citaCancelada. Los dos porId tienen propietarios diferentes; ultimoCambio e invalidarPorCita repiten nombre entre Service/Repository y no se fusionan. Se incluyen auxiliares de sesión y rama restringida realmente transitivos. actor/cita del Service son adaptadores explicados en recorrido, no principales adicionales por obligación de dibujar cada auxiliar.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresCancelar["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazCancelar["Frontera HTTP — cancelar cita"] {
+        <<boundary>>
+        String id
+        Integer version_programacion_original
+        String actualizada_en_original
+        String? motivo
+        #prepareForValidation()
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlCancelar["CONTROL — Cancelar misma cita"] {
+        <<control>>
+        +cancelar() [controller]
+        +rules() [validator]
+        +cancelar() [service]
+        -originales() [service]
+        -revalidar() [service]
+        -impedimentos() [service]
+        -detalle() [service]
+        +invalidarPorCita() [service]
+        -ultimoCambio() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porId() [repository]
+        +tieneConsulta() [repository]
+        +guardar() [repository]
+        +agregarCambio() [repository]
+        +invalidarPorCita() [repository]
+        +citaCancelada() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+        String estado_anterior
+        String estado_nuevo
+        JSONB datos_anteriores
+        JSONB datos_nuevos
+        String? motivo
+    }
+    class Recordatorio {
+        <<entity>>
+        BigInt id_cita
+        TimestampTZ? invalidado_en
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String tipo_actor
+        BigInt id_usuario_responsable
+        String rol_responsable
+        String modulo
+        String operacion
+        String resultado
+        String entidad_referida
+        String registro_referido
+        TimestampTZ ocurrido_en
+        Inet direccion_ip
+        String procedencia_ip
+        UUID correlacion
+        JSONB referencias
+        JSONB cambios_seguros
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresCancelar --> InterfazCancelar
+    InterfazCancelar ..> ControlCancelar
+    ControlCancelar ..> Cita : UPDATE estado y timestamp
+    Cita --> ConsultaMedica : existencia bloquea
+    Cita --> CambioCita : CANCELACION inmutable
+    Cita --> Recordatorio : invalida sin borrar
+    ControlCancelar ..> Bitacora : referencias estados versiones
+    ControlCancelar ..> Usuario : ejecutor autentico
+    Usuario --> Rol
+    ControlCancelar ..> TokenAcceso : revalidacion restringida
+    ControlCancelar ..> Sesiones
+    style InterfazCancelar fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlCancelar fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Recorrido real:** coordinación administrativa → actor bloqueado → planificación → cita bloqueada y lectura actual → comparar originales → revalidar sesión/rol → estado/plazo/consulta → reloj otra vez tras consulta → snapshot administrativo anterior → UPDATE Cancelada/timestamp monotónico → snapshot nuevo/CambioCita CANCELACION con actor/motivo privado → invalidar avisos → CITA_CANCELADA con referencias/estados/versiones seguros → metadata último cambio → commit. Todo dentro de una transacción; no se bloquean después recursos de destino, evitando invertir el orden de reservas. No llama DisponibilidadService ni consulta la actividad actual de ficha/Médico/especialidad/par/sala/horarios: esas condiciones no impiden liberar cita elegible. Se conserva programación/duración/ubicación/version_programacion; creada_por/creada_en/id_propuesta_reserva/motivo_breve siguen intactos y no se leen/escriben en este flujo, por eso no se dibujan. No borrar/reinsertar ni generar avisos. Versión máxima INTEGER no impide cancelar porque no aumenta.
+
+**Entidades y privacidad:** Cita contiene atributos usados en validación/snapshots/respuesta; ConsultaMedica solo id_cita/existencia, nunca iniciada_en ni contenido clínico. CambioCita conserva motivo separado de JSON administrativo, no retornado por GET/PATCH ni metadata último cambio; la bitácora general tampoco lo guarda. Recordatorio solo usa id_cita/invalidado_en, conserva leido_en/generado_en/historia. Bitacora no incorpora horarios, motivos, HMAC ni datos clínicos; su Resource admite solo estados/versión/referencias conocidos. El rol interno de sesión no se convierte en autor Médico; el ejecutor real es el actor guardado. No se dibujan Paciente/Médico/Especialidad/Consultorio como entidades consultadas de negocio solo porque sus IDs estén en Cita. Carga de relaciones de identidad de sesión para rechazos conserva el límite transversal explicado en P42.
+
+**Errores/resultado incierto:** 401/403/419/422/404 conservan contrato existente; originales obsoletos → 409 CITA_EDICION_OBSOLETA; estado/plazo/consulta → sus 409 existentes, mensajes seguros. Cancelar de nuevo con datos anteriores no duplica cambio/evento; con originales nuevos tampoco permite reabrir/finalizar otra vez. Fallo de UPDATE/historial/avisos/auditoría/lectura posterior revierte todos los efectos, no se informa éxito parcial. GET gestión muestra Cancelada/acciones falsas y último cambio sin acreditar causalidad exacta de petición perdida. El turno queda libre tras commit para nuevas reservas válidas; no se ocupa ni libera anticipadamente mediante otra fila.
+
+**Verificación de esta fase:** CancelacionCitaTest dirigido 50 pruebas/628 aserciones correctas; incluye ambos operadores/Programada/Confirmada, motivo omitido/null/vacío/500 caracteres, inactividad simultánea de todos los recursos, privacidad, no borrado/programación/versiones, avisos previos/ajenos, repetición y rollback incluso después de auditoría, límites temporales/consulta con NULL, originales obsoletos, roles/sesión/CSRF/entradas y nueva reserva real sobre intervalo liberado. Esperas/escritores posteriores simulados por callbacks/mocks: no nuevas carreras multiproceso. Evidencia de regresión dirigida y controles finales en README/contexto §17.138. P01–P43/antecedentes se conservan; módulo no se cierra integralmente hasta Fases 5/6, sin frontend ni CU-28 funcional.
+
+<a id="analisis-cu15-gestion"></a>
+### CU-15 — Fase 3 backend: consultar gestión y estado persistido (P42)
+
+**Implementado:** GET `/api/citas/{id}/gestion`, también para citas finales/pasadas, sin mutarlas. Boundary HTTP real: GestionCitaRequest en `backend/src/presentation/dtos/citas/`; ID canónico en ruta, sin query/cuerpo. No existe todavía función React de este contexto. GestionCitaController.consultar → GestionCitaService.consultar → coordinación administrativa/actor/planificación → cita bloqueada → revalidación → impedimentos/proyección/último cambio. No bloquea después recursos de destino, no invierte el orden de reserva. Relacionado con RF08/RN13/RN14; no acredita nueva escritura de CU-16.
+
+**Correspondencia de métodos:** consultar [controller] pertenece a GestionCitaController; consultar/impedimentos/detalle/ultimoCambio/revalidar [service], a GestionCitaService; rules [validator] y Boundary, a GestionCitaRequest. Todos los métodos de repositorio transitivos: coordinarAdministracion y primer porId son UsuarioRepository; usuarioId/guard/store/contexto/coincide/vigente/credencialTemporalId/actualizarActor/cerrar son SesionRepository; temporalPorId es TokenAccesoRepository; coordinar es PlanificacionRepository; segundo porId/tieneConsulta/ultimoCambio son CitaRepository. Son 16 participaciones distintas, incluidos auxiliares internos de sesión y rama de credencial restringida; un nombre homónimo no elimina ninguna. Las relaciones de identidad profesional/ficha solo sirven en rechazos de roles ajenos: no se proyectan datos de ellos ni se inventan entidades clínicas adicionales.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresGestion["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazGestion["Frontera HTTP — consultar gestión"] {
+        <<boundary>>
+        String id
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlGestion["CONTROL — Consultar gestión de cita"] {
+        <<control>>
+        +consultar() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        -impedimentos() [service]
+        -detalle() [service]
+        -ultimoCambio() [service]
+        -revalidar() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porId() [repository]
+        +tieneConsulta() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresGestion --> InterfazGestion
+    InterfazGestion ..> ControlGestion
+    ControlGestion ..> Cita
+    Cita --> ConsultaMedica : existencia solamente
+    Cita --> CambioCita : metadata del ultimo
+    ControlGestion ..> Usuario : ejecutor real
+    Usuario --> Rol
+    ControlGestion ..> TokenAcceso : revalidacion restringida
+    ControlGestion ..> Sesiones
+    style InterfazGestion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlGestion fill:#dbeafe,stroke:#1d4ed8
+```
+
+Salida: programación administrativa mínima, zona/instante de servidor, `acciones.reprogramar`, códigos seguros de impedimento y `ultimo_cambio` como ID/actor/operación/fecha. No incluye motivo ni instantáneas de CambioCita. Acciones expresa elegibilidad básica (estado/plazo/consulta), **no certifica disponibilidad de destino** ni autoriza un PATCH de cancelación inexistente. Sirve para revisar resultado incierto sin reenvío automático; no atribuye causalidad a una petición perdida solo por ver un cambio. ConsultaMedica participa únicamente por existencia/id_cita, no diagnósticos ni iniciada_en. No Bitacora/Recordatorio en esta lectura. JsonResource existente envuelve la proyección explícita; no serializa modelos completos. Sesión inválida puede cerrarse, pero no se mutan datos de negocio.
+
+<a id="analisis-cu15-reprogramar"></a>
+### CU-15 — Fase 3 backend: guardar reprogramación atómica (P43)
+
+**Implementado localmente:** PATCH `/api/citas/{id}/reprogramacion`, Administrador/Recepcionista. Boundary real GestionCitaRequest: ID de ruta y cinco campos de cuerpo; query/campos extra/IDs de recursos rechazados. Sin pantalla/funciones React inventadas. Relacionado con RF05/RF07/RF08 y RN04–RN08/RN10/RN12–RN14, según ficha CU-15; el código concreta VS-CIT-14–16, sin editar sus textos oficiales. Fase 3 añade escritura; cancelación y robustez/concurrencia/cierre integral siguen sus fases.
+
+**Clases concretas:** GestionCitaController.reprogramar; GestionCitaService.reprogramar/originales/impedimentos/revalidar/detalle/ultimoCambio/obsoleta; DisponibilidadService.turnosReprogramacion/exigirReprogramable/calcularTurnos/original (P41) e IntervalosAtencion.candidatos; RecordatorioService.invalidarPorCita interno. `PropuestaReserva.revision` es utilidad HMAC existente, no entidad/Service de reserva. Los privados actor/cita son adaptadores de lectura/autorización, descritos en recorrido; no se duplican como principales. Control muestra todos los repositorios participantes: los 23 de P41 más CitaRepository.guardar/agregarCambio/ultimoCambio, RecordatorioRepository.invalidarPorCita y BitacoraRepository.citaReprogramada: 28 participaciones distintas. primer porId UsuarioRepository, segundo CitaRepository. ultimoCambio tiene homónimos Service/Repository; invalidarPorCita tiene homónimos RecordatorioService/Repository. Guard/store/contexto y demás sesión conservan los propietarios explicados en P42; coordinar/bloqueada/recursos tienen los de P41. No se agregan escrituras de CU-28 ni ReservaService.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresReprogramar["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazReprogramar["Frontera HTTP — guardar reprogramación"] {
+        <<boundary>>
+        String id
+        String fecha
+        String hora_inicio
+        String revision_turno
+        Integer version_programacion_original
+        String actualizada_en_original
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlReprogramar["CONTROL — Reprogramar misma cita"] {
+        <<control>>
+        +reprogramar() [controller]
+        +rules() [validator]
+        +reprogramar() [service]
+        -originales() [service]
+        -impedimentos() [service]
+        +turnosReprogramacion() [service]
+        -exigirReprogramable() [service]
+        -calcularTurnos() [service]
+        -original() [service]
+        +candidatos() [validator]
+        -revalidar() [service]
+        -detalle() [service]
+        -ultimoCambio() [service]
+        -obsoleta() [service]
+        +invalidarPorCita() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porId() [repository]
+        +tieneConsulta() [repository]
+        +bloqueada() [repository]
+        +medico() [repository]
+        +especialidad() [repository]
+        +habilitado() [repository]
+        +consultorio() [repository]
+        +horarios() [repository]
+        +paciente() [repository]
+        +ocupacion() [repository]
+        +guardar() [repository]
+        +agregarCambio() [repository]
+        +invalidarPorCita() [repository]
+        +citaReprogramada() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+        String estado_anterior
+        String estado_nuevo
+        JSONB datos_anteriores
+        JSONB datos_nuevos
+    }
+    class Recordatorio {
+        <<entity>>
+        BigInt id_cita
+        TimestampTZ? invalidado_en
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String tipo_actor
+        BigInt id_usuario_responsable
+        String rol_responsable
+        String modulo
+        String operacion
+        String resultado
+        String entidad_referida
+        String registro_referido
+        TimestampTZ ocurrido_en
+        Inet direccion_ip
+        String procedencia_ip
+        UUID correlacion
+        JSONB referencias
+        JSONB cambios_seguros
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+        TimestampTZ actualizado_en
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer duracion_turno_minutos
+        String nombre_sede
+        String? direccion_sede
+        TimestampTZ actualizado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresReprogramar --> InterfazReprogramar
+    InterfazReprogramar ..> ControlReprogramar
+    ControlReprogramar ..> Cita : UPDATE misma fila
+    Cita --> ConsultaMedica : existencia bloquea
+    Cita --> CambioCita : historial inmutable
+    Cita --> Recordatorio : invalida sin borrar
+    Cita --> Paciente
+    Cita --> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    Medico --> Consultorio
+    Medico --> HorarioAtencion
+    ControlReprogramar ..> ConfiguracionClinica
+    ControlReprogramar ..> Usuario : ejecutor real
+    Usuario --> Rol
+    ControlReprogramar ..> Bitacora : metadatos sin contenido clinico
+    ControlReprogramar ..> TokenAcceso : revalidacion restringida
+    ControlReprogramar ..> Sesiones
+    style InterfazReprogramar fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlReprogramar fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Recorrido y errores:** coordinación administrativa/actor/planificación → lectura inicial sin lock/versión/impedimentos/mismo inicio → disponibilidad P41 bajo la misma transacción exterior → cita releída bloqueada/versiones → selección y hash_equals de revisión → actor/consulta/reloj justo antes de UPDATE → guardar misma fila/insertar CambioCita/invalidar avisos/insertar Bitacora → metadata del último cambio → commit. Adquiere recursos antes de cita, conserva locks hasta confirmar. Las llamadas anidadas/reentrantes de disponibilidad no liberan locks antes del UPDATE. No aceptación ciega del GET anterior: recomputa candidatos con recursos/horarios/ocupación actuales; revisiones ajenas o cambiadas rechazan 409. SQL 23P01 conocido de Paciente/Médico/sala se traduce fuera de la transacción abortada; otros errores conservan 500 seguro y rollback. Sin reintento automático ni replay exitoso: originales obsoletos → 409 sin nuevo cambio/evento.
+
+**Historia/alcance de entidades:** se conserva ID/código/Paciente/Médico/especialidad/modalidad/creación/motivo/UUID; los últimos campos no se leen ni escriben en este flujo y no se dibujan. Aplica duración y ubicación vigentes revisadas; estado Programada (Confirmada pierde llegada previa), versión +1 y timestamp estrictamente creciente incluso si el anterior es futuro. CambioCita almacena proyecciones administrativas anterior/nueva (no motivo ni clínica), actor/fecha/operación/estados; las mismas claves de Cita representan los JSON. Ocupantes solo proyectan id_cita/inicio_at/fin_at. Recordatorio solo filtra por id_cita/invalidado_en y escribe invalidado_en; preserva lectura/historia y no genera versión nueva. Bitácora solo referencias y estados/versiones, no horarios, HMAC ni texto libre. Campos internos de sesión/hash nunca implican exposición. CU-28 sigue sin generador/scheduler/listado.
+
+**Verificación de Fase 3:** ReprogramacionCitaTest dirigido 57 pruebas/651 aserciones correctas. Comprueba ambos operadores/estados, ficha inactiva, conservación/segundos/duración/ubicación/versión/timestamp, original obsoleto/revisión alterada o transferida, restricciones SQL reales y traducción, roles/sesión/CSRF/entradas, plazo/consulta incluso NULL, rollback tras cambio/avisos/auditoría y después de todos los INSERT. Los escritores posteriores/esperas se simulan mediante callbacks/mocks, no concurrencia multiproceso nueva. Resultado de regresión dirigida y controles documentales de cierre en README/contexto §17.137. P01–P41 y los 17 antecedentes se conservan; total 60 bloques/43 procedimientos/17 antecedentes. CU-15 implementa reprogramación local, pero robustez/integración/cierre del módulo conservan Fases 5/6; CU-16 Fase 4 no iniciada.
+
+<a id="analisis-cu15-disponibilidad"></a>
+### CU-15 — Fase 2 backend: disponibilidad específica de la misma cita (P41)
+
+**Implementación parcial, no cierre de CU-15/CU-16.** Única ruta nueva: GET `/api/citas/{id}/disponibilidad-reprogramacion`, Administrador/Recepcionista, auth/cuenta/sesión normal revalidados en Service. No GET gestion, PATCH reprogramación/cancelación ni avisos/auditoría de cambios todavía. Reutiliza `calcularTurnos()` privado en DisponibilidadService para reservas y reprogramación, sin cambiar la entrada ni el resultado de CU-13/CU-14. Constructor incorpora CitaRepository existente; nuevas lecturas `porId()`/`tieneConsulta()` y parámetro opcional de exclusión en `DisponibilidadRepository.ocupacion()`.
+
+**Boundary real de esta etapa:** frontera HTTP de `presentation/dtos/citas/DisponibilidadReprogramacionRequest.php`, no página React. `id` es la ruta; `id_objetivo` se deriva dentro del Request y se retira antes del Service. Sus funciones propias reales validationData/rules/withValidator se representan en Boundary; rules también aparece como validación principal de Control. El frontend aún no tiene función HTTP de este contexto y no se inventa. Query solo fecha/page/per_page, sin cuerpo JSON/formulario ni IDs de recursos/actor/rol/exclusión manipulables. Laravel valida antes del Controller aunque el orden visual empiece en él.
+
+**Trazabilidad concreta (rutas relativas a backend/src):** DisponibilidadController.reprogramacion (`presentation/controllers/citas/`) → DisponibilidadService.turnosReprogramacion/exigirReprogramable/calcularTurnos/original (`business/services/citas/`) → CitaRepository.porId/tieneConsulta (`data/repositories/citas/`) y recursos/configuración/planificación. IntervalosAtencion.candidatos (`business/validators/`) es principal, ocupaFranja participa como auxiliar real. PropuestaReserva.revision (`shared/utils/`) genera el HMAC con propósito de operación y contexto, no es Service/Repository ni entidad de propuestas. DisponibilidadResource existente pagina/restringe links a filtros de query que realmente existen; no publica referencias a ocupantes.
+
+**Repositorios de revalidación:** UsuarioRepository.coordinarAdministracion/porId; SesionRepository.usuarioId/guard/store/contexto/coincide/vigente/credencialTemporalId/actualizarActor/cerrar y TokenAccesoRepository.temporalPorId, mediante ContinuidadAdministrativaService/AutenticacionService y rama restringida de CredencialTemporalValidator. Los dos porId del dibujo son UsuarioRepository y CitaRepository; los internos guard/store/contexto pertenecen a SesionRepository. `coordinar()` es PlanificacionRepository; `bloqueada()` ConfiguracionCitasRepository. medico/especialidad/habilitado/consultorio/horarios/paciente/ocupacion pertenecen a DisponibilidadRepository. No escritores de citas/avisos/bitácora dentro de esta consulta.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresReprogramacion["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazAlternativas["Frontera HTTP — alternativas de cita"] {
+        <<boundary>>
+        String id
+        String fecha
+        Integer page
+        Integer per_page
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlAlternativas["CONTROL — Consultar alternativas de reprogramación"] {
+        <<control>>
+        +reprogramacion() [controller]
+        +rules() [validator]
+        +turnosReprogramacion() [service]
+        -exigirReprogramable() [service]
+        -calcularTurnos() [service]
+        -original() [service]
+        +candidatos() [validator]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porId() [repository]
+        +tieneConsulta() [repository]
+        +bloqueada() [repository]
+        +medico() [repository]
+        +especialidad() [repository]
+        +habilitado() [repository]
+        +consultorio() [repository]
+        +horarios() [repository]
+        +paciente() [repository]
+        +ocupacion() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+        String codigo_paciente
+        String nombres
+        String apellidos
+        Boolean activo
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_consultorio
+        String codigo_medico
+        String nombres
+        String apellidos
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class Especialidad {
+        <<entity>>
+        BigInt id_especialidad
+        String nombre
+        Boolean activa
+        TimestampTZ actualizado_en
+    }
+    class MedicoEspecialidad {
+        <<entity>>
+        BigInt id_medico
+        BigInt id_especialidad
+        Boolean habilitada
+    }
+    class Consultorio {
+        <<entity>>
+        BigInt id_consultorio
+        String codigo_consultorio
+        String nombre
+        Boolean activo
+        TimestampTZ actualizado_en
+    }
+    class HorarioAtencion {
+        <<entity>>
+        BigInt id_horario
+        BigInt id_medico
+        Integer dia_semana
+        Time hora_inicio
+        Time hora_fin
+        Boolean activo
+    }
+    class ConfiguracionClinica {
+        <<entity>>
+        Integer duracion_turno_minutos
+        String nombre_sede
+        String? direccion_sede
+        TimestampTZ actualizado_en
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresReprogramacion --> InterfazAlternativas
+    InterfazAlternativas ..> ControlAlternativas
+    ControlAlternativas ..> Cita : relee y excluye solo cita propia
+    Cita --> ConsultaMedica : existencia bloquea
+    Cita --> Paciente
+    Cita --> Medico
+    Medico --> MedicoEspecialidad
+    MedicoEspecialidad --> Especialidad
+    Medico --> Consultorio
+    Medico --> HorarioAtencion
+    ControlAlternativas ..> ConfiguracionClinica
+    ControlAlternativas ..> Usuario : ejecutor real
+    Usuario --> Rol
+    Usuario --> Paciente : identidad de sesion
+    Usuario --> Medico : identidad de sesion
+    ControlAlternativas ..> TokenAcceso : solo revalidacion restringida
+    ControlAlternativas ..> Sesiones
+    style InterfazAlternativas fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAlternativas fill:#dbeafe,stroke:#1d4ed8
+```
+
+**Recorrido real:** coordinación/actor → planificación → lectura inicial sin lock de cita y elegibilidad → configuración/Médico/especialidad/par/sala/horarios/ficha/ocupación con locks → cita objetivo releída/bloqueada/comparada → sesión revalidada y elegibilidad temporal/consulta comprobadas otra vez → candidatos/anclaje/colisiones → revisión HMAC y respuesta. La segunda llamada reentrante de coordinar dentro del cálculo conserva el mismo lock transaccional ya adquirido; no representa un segundo recurso. Cita incluye tanto la original como ocupantes: de estos últimos solo se seleccionan id_cita/inicio_at/fin_at, no los demás atributos de la caja. ConsultaMedica solo participa por id_cita/existencia, no lectura clínica ni de iniciada_en. No se dibuja CambioCita/Bitacora/Recordatorio, porque este flujo no los lee ni escribe; Sesiones puede invalidarse al rechazar autenticación.
+
+Respuesta `data`: fecha/zona/consultado_en, duración vigente, Médico/especialidad/consultorio mínimos, turnos con HMAC; añade `cita_original` (identificadores/código/intervalo/ubicación/estado/versiones), Paciente mínimo y sede/dirección vigentes. No `paciente_reservable`: pertenecer a esta consulta no autoriza CU-14 para ficha inactiva. No motivo_breve/CI/teléfono/creada_por/UUID de creación/consulta clínica. Paginas vacías conservan contexto; GET/HEAD sin efectos de negocio. Misma hora excluida, solapamientos parciales con la propia cita permitidos como alternativa, otras citas/franjas compartidas siguen bloqueando. Los intervalos se calculan por duración vigente; no se modifica la histórica.
+
+**Estado de verificación:** pruebas dirigidas DisponibilidadReprogramacionTest y regresión de disponibilidad/reservas/permisos; evidencia de cierre y límites en README backend/contexto §17.136. No reprogramación guardada, cancelación, recordatorios, frontend ni nuevos estados/esquema. Carreras multiproceso ampliadas y suite completa conservan Fases 5/6. Los anteriores 57 bloques quedan intactos; total 58, con 41 procedimientos y 17 antecedentes descartados. La revisión documental de seis fases de P01–P40 conserva su cierre histórico, no se reabre ni se atribuye a P41 su evidencia anterior.
+
+### CU-15/CU-16 — Fase 1 backend: participantes y contratos previstos (2026-10-26)
+
+**Solo diseño, no implementación ni cierre funcional de CU.** Nuevo módulo Reprogramación/cancelación, seis fases: análisis/contratos → disponibilidad específica → reprogramación atómica → cancelación atómica → seguridad/concurrencia → integración/regresión/cierre. Fase 1 documental completada, Fases 2–6 pendientes. Trazabilidad: CU-15/PN12/RF05/RF07/RF08 y RN04–RN08/RN10/RN12–RN14; CU-16/PN13/RF09 y RN09/RN10/RN12/RN14; reglas VS-CIT-06–11, VS-HOR-03/12 y decisiones propias VS-CIT-14–16. Administrador/Recepcionista con identidad real, no Médico/Paciente; misma cita, sin rutas o Services por rol.
+
+**Tres decisiones nuevas aprobadas expresamente:** ambas operaciones solo mientras inicio_at sea estrictamente posterior al instante del servidor; cualquier ConsultaMedica asociada impide gestionarlas aun con iniciada_en NULL; CU-15 rechaza el mismo inicio sin reajustar duración/ubicación ni quitar Confirmada. No son nuevas RN oficiales. La lectura de gestión puede representar una cita pasada/final y sus impedimentos sin habilitar escritura. Motivo de cancelación continúa opcional; no se añade motivo obligatorio a reprogramación.
+
+#### Inventario E/P y responsabilidades del diseño
+
+Rutas relativas a `backend/src/`. **E** significa existente; **P** previsto sin declaración productiva. Las ampliaciones P no se consideran métodos existentes por pertenecer a una clase E. El contrato detallado y la matriz de pruebas están en `backend/README.md`, sección «CU-15/CU-16 — Fase 1».
+
+| Participante / ubicación | Estado comprobado | Responsabilidad / colaboración |
+| --- | --- | --- |
+| Frontera HTTP / `presentation/routes/citas.php`, DTO `presentation/dtos/citas/` | Archivo de rutas E, cuatro entradas y Requests/Resources de gestión P | GET gestion; GET disponibilidad-reprogramacion; PATCH reprogramacion; PATCH cancelacion bajo /citas/{id}, campos cerrados/versiones y respuestas mínimas. No frontend implementado ni funciones React ficticias. |
+| GestionCitaController / `presentation/controllers/citas/` | P, diseñado antes en UML global, no archivo PHP | Adaptar lectura y escrituras de gestión, delegar y responder; no Eloquent ni reglas. |
+| DisponibilidadController / `presentation/controllers/citas/` | E; entrada de reprogramación P | Reutilizar responsabilidad de consultar turnos; Request específico que deriva cita desde ruta, sin aceptar Médico/Paciente/especialidad de reemplazo. |
+| GestionCitaService / `business/services/citas/` | P | Autorizar operadores, leer cita/contexto, cotejar versiones, orquestar reprogramación/cancelación/cambio/avisos/auditoría en transacción. No invocar ReservaService para actualizar. |
+| DisponibilidadService / `business/services/citas/` | E, especialidades/medicos/turnos existentes; modalidad CU-15 P | Calcular alternativas por cita persistida, excluir ocupación propia, permitir ficha inactiva solo en ese contexto, conservar reglas de nuevas reservas y revisar actor/recursos. |
+| AutenticacionService y ContinuidadAdministrativaService / `business/services/usuarios/` | E | Reutilizar exigirSesionNormal/validarSesion y coordinación administrativa, incluidos repositorios colaboradores reales; no un bypass de Administración. |
+| PlanificacionRepository y ConfiguracionCitasRepository / `data/repositories/horarios/` | E | Coordinar con planificación/reservas; leer configuración bloqueada/duración vigente. `coordinar()` usa advisory exclusivo transaccional. |
+| CitaRepository / `data/repositories/citas/` | E: porPropuesta/pacienteSolapado/crear; gestión por ID/actualización/cambio P | Leer y bloquear cita, comprobar consulta, excluir cita propia en conflicto de Paciente y guardar misma fila/CambioCita; jamás borrar/reinsertar como reserva nueva. |
+| DisponibilidadRepository / `data/repositories/citas/` | E; exclusión específica P | Reutilizar medico/especialidad/habilitado/consultorio/horarios/paciente/ocupacion; limitar exclusión a ID persistido de cita autorizada. |
+| PropuestaReserva / `shared/utils/` e IntervalosAtencion / `business/validators/` | E; nuevo contexto HMAC P | Reutilizar revision y cálculo de candidatos/anclaje/franjas; contexto `operacion=REPROGRAMAR` ligado a cita/actor/rol/programación/versiones/recursos/destino. No tabla/token de reserva nuevos ni servicio criptográfico ficticio. |
+| RecordatorioService/Repository / `business/services/recordatorios/`, `data/repositories/recordatorios/` | P | Solo invalidación interna de avisos existentes en esta entrega; no generación/scheduler/consulta CU-28 anticipados. |
+| BitacoraRepository / `data/repositories/bitacora/` | E, escritores de gestión P | CITA_REPROGRAMADA/CITA_CANCELADA con responsable real y referencias/estados/versiones seguros; sin motivo/consulta/HMAC. Resources/utilidad de referencias E requerirán ampliaciones P acotadas para esos eventos. |
+| Cita, CambioCita, Recordatorio, ConsultaMedica | Models y migraciones E | Misma cita/versiones; historial inmutable; invalidación de avisos; existencia de consulta como impedimento conservador, sin leer versiones clínicas. |
+| Paciente/Medico/Especialidad/MedicoEspecialidad/Consultorio/HorarioAtencion/ConfiguracionClinica | E | Recursos y atributos usados para disponibilidad/destino/identidad; no copiar esquema íntegro en vistas de análisis futuras. |
+| Usuario/Rol/SesionRepository/TokenAccesoRepository y colaboradores de sesión | E | Actor y revalidación compartidos; tabla sessions sin Model propio. Su participación exacta se trazará por llamadas al implementar, no por inclusión indiscriminada del módulo de seguridad. |
+
+No se requiere migración nueva según la revisión: Cita.version_programacion/actualizada_en, CambioCita con motivo opcional/antes/después inmutables, Recordatorio con UNIQUE(cita,versión) y Bitacora JSON seguro ya existen. Las exclusiones GiST vigentes de Médico/sala no Cancelada y de Paciente Programada/Confirmada protegen UPDATE además de INSERT. ReservaService y su UUID original permanecen exclusivamente responsables de creación/reconciliación de CU-14; no reutilizar creada_por para atribuir el cambio.
+
+#### Procedimientos que se representarán progresivamente
+
+| Contexto previsto | Frontera / control previsto | Límite de representación |
+| --- | --- | --- |
+| Consultar programación/impedimentos para gestionar | GET gestion → GestionCitaController/Service → CitaRepository y sesión | Lectura administrativa independiente del detalle compartido CU-20/CU-21. Muestra versiones/acciones y metadata mínima del último cambio, no historia clínica. |
+| Consultar alternativas para la misma cita | DisponibilidadController/Service → recursos/configuración/cita/ocupación | Fecha/página; no reserva ni escritura de CambioCita, no habilitación universal para ficha inactiva. |
+| Reprogramar y comprobar resultado persistido | GestionCitaController/Service → disponibilidad/CitaRepository/avisos/bitácora | Conserva identidad, aplica duración/ubicación vigentes revisadas, incrementa versión y Confirmada vuelve a Programada; cualquier fallo revierte todo. |
+| Cancelar y comprobar resultado persistido | Mismo Controller/Service, rama de cancelación → CitaRepository/avisos/bitácora | No consulta disponibilidad de destino ni exige profesional/ficha/catálogos activos, no borra ni reabre; motivo opcional protegido. |
+
+**No se añaden ahora diagramas de ejecución ni referencias P41+ al inventario implementado.** Al desarrollar las fases correspondientes se incorporarán vistas según esos contextos reales (podrán dividirse si el flujo lo requiere), preservando P01–P40 y los 17 antecedentes descartados. Boundary identificará la frontera HTTP realmente implementada; React queda explícitamente pendiente hasta su etapa, sin atribuirle funciones futuras. Control usará `nombre() [controller|service|validator|repository]`, Controller primero como lectura, principales/auxiliares pertinentes y **todos los métodos de repositorio efectivamente invocados**, incluidos colaboradores/internos/errores, sin parámetros/prefijos y homónimos trazados fuera. Entidades solo participantes/atributos utilizados, con nulabilidad física y visibilidad contrastadas. No se vuelve al criterio de un único diagrama por CU.
+
+#### Contrato, seguridad y atomicidad diseñados
+
+Ambas escrituras envían `version_programacion_original` y `actualizada_en_original` para impedir decisiones sobre una cita que cambió; reprogramar añade fecha/hora/revision_turno, cancelar solo motivo opcional. ID de ruta, IDs originales de Paciente/Médico/especialidad, rol/actor y estados no se sustituyen desde el cliente. Revisión HMAC liga original/destino/contexto; fecha civil local/hora con segundos, instantes UTC con seis decimales, sin mínimos/máximos arbitrarios de anticipación. Comparar versiones y revisar recursos/tiempo/ausencia de consulta después de las esperas y antes de escribir. Consultar la disponibilidad de CU-14 no habilita CU-15.
+
+Protocolo compatible con reservas: coordinación administrativa → actor bloqueado → advisory de planificación → recursos en orden vigente → ficha/citas ordenadas/relectura objetivo. No bloquear primero Cita y luego invertir el orden de recursos. Cancelar requiere coordinación/cita/versiones/consulta, no cálculo de turnos. Reprogramación y cancelación anexan CambioCita/invalida avisos/evento junto al UPDATE; timeout puede ocurrir tras commit, no garantiza rollback. Repetir originales antiguos da 409, sin otra mutación/evento; consulta de gestión permite revisar estado/metadatos actuales, no afirmar autoría exacta de petición perdida sin evidencia. No nueva idempotency key/tabla ni reenvío HTTP automático.
+
+Reprogramar aumenta version_programacion y actualizada_en monotónica; cancelar conserva versión de programación y avanza timestamp. Cambios de ubicación CU-11 conservan versión pero sí modifican timestamp, por lo que también invalidan una selección anterior. Se conservan creada_por/creada_en/id_propuesta_reserva y motivo_breve originales. Avisos anteriores se invalidan sin eliminarse; el futuro generador CU-28 recalculará nueva programación con sus reglas propias, sin generación en esta entrega. Auditoría general solo metadata segura, no snapshots clínicos o motivo libre.
+
+Nuevos códigos 409 y Resources de cambios requieren integración explícita futura con RespuestaError/ReferenciasBitacora para no caer en 500 o exponer extras; sin modificar su implementación ahora. Pruebas de roles/tiempo exacto/consulta con NULL/selección idéntica/ficha inactiva/recursos activos/versiones/HMAC/rollback y carreras previstas en README, con PostgreSQL aislado y correo simulado. La suite backend histórica no se vuelve a atribuir a esta fase.
+
+**Verificación/cierre:** revisión estática de rutas/capas/models/migraciones/contratos y fuentes Markdown; participantes E/P diferenciados, tres decisiones funcionales aprobadas registradas, plan/contratos y matriz de pruebas diseñados. Sin endpoints/Requests/Services/Repositories nuevos, pruebas funcionales, base/Artisan/migraciones, cambios frontend, dependencias, Word/PDF/draw.io o Git remoto. DER sin modificación necesaria; nota del UML global distingue esta concreción de sus firmas previstas anteriores. Se autoriza solo Fase 1; implementación de Fase 2 requiere siguiente aprobación. Contexto §17.135.
 
 ### Administrador — Fase 5 frontend: integración y cierre local (2026-10-26)
 

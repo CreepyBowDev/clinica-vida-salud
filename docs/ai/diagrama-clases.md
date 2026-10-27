@@ -2,6 +2,20 @@
 
 ## 1. Alcance y estado
 
+**Cierre acumulativo CU-15/CU-16 — Fase 6 backend, 2026-10-26:** integración 4/298 y suite global nueva 2845/29851 correctas, inventario PostgreSQL pre/post preservado; módulo backend cerrado localmente (contexto §17.140). Modelo global sincronizado: 100 clases E de cuatro familias y 23 clases aún solo P, más Sesion conceptual R; 124 participantes diseñados, no 124 clases PHP implementadas. Gestión/reprogramación/cancelación y la invalidación mínima de recordatorios son E; asistencia/consulta clínica/laboratorio/generación CU-28/reportes siguen P. Los avances anteriores se conservan como historial, no como estado actual. Sin nuevas clases funcionales/esquema por esta fase; fixtures de integración fuera del UML; frontend/producción pendientes.
+
+**CU-15/CU-16 Fase 5 backend, 2026-10-26:** revisión de seguridad/concurrencia sin nuevas firmas/clases de negocio. GestionCitaService.reprogramar agrega comprobación final del inicio original después de la última lectura de consulta y antes de guardar (VS-CIT-14). Se conservan dependencias/participantes y las vistas P41–P44; fixtures de pausas/workers no forman parte del UML funcional. Evidencia final en contexto §17.139/análisis; DER sin cambios y cierre integral/render global siguen para Fase 6.
+
+**CU-16 Fase 4 backend, 2026-10-26:** GestionCitaController.cancelar y GestionCitaService.cancelar son E; Request compartido incorpora motivo opcional y originales, GET gestión agrega acciones.cancelar. CitaRepository.agregarCambio amplía su firma con operación/motivo opcionales (reprogramación conserva sus llamadas); BitacoraRepository.citaCancelada y proyección segura E. No nuevas clases/modelos/tablas ni generación de CU-28; inventario físico sigue 100 E de cuatro familias. Cierre integral del módulo y nuevo render global siguen pendientes de Fases 5/6.
+
+**CU-15 Fase 3 backend, 2026-10-26:** GestionCitaController/Service y GestionCitaRequest son ahora E para GET gestión y PATCH reprogramación. RecordatorioService/Repository E solo para invalidarPorCita interno; CU-28/generación/consulta siguen P. CitaRepository.guardar/agregarCambio/ultimoCambio y BitacoraRepository.citaReprogramada son E. Firmas exactas concretadas debajo; las vistas históricas de inventario/cantidades conservan el momento en que se elaboraron. CU-16 aún P y el cierre integral del módulo sigue Fases 5/6, no se acredita nuevo render global PlantUML por esta actualización incremental.
+
+Inventario incremental de las cuatro familias: **100 clases E** (27 Models, 25 Controllers, 28 Services, 20 Repositories), 23 participantes aún solo P y Sesion R; 124 participantes globales previstos sin agregar una segunda caja por clase. Las cuatro clases trasladadas de solo P a E conservan operaciones futuras P donde procede. Requests/Resources son auxiliares fuera de ese conteo filtrado; no se inventan 124 clases PHP implementadas.
+
+**CU-15 Fase 2 backend, 2026-10-26:** disponibilidad para reprogramar implementada parcialmente, no escritura de CU-15 ni cancelación CU-16. DisponibilidadController.reprogramacion, DisponibilidadService.turnosReprogramacion(string id, filtros), auxiliares de elegibilidad/original/cálculo compartido, CitaRepository.porId/tieneConsulta y exclusión opcional en ocupacion son ahora E. Las firmas P anteriores se concretan abajo; no se agrega clase de dominio, modelo, tabla ni Service de gestión/recordatorios. Dependencia DisponibilidadService → CitaRepository efectiva; vistas previas de arquitectura E/P se leen con esta nota incremental. Sintaxis/render del análisis P41 se comprueban aparte; no nuevo render global PlantUML por esta fase parcial.
+
+**Concreción prevista CU-15/CU-16 — Fase 1 backend, 2026-10-26:** sigue sin implementación de GestionCitaController/Service ni ampliaciones de repositorios/disponibilidad/avisos. Diseño detallado en README backend/análisis/contexto §17.135. Administrador y Recepcionista comparten ambas operaciones; las menciones de exclusividad de Recepción en §8/firmas P antiguas no excluyen Administración. Decisiones aprobadas VS-CIT-14–16: inicio original estrictamente futuro, cualquier ConsultaMedica bloquea aun con iniciada_en NULL y selección de mismo inicio rechazada. Contrato técnico previsto incorpora consulta de gestión y versiones originales en **ambas** escrituras: la firma P anterior `cancelar(id,motivo,contexto)` y guard `recepcionista` no se consideran contratos definitivos suficientes; se concretarán con datos/versiones y actor administrativo al implementar. Disponibilidad interna por cita excluye su propia ocupación sin relajar nuevas reservas. RecordatorioService/Repository se incorporarían únicamente con invalidación interna necesaria, no generador/consulta CU-28. Sin clases/firmas E, esquema, UML de ejecución o render nuevo por esta nota; las vistas P siguen siendo diseño histórico, no código creado.
+
 **Sincronización incremental 2026-10-24, permisos administrativos Fase 4:** HistorialCitasService admite Administrador en historial por ficha; ConsultaCitaService/CitaDetalleResource comparten motivo breve/CI/teléfono con Recepción. AgendaService conserva selección administrativa ya existente. Sin nuevas clases de producción, firmas o relaciones, no cambia la fuente estructural UML ni se reejecuta el renderizado. El análisis vigente y evidencia están en analisis-clases.md/contexto §17.120; las exclusiones históricas del motivo administrativo quedan sustituidas, sin declarar implementados otros CU ni certificada la integración PostgreSQL.
 
 **Fases 1–5 completadas documentalmente, 2026-10-23.** UML global editable en **19 vistas integradas**, con sintaxis comprobada, renderizado local SVG/PNG y revisión visual registrados en §11. §8–§9 distinguen código existente de diseño no implementado; **cerrar este diagrama no implementa los CU pendientes ni resuelve sus decisiones funcionales abiertas**. La actualización de PHP sigue aplazada.
@@ -62,19 +76,19 @@ No se revisan Word/PDF ni se modifican especificaciones oficiales en esta fase. 
 
 ### 3.1. Recuento reproducible
 
-Censo anterior de referencia: 197 clases nombradas propias. **La selección definitiva incluye 96 clases existentes: 27 modelos, 24 Controllers, 26 Services y 19 Repositories.** Se excluyen 101 declaraciones por categoría, sin borrar ni modificar sus archivos. Fase 2 añade **27 clases previstas** (§8): 10 Controllers, 10 Services y 7 Repositories, sin modelos nuevos. Resultado diseñado: **123 clases E/P y Sesion conceptual**, es decir, 124 participantes para la futura representación; no 124 clases PHP existentes.
+Censo histórico de referencia: 197 clases nombradas propias y 96 seleccionadas entonces. **Selección vigente tras CU-15/CU-16: 100 clases existentes: 27 modelos, 25 Controllers, 28 Services y 20 Repositories.** Cuatro participantes del diseño P pasaron a E (GestionCitaController/Service y RecordatorioService/Repository mínimo interno); quedan 23 clases solo P. Resultado acumulado: **123 clases E/P y Sesion conceptual**, 124 participantes, no 124 clases PHP existentes. Las 101 exclusiones históricas de §3.5 no son un recuento actualizado de todos los auxiliares.
 
 | Familia | Ubicación relativa a backend/ | Cantidad | Tratamiento |
 | --- | --- | ---: | --- |
-| Controllers | src/presentation/controllers/ | 24 | E |
-| Services | src/business/services/ | 26 | E |
+| Controllers | src/presentation/controllers/ | 25 | E |
+| Services | src/business/services/ | 28 | E |
 | Models | src/data/models/ | 27 | E; no confundir con 28 entidades |
-| Repositories | src/data/repositories/ | 19 | E |
-| **Total seleccionado** | **Cuatro familias en src/** | **96** | **E** |
+| Repositories | src/data/repositories/ | 20 | E |
+| **Total seleccionado** | **Cuatro familias en src/** | **100** | **E** |
 
 Las listas siguientes y los modelos de §4 son exhaustivos para esta selección. Dentro de cada familia/módulo, cada nombre corresponde a `<Nombre>.php`, namespace `Clinica\<familia>\<modulo>`; models conserva su carpeta sin submódulos. Se usan nombres simples por legibilidad, no alias ni nuevas ubicaciones. CorreoSeguridadService se conserva por ser un Service propio que orquesta seguridad transaccional; sus Mail/transportes auxiliares no se incluyen.
 
-### 3.2. Controllers — 24
+### 3.2. Controllers — 25
 
 | Subcarpeta de src/presentation/controllers/ | Clases E |
 | --- | --- |
@@ -83,11 +97,11 @@ Las listas siguientes y los modelos de §4 son exhaustivos para esta selección.
 | medicos/ | EspecialidadController, MedicoController |
 | consultorios/ | AsignacionConsultorioController, ConsultorioController |
 | horarios/ | ConfiguracionCitasController, HorarioController |
-| citas/ | DisponibilidadController, ReservaController |
+| citas/ | DisponibilidadController, GestionCitaController, ReservaController |
 | agenda/ | AgendaController, ConsultaCitaController, HistorialCitasController |
 | bitacora/ | BitacoraController |
 
-### 3.3. Services — 26
+### 3.3. Services — 28
 
 | Subcarpeta de src/business/services/ | Clases E |
 | --- | --- |
@@ -96,11 +110,12 @@ Las listas siguientes y los modelos de §4 son exhaustivos para esta selección.
 | medicos/ (2) | EspecialidadService, MedicoService |
 | consultorios/ (2) | AsignacionConsultorioService, ConsultorioService |
 | horarios/ (2) | ConfiguracionCitasService, HorarioService |
-| citas/ (2) | DisponibilidadService, ReservaService |
+| citas/ (3) | DisponibilidadService, GestionCitaService, ReservaService |
+| recordatorios/ (1) | RecordatorioService (solo invalidarPorCita interno) |
 | agenda/ (3) | AgendaService, ConsultaCitaService, HistorialCitasService |
 | bitacora/ (1) | BitacoraService |
 
-### 3.4. Repositories — 19
+### 3.4. Repositories — 20
 
 | Subcarpeta de src/data/repositories/ | Clases E |
 | --- | --- |
@@ -110,6 +125,7 @@ Las listas siguientes y los modelos de §4 son exhaustivos para esta selección.
 | consultorios/ (2) | AsignacionConsultorioRepository, ConsultorioRepository |
 | horarios/ (3) | ConfiguracionCitasRepository, HorarioRepository, PlanificacionRepository |
 | citas/ (2) | CitaRepository, DisponibilidadRepository |
+| recordatorios/ (1) | RecordatorioRepository (solo invalidarPorCita interno) |
 | agenda/ (1) | AgendaRepository |
 | bitacora/ (1) | BitacoraRepository |
 
@@ -189,8 +205,8 @@ Las dependencias se contrastarán con operaciones reales: no todo import signifi
 | CU-12 Horarios/duración | Implementado local | HorarioController, ConfiguracionCitasController; HorarioService, ConfiguracionCitasService | HorarioRepository, ConfiguracionCitasRepository, PlanificacionRepository, MedicoRepository, ConsultorioRepository; HorarioAtencion/ConfiguracionClinica/Medico/Consultorio/Cita/Bitacora | Duración histórica conservada |
 | CU-13 Buscar/disponibilidad | Implementado local | DisponibilidadController; DisponibilidadService | DisponibilidadRepository, ConfiguracionCitasRepository, PlanificacionRepository; Medico/Especialidad/MedicoEspecialidad/Consultorio/HorarioAtencion/Paciente/Cita | Futuro CU-15 con misma cita/ficha inactiva, sin abrir reservas nuevas |
 | CU-14 Reservar/programar | Implementado local | ReservaController; ReservaService | CitaRepository, DisponibilidadRepository, PlanificacionRepository, ConfiguracionCitasRepository, BitacoraRepository; Cita/Paciente/Medico/Especialidad/Consultorio/Usuario/Bitacora | No confundir guardado con llegada ni con CU-28 completo |
-| CU-15 Reprogramar | Pendiente | P: GestionCitaController, GestionCitaService, RecordatorioService; E + ampliación P: DisponibilidadService | E + ampliación P: CitaRepository, DisponibilidadRepository, BitacoraRepository; E: PlanificacionRepository, ConfiguracionCitasRepository; P: RecordatorioRepository; Cita/CambioCita/Recordatorio | Participantes definidos en §8.3; transacción de la misma cita, sin nuevas reservas para ficha inactiva |
-| CU-16 Cancelar | Pendiente | P: GestionCitaController, GestionCitaService, RecordatorioService | E + ampliación P: CitaRepository, BitacoraRepository; P: RecordatorioRepository; Cita/CambioCita/Recordatorio/Bitacora | §8.3; motivo opcional, conservación y retiro de avisos |
+| CU-15 Reprogramar | Backend E local; integración Fase 6 verificada | E: DisponibilidadController/Service, GestionCitaController/Service, RecordatorioService solo invalidación | E: CitaRepository, DisponibilidadRepository, PlanificacionRepository, ConfiguracionCitasRepository, RecordatorioRepository, BitacoraRepository; Cita/CambioCita/Recordatorio/Bitacora | GET gestión y PATCH atómico; misma ficha inactiva, guardas ante traslado CU-11, duración revisada; cierre/regresión en contexto §17.140; frontend pendiente |
+| CU-16 Cancelar | Backend E local; integración Fase 6 verificada | E: GestionCitaController/Service, RecordatorioService solo invalidación | E: CitaRepository, PlanificacionRepository, BitacoraRepository, RecordatorioRepository; Cita/CambioCita/Recordatorio/Bitacora | Programación/versión conservadas, avisos retirados, nueva reserva válida sobre intervalo liberado; cierre en contexto §17.140; frontend pendiente |
 | CU-17 Confirmar llegada | Pendiente | P: AsistenciaController, AsistenciaService | E + ampliación P: CitaRepository, BitacoraRepository; Cita/CambioCita/Usuario/Bitacora | §8.3; mismo día local y turno no finalizado, sin consulta automática |
 | CU-18 Registrar inasistencia | Pendiente | P: AsistenciaController, AsistenciaService, RecordatorioService | E + ampliación P: CitaRepository, BitacoraRepository; P: RecordatorioRepository; Cita/CambioCita/Recordatorio/Bitacora | §8.3; Programada y ausencia comprobada tras fin de turno |
 | CU-19 Marcar Atendida | Pendiente | P: AsistenciaController, AsistenciaService, RecordatorioService | E + ampliación P: CitaRepository, BitacoraRepository; E: MedicoRepository; P: RecordatorioRepository; Cita/Medico/ConsultaMedica/CambioCita/Recordatorio/Bitacora | §8.3; Médico responsable, sin exigir crear consulta ni cierre documental implícito |
@@ -246,15 +262,15 @@ La fase 1 no extrajo todos los miembros, no diseñó nombres de clases pendiente
 
 ### 8.1. Alcance y recuento del diseño
 
-Diseño documental de CU-15–CU-19 y CU-22–CU-29, basado en sus fichas vigentes, VS-CIT/EST/CLI/LAB/NOT/REP/INT, RF13, DER §5.6–§5.9 y código consultado. Los nombres siguientes son **los elegidos para el diseño**, no clases ni endpoints implementados. No se crean archivos/carpetas PHP ni se modifica persistencia. Los 17 CU existentes mantienen los participantes de §3–§5, con las integraciones previstas expresamente indicadas en §8.8.
+Diseño documental original de CU-15–CU-19 y CU-22–CU-29, basado en sus fichas vigentes, VS-CIT/EST/CLI/LAB/NOT/REP/INT, RF13 y DER. El diseño inicial contenía 96 E/27 P; se mantiene acumulativamente: cuatro participantes pasaron a E por CU-15/CU-16, sin agregar nuevos Model. Las operaciones todavía P no se presentan como implementadas; estado de clases efectivas en §3 y firmas E/P en §9.
 
 | Categoría | Existentes E | Nuevas P | Total diseñado |
 | --- | ---: | ---: | ---: |
-| Controllers | 24 | 10 | 34 |
-| Services | 26 | 10 | 36 |
-| Repositories | 19 | 7 | 26 |
+| Controllers | 25 | 9 | 34 |
+| Services | 28 | 8 | 36 |
+| Repositories | 20 | 6 | 26 |
 | Models PHP | 27 | 0 | 27 |
-| **Clases propias** | **96** | **27** | **123** |
+| **Clases propias** | **100** | **23** | **123** |
 | Sesion conceptual, sin Model PHP | — | — | 1 representación adicional |
 
 No hacen falta entidades nuevas: Cita/CambioCita/Recordatorio, ConsultaMedica/VersionConsulta/VersionAntecedente y las cuatro entidades de laboratorio ya existen. Sesion conserva su tratamiento R; no se propone crear un Model Sesion. No se añaden HistoriaClinica, Historial, Agenda, Reporte persistidos, clases por rol, interfaces genéricas ni cajas auxiliares.
@@ -263,10 +279,10 @@ No hacen falta entidades nuevas: Cita/CambioCita/Recordatorio, ConsultaMedica/Ve
 
 Ubicaciones **previstas**, relativas a `backend/src/`: `C` = `presentation/controllers/`, `S` = `business/services/`, `R` = `data/repositories/`. Cada fila corresponde a un solo `<Nombre>.php` y namespace `Clinica\<ruta sin archivo, separada por barras inversas>`. No se modifica la organización de clases existentes. `historia-clinica` es una feature frontend, no un namespace PHP: para estas clases backend se diseña `historia_clinica/`, válido en PSR-4, sin crear la carpeta en esta fase.
 
-| Clase P | Ruta prevista | CU | Responsabilidad y colaboradores directos diseñados |
+| Clase E/P (P salvo indicación) | Ruta actual o prevista | CU | Responsabilidad y colaboradores directos |
 | --- | --- | --- | --- |
-| GestionCitaController | C/citas/ | 15–16 | Adaptar solicitudes de reprogramación/cancelación; delegar en GestionCitaService, sin reglas ni escrituras HTTP propias |
-| GestionCitaService | S/citas/ | 15–16 | Autorizar Recepción y coordinar cambio de la misma cita, transacción y trazabilidad; AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, CitaRepository, DisponibilidadService, ConfiguracionCitasRepository, RecordatorioService, BitacoraRepository |
+| GestionCitaController (E) | C/citas/ | 15–16 | Gestión/reprogramación/cancelación delegadas en GestionCitaService; sin consultas ni reglas HTTP propias |
+| GestionCitaService (E) | S/citas/ | 15–16 | Autorizar Administrador/Recepcionista y coordinar misma cita/transacción/trazabilidad; AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, CitaRepository, DisponibilidadService, RecordatorioService, BitacoraRepository. Configuración se obtiene mediante disponibilidad, no dependencia directa |
 | AsistenciaController | C/citas/ | 17–19 | Entradas separadas de llegada, inasistencia y Atendida; delegar en AsistenciaService, sin conceder todas las operaciones a todos los roles |
 | AsistenciaService | S/citas/ | 17–19 | Validar rol/vínculo/estado/tiempo y coordinar transición; AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, CitaRepository, MedicoRepository, RecordatorioService, BitacoraRepository |
 | HistoriaClinicaController | C/historia_clinica/ | 22 | Adaptar lectura de historia, no edición; HistoriaClinicaService |
@@ -287,8 +303,8 @@ Ubicaciones **previstas**, relativas a `backend/src/`: `C` = `presentation/contr
 | ResultadoLaboratorioRepository | R/laboratorio/ | 25–27 | Recuperar versión vigente y revisión, anexar VersionResultado/RevisionResultado y conservar origen; no decide publicación; Models VersionResultado/RevisionResultado/SolicitudLaboratorio |
 | DocumentoLaboratorioRepository | R/laboratorio/ | 25–27 | Persistir/recuperar metadatos inmutables de DocumentoLaboratorio, no permisos ni HTTP; no almacenar los bytes en PostgreSQL ni exponer ruta privada |
 | RecordatorioController | C/recordatorios/ | 28 | Consulta propia de próximos avisos; RecordatorioService; sin entrada pública/manual de generación |
-| RecordatorioService | S/recordatorios/ | 28, integración 15–19 | Generación automática, cálculo de pertinencia/24 h/preferencias, consulta propia y coordinación de invalidaciones; RecordatorioRepository y AutenticacionService solo en la rama de consulta autenticada |
-| RecordatorioRepository | R/recordatorios/ | 28, integración 15–19 | Seleccionar citas candidatas y preferencias, bloquear/releer cita, insertar aviso único por programación, invalidar anteriores y consultar proyección vigente; Models Recordatorio/Cita/Paciente/PreferenciaPaciente/Medico/Especialidad/Consultorio/ConfiguracionClinica |
+| RecordatorioService (E mínimo/P CU-28) | S/recordatorios/ | 28, integración 15–19 | E invalidarPorCita con RecordatorioRepository; generación/pertinencia/consulta y AutenticacionService solo en futura rama de consulta siguen P |
+| RecordatorioRepository (E mínimo/P CU-28) | R/recordatorios/ | 28, integración 15–19 | E invalidarPorCita sobre Recordatorio; candidatas/preferencias/creación/consulta y sus otros Models siguen P |
 | ReporteController | C/reportes/ | 29 | Adaptar selección/filtros de los siete reportes; ReporteService |
 | ReporteService | S/reportes/ | 29 | Exigir Administrador, validar filtros/agrupaciones y coordinar resultados/totales; AutenticacionService, ReporteRepository y AgendaService para agenda diaria ya autorizada |
 | ReporteRepository | R/reportes/ | 29 | Consultas y agregados administrativos RF13, sin contenido clínico ni escrituras; Models Cita/Paciente/Medico/Especialidad/Consultorio; agenda diaria reutiliza AgendaService → AgendaRepository |
@@ -297,14 +313,14 @@ Se agrupan CU-15/16 y CU-17/18/19 por responsabilidad, no se crean cinco ternas.
 
 ### 8.3. Colaboraciones de citas y asistencia — CU-15–CU-19
 
-1. **CU-15:** GestionCitaController → GestionCitaService. Este exige Recepción y cita elegible; usa coordinación administrativa y PlanificacionRepository antes de bloquear recursos, compatible con el orden de reservas/horarios existente. Obtiene la misma Cita mediante ampliación de CitaRepository y solicita a DisponibilidadService una consulta específica de reprogramación. Esta deriva Paciente/Médico/especialidad desde la cita, excluye su propio intervalo y permite ficha inactiva solo para ese registro; revalida Médico/especialidad/par habilitado, consultorio, horario y duración vigente. Incluye la prohibición aprobada de superposición del Paciente, además de Médico/consultorio, con intervalos `[inicio, fin)`.
-2. GestionCitaService revalida la selección al guardar; CitaRepository actualiza la misma fila y agrega CambioCita con programación anterior/nueva, responsable y momento. Conserva ID/código/Paciente/Médico/especialidad, incrementa `version_programacion` y lleva Confirmada a Programada. RecordatorioService invalida/recalcula avisos mediante RecordatorioRepository en la misma coordinación SQL; BitacoraRepository registra metadatos seguros. Un conflicto conserva programación/ocupación anteriores; no se cancela ni reinserta otra cita. La consulta orientativa no reserva recursos.
-3. **CU-16:** mismo Controller/Service, operación distinta; solo Recepción, Programada/Confirmada y sin atención realizada. Motivo opcional; guardar Cancelada, CambioCita, invalidación de avisos y auditoría de forma atómica, sin eliminación física. No invocar ReservaService ni crear permisos de cancelación para otros roles.
+1. **CU-15 E:** GestionCitaController → GestionCitaService exige Administrador/Recepcionista y cita elegible; coordina administración/actor/planificación antes de bloquear recursos. CitaRepository obtiene la cita y DisponibilidadService deriva recursos/exclusión propios, admite ficha inactiva solo para ese registro y revalida Médico/especialidad/par/sala/horarios/duración. Incluye ocupación del Paciente/Médico/consultorio, intervalos `[inicio, fin)`, originales/HMAC y corte temporal tras esperas.
+2. Reprogramación E conserva ID/código/Paciente/Médico/especialidad, aplica duración/ubicación revisadas, incrementa versión/timestamp y lleva Confirmada a Programada. UPDATE/CambioCita/invalidación mínima de avisos/auditoría segura son atómicos; no hay generador/recalculo funcional CU-28. Conflictos conservan el registro anterior, sin cancelarlo/reinsertarlo. La consulta orientativa no reserva recursos.
+3. **CU-16 E:** mismo Controller/Service, Administrador/Recepcionista, Programada/Confirmada, inicio original estrictamente futuro y sin ninguna ConsultaMedica. Motivo opcional privado, originales obligatorios. Guarda Cancelada/CambioCita/invalidación/auditoría atómicos sin borrado ni dependencia de disponibilidad de destino/recursos activos. Conserva programación/versión y avanza timestamp. No ReservaService ni permisos adicionales a otros roles.
 4. **CU-17:** AsistenciaController → AsistenciaService → CitaRepository. Solo Recepción, presencia/identidad comprobada, Programada, mismo día `America/La_Paz` e instante anterior al fin del intervalo. Admite anticipación dentro del día; registra Confirmada/autor/momento y CambioCita/auditoría, sin consulta ni Atendida automáticas. Confirmada puede conservar avisos vigentes; no se invalida como si fuera un estado final.
 5. **CU-18:** misma colaboración de asistencia, operación distinta: Recepción acredita ausencia, solo Programada tras finalizar el intervalo y sin atención/presencia registradas. Guarda Inasistencia, cambio y auditoría e invalida próximos avisos; no desde Confirmada ni con tolerancias nuevas.
 6. **CU-19:** AsistenciaService exige Médico legítimamente vinculado y responsable de esa Cita, atención real y estado Programada/Confirmada; usa MedicoRepository y datos persistidos de la cita, no un Médico elegido por el cliente. Guarda Atendida/cambio/auditoría e invalida avisos. No exige crear ConsultaMedica, ni usa su mera existencia como prueba automática de atención, ni modifica versiones clínicas.
 
-**Ampliaciones P, no métodos existentes:** CitaRepository incorporará lectura por ID/bloqueo, actualización controlada, comprobación de atención documentada y escritura de CambioCita para estos flujos. DisponibilidadService/DisponibilidadRepository incorporarán la modalidad de reprogramación y exclusión de la propia cita, sin relajar el camino de nuevas reservas; DisponibilidadController adaptará esa consulta autorizada. El chequeo de superposición de CitaRepository también necesitará excluir la cita propia. Se mantienen las restricciones PostgreSQL existentes como última barrera y el orden compatible de coordinación; una transacción sin revalidación/bloqueo no basta. No se crea un repositorio de transiciones ni una clase por estado. AsignacionConsultorioRepository conserva su escritura existente de CambioCita por traslado de ubicación de CU-11; no se mueve ni se atribuye esa operación a los nuevos CU.
+**E/P actuales:** porId/tieneConsulta/guardar/agregarCambio/ultimoCambio de CitaRepository y disponibilidad específica/exclusión propia ya son E; las transiciones CU-17–CU-19 siguen P. No se crea pacienteSolapadoExcepto paralelo: ocupación bloqueada con exclusión propia y restricciones PostgreSQL resuelven CU-15. AsignacionConsultorioRepository conserva CambioCita de CU-11; integración comprueba versiones obsoletas tras traslado real, sin atribuir ese cambio de ubicación a reprogramación. No repositorio genérico de transiciones ni clase por estado.
 
 ### 8.4. Colaboraciones clínicas — CU-22–CU-23
 
@@ -778,6 +794,7 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 ```
 #### DisponibilidadController — E
 ```text
++ reprogramacion(DisponibilidadReprogramacionRequest $request, DisponibilidadService $service): DisponibilidadResource
 + especialidades(DisponibilidadRequest $request, DisponibilidadService $service): AnonymousResourceCollection
 + medicos(DisponibilidadRequest $request, DisponibilidadService $service): AnonymousResourceCollection
 + turnos(DisponibilidadRequest $request, DisponibilidadService $service): DisponibilidadResource
@@ -932,11 +949,15 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 ```
 #### DisponibilidadService — E
 ```text
-+ __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, ConfiguracionCitasRepository $configuraciones, DisponibilidadRepository $datos, IntervalosAtencion $intervalos, PropuestaReserva $propuestas)
++ __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, ConfiguracionCitasRepository $configuraciones, DisponibilidadRepository $datos, IntervalosAtencion $intervalos, PropuestaReserva $propuestas, CitaRepository $citas)
 - actor(): Usuario
 + especialidades(array $filtros): LengthAwarePaginator
 + medicos(array $filtros): LengthAwarePaginator
 + turnos(array $filtros): array
++ turnosReprogramacion(string $id, array $filtros): array
+- exigirReprogramable(Cita $cita): void
+- original(Cita $cita): array
+- calcularTurnos(array $filtros, Usuario $actor, ?Cita $cita = null): array
 ```
 #### ReservaService — E
 ```text
@@ -1168,6 +1189,8 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 + medicoModificado(Medico $medico, Usuario $actor, array $contexto, string $tipo, array $campos, array $habilitaciones = []): void
 + planificacionModificada(Usuario $actor, array $contexto, string $tipo, array $referencias, array $cambios): void
 + citaProgramada(Cita $cita, Usuario $actor, array $contexto): void
++ citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
++ citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
 + asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
 + consultorioModificado(Consultorio $consultorio, Usuario $actor, array $contexto, string $tipo, array $campos): void
 + especialidadModificada(Especialidad $especialidad, Usuario $actor, array $contexto, string $tipo, array $campos): void
@@ -1177,6 +1200,11 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 ```
 #### CitaRepository — E
 ```text
++ guardar(Cita $cita): void
++ agregarCambio(Cita $cita, string $actor, array $antes, array $despues, CarbonImmutable $ahora, string $operacion = 'REPROGRAMACION', ?string $motivo = null): CambioCita
++ ultimoCambio(string $id): ?CambioCita
++ porId(string $id, bool $bloquear = false): ?Cita
++ tieneConsulta(string $id): bool
 + porPropuesta(string $uuid, bool $bloquear = false): ?Cita
 + pacienteSolapado(string $paciente, CarbonImmutable $inicio, CarbonImmutable $fin): bool
 + crear(array $datos): Cita
@@ -1191,7 +1219,7 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 + consultorio(string $id): ?Consultorio
 + horarios(string $medico, string $consultorio): Collection
 + paciente(string $actor, ?string $id): ?Paciente
-+ ocupacion(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta): Collection
++ ocupacion(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta, ?string $exceptoCita = null): Collection
 ```
 #### AsignacionConsultorioRepository — E
 ```text
@@ -1353,13 +1381,15 @@ Bloques exclusivamente de métodos, con tipos resueltos según §9.1 y rutas exa
 
 ### 9.6. Operaciones P — Diez Controllers previstos
 
-Todas las firmas de §9.6–§9.9 son **diseño no implementado**, incluidos métodos privados/constructores. Se usa `Request` existente del framework con validación explícita en presentación para no inventar DTO dentro del alcance; no significa aceptar `request->all()`. El ID de ruta no concede acceso, y actor/ficha propia se derivan de sesión. Controllers previstos usan inyección por método, como los existentes; no requieren constructor propio. `JsonResponse` es de Illuminate; `StreamedResponse` es de Symfony y solo aparece en Controllers, no en Services. No se declaran rutas ni códigos HTTP finales por anticipado.
+Las firmas P de §9.6–§9.9 son **diseño no implementado**, incluidos métodos privados/constructores, salvo las operaciones marcadas E por avances incrementales de CU-15. Los Controllers aún previstos usan Request genérico; los E de gestión concretan GestionCitaRequest. El ID no concede acceso ni autoriza persistir request->all(). Controllers usan inyección por método; JsonResponse/JsonResource son de Illuminate, StreamedResponse de Symfony; no se declaran rutas P como ya registradas.
 
-#### GestionCitaController — P
+#### GestionCitaController — E
 ```text
-+ reprogramar(Request $request, string $id, GestionCitaService $service): JsonResponse
-+ cancelar(Request $request, string $id, GestionCitaService $service): JsonResponse
++ consultar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
++ reprogramar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
++ cancelar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
 ```
+GestionCitaRequest E (`dtos/citas/`): authorize(): bool, validationData(): array, prepareForValidation(): void (protected, solo normalización de motivo al cancelar), rules(): array, withValidator(Validator $validator): void. No query; ID derivado de ruta, campos de cuerpo cerrados por acción. Sustituye el Request genérico del diseño anterior para GET/reprogramar/cancelar implementados.
 #### AsistenciaController — P
 ```text
 + confirmarLlegada(Request $request, string $id, AsistenciaService $service): JsonResponse
@@ -1410,16 +1440,22 @@ Todas las firmas de §9.6–§9.9 son **diseño no implementado**, incluidos mé
 
 IDs de nuevas firmas usan `string` para ser compatibles con el transporte de BIGINT sin redondeo; no altera las firmas E. `LengthAwarePaginator` en P es el contrato `Illuminate\Contracts\Pagination\LengthAwarePaginator`. `SplFileInfo` global representa archivo temporal obtenido **por el servidor** de una carga validada, no una ruta enviada por el cliente ni un Request. Contratos P de arrays se delimitan en §9.10; sus reglas pendientes conservan los límites de §8, no se resuelven con una bandera del cliente.
 
-#### GestionCitaService — P
+#### GestionCitaService — E
 ```text
-+ __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, CitaRepository $citas, DisponibilidadService $disponibilidad, ConfiguracionCitasRepository $configuraciones, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
-+ reprogramar(string $idCita, array $datos, array $contexto): array
-+ cancelar(string $idCita, ?string $motivo, array $contexto): array
-- recepcionista(): Usuario
-- citaElegible(string $idCita): Cita
-- validarSeleccion(Cita $cita, array $datos): array
-- registrarCambio(Cita $cita, Usuario $actor, array $anteriores, string $operacion, ?string $motivo, CarbonImmutable $ahora, array $contexto): void
++ __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, DisponibilidadService $disponibilidad, CitaRepository $citas, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
++ consultar(string $id): array
++ reprogramar(string $id, array $datos, array $contexto): array
+- actor(): Usuario
+- cita(string $id, bool $bloquear = false): Cita
+- impedimentos(Cita $cita): array
+- detalle(Cita $cita): array
+- ultimoCambio(string $id): ?array
+- revalidar(Usuario $actor): void
+- originales(Cita $cita, array $datos): void
+- obsoleta(): never
++ cancelar(string $id, array $datos, array $contexto): array
 ```
+El actor E admite Administrador/Recepcionista; no dependencia directa de ConfiguracionCitasRepository: reprogramación usa DisponibilidadService. Cancelar no consulta disponibilidad/recursos activos, sí originales/estado/plazo/consulta/sesión bajo bloqueo; conserva versión y programación, avanza timestamp, coordina historial/avisos/auditoría en su transacción. Las firmas auxiliares P anteriores se concretan en estos métodos E, no son clases/métodos paralelos.
 #### AsistenciaService — P
 ```text
 + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, CitaRepository $citas, MedicoRepository $medicos, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
@@ -1486,16 +1522,18 @@ IDs de nuevas firmas usan `string` para ser compatibles con el transporte de BIG
 - ambito(Usuario $actor, ?string $idPaciente = null): array
 - proyectar(SolicitudLaboratorio $solicitud, array $ambito): array
 ```
-#### RecordatorioService — P
+#### RecordatorioService — E mínimo; ampliaciones CU-28 P
 ```text
-+ __construct(RecordatorioRepository $recordatorios, AutenticacionService $autenticacion)
-+ generarPendientes(CarbonImmutable $ahora, int $limite): array
-+ sincronizar(Cita $cita, CarbonImmutable $ahora): void
-+ propios(array $filtros): LengthAwarePaginator
-- pertinente(Cita $cita, bool $habilitados, CarbonImmutable $ahora): bool
-- generarPara(Cita $cita, CarbonImmutable $ahora): ?Recordatorio
-- instanteAviso(Cita $cita): CarbonImmutable
++ __construct(RecordatorioRepository $recordatorios)
++ invalidarPorCita(string $id, CarbonImmutable $ahora): void
++ generarPendientes(CarbonImmutable $ahora, int $limite): array [P]
++ sincronizar(Cita $cita, CarbonImmutable $ahora): void [P]
++ propios(array $filtros): LengthAwarePaginator [P]
+- pertinente(Cita $cita, bool $habilitados, CarbonImmutable $ahora): bool [P]
+- generarPara(Cita $cita, CarbonImmutable $ahora): ?Recordatorio [P]
+- instanteAviso(Cita $cita): CarbonImmutable [P]
 ```
+AutenticacionService solo sería una futura dependencia P de consulta CU-28; no existe en el constructor E interno actual.
 #### ReporteService — P
 ```text
 + __construct(AutenticacionService $autenticacion, ReporteRepository $reportes, AgendaService $agenda)
@@ -1556,15 +1594,15 @@ Las consultas devuelven datos relacionales/contexto; quien toma la decisión de 
 + crear(array $datos): DocumentoLaboratorio
 + rutaReferenciada(string $rutaInterna): bool
 ```
-#### RecordatorioRepository — P
+#### RecordatorioRepository — E mínimo; ampliaciones CU-28 P
 ```text
++ invalidarPorCita(string $id, CarbonImmutable $ahora): void [E]
 + candidatas(CarbonImmutable $ahora, int $limite): Collection
 + citaBloqueada(string $idCita): ?Cita
 + preferenciaBloqueada(string $idPaciente): ?PreferenciaPaciente
 + porProgramacion(string $idCita, int $version): ?Recordatorio
 + crearSiAusente(Cita $cita, CarbonImmutable $ahora): Recordatorio
 + invalidarAnteriores(string $idCita, int $versionVigente, CarbonImmutable $ahora): void
-+ invalidarCita(string $idCita, CarbonImmutable $ahora): void
 + retirarFinalizados(CarbonImmutable $ahora): int
 + propios(string $idPaciente, CarbonImmutable $ahora, array $filtros): LengthAwarePaginator
 ```
@@ -1584,35 +1622,21 @@ ReporteRepository no duplica un séptimo acceso a agenda: ReporteService lo dele
 
 Estas firmas se agregarían al compartimento existente, **etiquetadas P por operación**. Los métodos E de §9.3–§9.5 permanecen exactos, incluidos sus constructores. No se inventan constructores nuevos de clases E ni se reemplazan sus miembros como si el cambio ya hubiera sucedido.
 
-#### DisponibilidadController — ampliación P
-```text
-+ reprogramacion(Request $request, string $idCita, DisponibilidadService $service): JsonResponse
-```
-#### DisponibilidadService — ampliación P
-```text
-+ turnosReprogramacion(Cita $cita, array $filtros): array
-- calcularTurnosReprogramacion(Cita $cita, array $filtros, Usuario $actor): array
-```
-Esta operación vuelve a validar Recepción y elegibilidad/identidad persistida de la cita; recibir un objeto Cita no autoriza su modificación. Su constructor E se ampliaría con CitaRepository para releerla, conservando todas las dependencias E actuales: `+ __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, ConfiguracionCitasRepository $configuraciones, DisponibilidadRepository $datos, IntervalosAtencion $intervalos, PropuestaReserva $propuestas, CitaRepository $citas)` **P como sustitución futura**, no segundo constructor sobrecargado. No se incorpora RecordatorioService en disponibilidad ni se usa ReservaService para reprogramar.
+#### DisponibilidadController/Service — ampliación concretada como E en Fase 2
 
-#### CitaRepository — ampliaciones P
-```text
-+ porId(string $idCita, bool $bloquear = false): ?Cita
-+ guardar(Cita $cita): void
-+ tieneAtencionDocumentada(string $idCita): bool
-+ agregarCambio(Cita $cita, Usuario $actor, string $operacion, array $anteriores, array $nuevos, ?string $motivo, CarbonImmutable $ahora): CambioCita
-+ pacienteSolapadoExcepto(string $idPaciente, CarbonImmutable $inicio, CarbonImmutable $fin, string $idCitaExcluida): bool
-```
-`pacienteSolapadoExcepto` es operación nueva para CU-15: conserva la firma y semántica E de pacienteSolapado usada por reservas. `tieneAtencionDocumentada` comprueba datos persistidos pertinentes —no una consulta ficticia ni exclusivamente un campo temporal no nulo—; no equivale a probar cierre documental o realización física de atención.
+Las firmas definitivas E están en §9.3/§9.4: Request específico, ID textual y cálculo privado compartido, no objeto Cita recibido desde otro Service como autorización. Constructor único con CitaRepository. Revalida Administrador/Recepcionista, cita persistida/consulta/tiempo, recursos y sesión; solo consulta. No RecordatorioService ni ReservaService para reprogramar. Sustituye el diseño P anterior, no deja métodos paralelos inexistentes.
 
-#### DisponibilidadRepository — ampliación P
-```text
-+ ocupacionExcepto(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta, string $idCitaExcluida): Collection
-```
-Excluye la misma cita en consulta de ocupación para CU-15 y mantiene exclusiones de Médico/consultorio y del Paciente con su semántica vigente. La consulta de reservas nuevas conserva ocupacion E.
+#### CitaRepository — ampliaciones concretadas en Fase 3
+Las firmas E guardar/agregarCambio/ultimoCambio se concretaron en Fase 3 (§9.5), sin motivo/operación arbitraria para esta escritura. No se necesita pacienteSolapadoExcepto paralelo: cálculo bloqueado de disponibilidad excluye la cita, mantiene ocupación del Paciente y la restricción SQL refuerza UPDATE. `porId`/`tieneConsulta` E comprueban existencia incluso iniciada_en NULL; no método tieneAtencionDocumentada duplicado. Futuras escrituras no se consideran implementadas por esto.
+
+#### DisponibilidadRepository — exclusión concretada como E en Fase 2
+
+ocupacion incorpora `?string $exceptoCita = null`; reservas siguen usando seis argumentos y sin exclusión. Solo el Service deriva la exclusión del ID persistido de cita autorizada, nunca query del cliente. No se crea ocupacionExcepto paralelo; firmas E en §9.5.
 
 #### BitacoraRepository — ampliaciones P
 ```text
++ citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void [E Fase 3]
++ citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void [E Fase 4]
 + citaModificada(Cita $cita, Usuario $actor, string $operacion, array $referencias, array $contexto): void
 + consultaRegistrada(ConsultaMedica $consulta, Usuario $actor, array $referencias, array $contexto): void
 + solicitudLaboratorioRegistrada(SolicitudLaboratorio $solicitud, Usuario $actor, array $contexto): void
@@ -1686,13 +1710,13 @@ package "presentation/controllers" as PRESENTACION {
   class ConsultorioController <<E>>
   class ConfiguracionCitasController <<E>>
   class HorarioController <<E>>
-  class DisponibilidadController <<E_P>>
+  class DisponibilidadController <<E>>
   class ReservaController <<E>>
   class AgendaController <<E>>
   class ConsultaCitaController <<E>>
   class HistorialCitasController <<E>>
   class BitacoraController <<E>>
-  class GestionCitaController <<P>>
+  class GestionCitaController <<E>>
   class AsistenciaController <<P>>
   class HistoriaClinicaController <<P>>
   class ConsultaMedicaController <<P>>
@@ -1724,13 +1748,13 @@ package "business/services" as NEGOCIO {
   class ConsultorioService <<E>>
   class ConfiguracionCitasService <<E>>
   class HorarioService <<E>>
-  class DisponibilidadService <<E_P>>
+  class DisponibilidadService <<E>>
   class ReservaService <<E>>
   class AgendaService <<E>>
   class ConsultaCitaService <<E>>
   class HistorialCitasService <<E>>
   class BitacoraService <<E>>
-  class GestionCitaService <<P>>
+  class GestionCitaService <<E>>
   class AsistenciaService <<P>>
   class HistoriaClinicaService <<P>>
   class ConsultaMedicaService <<P>>
@@ -1738,7 +1762,7 @@ package "business/services" as NEGOCIO {
   class DocumentoLaboratorioService <<P>>
   class RevisionResultadoService <<P>>
   class ResultadoLaboratorioService <<P>>
-  class RecordatorioService <<P>>
+  class RecordatorioService <<E_P>>
   class ReporteService <<P>>
 }
 package "data/repositories" as PERSISTENCIA {
@@ -1757,8 +1781,8 @@ package "data/repositories" as PERSISTENCIA {
   class ConfiguracionCitasRepository <<E>>
   class HorarioRepository <<E>>
   class PlanificacionRepository <<E>>
-  class CitaRepository <<E_P>>
-  class DisponibilidadRepository <<E_P>>
+  class CitaRepository <<E>>
+  class DisponibilidadRepository <<E>>
   class AgendaRepository <<E>>
   class BitacoraRepository <<E_P>>
   class HistoriaClinicaRepository <<P>>
@@ -1766,7 +1790,7 @@ package "data/repositories" as PERSISTENCIA {
   class SolicitudLaboratorioRepository <<P>>
   class ResultadoLaboratorioRepository <<P>>
   class DocumentoLaboratorioRepository <<P>>
-  class RecordatorioRepository <<P>>
+  class RecordatorioRepository <<E_P>>
   class ReporteRepository <<P>>
 }
 package "data/models + Sesion conceptual" as ENTIDADES {
@@ -2751,7 +2775,7 @@ HorarioService ..> HorarioRepository
 
 ### 10.8. Citas, reprogramación y asistencia — CU-13–CU-19
 
-Clases E de reserva/disponibilidad conviven con operaciones y clases P. No se representa cancelación/reprogramación como permiso del Paciente ni Atendida como permiso de Recepción. Las dos firmas de constructor de DisponibilidadService muestran **alternativas temporales E/P**, no sobrecarga; se conserva la actual para trazabilidad y se rotula el reemplazo futuro.
+Reserva/disponibilidad/gestión CU-13–CU-16 son E; asistencia CU-17–CU-19 sigue P. DisponibilidadService tiene un único constructor E con CitaRepository; no alternativa de constructor P ni sobrecarga. Médico/Paciente no gestionan citas; no se atribuye actuación administrativa al Médico responsable.
 
 ```plantuml
 @startuml CVS_citas
@@ -2760,20 +2784,21 @@ skinparam wrapWidth 350
 left to right direction
 hide empty attributes
 package "controllers/citas" {
-class DisponibilidadController <<E_P>> {
+class DisponibilidadController <<E>> {
   + especialidades(DisponibilidadRequest $request, DisponibilidadService $service): AnonymousResourceCollection
   + medicos(DisponibilidadRequest $request, DisponibilidadService $service): AnonymousResourceCollection
   + turnos(DisponibilidadRequest $request, DisponibilidadService $service): DisponibilidadResource
-  + reprogramacion(Request $request, string $idCita, DisponibilidadService $service): JsonResponse [P]
+  + reprogramacion(DisponibilidadReprogramacionRequest $request, DisponibilidadService $service): DisponibilidadResource
 }
 class ReservaController <<E>> {
   + propuesta(ReservaRequest $request, ReservaService $service): JsonResource
   + store(ReservaRequest $request, ReservaService $service): JsonResponse
   + resultado(ReservaRequest $request, ReservaService $service): JsonResource
 }
-class GestionCitaController <<P>> {
-  + reprogramar(Request $request, string $id, GestionCitaService $service): JsonResponse
-  + cancelar(Request $request, string $id, GestionCitaService $service): JsonResponse
+class GestionCitaController <<E>> {
+  + consultar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
+  + reprogramar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
+  + cancelar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
 }
 class AsistenciaController <<P>> {
   + confirmarLlegada(Request $request, string $id, AsistenciaService $service): JsonResponse
@@ -2782,15 +2807,16 @@ class AsistenciaController <<P>> {
 }
 }
 package "services/citas" {
-class DisponibilidadService <<E_P>> {
-  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, ConfiguracionCitasRepository $configuraciones, DisponibilidadRepository $datos, IntervalosAtencion $intervalos, PropuestaReserva $propuestas)
+class DisponibilidadService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, ConfiguracionCitasRepository $configuraciones, DisponibilidadRepository $datos, IntervalosAtencion $intervalos, PropuestaReserva $propuestas, CitaRepository $citas)
   - actor(): Usuario
   + especialidades(array $filtros): LengthAwarePaginator
   + medicos(array $filtros): LengthAwarePaginator
   + turnos(array $filtros): array
-  + turnosReprogramacion(Cita $cita, array $filtros): array [P]
-  - calcularTurnosReprogramacion(Cita $cita, array $filtros, Usuario $actor): array [P]
-  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, ConfiguracionCitasRepository $configuraciones, DisponibilidadRepository $datos, IntervalosAtencion $intervalos, PropuestaReserva $propuestas, CitaRepository $citas) [P reemplazo]
+  + turnosReprogramacion(string $id, array $filtros): array
+  - exigirReprogramable(Cita $cita): void
+  - original(Cita $cita): array
+  - calcularTurnos(array $filtros, Usuario $actor, ?Cita $cita = null): array
 }
 class ReservaService <<E>> {
   + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, DisponibilidadService $disponibilidad, DisponibilidadRepository $recursos, ConfiguracionCitasRepository $configuraciones, CitaRepository $citas, PropuestaReserva $propuestas, BitacoraRepository $bitacora)
@@ -2807,14 +2833,19 @@ class ReservaService <<E>> {
   - normalizarMotivo(?string $motivo): ?string
   - obsoleta(array $cambios = ['DISPONIBILIDAD']): never
 }
-class GestionCitaService <<P>> {
-  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, CitaRepository $citas, DisponibilidadService $disponibilidad, ConfiguracionCitasRepository $configuraciones, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
-  + reprogramar(string $idCita, array $datos, array $contexto): array
-  + cancelar(string $idCita, ?string $motivo, array $contexto): array
-  - recepcionista(): Usuario
-  - citaElegible(string $idCita): Cita
-  - validarSeleccion(Cita $cita, array $datos): array
-  - registrarCambio(Cita $cita, Usuario $actor, array $anteriores, string $operacion, ?string $motivo, CarbonImmutable $ahora, array $contexto): void
+class GestionCitaService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, DisponibilidadService $disponibilidad, CitaRepository $citas, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
+  + consultar(string $id): array
+  + reprogramar(string $id, array $datos, array $contexto): array
+  - actor(): Usuario
+  - cita(string $id, bool $bloquear = false): Cita
+  - impedimentos(Cita $cita): array
+  - detalle(Cita $cita): array
+  - ultimoCambio(string $id): ?array
+  - revalidar(Usuario $actor): void
+  - originales(Cita $cita, array $datos): void
+  - obsoleta(): never
+  + cancelar(string $id, array $datos, array $contexto): array
 }
 class AsistenciaService <<P>> {
   + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, CitaRepository $citas, MedicoRepository $medicos, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
@@ -2827,17 +2858,17 @@ class AsistenciaService <<P>> {
 }
 }
 package "repositories/citas" {
-class CitaRepository <<E_P>> {
+class CitaRepository <<E>> {
   + porPropuesta(string $uuid, bool $bloquear = false): ?Cita
   + pacienteSolapado(string $paciente, CarbonImmutable $inicio, CarbonImmutable $fin): bool
   + crear(array $datos): Cita
-  + porId(string $idCita, bool $bloquear = false): ?Cita [P]
-  + guardar(Cita $cita): void [P]
-  + tieneAtencionDocumentada(string $idCita): bool [P]
-  + agregarCambio(Cita $cita, Usuario $actor, string $operacion, array $anteriores, array $nuevos, ?string $motivo, CarbonImmutable $ahora): CambioCita [P]
-  + pacienteSolapadoExcepto(string $idPaciente, CarbonImmutable $inicio, CarbonImmutable $fin, string $idCitaExcluida): bool [P]
+  + porId(string $id, bool $bloquear = false): ?Cita
+  + tieneConsulta(string $id): bool
+  + guardar(Cita $cita): void
+  + agregarCambio(Cita $cita, string $actor, array $antes, array $despues, CarbonImmutable $ahora, string $operacion = 'REPROGRAMACION', ?string $motivo = null): CambioCita
+  + ultimoCambio(string $id): ?CambioCita
 }
-class DisponibilidadRepository <<E_P>> {
+class DisponibilidadRepository <<E>> {
   + especialidades(array $filtros): LengthAwarePaginator
   + medicos(array $filtros): LengthAwarePaginator
   + medico(string $id): ?Medico
@@ -2846,21 +2877,20 @@ class DisponibilidadRepository <<E_P>> {
   + consultorio(string $id): ?Consultorio
   + horarios(string $medico, string $consultorio): Collection
   + paciente(string $actor, ?string $id): ?Paciente
-  + ocupacion(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta): Collection
-  + ocupacionExcepto(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta, string $idCitaExcluida): Collection [P]
+  + ocupacion(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta, ?string $exceptoCita = null): Collection
 }
 }
 DisponibilidadController ..> DisponibilidadService
 ReservaController ..> ReservaService
-GestionCitaController ..> GestionCitaService : P
+GestionCitaController ..> GestionCitaService
 AsistenciaController ..> AsistenciaService : P
 DisponibilidadService ..> DisponibilidadRepository
-DisponibilidadService ..> CitaRepository : P
+DisponibilidadService ..> CitaRepository
 ReservaService ..> DisponibilidadService
 ReservaService ..> DisponibilidadRepository
 ReservaService ..> CitaRepository
-GestionCitaService ..> CitaRepository : P
-GestionCitaService ..> DisponibilidadService : P
+GestionCitaService ..> CitaRepository
+GestionCitaService ..> DisponibilidadService
 AsistenciaService ..> CitaRepository : P
 @enduml
 ```
@@ -2939,6 +2969,8 @@ class BitacoraRepository <<E_P>> {
   + medicoModificado(Medico $medico, Usuario $actor, array $contexto, string $tipo, array $campos, array $habilitaciones = []): void
   + planificacionModificada(Usuario $actor, array $contexto, string $tipo, array $referencias, array $cambios): void
   + citaProgramada(Cita $cita, Usuario $actor, array $contexto): void
+  + citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
   + asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
   + consultorioModificado(Consultorio $consultorio, Usuario $actor, array $contexto, string $tipo, array $campos): void
   + especialidadModificada(Especialidad $especialidad, Usuario $actor, array $contexto, string $tipo, array $campos): void
@@ -3150,27 +3182,28 @@ class RecordatorioController <<P>> {
 }
 }
 package "services/recordatorios" {
-class RecordatorioService <<P>> {
-  + __construct(RecordatorioRepository $recordatorios, AutenticacionService $autenticacion)
-  + generarPendientes(CarbonImmutable $ahora, int $limite): array
-  + sincronizar(Cita $cita, CarbonImmutable $ahora): void
-  + propios(array $filtros): LengthAwarePaginator
-  - pertinente(Cita $cita, bool $habilitados, CarbonImmutable $ahora): bool
-  - generarPara(Cita $cita, CarbonImmutable $ahora): ?Recordatorio
-  - instanteAviso(Cita $cita): CarbonImmutable
+class RecordatorioService <<E_P>> {
+  + __construct(RecordatorioRepository $recordatorios)
+  + invalidarPorCita(string $id, CarbonImmutable $ahora): void
+  + generarPendientes(CarbonImmutable $ahora, int $limite): array [P]
+  + sincronizar(Cita $cita, CarbonImmutable $ahora): void [P]
+  + propios(array $filtros): LengthAwarePaginator [P]
+  - pertinente(Cita $cita, bool $habilitados, CarbonImmutable $ahora): bool [P]
+  - generarPara(Cita $cita, CarbonImmutable $ahora): ?Recordatorio [P]
+  - instanteAviso(Cita $cita): CarbonImmutable [P]
 }
 }
 package "repositories/recordatorios" {
-class RecordatorioRepository <<P>> {
-  + candidatas(CarbonImmutable $ahora, int $limite): Collection
-  + citaBloqueada(string $idCita): ?Cita
-  + preferenciaBloqueada(string $idPaciente): ?PreferenciaPaciente
-  + porProgramacion(string $idCita, int $version): ?Recordatorio
-  + crearSiAusente(Cita $cita, CarbonImmutable $ahora): Recordatorio
-  + invalidarAnteriores(string $idCita, int $versionVigente, CarbonImmutable $ahora): void
-  + invalidarCita(string $idCita, CarbonImmutable $ahora): void
-  + retirarFinalizados(CarbonImmutable $ahora): int
-  + propios(string $idPaciente, CarbonImmutable $ahora, array $filtros): LengthAwarePaginator
+class RecordatorioRepository <<E_P>> {
+  + invalidarPorCita(string $id, CarbonImmutable $ahora): void
+  + candidatas(CarbonImmutable $ahora, int $limite): Collection [P]
+  + citaBloqueada(string $idCita): ?Cita [P]
+  + preferenciaBloqueada(string $idPaciente): ?PreferenciaPaciente [P]
+  + porProgramacion(string $idCita, int $version): ?Recordatorio [P]
+  + crearSiAusente(Cita $cita, CarbonImmutable $ahora): Recordatorio [P]
+  + invalidarAnteriores(string $idCita, int $versionVigente, CarbonImmutable $ahora): void [P]
+  + retirarFinalizados(CarbonImmutable $ahora): int [P]
+  + propios(string $idPaciente, CarbonImmutable $ahora, array $filtros): LengthAwarePaginator [P]
 }
 }
 package "controllers/reportes" {
@@ -3198,7 +3231,7 @@ class ReporteRepository <<P>> {
 }
 }
 RecordatorioController ..> RecordatorioService : P
-RecordatorioService ..> RecordatorioRepository : P
+RecordatorioService ..> RecordatorioRepository
 ReporteController ..> ReporteService : P
 ReporteService ..> ReporteRepository : P
 @enduml
@@ -3236,13 +3269,13 @@ class AsignacionConsultorioService <<E>>
 class ConsultorioService <<E>>
 class ConfiguracionCitasService <<E>>
 class HorarioService <<E>>
-class DisponibilidadService <<E_P>>
+class DisponibilidadService <<E>>
 class ReservaService <<E>>
 class AgendaService <<E>>
 class ConsultaCitaService <<E>>
 class HistorialCitasService <<E>>
 class BitacoraService <<E>>
-class GestionCitaService <<P>>
+class GestionCitaService <<E>>
 class AsistenciaService <<P>>
 class HistoriaClinicaService <<P>>
 class ConsultaMedicaService <<P>>
@@ -3250,7 +3283,7 @@ class SolicitudLaboratorioService <<P>>
 class DocumentoLaboratorioService <<P>>
 class RevisionResultadoService <<P>>
 class ResultadoLaboratorioService <<P>>
-class RecordatorioService <<P>>
+class RecordatorioService <<E_P>>
 class ReporteService <<P>>
 class BitacoraRepository <<E_P>>
 class PlanificacionRepository <<E>>
@@ -3261,7 +3294,7 @@ class UsuarioRepository <<E>>
 class RegistroPacienteRepository <<E>>
 class CodigoActivacionRepository <<E>>
 class ConsultaMedicaRepository <<P>>
-class CitaRepository <<E_P>>
+class CitaRepository <<E>>
 CodigoActivacionService ..> AutenticacionService
 CodigoActivacionService ..> RegistroPacienteRepository
 MiPerfilService ..> AutenticacionService
@@ -3315,12 +3348,11 @@ ConsultorioService ..> BitacoraRepository
 ConfiguracionCitasService ..> BitacoraRepository
 HorarioService ..> BitacoraRepository
 ReservaService ..> BitacoraRepository
-GestionCitaService ..> AutenticacionService : P
-GestionCitaService ..> ContinuidadAdministrativaService : P
-GestionCitaService ..> PlanificacionRepository : P
-GestionCitaService ..> ConfiguracionCitasRepository : P
-GestionCitaService ..> RecordatorioService : P
-GestionCitaService ..> BitacoraRepository : P
+GestionCitaService ..> AutenticacionService
+GestionCitaService ..> ContinuidadAdministrativaService
+GestionCitaService ..> PlanificacionRepository
+GestionCitaService ..> RecordatorioService
+GestionCitaService ..> BitacoraRepository
 AsistenciaService ..> AutenticacionService : P
 AsistenciaService ..> ContinuidadAdministrativaService : P
 AsistenciaService ..> PlanificacionRepository : P
@@ -3427,15 +3459,15 @@ class ConsultorioRepository <<E>>
 class AsignacionConsultorioRepository <<E>>
 class ConfiguracionCitasRepository <<E>>
 class HorarioRepository <<E>>
-class CitaRepository <<E_P>>
-class DisponibilidadRepository <<E_P>>
+class CitaRepository <<E>>
+class DisponibilidadRepository <<E>>
 class AgendaRepository <<E>>
 class HistoriaClinicaRepository <<P>>
 class ConsultaMedicaRepository <<P>>
 class SolicitudLaboratorioRepository <<P>>
 class ResultadoLaboratorioRepository <<P>>
 class DocumentoLaboratorioRepository <<P>>
-class RecordatorioRepository <<P>>
+class RecordatorioRepository <<E_P>>
 class ReporteRepository <<P>>
 class Paciente <<E>>
 class Usuario <<E>>
@@ -3474,9 +3506,8 @@ ConfiguracionCitasRepository ..> HorarioAtencion
 HorarioRepository ..> HorarioAtencion
 HorarioRepository ..> Cita
 CitaRepository ..> Cita
-CitaRepository ..> CambioCita : P
-CitaRepository ..> ConsultaMedica : P / atencion documentada
-CitaRepository ..> Usuario : P / responsable del cambio
+CitaRepository ..> CambioCita
+CitaRepository ..> ConsultaMedica : existencia / no lectura clinica
 DisponibilidadRepository ..> Medico
 DisponibilidadRepository ..> Especialidad
 DisponibilidadRepository ..> MedicoEspecialidad : tabla / habilitada
@@ -3509,7 +3540,7 @@ ResultadoLaboratorioRepository ..> VersionResultado : P
 ResultadoLaboratorioRepository ..> RevisionResultado : P
 ResultadoLaboratorioRepository ..> DocumentoLaboratorio : P / tipo
 DocumentoLaboratorioRepository ..> DocumentoLaboratorio : P
-RecordatorioRepository ..> Recordatorio : P
+RecordatorioRepository ..> Recordatorio : E invalidacion / P generacion y consulta
 RecordatorioRepository ..> Cita : P
 RecordatorioRepository ..> Paciente : P / destinatario derivado
 RecordatorioRepository ..> PreferenciaPaciente : P
@@ -3731,7 +3762,7 @@ Comandos ejecutados con `-charset UTF-8` y `-DPLANTUML_LIMIT_SIZE=32768` para ev
 
 **Alcance de legibilidad comprobado:** texto íntegro en los SVG, cuadros legibles a tamaño natural y asociaciones consultables en sus vistas focales. No se promete que la totalidad del global sea legible ajustada a cualquier pantalla o impresa en una única hoja; las vistas grandes requieren zoom/desplazamiento. El raster PNG se usó para revisión, no como sustituto del origen vectorial editable.
 
-### 11.3. Auditoría de cobertura y coherencia
+### 11.3. Auditoría histórica de cobertura y coherencia del diseño inicial
 
 | Comprobación ejecutada | Resultado |
 | --- | --- |
@@ -3781,3 +3812,33 @@ if ($LASTEXITCODE -ne 0) { throw 'Error de renderizado PNG' }
 Antes de implementar deberán concretarse o aprobarse, donde sigan sin resolver, el alcance clínico granular/temporal, los criterios comprobables de cierre asistencial para retirar el rol Médico, la semántica exacta de períodos de cada reporte, límites técnicos de archivos y frecuencia del scheduler. No se crean permisos, estados, tablas, atributos ni plazos para suplir esas decisiones. La conservación de versiones no habilita corrección de resultados ya publicados ni acceso general a versiones privadas.
 
 **Único archivo del proyecto editado durante esta fase: `docs/ai/diagrama-clases.md`.** Código PHP/React, base de datos, DER, análisis/contexto y documentos Word/PDF no se modifican; los cambios locales anteriores se conservan. No se ejecutan suites funcionales, migraciones, commits, push ni despliegues. La actualización de PHP y cualquier desarrollo funcional posterior requieren su autorización y alcance propios.
+
+## 12. Actualización acumulativa CU-15/CU-16 — Fase 6 backend (2026-10-26)
+
+Este apartado actualiza el estado funcional/estructural del módulo y **no reatribuye** las comprobaciones históricas de §11 a código posterior. La integración local de cuatro pruebas/298 aserciones es correcta; resultado global y cierre local en contexto §17.140. Frontend/producción/asistencia/clínica/laboratorio/generación de recordatorios/reportes permanecen pendientes en sus alcances; invalidar avisos no completa CU-28.
+
+### 12.1. Modelo efectivo y separación E/P
+
+- 100 clases E de las cuatro familias reales: 27 Models, 25 Controllers, 28 Services y 20 Repositories; los cuatro participantes antes solo P de gestión/invalidación ya están incluidos, no se agregan cajas duplicadas.
+- 23 clases siguen solo P; catálogo global 123 clases E/P + Sesion conceptual R = 124 participantes diseñados. Se conserva el alcance de excluir Requests/Resources/validadores/infraestructura del censo filtrado, aunque sus fronteras y responsabilidades sí están explicadas en análisis P41–P44.
+- DisponibilidadController/Service/Repository, GestionCitaController/Service y CitaRepository muestran miembros E exactos, constructor único y dependencias actuales. BitacoraRepository y RecordatorioService/Repository conservan E/P por ampliaciones futuras explícitas; estas no significan nuevas funciones implementadas.
+- CitaRepository depende efectivamente de Cita/CambioCita/ConsultaMedica; actor de cambio se recibe como ID, no se inventa dependencia directa de Usuario. RecordatorioRepository usa Recordatorio en invalidación E; sus otros datos solo pertenecen a generación/consulta P. ConfiguracionCitasRepository es colaborador de DisponibilidadService, no dependencia directa de GestionCitaService.
+- Las asociaciones persistidas/vista de entidades son idénticas a HEAD, sin migraciones/modelos/DER nuevos. Se mantienen 28 entidades/244 atributos/43 relaciones y cinco estados de cita. Responsabilidades de ejecución, Paciente afectado y Médico responsable se conservan separadas.
+
+### 12.2. Comprobaciones estructurales y render actuales
+
+| Comprobación de esta actualización | Resultado |
+| --- | --- |
+| Firmas E propias contra reflexión/autoload | 411/411 en 73 clases operativas; visibilidad, nombres/orden/tipos de parámetros, defaults y retorno; sin constructores ejecutados ni clases P simuladas |
+| Dependencias de inyección de clases operativas | 207 representadas entre las vistas globales/de detalle; cero ciclos reales Service→Service |
+| Catálogo global | 124 identificadores únicos, sin duplicación de clase por rol o ubicación |
+| Entidades/vista de persistencia | Origen CVS_entidades idéntico a HEAD; DER/modelos/migraciones conservados |
+| Origen PlantUML | 19 bloques extraídos/verificados por PlantUML Java8 1.2026.9, sin includes externos |
+| Render local | 19 SVG correctos; seis PNG de revisión (global/citas/recordatorios-reportes/servicios/datos-atención/agenda-bitácora), capturas inspeccionadas |
+| Análisis por contexto | P41–P44: 23/16/28/20 participaciones transitivas de repositorio; 57 diagramas de HEAD intactos y cuatro añadidos previos conservados; total 61/44 procedimientos/17 antecedentes |
+
+Recursos temporales: `%LOCALAPPDATA%/Temp/opencode/cu15-fase6-uml/`, más verificadores de reflexión/análisis en el mismo almacenamiento temporal aprobado. El repositorio conserva solo Markdown editable; no depende de esas capturas/JAR/scripts ni envía código/documentación a un renderizador remoto. Las vistas grandes requieren zoom/desplazamiento; no se promete legibilidad de 124 cajas completas en una sola hoja.
+
+### 12.3. Integración y límite de cierre funcional
+
+GestionCitaIntegracionTest ejecuta preparación administrativa por APIs, reserva/reprogramación/cancelación, agenda/historial/detalle y bitácora con sesiones/cookies/CSRF/PostgreSQL reales para ambos operadores. Otra secuencia integra traslado CU-11 con originales obsoletos y ficha inactiva reprogramable, sin abrir reservas nuevas. Logout/nuevo login/GET gestión permite revisar estado incierto, no reenvía la escritura ni atribuye causalidad inequívoca por ver un cambio. Resultado/repetición de creación conserva estado actual sin reinserción/restauración. Avisos son fixtures declarados para invalidación; no scheduler ni CU-28 funcional. La suite global del backend y el inventario PostgreSQL pre/post se consignan en contexto §17.140, no se sustituyen por esta auditoría estática.

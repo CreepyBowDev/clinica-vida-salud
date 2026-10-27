@@ -32,7 +32,7 @@ class ReferenciasBitacora
 
     public static function adicionales(string $tipo, mixed $referencias): object
     {
-        if ($tipo === 'CITA_PROGRAMADA' && is_object($referencias)) {
+        if (in_array($tipo, ['CITA_PROGRAMADA', 'CITA_REPROGRAMADA', 'CITA_CANCELADA'], true) && is_object($referencias)) {
             $salida = [];
             foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $clave) {
                 if (($id = self::id($referencias->{$clave} ?? null)) !== null) {

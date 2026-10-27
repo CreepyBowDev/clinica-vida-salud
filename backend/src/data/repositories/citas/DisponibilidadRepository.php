@@ -86,9 +86,10 @@ class DisponibilidadRepository
             ->lockForUpdate()->first();
     }
 
-    public function ocupacion(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta): Collection
+    public function ocupacion(string $medico, string $consultorio, string $paciente, CarbonImmutable $desde, CarbonImmutable $hasta, ?string $exceptoCita = null): Collection
     {
         return Cita::query()->select(['id_cita', 'inicio_at', 'fin_at'])
+            ->when($exceptoCita !== null, fn ($q) => $q->where('id_cita', '<>', $exceptoCita))
             ->where('inicio_at', '<', $hasta->format('Y-m-d H:i:s.uP'))->where('fin_at', '>', $desde->format('Y-m-d H:i:s.uP'))
             ->where(function ($q) use ($medico, $consultorio, $paciente): void {
                 $q->where(fn ($r) => $r->where('estado', '<>', 'Cancelada')

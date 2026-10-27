@@ -89,6 +89,16 @@ try {
             }
         });
     }
+    if ($data['mode'] === 'gestion-http') {
+        $app['env'] = 'local';
+        if ($data['pausar_antes'] ?? false) {
+            $app['events']->listen(RouteMatched::class, function (RouteMatched $event): void {
+                if (str_starts_with($event->route->uri(), 'api/citas/')) {
+                    $event->route->middleware(PausarConsultaAgenda::class);
+                }
+            });
+        }
+    }
     if ($data['mode'] === 'bitacora-lectura') {
         $app->instance(BitacoraRepository::class, new PausarLecturaBitacoraRepository);
     }
@@ -162,6 +172,7 @@ try {
         $app['env'] = 'local';
     }
     $response = match (true) {
+        $data['mode'] === 'gestion-http' => $send($data['metodo'], $data['ruta'], $data['payload'] ?? []),
         $data['mode'] === 'agenda-antes' => $send('GET', $data['ruta']),
         $data['mode'] === 'reserva-confirmar' => $send('POST', '/api/citas', $data['payload']),
         $data['mode'] === 'reserva-resultado' => $send('POST', '/api/reservas/resultado', $data['payload']),
@@ -207,7 +218,7 @@ try {
         default => $send('POST', '/api/auth/login', ['correo_acceso' => $data['correo'], 'password' => $data['password']]),
     };
     $result = ['status' => $response->getStatusCode()];
-    if (str_starts_with($data['mode'], 'reserva-') || $data['mode'] === 'agenda-antes') {
+    if (str_starts_with($data['mode'], 'reserva-') || in_array($data['mode'], ['agenda-antes', 'gestion-http'], true)) {
         $result['body'] = json_decode($response->getContent(), true);
     }
     if (str_starts_with($data['mode'], 'consultorio-') || str_starts_with($data['mode'], 'horario-') || in_array($data['mode'], ['configuracion-citas', 'planificacion-protocolo'], true)) {

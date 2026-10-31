@@ -1,6 +1,62 @@
 # Diagrama global de clases — Clínica Vida Salud
 
+## Incremento CU-28 Fase3 — Generación efectiva (2026-10-31)
+
+**Censo incremental125 E/4 P/Sesion R**,130 participantes:29 Models/33 Controllers/36 Services/27 Repositories. EnvioRecordatorioPushRepository es la única clase selectiva nueva; RecordatorioService/Repository ya eran efectivos por invalidación y ahora amplían generación/outbox. Reflexión96 operativas/567 firmas; no promover RecordatorioController, DespachoPushService o transporte inexistentes. Contexto §17.186/análisis recordatorios-backend-fase3/README. Fuentes gráficas históricas/censo de sus fechas preservados, global acumulativo final F7 pendiente, sin render nuevo atribuido al extracto textual.
+
+| Clase | Firmas incrementales efectivas |
+| --- | --- |
+| RecordatorioService | __construct(RecordatorioRepository,EnvioRecordatorioPushRepository,SuscripcionPushRepository,UsuarioRepository,PacienteRepository,CitaRepository,PlanificacionRepository,ContinuidadAdministrativaService,AutorizacionPushValidator,SuscripcionPushValidator,BitacoraRepository); generar(int $lote=100): array; generarParaCita(string $id): array (privado). Conserva invalidarPorCita(string,CarbonImmutable): void. |
+| RecordatorioRepository | ultimoIdCita(): string; candidatas(string $despues,string $hasta,int $limite,CarbonImmutable $ahora): array; localizar(string $id): ?object; retirarObsoletos(Cita,CarbonImmutable): int; porProgramacion(Cita): ?Recordatorio; crear(Cita,CarbonImmutable): Recordatorio. Conserva invalidarPorCita. |
+| EnvioRecordatorioPushRepository | pendientesPorCita(string $id): Collection; descartar(EnvioRecordatorioPush,CarbonImmutable): void; preparar(array $datos): bool. |
+| SuscripcionPushRepository / BitacoraRepository | paraPaciente(string $usuario,string $paciente): Collection; recordatorioGenerado(Cita,Recordatorio,CarbonImmutable): void, respectivamente. |
+| SuscripcionPushService | Constructor añade AutorizacionPushValidator; huella(Usuario): string conserva firma/semántica delegando al auxiliar compartido. |
+
+**Colaboraciones:** RecordatorioService→continuidad/Repositories de Usuario/Paciente/Cita/planificación/aviso/suscripción/envío/auditoría; nuevo Repository→EnvioRecordatorioPush, RecordatorioRepository→Recordatorio/Cita y consultas relacionales. SuscripcionPushService no depende de RecordatorioService ni viceversa, huella/cuenta en validator auxiliar excluido del censo. Comando/scheduler/fixtures/validator no son clases de dominio nuevas; ningún Model/atributo/relación física cambió respecto000039. El generador usa snapshots de destinatario y versiones existentes, sin representar estado Pendiente del outbox como estado de Cita ni señalar envío completado. Revisión global de firmas/dependencias se integra progresivamente, módulo todavía incompleto.
+
+## Incremento CU-28 Fase2 — Suscripciones efectivas (2026-10-31)
+
+**Estado incremental vigente:** añade cinco clases seleccionadas efectivas, sin promover RecordatorioController o envío/generador inexistentes: **124 E/4 P/Sesion R**,129 participantes (29 Models/33 Controllers/36 Services/26 Repositories). SuscripcionPushController/Service/Repository y dos Models son nuevos; InstalacionPush/validator/Request/config/tests excluidos del censo selectivo. Reflexión actual **554 firmas/95 operativas**; fuentes/índices anteriores se mantienen históricos, no se atribuyen estas cifras al cierre previo de laboratorio. Actualización acumulativa completa/render al cierre F7, no módulo CU-28 terminado. Contexto §17.185/análisis recordatorios-backend-fase2/DER efectivo000039.
+
+**Firmas nuevas efectivas (extracto incremental, no reemplazo del índice global histórico):**
+
+| Clase | Operaciones propias actuales |
+| --- | --- |
+| SuscripcionPushController | configuracion(SuscripcionPushRequest, SuscripcionPushService): JsonResponse; listar/autorizar(SuscripcionPushRequest, SuscripcionPushService, InstalacionPush): JsonResponse; revocar(SuscripcionPushRequest, SuscripcionPushService, InstalacionPush): Response. |
+| SuscripcionPushService | __construct(AutenticacionService, SuscripcionPushRepository, SuscripcionPushValidator, BitacoraRepository); actor(): Usuario (privado); huella(Usuario): string; configuracionPublica(): array (privado); configuracion(): array; recurso(SuscripcionPush, Usuario, ?string): array (privado); listar(array,?string): array; autorizar(array,string,CarbonImmutable,array): array; revocar(?string,?string,array): void. |
+| SuscripcionPushRepository | porInstalacion(string): ?SuscripcionPush; porEndpoint(string): ?SuscripcionPush; propia(string,string): ?SuscripcionPush; listar(string,string,int,int): LengthAwarePaginator; guardar(SuscripcionPush): void; descartarPendientes(string): void; revocar(SuscripcionPush): void; revocarInstalacion(?string,?string=null): void; revocarUsuario(int\|string): void; exigirTransaccion(): void (privado). |
+| SesionRepository (cambio) | Constructor añade SuscripcionPushRepository e InstalacionPush a AuthManager/SessionManager; nueva revocarPushActual(): void. iniciar/revocarUsuario amplían colaboración, no firma pública previa. cerrar automático no revoca consentimiento por sí solo. |
+| BitacoraRepository (cambio) | suscripcionPushModificada(Usuario,array,string,string,int): void, eventos seguros atómicos. |
+
+**Relaciones y atributos incorporados:** SuscripcionPush N:1 Usuario/Paciente; EnvioRecordatorioPush N:1 Recordatorio/SuscripcionPush/Usuario/Paciente, FK restrictivas. Los12+14 atributos persistentes y sus nulabilidades/PK/UQ están definidos íntegramente en el incremento DER de F2 (sin IDs de sesión ni clínica); estos Models tienen guarded=* y EnvioRecordatorioPush no implementa despacho. SuscripcionPush oculta datos_cifrados/instalacion_hash/endpoint_hash/huella_cuenta; EnvioRecordatorioPush oculta codigo_reclamo. Casts de fechas UTC, versiones/intentos enteros y datos encrypted:array, no comportamiento de negocio en Model.
+
+**Dependencias incrementales:** Controller→SuscripcionPushService; Service→AutenticacionService/SuscripcionPushRepository/BitacoraRepository; SesionRepository→SuscripcionPushRepository; Repository→SuscripcionPush y tabla outbox para descarte. AutenticacionService conserva SesionRepository, sin dependencia hacia SuscripcionPushService ni ciclo de Services. Auxiliares de cookie/validación en firmas no se convierten en participantes dibujados. Fuentes gráficas previas intactas, ningún render nuevo atribuido a extracto textual; relaciones/código reales contrastados, no declaración anticipada de generación/consulta/envío.
+
+**CU-28 Fase 1 backend diseñada (2026-10-30, §17.184/análisis recordatorios-backend-fase1):** contratos y colaboración previstos en README, sin clases/métodos nuevos implementados ni cambio del censo119 E/4 P/Sesion R. RecordatorioController conserva condición prevista y RecordatorioService/Repository solo invalidación existente; generación/consulta/despacho no pasan a E por este diseño. Se proponen SuscripcionPush/EnvioRecordatorioPush y sus colaboraciones de servicio/repositorio/controlador, fuera del índice implementado hasta incorporarlos progresivamente. VAPID/transporte/comandos/Requests/Resources son auxiliares excluidos del UML selectivo, no clases React o entidades ficticias. Preservar33 fuentes gráficas/529 firmas históricas sin atribuir render nuevo; actualización acumulativa efectiva al implementar/cerrar módulo F7. DER registra dos tablas solo propuestas, no cambios físicos en F1.
+
+**CU-28, ampliación de alcance aprobada el 2026-10-30 (contexto §17.183):** avisos internos más Web Push opcional en dispositivos compatibles autorizados por el Paciente, sin garantizar entrega/encendido de pantalla ni crear app nativa. Diseño/implementación de suscripciones, transporte y sus colaboraciones aún pendientes; no se agregan participantes/firmas/dependencias por suposición ni se trasladan funciones React al censo PHP selectivo. RecordatorioService/Repository mantienen su alcance implementado de invalidación interna, no pasan a generación/consulta/push por esta nota. Fuentes gráficas/censo/esquema y evidencias previas intactos, sin nuevo render o módulo terminado. Esta decisión sustituye solo la exclusión de push, no RF/RN oficiales ni otros canales.
+
+**Revisión acumulativa de cierre frontend CU-24–CU-27 — Fase 6 (2026-10-30):** integración real local de las fronteras F2–F5 con P53–P59/§22 contrastada (contexto §17.182/análisis laboratorio-frontend-fase6). Global frontend nueva3356/115 archivos/build correctos;23 controles funcionales/90 layouts/36 axe y persistencia/autorías/bytes/historia/revocación verificados, inventario SQL pre/post preservado. Reflexión nueva confirma **529 firmas/92 clases operativas/27 Models**,119 E/4 P/Sesion R/124 participantes,33 fuentes/287 participaciones/226 dependencias distintas/cero ciclos Service. No cambió PHP/firmas/relaciones por F6: las33 fuentes se preservan y no se atribuye render nuevo a fuentes idénticas. Este UML conserva su alcance aprobado **solo backend**; React se documenta como frontera en análisis, no se incorpora como clases PHP ni se dibuja vista paralela para eludir exclusiones. DER000037 sin cambios. Laboratorio frontend cerrado localmente; producción/base habitual-remota/operación estable de almacenamiento y otros módulos pendientes. Los pendientes frontend de notas backend históricas inferiores se interpretan según este cierre, no se borran.
+
+**Cierre definitivo acumulativo CU-24–CU-27 — Fase 6 (2026-10-30):** §22 y las clases de laboratorio quedan verificados localmente tras global única **4088 pruebas/58 622 aserciones correctas**, código 0, 27 min 10,105 s/580 MB, e inventario PostgreSQL/raíces finales conservados. **33 fuentes globales**, 29 históricas intactas/cuatro nuevas renderizadas a SVG y tres PNG inspeccionados; **529 firmas propias/92 clases operativas**, 287 participaciones/226 dependencias distintas y cero ciclos de Services. Censo vigente 119 E/4 P/Sesion R, mismos 124 participantes. Las notas siguientes de verificación/cierre pendientes conservan cronología superada, no alteran el cierre local del módulo backend ni acreditan frontend/producción/CU-28 completo/reportes. Contexto §17.176/README/análisis P53–P59 sincronizados.
+
+**Estado acumulativo vigente de laboratorio (2026-10-30):** §22 integra las clases efectivas CU-24–CU-27 con el global anterior, no un diagrama aislado. **119 E/4 solo P/Sesion R**, mismos 124 participantes: 27 Models/32 Controllers/35 Services/25 Repositories existentes. Las 29 fuentes anteriores permanecen históricas; §22 reúne índice vigente, firmas completas de laboratorio/bitácora y atributos/relaciones de autoría ampliados. Integración dirigida **7 pruebas/784 aserciones correctas**; cierre de Fase 6/módulo sujeto todavía al resultado global final y controles de contexto §17.176. Auxiliares mostrados en incrementos anteriores no se agregan al censo selectivo de cuatro familias. No frontend/producción/CU-28 completo/reportes por este avance.
+
+**Cierre acumulativo CU-22/CU-23 — Fase 6 (2026-10-29):** §15 integra índice vigente y firmas clínicas/auditoría contra PHP real; 108 E/15 solo P+Sesion R, mismos 124 participantes, sin sustituir las 21 vistas históricas. Integración dirigida 25/3842 y suite global final nueva **3828/55111 correctas**, inventario pre/post y controles finales conservados, contexto §17.164. Seis fases backend cerradas localmente; frontend clínico/producción pendientes. Las notas de cierres anteriores siguientes conservan su fecha/alcance, no son el estado actual de clínica.
+
 ## 1. Alcance y estado
+
+**Actualización acumulativa CU-17–CU-19 — Fase 6 backend cerrada localmente (2026-10-28):** §14 incorpora el índice global vigente y una vista efectiva de asistencia enlazada a reserva/gestión/agenda/seguridad/auditoría, sin sustituir las 19 vistas históricas. Censo 102 E/21 solo P+Sesion R; las firmas preliminares P de asistencia en §10 son antecedentes, las actuales se definen en §14. Integración dirigida 14 pruebas/2410 aserciones y suite global nueva **3260 pruebas/40375 aserciones correctas**; inventario PostgreSQL pre/post conservado y controles finales en contexto §17.152. Frontend/producción/CU-23/CU-28 completo no se declaran implementados por este cierre backend.
+
+**Verificación CU-17–CU-19 — Fase 5 backend, 2026-10-28, cerrada localmente:** pruebas multiproceso de seguridad/concurrencia amplían la evidencia de las clases/relaciones P45–P48, sin modificar clases ni contratos productivos. AsistenciaConcurrenteTest y fixtures de pausa/reloj son infraestructura exclusiva de pruebas, no participantes productivos nuevos: censo 102 E/21 P+Sesion R y 124 participantes diseñados sin cambios. Se conservan las 19 vistas PlantUML históricas y las 65 vistas del análisis; no se añade un diagrama por ejecutar pruebas. Regresión ampliada final 1396 pruebas/22337 aserciones correctas; matriz/evidencia/límites en análisis «CU-17–CU-19 — Backend Fase 5» y contexto §17.151. Revisión/render global, integración y cierre integral del módulo siguen en Fase 6 no iniciada.
+
+**Incremento CU-19 — Fase 4 backend, 2026-10-28:** AsistenciaController/Service E amplían marcarAtendida, AsistenciaRequest selecciona atencion_realizada=true y GET asistencia calcula su elegibilidad para Administrador/Médico propio. BitacoraRepository.citaAtendida E; invalidación interna de avisos reutilizada. Sin nuevas clases/esquema: censo 102 E/21 solo P+Sesion R y 124 participantes diseñados. Las operaciones principales CU-17–CU-19 están implementadas localmente, no cierre integral: Fases 5–6/frontend/producción pendientes. P48 incorpora escritura de atención (20 participaciones de repositorio, sin consulta clínica como dependencia), P45/P46/P47 mantienen 17/20/21. Las 19 vistas PlantUML anteriores permanecen como diseño previo con firmas/estereotipos P históricos, no se atribuyen al código final ni a un render nuevo; revisión global al cierre. Firmas actuales concretadas debajo; contexto §17.150.
+
+**Incremento CU-18 — Fase 3 backend, 2026-10-28:** AsistenciaController/Service E amplían registrarInasistencia; AsistenciaRequest valida ausencia_verificada=true por acción; GET asistencia calcula esta elegibilidad. RecordatorioService/Repository E se reutilizan para invalidar avisos en la transacción y BitacoraRepository añade citaInasistenciaRegistrada. No nueva clase/modelo/esquema: censo sigue 102 E/21 solo P+Sesion R y 124 participantes diseñados. CU-19 sigue P sin ruta ni método de escritura. P47 documenta inasistencia (21 participaciones de repositorio), P45/P46 conservan sus 17/20. Las 19 vistas PlantUML anteriores permanecen como diseño previo, sin atribuirles render nuevo ni cierre global; revisión integral/render al cierre del módulo. Contexto §17.149.
+
+**Incremento CU-17 — Fase 2 backend, 2026-10-28:** AsistenciaController y AsistenciaService pasan a E solo para consulta de asistencia y confirmar llegada; AsistenciaRequest auxiliar E fuera del censo filtrado. CU-18/CU-19 permanecen P, sin rutas/métodos de escritura. CitaRepository.porIdParaAsistencia y BitacoraRepository.citaLlegadaConfirmada E. Censo incremental: 102 clases E (27 Models/26 Controllers/29 Services/20 Repositories), 21 solo P más Sesion R, mismos 124 participantes diseñados. Se concretan firmas actuales debajo, sin incorporar entidades ni esquema nuevo. Las 19 vistas PlantUML previas se conservan como fuente del diseño anterior, con estereotipos/firmas P preliminares de asistencia; actualización/render global contra implementación completa al cierre Fase 6, no se atribuyen esas vistas a código final nuevo. Análisis P45/P46 separa consulta y llegada (17/20 participaciones de repositorio); contexto §17.148. Las notas de cierres anteriores mantienen la evidencia de su fecha.
+
+**Revisión acumulativa CU-15/CU-16 — Fase 6 frontend, 2026-10-27:** integración real local y revisión visual verificadas; resultado final de regresión/cierre en contexto §17.146. Se revisaron las colaboraciones React→API del análisis P41–P44, sin incorporar componentes/funciones JavaScript como clases PHP: este UML mantiene el alcance selectivo solo backend aprobado. No cambiaron las 100 clases E, 23 solo P, Sesion R, sus 411 firmas propias/73 clases operativas ni 207 dependencias de inyección; comprobación nueva correcta y sin ciclos Service→Service. Las 19 vistas PlantUML y las entidades se conservan, no se atribuye un render nuevo a origen sin cambios. Los pendientes frontend de notas históricas anteriores se resuelven únicamente por la evidencia §17.146, no por aquellos renders backend. Producción/otros módulos siguen fuera.
 
 **Cierre acumulativo CU-15/CU-16 — Fase 6 backend, 2026-10-26:** integración 4/298 y suite global nueva 2845/29851 correctas, inventario PostgreSQL pre/post preservado; módulo backend cerrado localmente (contexto §17.140). Modelo global sincronizado: 100 clases E de cuatro familias y 23 clases aún solo P, más Sesion conceptual R; 124 participantes diseñados, no 124 clases PHP implementadas. Gestión/reprogramación/cancelación y la invalidación mínima de recordatorios son E; asistencia/consulta clínica/laboratorio/generación CU-28/reportes siguen P. Los avances anteriores se conservan como historial, no como estado actual. Sin nuevas clases funcionales/esquema por esta fase; fixtures de integración fuera del UML; frontend/producción pendientes.
 
@@ -10,7 +66,7 @@
 
 **CU-15 Fase 3 backend, 2026-10-26:** GestionCitaController/Service y GestionCitaRequest son ahora E para GET gestión y PATCH reprogramación. RecordatorioService/Repository E solo para invalidarPorCita interno; CU-28/generación/consulta siguen P. CitaRepository.guardar/agregarCambio/ultimoCambio y BitacoraRepository.citaReprogramada son E. Firmas exactas concretadas debajo; las vistas históricas de inventario/cantidades conservan el momento en que se elaboraron. CU-16 aún P y el cierre integral del módulo sigue Fases 5/6, no se acredita nuevo render global PlantUML por esta actualización incremental.
 
-Inventario incremental de las cuatro familias: **100 clases E** (27 Models, 25 Controllers, 28 Services, 20 Repositories), 23 participantes aún solo P y Sesion R; 124 participantes globales previstos sin agregar una segunda caja por clase. Las cuatro clases trasladadas de solo P a E conservan operaciones futuras P donde procede. Requests/Resources son auxiliares fuera de ese conteo filtrado; no se inventan 124 clases PHP implementadas.
+Inventario incremental de las cuatro familias tras CU-17 Fase 2: **102 clases E** (27 Models, 26 Controllers, 29 Services, 20 Repositories), 21 participantes aún solo P y Sesion R; 124 participantes globales previstos sin agregar una segunda caja por clase. Las clases trasladadas de solo P a E conservan operaciones futuras P donde procede. Requests/Resources son auxiliares fuera de ese conteo filtrado; no se inventan 124 clases PHP implementadas. Los recuentos anteriores de 100 E/23 P corresponden a sus cierres históricos.
 
 **CU-15 Fase 2 backend, 2026-10-26:** disponibilidad para reprogramar implementada parcialmente, no escritura de CU-15 ni cancelación CU-16. DisponibilidadController.reprogramacion, DisponibilidadService.turnosReprogramacion(string id, filtros), auxiliares de elegibilidad/original/cálculo compartido, CitaRepository.porId/tieneConsulta y exclusión opcional en ocupacion son ahora E. Las firmas P anteriores se concretan abajo; no se agrega clase de dominio, modelo, tabla ni Service de gestión/recordatorios. Dependencia DisponibilidadService → CitaRepository efectiva; vistas previas de arquitectura E/P se leen con esta nota incremental. Sintaxis/render del análisis P41 se comprueban aparte; no nuevo render global PlantUML por esta fase parcial.
 
@@ -207,9 +263,9 @@ Las dependencias se contrastarán con operaciones reales: no todo import signifi
 | CU-14 Reservar/programar | Implementado local | ReservaController; ReservaService | CitaRepository, DisponibilidadRepository, PlanificacionRepository, ConfiguracionCitasRepository, BitacoraRepository; Cita/Paciente/Medico/Especialidad/Consultorio/Usuario/Bitacora | No confundir guardado con llegada ni con CU-28 completo |
 | CU-15 Reprogramar | Backend E local; integración Fase 6 verificada | E: DisponibilidadController/Service, GestionCitaController/Service, RecordatorioService solo invalidación | E: CitaRepository, DisponibilidadRepository, PlanificacionRepository, ConfiguracionCitasRepository, RecordatorioRepository, BitacoraRepository; Cita/CambioCita/Recordatorio/Bitacora | GET gestión y PATCH atómico; misma ficha inactiva, guardas ante traslado CU-11, duración revisada; cierre/regresión en contexto §17.140; frontend pendiente |
 | CU-16 Cancelar | Backend E local; integración Fase 6 verificada | E: GestionCitaController/Service, RecordatorioService solo invalidación | E: CitaRepository, PlanificacionRepository, BitacoraRepository, RecordatorioRepository; Cita/CambioCita/Recordatorio/Bitacora | Programación/versión conservadas, avisos retirados, nueva reserva válida sobre intervalo liberado; cierre en contexto §17.140; frontend pendiente |
-| CU-17 Confirmar llegada | Pendiente | P: AsistenciaController, AsistenciaService | E + ampliación P: CitaRepository, BitacoraRepository; Cita/CambioCita/Usuario/Bitacora | §8.3; mismo día local y turno no finalizado, sin consulta automática |
-| CU-18 Registrar inasistencia | Pendiente | P: AsistenciaController, AsistenciaService, RecordatorioService | E + ampliación P: CitaRepository, BitacoraRepository; P: RecordatorioRepository; Cita/CambioCita/Recordatorio/Bitacora | §8.3; Programada y ausencia comprobada tras fin de turno |
-| CU-19 Marcar Atendida | Pendiente | P: AsistenciaController, AsistenciaService, RecordatorioService | E + ampliación P: CitaRepository, BitacoraRepository; E: MedicoRepository; P: RecordatorioRepository; Cita/Medico/ConsultaMedica/CambioCita/Recordatorio/Bitacora | §8.3; Médico responsable, sin exigir crear consulta ni cierre documental implícito |
+| CU-17 Confirmar llegada | Backend cerrado localmente, Fase 6 | E: AsistenciaController, AsistenciaService; AsistenciaRequest auxiliar | E: CitaRepository, MedicoRepository, BitacoraRepository; Cita/CambioCita/Usuario/Bitacora | §14/contexto §17.152; mismo día local y turno no finalizado, declaración true, sin consulta automática; frontend/producción pendientes |
+| CU-18 Registrar inasistencia | Backend cerrado localmente, Fase 6 | E: AsistenciaController/Service/Request; RecordatorioService E interno | E: CitaRepository, MedicoRepository, BitacoraRepository, RecordatorioRepository; Cita/CambioCita/Recordatorio/Bitacora | §14/contexto §17.152; Programada/ahora >= fin_at/sin consulta/ausencia true; mismo registro/programación; frontend/producción pendientes |
+| CU-19 Marcar Atendida | Backend cerrado localmente, Fase 6 | E: AsistenciaController/Service/Request; RecordatorioService E interno | E: CitaRepository, BitacoraRepository, MedicoRepository, RecordatorioRepository; Cita/Medico/CambioCita/Recordatorio/Bitacora | §14/contexto §17.152; Administrador/Médico propio, sin consulta clínica obligatoria/automática; frontend/producción pendientes |
 | CU-20 Agenda | Implementado local | AgendaController, ConsultaCitaController; AgendaService, ConsultaCitaService, AutenticacionService | AgendaRepository; Cita/Medico/Paciente/Especialidad/Usuario | No entidad Agenda persistida |
 | CU-21 Historial | Implementado local | HistorialCitasController, ConsultaCitaController; HistorialCitasService, ConsultaCitaService | AgendaRepository; Cita/Paciente/Medico/Especialidad/Usuario | No entidad Historial ni mutación por consultar |
 | CU-22 Historia clínica | Pendiente | P: HistoriaClinicaController, HistoriaClinicaService, ResultadoLaboratorioService | P: HistoriaClinicaRepository, SolicitudLaboratorioRepository, ResultadoLaboratorioRepository; Paciente/Cita/ConsultaMedica/VersionConsulta/VersionAntecedente/SolicitudLaboratorio/VersionResultado/DocumentoLaboratorio | §8.4–8.5; consulta autorizada sin entidad HistoriaClinica; archivos por controles de CU-27 |
@@ -283,8 +339,8 @@ Ubicaciones **previstas**, relativas a `backend/src/`: `C` = `presentation/contr
 | --- | --- | --- | --- |
 | GestionCitaController (E) | C/citas/ | 15–16 | Gestión/reprogramación/cancelación delegadas en GestionCitaService; sin consultas ni reglas HTTP propias |
 | GestionCitaService (E) | S/citas/ | 15–16 | Autorizar Administrador/Recepcionista y coordinar misma cita/transacción/trazabilidad; AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, CitaRepository, DisponibilidadService, RecordatorioService, BitacoraRepository. Configuración se obtiene mediante disponibilidad, no dependencia directa |
-| AsistenciaController | C/citas/ | 17–19 | Entradas separadas de llegada, inasistencia y Atendida; delegar en AsistenciaService, sin conceder todas las operaciones a todos los roles |
-| AsistenciaService | S/citas/ | 17–19 | Validar rol/vínculo/estado/tiempo y coordinar transición; AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, CitaRepository, MedicoRepository, RecordatorioService, BitacoraRepository |
+| AsistenciaController | C/citas/ | 17–19 | E: consulta/llegada/inasistencia/Atendida mediante AsistenciaRequest/Service; backend cerrado localmente, §14/contexto §17.152 |
+| AsistenciaService | S/citas/ | 17–19 | E: consulta y tres transiciones con autenticación/continuidad/planificación/citas/médicos/bitácora; RecordatorioService solo invalidación de Inasistencia/Atendida; no consulta clínica automática |
 | HistoriaClinicaController | C/historia_clinica/ | 22 | Adaptar lectura de historia, no edición; HistoriaClinicaService |
 | HistoriaClinicaService | S/historia_clinica/ | 22 | Comprobar titularidad o relación asistencial y ensamblar lectura autorizada de antecedentes/consultas; AutenticacionService, HistoriaClinicaRepository, ResultadoLaboratorioService para estudios/resultados permitidos |
 | ConsultaMedicaController | C/historia_clinica/ | 23 | Adaptar apertura, registro y actualización clínica; ConsultaMedicaService; no confundir con ConsultaCitaController de detalle administrativo |
@@ -1390,12 +1446,14 @@ Las firmas P de §9.6–§9.9 son **diseño no implementado**, incluidos método
 + cancelar(GestionCitaRequest $request, GestionCitaService $service): JsonResource
 ```
 GestionCitaRequest E (`dtos/citas/`): authorize(): bool, validationData(): array, prepareForValidation(): void (protected, solo normalización de motivo al cancelar), rules(): array, withValidator(Validator $validator): void. No query; ID derivado de ruta, campos de cuerpo cerrados por acción. Sustituye el Request genérico del diseño anterior para GET/reprogramar/cancelar implementados.
-#### AsistenciaController — P
+#### AsistenciaController — E (CU-17–CU-19, backend cerrado localmente en Fase 6)
 ```text
-+ confirmarLlegada(Request $request, string $id, AsistenciaService $service): JsonResponse
-+ registrarInasistencia(Request $request, string $id, AsistenciaService $service): JsonResponse
-+ marcarAtendida(Request $request, string $id, AsistenciaService $service): JsonResponse
++ consultar(AsistenciaRequest $request, AsistenciaService $service): JsonResource
++ confirmarLlegada(AsistenciaRequest $request, AsistenciaService $service): JsonResource
++ registrarInasistencia(AsistenciaRequest $request, AsistenciaService $service): JsonResource
++ marcarAtendida(AsistenciaRequest $request, AsistenciaService $service): JsonResource
 ```
+AsistenciaRequest E: authorize(): bool, validationData(): array, rules(): array, withValidator(Validator $validator): void. Entrada cerrada por acción; presencia_verificada/ausencia_verificada/atencion_realizada true estricta según corresponda. Las cuatro operaciones tienen rutas con permisos específicos, no un setter de estado; las firmas genéricas en vistas previas son diseño histórico, no clases paralelas ni firmas efectivas.
 #### HistoriaClinicaController — P
 ```text
 + show(Request $request, string $idPaciente, HistoriaClinicaService $service): JsonResponse
@@ -1456,16 +1514,24 @@ IDs de nuevas firmas usan `string` para ser compatibles con el transporte de BIG
 + cancelar(string $id, array $datos, array $contexto): array
 ```
 El actor E admite Administrador/Recepcionista; no dependencia directa de ConfiguracionCitasRepository: reprogramación usa DisponibilidadService. Cancelar no consulta disponibilidad/recursos activos, sí originales/estado/plazo/consulta/sesión bajo bloqueo; conserva versión y programación, avanza timestamp, coordina historial/avisos/auditoría en su transacción. Las firmas auxiliares P anteriores se concretan en estos métodos E, no son clases/métodos paralelos.
-#### AsistenciaService — P
+#### AsistenciaService — E (CU-17–CU-19, backend cerrado localmente en Fase 6)
 ```text
 + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, CitaRepository $citas, MedicoRepository $medicos, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
-+ confirmarLlegada(string $idCita, bool $presenciaVerificada, array $contexto): array
-+ registrarInasistencia(string $idCita, bool $ausenciaVerificada, array $contexto): array
-+ marcarAtendida(string $idCita, bool $atencionRealizada, array $contexto): array
++ consultar(string $id): array
++ confirmarLlegada(string $id, array $datos, array $contexto): array
++ registrarInasistencia(string $id, array $datos, array $contexto): array
++ marcarAtendida(string $id, array $datos, array $contexto): array
+- medicoDelActor(Usuario $actor): ?string
 - actor(array $roles): Usuario
-- validarTransicion(Cita $cita, Usuario $actor, string $operacion, bool $hechoVerificado, CarbonImmutable $ahora): void
-- transicionar(string $idCita, string $operacion, bool $hechoVerificado, array $contexto): array
+- revalidar(Usuario $actor): void
+- citaBloqueada(string $id, Usuario $actor): Cita
+- detalle(Cita $cita): array
+- ultimoCambio(string $id): ?array
+- impedimentosLlegada(Cita $cita, bool $consulta, CarbonImmutable $ahora): array
+- impedimentosInasistencia(Cita $cita, bool $consulta, CarbonImmutable $ahora): array
+- impedimentosAtencion(Cita $cita, CarbonImmutable $ahora): array
 ```
+RecordatorioService solo se invoca al registrar Inasistencia/Atendida, no al consultar ni confirmar llegada: Confirmada conserva avisos. Declaración/originales viajan en array validado; Atendida no exige ni escribe consulta clínica. No setter genérico de estado ni auxiliares preliminares P ficticiamente implementados. Ampliaciones E de repositorios: CitaRepository.porIdParaAsistencia(string $id, ?string $medico, bool $bloquear = false): ?Cita; BitacoraRepository.citaLlegadaConfirmada(Cita $cita, Usuario $actor, array $contexto, array $antes): void, citaInasistenciaRegistrada(Cita $cita, Usuario $actor, array $contexto, array $antes): void y citaAtendida(Cita $cita, Usuario $actor, array $contexto, array $antes): void.
 #### HistoriaClinicaService — P
 ```text
 + __construct(AutenticacionService $autenticacion, HistoriaClinicaRepository $historias, ResultadoLaboratorioService $resultados)
@@ -3842,3 +3908,1467 @@ Recursos temporales: `%LOCALAPPDATA%/Temp/opencode/cu15-fase6-uml/`, más verifi
 ### 12.3. Integración y límite de cierre funcional
 
 GestionCitaIntegracionTest ejecuta preparación administrativa por APIs, reserva/reprogramación/cancelación, agenda/historial/detalle y bitácora con sesiones/cookies/CSRF/PostgreSQL reales para ambos operadores. Otra secuencia integra traslado CU-11 con originales obsoletos y ficha inactiva reprogramable, sin abrir reservas nuevas. Logout/nuevo login/GET gestión permite revisar estado incierto, no reenvía la escritura ni atribuye causalidad inequívoca por ver un cambio. Resultado/repetición de creación conserva estado actual sin reinserción/restauración. Avisos son fixtures declarados para invalidación; no scheduler ni CU-28 funcional. La suite global del backend y el inventario PostgreSQL pre/post se consignan en contexto §17.140, no se sustituyen por esta auditoría estática.
+
+## 13. Revisión del módulo tras frontend CU-15/CU-16 — Fase 6 (2026-10-27)
+
+**Cierre local confirmado:** seis fases frontend completadas, integración real y regresión global final 2015 pruebas/78 archivos correctos (234,12 s), build correcto. Contexto §17.146 registra ambos ajustes de presentación y dos sincronizaciones limitadas a pruebas de autenticación/médicos, sin cambios de clases PHP ni de código productivo de esos módulos. No se modifica ninguna vista previa ni se anticipan módulos pendientes; producción fuera del cierre.
+
+La fase frontend completa las fronteras de interfaz sin alterar este modelo UML selectivo backend. GestionCitaPage/GestionCitaResumen/ReprogramacionCita/Alternativas/CancelacionCita/useGestionCita y las funciones de gestionCita.service son componentes/hooks/funciones React reales, documentados como tales en `analisis-clases.md`, no clases de dominio PHP ni cajas nuevas en el censo de este documento. P41–P44 conservan los métodos efectivos y 23/16/28/20 participaciones transitivas de repositorio; no un diagrama obligatorio por CU ni diagramas sustitutos de las vistas previas.
+
+**Comprobación nueva:** reflexión/autoload coteja 411 firmas propias de 73 clases operativas, 207 dependencias de inyección representadas y cero ciclos Service→Service; 124 participantes diseñados sin duplicaciones, 100 clases existentes seleccionadas en cuatro familias y 23 solo P más Sesion conceptual. Se revisan las clases/relaciones del módulo y se conserva el origen de las 19 vistas PlantUML; no nueva clase/Model/migración/asociación persistida ni nuevo render necesario para texto de cierre. Los recuentos/render de §11–§12 siguen como evidencia de sus fechas; no indican que los módulos pendientes se hayan implementado por cerrar React.
+
+**Colaboración final del módulo:** frontera HTTP Laravel sigue siendo GestionCitaRequest/DisponibilidadReprogramacionRequest, con los Controllers/Services/Repositories existentes. React adapta datos, confirma explícitamente y coordina privacidad/esperas/incertidumbre; Laravel autoriza/revalida y PostgreSQL persiste atómicamente cita/cambio/avisos/auditoría. GET gestión no prueba causalidad inequívoca de una solicitud perdida. La integración real local, regresión, responsive/accesibilidad y limpieza de fixtures de Fase 6 frontend se consignan en contexto §17.146/README, no se sustituyen por reflexión estática. DER/reglas/requerimientos sin cambios; CU-28 solo invalidación interna, otros módulos y producción pendientes.
+
+## 14. Actualización acumulativa CU-17–CU-19 — Fase 6 backend (2026-10-28)
+
+### 14.1. Estado y lectura del modelo vigente
+
+**Cierre local Fase 5 clínica (2026-10-29):** regresión ampliada final 2597/37392 correcta, inventario/controles y 148 bloques históricos conservados; sin cambios de clases/firmas ni render nuevo, §17.163. Las notas de ejecución siguientes son históricas; Fase 6 autorizada después para actualización estructural acumulativa.
+
+**Verificación CU-22/CU-23 — Fase 5 backend (2026-10-29), en curso:** no clases/firmas/dependencias productivas nuevas; ClinicaConcurrenteTest/fixtures del worker fuera del censo selectivo. Mismos 124 participantes/108 E/15 P+Sesion R, 73 vistas del análisis/52 procedimientos/17 antecedentes y 21 fuentes PlantUML/148 bloques históricos conservados, sin diagrama nuevo por una prueba. Validación multiproceso de colaboraciones P49–P52 y límites en README/contexto §17.163; sin render nuevo ni cierre estructural de Fase 6.
+**Cierre local Fase 4 clínica:** regresión ampliada 1628 pruebas/14590 aserciones correcta, 31 Services reflejados sin ciclos y métodos propios de corrección cotejados. Conservados 148 bloques UML históricos; P52 efectivo añade una vista al análisis sin render nuevo ni cierre estructural de Fase 6. Controles/inventario preservado en contexto §17.162.
+
+**Incremento operativo CU-23 — Fase 4 backend (2026-10-28):** mismas clases/124 participantes selectivos (108 E/15 P+Sesion R), ninguna clase de negocio nueva. ConsultaMedicaController.actualizar(ActualizarConsultaRequest,ConsultaMedicaService): HistoriaClinicaResource; Service.actualizar(string,array,array): array y guardar privado común a alta/corrección; Repository.agregarVersion admite número/motivo opcionales y agregarAntecedentes motivo opcional, preservando defaults de alta. BitacoraRepository.consultaActualizada añade evento seguro, HistoriaClinicaService calcula acción actualizar sin depender del escritor. ActualizarConsultaRequest extiende RegistrarConsultaRequest, fuera del alcance selectivo UML pero reflejado en análisis, sin Request HTTP en negocio. P52 efectivo agregado sin sustituir previsto: 73 vistas/52 procedimientos/17 antecedentes; las 21 fuentes PlantUML/148 bloques históricos intactos. Estado/pruebas/controles en README/contexto §17.162; no render nuevo ni cierre estructural global de Fase 6, no cambio del DER.
+
+**Cierre local Fase 3 clínica:** regresión ampliada 1537 pruebas/13564 aserciones correcta; reflexión de 31 Services sin ciclos y firmas propias de las tres clases nuevas cotejadas. Conservados los 148 bloques UML históricos; dos vistas efectivas nuevas en análisis, sin render nuevo ni cierre estructural de Fase 6. Evidencia/controles/inventario en contexto §17.161.
+
+**Incremento operativo CU-23 — Fase 3 backend (2026-10-28):** ConsultaMedicaController/Service/Repository pasan a E en historia_clinica, mismas identidades P preexistentes; censo operativo **108 E** (27 Models/28 Controllers/31 Services/22 Repositories), **15 solo P** y Sesion R, mismos 124 participantes. Controller registrar(RegistrarConsultaRequest, ConsultaMedicaService): JsonResponse; Service registrar(string,array,array): array y privados identidad/revalidar; Repository porCitaBloqueada/referenciaAntecedente/crear/agregarVersion/agregarAntecedentes. HistoriaClinicaService sigue sirviendo GET y añade ConsultaMedicaRepository para contexto, no depende del escritor; ConsultaMedicaService depende de HistoriaClinicaService para materializar respuesta dentro de transacción, sin ciclo Service→Service. BitacoraRepository añade consultaRegistrada/antecedentesActualizados. Request/Resources/allowlists/test fuera del alcance selectivo, sin inventar clases UML. P50/P51 efectivos en análisis: 72 vistas/52 procedimientos/17 antecedentes; P52 aún previsto. Las 21 fuentes PlantUML/148 bloques previos se conservan históricos; nota incremental no es render nuevo ni actualización estructural global de Fase 6. Contratos/verificación en README/contexto §17.161; sin esquema/Models nuevos, CU-23 completo/Fases 4–6/frontend/producción pendientes. Las notas de Fase 2 siguientes conservan su censo histórico.
+
+**Incremento operativo CU-22 — Fase 2 backend (2026-10-28):** HistoriaClinicaController/Service/Repository ya existen en historia_clinica y operan cuatro lecturas; no ConsultaMedicaController/Service/Repository todavía ni escritura CU-23. Inventario operativo actual **105 E** (27 Models/27 Controllers/30 Services/21 Repositories), **18 solo P** y Sesion R, mismos 124 identificadores; las 21 fuentes PlantUML/índice de cierre previo se conservan como versión histórica sin reetiquetarlas silenciosamente. Request/Resources/rutas/tests fuera del alcance selectivo no se convierten en nuevas clases UML. P49 efectivo en análisis (70 vistas acumuladas/52 procedimientos/17 antecedentes), P50 contexto editable/P51/P52 aún previstos. Firmas propias efectivas: Controller historia/consulta/versionesConsulta/versionesAntecedentes(LeerHistoriaClinicaRequest, HistoriaClinicaService): HistoriaClinicaResource; Service consultar/consulta/versionesConsulta/versionesAntecedentes(string, array): array, __construct(AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, MedicoRepository, HistoriaClinicaRepository), privados identidad/autorizar/leer; Repository paciente/referenciaCita/cita/relacionMedica/consultas/consulta/versionConsulta/historialConsulta/antecedentes/historialAntecedentes/estudios y dos consultas privadas de versiones. Recursos/proyecciones/contratos concretos en README/contexto §17.160, sin dependencia de ResultadoLaboratorioService P inexistente. Regresión ampliada 1117/8966 correcta, no cierre global del módulo ni render nuevo de fuentes intactas; integración y actualización estructural acumulativa al finalizar Fase 6. DER/modelos sin cambios.
+
+**Concreción prevista CU-22/CU-23 — Fase 1 backend (2026-10-28):** decisiones aprobadas VS-CLI-09–12 y contratos previstos en backend/README/contexto §17.159. Se reutilizan los seis candidatos P de historia_clinica (dos Controllers, dos Services, dos Repositories), sin promoverlos a E ni crear clases PHP vacías. P49–P52 añaden cuatro vistas previstas al análisis, conservando las 65 anteriores (69 totales). `guardar` y constructor con ResultadoLaboratorioService P de §9/§10 son diseño preliminar: la fase clínica concreta apertura/alta/corrección y no exigirá instanciar un servicio de laboratorio inexistente; firmas efectivas se integrarán al implementar/cerrar módulo. Paciente consulta vigente propio (incluso incompleto), Médico relacionado lee historia pero solo escribe sus citas y Administrador conserva autor Usuario separado del Médico responsable. La prohibición antigua de lectura «por ser Administrador» en §8.4 no excluye el permiso expreso CU-22 vigente. Sin clases/firmas operativas/tablas/relaciones nuevas; censo 102 E/21 P/Sesion R y las 21 fuentes PlantUML permanecen intactos. Fases 2–6 clínicas/UI/producción pendientes, no cierre de módulo por diseño.
+
+**Revisión acumulativa frontend Fase 6 cerrada localmente (2026-10-28):** fronteras React P45–P48 integradas en navegador con Laravel/PostgreSQL reales; 15 comprobaciones, cuatro respuestas cortadas tras commit/GET sin replay, 80 disposiciones y 32 axe sin infracciones automáticas. No clases/firmas/relaciones PHP nuevas ni cambios de entidades/DER. Se conserva el alcance selectivo backend y todas las vistas editables anteriores; participantes JS efectivos y su colaboración con estas capas en análisis «CU-17–CU-19 — Frontend Fase 6»/contexto §17.158. Comprobadores reejecutados cotejan 433 firmas/75 clases operativas/218 participaciones de inyección sin ciclos Service→Service y P45–P48 17/20/21/20. No nuevo render necesario: fuentes PlantUML intactas. **Suite global final frontend nueva 2702 pruebas/88 archivos correctos**, 266,58 s; seis fases frontend cerradas localmente, no por esta revisión UML aislada. La evidencia backend de §14.4 conserva su fecha/alcance, no se presenta como suite nueva de frontend. Producción/otros módulos pendientes.
+
+Los mismos 124 identificadores del modelo global se conservan: **102 clases E** (27 Models, 26 Controllers, 29 Services, 20 Repositories), **21 clases solo P** y Sesion R. AsistenciaController/Service son E para las cuatro operaciones reales; no clases por rol ni setters genéricos. Las 19 vistas anteriores se conservan íntegramente como fuentes históricas, sin reinterpretar su estereotipo P/firmas preliminares como implementación actual. Las dos vistas siguientes actualizan ese mismo modelo, no agregan otra identidad por clase. Atributos y 43 asociaciones de persistencia permanecen en CVS_entidades/DER, sin cambios.
+
+§14.2 es el índice global actual; §14.3 concreta todos los miembros propios de las seis clases afectadas/reutilizadas y las conecta con módulos previos. Clases de contexto sin miembros remiten a sus definiciones anteriores, que siguen vigentes salvo la actualización explícita presente. E_P de BitacoraRepository/RecordatorioService/Repository conserva el diseño futuro de clínica/generación/consulta, pero los compartimentos de §14.3 muestran **solo métodos efectivos**. No sustituye el detalle previsto P de CU-22–CU-29. Requests/Resources/fixtures/rutas/infraestructura no se convierten en clases seleccionadas por figurar como tipos.
+
+### 14.2. Índice global vigente — 124 participantes acumulativos
+
+```plantuml
+@startuml CVS_global_cu17_f6
+hide members
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+top to bottom direction
+package "presentation/controllers" as PRESENTACION {
+  class AutenticacionController <<E>>
+  class CambioCorreoController <<E>>
+  class ClaveController <<E>>
+  class CredencialTemporalController <<E>>
+  class CuentaController <<E>>
+  class InvitacionPersonalController <<E>>
+  class PersonalController <<E>>
+  class RecuperacionClaveController <<E>>
+  class RegistroPacienteController <<E>>
+  class CodigoActivacionController <<E>>
+  class MiPerfilController <<E>>
+  class PacienteController <<E>>
+  class EspecialidadController <<E>>
+  class MedicoController <<E>>
+  class AsignacionConsultorioController <<E>>
+  class ConsultorioController <<E>>
+  class ConfiguracionCitasController <<E>>
+  class HorarioController <<E>>
+  class DisponibilidadController <<E>>
+  class ReservaController <<E>>
+  class AgendaController <<E>>
+  class ConsultaCitaController <<E>>
+  class HistorialCitasController <<E>>
+  class BitacoraController <<E>>
+  class GestionCitaController <<E>>
+  class AsistenciaController <<E>>
+  class HistoriaClinicaController <<P>>
+  class ConsultaMedicaController <<P>>
+  class SolicitudLaboratorioController <<P>>
+  class DocumentoLaboratorioController <<P>>
+  class RevisionResultadoController <<P>>
+  class ResultadoLaboratorioController <<P>>
+  class RecordatorioController <<P>>
+  class ReporteController <<P>>
+}
+package "business/services" as NEGOCIO {
+  class AdministracionCuentaService <<E>>
+  class AutenticacionService <<E>>
+  class CambioCorreoService <<E>>
+  class ClaveService <<E>>
+  class ContinuidadAdministrativaService <<E>>
+  class ControlIntentosService <<E>>
+  class CorreoSeguridadService <<E>>
+  class CredencialTemporalService <<E>>
+  class InvitacionPersonalService <<E>>
+  class RecuperacionClaveService <<E>>
+  class RegistroPacienteService <<E>>
+  class CodigoActivacionService <<E>>
+  class MiPerfilService <<E>>
+  class PacienteService <<E>>
+  class EspecialidadService <<E>>
+  class MedicoService <<E>>
+  class AsignacionConsultorioService <<E>>
+  class ConsultorioService <<E>>
+  class ConfiguracionCitasService <<E>>
+  class HorarioService <<E>>
+  class DisponibilidadService <<E>>
+  class ReservaService <<E>>
+  class AgendaService <<E>>
+  class ConsultaCitaService <<E>>
+  class HistorialCitasService <<E>>
+  class BitacoraService <<E>>
+  class GestionCitaService <<E>>
+  class AsistenciaService <<E>>
+  class HistoriaClinicaService <<P>>
+  class ConsultaMedicaService <<P>>
+  class SolicitudLaboratorioService <<P>>
+  class DocumentoLaboratorioService <<P>>
+  class RevisionResultadoService <<P>>
+  class ResultadoLaboratorioService <<P>>
+  class RecordatorioService <<E_P>>
+  class ReporteService <<P>>
+}
+package "data/repositories" as PERSISTENCIA {
+  class CambioCorreoRepository <<E>>
+  class ControlIntentosRepository <<E>>
+  class RegistroPacienteRepository <<E>>
+  class SesionRepository <<E>>
+  class TokenAccesoRepository <<E>>
+  class UsuarioRepository <<E>>
+  class CodigoActivacionRepository <<E>>
+  class PacienteRepository <<E>>
+  class EspecialidadRepository <<E>>
+  class MedicoRepository <<E>>
+  class AsignacionConsultorioRepository <<E>>
+  class ConsultorioRepository <<E>>
+  class ConfiguracionCitasRepository <<E>>
+  class HorarioRepository <<E>>
+  class PlanificacionRepository <<E>>
+  class CitaRepository <<E>>
+  class DisponibilidadRepository <<E>>
+  class AgendaRepository <<E>>
+  class BitacoraRepository <<E_P>>
+  class HistoriaClinicaRepository <<P>>
+  class ConsultaMedicaRepository <<P>>
+  class SolicitudLaboratorioRepository <<P>>
+  class ResultadoLaboratorioRepository <<P>>
+  class DocumentoLaboratorioRepository <<P>>
+  class RecordatorioRepository <<E_P>>
+  class ReporteRepository <<P>>
+}
+package "data/models + Sesion conceptual" as ENTIDADES {
+  class Rol <<E>>
+  class Usuario <<E>>
+  class Sesion <<R>>
+  class TokenAcceso <<E>>
+  class ControlIntentos <<E>>
+  class Paciente <<E>>
+  class ContactoEmergencia <<E>>
+  class PreferenciaPaciente <<E>>
+  class CodigoActivacionPaciente <<E>>
+  class RegistroPacientePendiente <<E>>
+  class VerificacionCorreo <<E>>
+  class Consultorio <<E>>
+  class Medico <<E>>
+  class Especialidad <<E>>
+  class MedicoEspecialidad <<E>>
+  class HorarioAtencion <<E>>
+  class ConfiguracionClinica <<E>>
+  class Cita <<E>>
+  class CambioCita <<E>>
+  class Recordatorio <<E>>
+  class ConsultaMedica <<E>>
+  class VersionConsulta <<E>>
+  class VersionAntecedente <<E>>
+  class SolicitudLaboratorio <<E>>
+  class DocumentoLaboratorio <<E>>
+  class VersionResultado <<E>>
+  class RevisionResultado <<E>>
+  class Bitacora <<E>>
+}
+PRESENTACION ..> NEGOCIO : delega
+NEGOCIO ..> PERSISTENCIA : coordina
+PERSISTENCIA ..> ENTIDADES : consulta / persiste
+legend bottom
+  E = existente; P = previsto; E_P = existente con ampliaciones previstas
+  R = concepto persistido sin Model PHP propio
+  Mismos identificadores de las vistas anteriores; detalle efectivo de asistencia en 14.3
+endlegend
+@enduml
+```
+
+### 14.3. Asistencia efectiva integrada con módulos previos
+
+```plantuml
+@startuml CVS_asistencia_cu17_f6
+skinparam classAttributeIconSize 0
+skinparam wrapWidth 350
+left to right direction
+hide empty attributes
+package "presentation/controllers/citas" {
+class AsistenciaController <<E>> {
+  + consultar(AsistenciaRequest $request, AsistenciaService $service): JsonResource
+  + confirmarLlegada(AsistenciaRequest $request, AsistenciaService $service): JsonResource
+  + registrarInasistencia(AsistenciaRequest $request, AsistenciaService $service): JsonResource
+  + marcarAtendida(AsistenciaRequest $request, AsistenciaService $service): JsonResource
+}
+}
+package "business/services/citas y recordatorios" {
+class AsistenciaService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, CitaRepository $citas, MedicoRepository $medicos, RecordatorioService $recordatorios, BitacoraRepository $bitacora)
+  - medicoDelActor(Usuario $actor): ?string
+  - actor(array $roles): Usuario
+  - revalidar(Usuario $actor): void
+  - citaBloqueada(string $id, Usuario $actor): Cita
+  - detalle(Cita $cita): array
+  - ultimoCambio(string $id): ?array
+  - impedimentosLlegada(Cita $cita, bool $consulta, CarbonImmutable $ahora): array
+  - impedimentosInasistencia(Cita $cita, bool $consulta, CarbonImmutable $ahora): array
+  - impedimentosAtencion(Cita $cita, CarbonImmutable $ahora): array
+  + consultar(string $id): array
+  + confirmarLlegada(string $id, array $datos, array $contexto): array
+  + registrarInasistencia(string $id, array $datos, array $contexto): array
+  + marcarAtendida(string $id, array $datos, array $contexto): array
+}
+class RecordatorioService <<E_P>> {
+  + __construct(RecordatorioRepository $recordatorios)
+  + invalidarPorCita(string $id, CarbonImmutable $ahora): void
+}
+}
+package "data/repositories/citas, recordatorios y bitacora" {
+class CitaRepository <<E>> {
+  + guardar(Cita $cita): void
+  + agregarCambio(Cita $cita, string $actor, array $antes, array $despues, CarbonImmutable $ahora, string $operacion = 'REPROGRAMACION', ?string $motivo = null): CambioCita
+  + ultimoCambio(string $id): ?CambioCita
+  + porId(string $id, bool $bloquear = false): ?Cita
+  + porIdParaAsistencia(string $id, ?string $medico, bool $bloquear = false): ?Cita
+  + tieneConsulta(string $id): bool
+  + porPropuesta(string $uuid, bool $bloquear = false): ?Cita
+  + pacienteSolapado(string $paciente, CarbonImmutable $inicio, CarbonImmutable $fin): bool
+  + crear(array $datos): Cita
+}
+class RecordatorioRepository <<E_P>> {
+  + invalidarPorCita(string $id, CarbonImmutable $ahora): void
+}
+class BitacoraRepository <<E_P>> {
+  + porId(string|int $id): ?Bitacora
+  + listar(array $filtros): LengthAwarePaginator
+  - filtrarRecurso(Builder $query, string $entidad, ?string $registro): void
+  - compararReferencia(Builder $query, string $valor, ?string $registro): void
+  - idSql(string $expresion): string
+  + medicoModificado(Medico $medico, Usuario $actor, array $contexto, string $tipo, array $campos, array $habilitaciones = []): void
+  + planificacionModificada(Usuario $actor, array $contexto, string $tipo, array $referencias, array $cambios): void
+  + citaProgramada(Cita $cita, Usuario $actor, array $contexto): void
+  + citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaLlegadaConfirmada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaInasistenciaRegistrada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaAtendida(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
+  + consultorioModificado(Consultorio $consultorio, Usuario $actor, array $contexto, string $tipo, array $campos): void
+  + especialidadModificada(Especialidad $especialidad, Usuario $actor, array $contexto, string $tipo, array $campos): void
+  + pacienteCreado(Paciente $paciente, Usuario $actor, array $contexto): void
+  + pacienteModificado(Paciente $paciente, Usuario $actor, array $contexto, array $campos, ?string $motivo, bool $estado = false): void
+  + autenticacion(string $tipo, string $resultado, array $contexto, ?Usuario $actor = null, ?string $causa = null, ?Usuario $objetivo = null, ?array $cambios = null): void
+}
+}
+package "contexto previo - mismas clases globales" {
+class AutenticacionService <<E>>
+class ContinuidadAdministrativaService <<E>>
+class PlanificacionRepository <<E>>
+class MedicoRepository <<E>>
+class ReservaService <<E>>
+class GestionCitaService <<E>>
+class AgendaRepository <<E>>
+class Cita <<E>>
+class CambioCita <<E>>
+class ConsultaMedica <<E>>
+class Recordatorio <<E>>
+class Bitacora <<E>>
+class Usuario <<E>>
+class Medico <<E>>
+}
+AsistenciaController ..> AsistenciaService : delega
+AsistenciaService ..> AutenticacionService : sesion y revalidacion
+AsistenciaService ..> ContinuidadAdministrativaService : coordina
+AsistenciaService ..> PlanificacionRepository : lock antes de recursos
+AsistenciaService ..> MedicoRepository : responsable antes de cita
+AsistenciaService ..> CitaRepository : alcance SQL y transicion
+AsistenciaService ..> RecordatorioService : solo Inasistencia / Atendida
+AsistenciaService ..> BitacoraRepository : ejecutor real
+RecordatorioService ..> RecordatorioRepository
+RecordatorioRepository ..> Recordatorio : invalidacion interna
+CitaRepository ..> Cita
+CitaRepository ..> CambioCita
+CitaRepository ..> ConsultaMedica : solo existencia en llegada / ausencia
+BitacoraRepository ..> Bitacora
+BitacoraRepository ..> Usuario : tipo / responsable real
+BitacoraRepository ..> Cita : tipo / referencia segura
+MedicoRepository ..> Medico
+ReservaService ..> CitaRepository : misma cita Programada
+GestionCitaService ..> CitaRepository : originales y programacion
+GestionCitaService ..> RecordatorioService : invalidacion existente
+AgendaRepository ..> Cita : lecturas autorizadas sin transicion
+legend bottom
+  Solo miembros PHP efectivos en esta vista; P futuro sigue en las vistas previas
+  Modelos de contexto sin compartimentos: atributos y multiplicidades en CVS_entidades
+  Confirmada conserva avisos; Atendida no crea ni modifica ConsultaMedica
+  Administrador ejecutor y Medico responsable no se confunden
+endlegend
+@enduml
+```
+
+### 14.4. Auditoría de cierre y límites
+
+Integración dirigida 14 pruebas/2410 aserciones correcta: reserva por tres roles, planificación por APIs, invitación/aceptación/login reales de Médico con transporte simulado, llegada opcional, atención por Administrador/Médico, lectura autorizada por cuatro roles, bitácora, logout/nuevo login/GET sin replay, reprogramación de Confirmada a Programada e inasistencia en el nuevo intervalo. Identidades verificadas/ficha vinculada y avisos son fixtures declaradas, no CU-04/CU-28 nuevos. Ninguna consulta clínica creada; la evidencia clínica de Fase 5 sigue siendo protocolo simulado.
+
+**Comprobaciones nuevas correctas:** reflexión/autoload coteja 433 firmas propias de 75 clases operativas (visibilidad/parámetros/tipos/defaults/retorno, sin heredados); 218 participaciones de inyección, equivalentes a 166 dependencias distintas entre clases, representadas en las vistas acumuladas; cero ciclos Service→Service. Los 124 identificadores del índice vigente son únicos, con 102 E/21 P/Sesion R. Las 19 fuentes históricas y CVS_entidades permanecen íntegras respecto a HEAD; ninguna asociación/atributo persistido cambiado.
+
+**Render actual local:** 21/21 bloques PlantUML verificados y renderizados a SVG con Java8 1.2026.9; dos PNG nuevos inspeccionados, índice vigente 2915×1582 y asistencia 2276×2008. Sin includes externos ni render remoto. Las vistas necesitan zoom/desplazamiento: no se promete visualizar todas las clases/firmas con legibilidad de una hoja. Recursos fuera de Git, en %LOCALAPPDATA%/Temp/opencode/cu17-f6-uml/, verificadores de reflexión/análisis en el mismo directorio temporal aprobado. P45–P48 del análisis cotejan 17/20/21/20 participaciones transitivas y sus 65 vistas se conservan. Sintaxis/UTF-8/PSR-4/Pint/Composer/diff-check/documentos/rutas correctos.
+
+**Cierre backend local confirmado:** suite global final nueva **3260 pruebas/40375 aserciones correctas**, 20 min 39,374 s/334 MB; inventario PostgreSQL pre/post conservado (dos esquemas/doce tablas/public vacío), contexto §17.152/README. Incluye corrección del proveedor de rutas esperadas en MatrizPermisosBackendTest, sin cambios productivos; no se suma el intento global interrumpido ni las dirigidas. Controles de código finales cubren 18 PHP acumulados. Las seis fases backend CU-17–CU-19 quedan completas localmente, no por una verificación UML aislada. Sin nuevas entidades, atributos o relaciones persistidas; frontend/producción y CU-22–CU-29 completos pendientes.
+
+## 15. Cierre acumulativo CU-22/CU-23 — Fase 6 backend (2026-10-29)
+
+**Cierre backend local confirmado:** suite global final nueva **3828 pruebas/55111 aserciones correctas**, 27 min 12,393 s/498 MB; inventario PostgreSQL pre/post dos esquemas/doce tablas/public vacío y controles finales conservados, contexto §17.164. Reflexión de 474 firmas propias/81 clases operativas, 239 participaciones de inyección/183 dependencias distintas sin ciclos, 24 PlantUML renderizados localmente y tres PNG inspeccionados. Las 21 fuentes anteriores se conservan exactamente como historia. Las tres vistas siguientes son el incremento acumulativo vigente: índice de los mismos 124 participantes (108 E/15 P/Sesion R), seis clases clínicas con firmas propias exactas y dependencias efectivas, y bitácora con métodos clínicos completos. No son un modelo aislado ni autorización para CU-24–CU-29 pendientes. Frontend clínico/producción no iniciados.
+
+El índice conserva conexiones entre módulos y distinción E/P; el detalle complementa entidades/seguridad/agenda/reserva/gestión/asistencia ya integradas. Models siguen referenciados con atributos y relaciones completos en la vista histórica de entidades inalterada; sus cajas aquí son referencias, no redefiniciones de persistencia. Request/Resource/middleware/fixtures siguen fuera del censo selectivo. Sin dependencia de ResultadoLaboratorioService P inexistente: los estudios CU-22 se leen como metadatos SQL delimitados.
+
+### 15.1. Índice global vigente
+
+```plantuml
+@startuml CVS_global_clinica_b6
+hide members
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+top to bottom direction
+package "presentation/controllers" as PRESENTACION {
+  class AutenticacionController <<E>>
+  class CambioCorreoController <<E>>
+  class ClaveController <<E>>
+  class CredencialTemporalController <<E>>
+  class CuentaController <<E>>
+  class InvitacionPersonalController <<E>>
+  class PersonalController <<E>>
+  class RecuperacionClaveController <<E>>
+  class RegistroPacienteController <<E>>
+  class CodigoActivacionController <<E>>
+  class MiPerfilController <<E>>
+  class PacienteController <<E>>
+  class EspecialidadController <<E>>
+  class MedicoController <<E>>
+  class AsignacionConsultorioController <<E>>
+  class ConsultorioController <<E>>
+  class ConfiguracionCitasController <<E>>
+  class HorarioController <<E>>
+  class DisponibilidadController <<E>>
+  class ReservaController <<E>>
+  class AgendaController <<E>>
+  class ConsultaCitaController <<E>>
+  class HistorialCitasController <<E>>
+  class BitacoraController <<E>>
+  class GestionCitaController <<E>>
+  class AsistenciaController <<E>>
+  class HistoriaClinicaController <<E>>
+  class ConsultaMedicaController <<E>>
+  class SolicitudLaboratorioController <<P>>
+  class DocumentoLaboratorioController <<P>>
+  class RevisionResultadoController <<P>>
+  class ResultadoLaboratorioController <<P>>
+  class RecordatorioController <<P>>
+  class ReporteController <<P>>
+}
+package "business/services" as NEGOCIO {
+  class AdministracionCuentaService <<E>>
+  class AutenticacionService <<E>>
+  class CambioCorreoService <<E>>
+  class ClaveService <<E>>
+  class ContinuidadAdministrativaService <<E>>
+  class ControlIntentosService <<E>>
+  class CorreoSeguridadService <<E>>
+  class CredencialTemporalService <<E>>
+  class InvitacionPersonalService <<E>>
+  class RecuperacionClaveService <<E>>
+  class RegistroPacienteService <<E>>
+  class CodigoActivacionService <<E>>
+  class MiPerfilService <<E>>
+  class PacienteService <<E>>
+  class EspecialidadService <<E>>
+  class MedicoService <<E>>
+  class AsignacionConsultorioService <<E>>
+  class ConsultorioService <<E>>
+  class ConfiguracionCitasService <<E>>
+  class HorarioService <<E>>
+  class DisponibilidadService <<E>>
+  class ReservaService <<E>>
+  class AgendaService <<E>>
+  class ConsultaCitaService <<E>>
+  class HistorialCitasService <<E>>
+  class BitacoraService <<E>>
+  class GestionCitaService <<E>>
+  class AsistenciaService <<E>>
+  class HistoriaClinicaService <<E>>
+  class ConsultaMedicaService <<E>>
+  class SolicitudLaboratorioService <<P>>
+  class DocumentoLaboratorioService <<P>>
+  class RevisionResultadoService <<P>>
+  class ResultadoLaboratorioService <<P>>
+  class RecordatorioService <<E_P>>
+  class ReporteService <<P>>
+}
+package "data/repositories" as PERSISTENCIA {
+  class CambioCorreoRepository <<E>>
+  class ControlIntentosRepository <<E>>
+  class RegistroPacienteRepository <<E>>
+  class SesionRepository <<E>>
+  class TokenAccesoRepository <<E>>
+  class UsuarioRepository <<E>>
+  class CodigoActivacionRepository <<E>>
+  class PacienteRepository <<E>>
+  class EspecialidadRepository <<E>>
+  class MedicoRepository <<E>>
+  class AsignacionConsultorioRepository <<E>>
+  class ConsultorioRepository <<E>>
+  class ConfiguracionCitasRepository <<E>>
+  class HorarioRepository <<E>>
+  class PlanificacionRepository <<E>>
+  class CitaRepository <<E>>
+  class DisponibilidadRepository <<E>>
+  class AgendaRepository <<E>>
+  class BitacoraRepository <<E_P>>
+  class HistoriaClinicaRepository <<E>>
+  class ConsultaMedicaRepository <<E>>
+  class SolicitudLaboratorioRepository <<P>>
+  class ResultadoLaboratorioRepository <<P>>
+  class DocumentoLaboratorioRepository <<P>>
+  class RecordatorioRepository <<E_P>>
+  class ReporteRepository <<P>>
+}
+package "data/models + Sesion conceptual" as ENTIDADES {
+  class Rol <<E>>
+  class Usuario <<E>>
+  class Sesion <<R>>
+  class TokenAcceso <<E>>
+  class ControlIntentos <<E>>
+  class Paciente <<E>>
+  class ContactoEmergencia <<E>>
+  class PreferenciaPaciente <<E>>
+  class CodigoActivacionPaciente <<E>>
+  class RegistroPacientePendiente <<E>>
+  class VerificacionCorreo <<E>>
+  class Consultorio <<E>>
+  class Medico <<E>>
+  class Especialidad <<E>>
+  class MedicoEspecialidad <<E>>
+  class HorarioAtencion <<E>>
+  class ConfiguracionClinica <<E>>
+  class Cita <<E>>
+  class CambioCita <<E>>
+  class Recordatorio <<E>>
+  class ConsultaMedica <<E>>
+  class VersionConsulta <<E>>
+  class VersionAntecedente <<E>>
+  class SolicitudLaboratorio <<E>>
+  class DocumentoLaboratorio <<E>>
+  class VersionResultado <<E>>
+  class RevisionResultado <<E>>
+  class Bitacora <<E>>
+}
+PRESENTACION ..> NEGOCIO : delega
+NEGOCIO ..> PERSISTENCIA : coordina
+PERSISTENCIA ..> ENTIDADES : consulta / persiste
+legend bottom
+  E = existente; P = previsto; E_P = existente con ampliaciones previstas
+  R = concepto persistido sin Model PHP propio
+  Mismos identificadores anteriores; detalle asistencia 14.3 y clinica 15.2
+endlegend
+@enduml
+```
+
+### 15.2. Lectura, alta y correcciones clínicas efectivas
+
+```plantuml
+@startuml CVS_historia_clinica_b6
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+class HistoriaClinicaController <<E>> {
+  + historia(LeerHistoriaClinicaRequest $request, HistoriaClinicaService $service): HistoriaClinicaResource
+  + consulta(LeerHistoriaClinicaRequest $request, HistoriaClinicaService $service): HistoriaClinicaResource
+  + versionesConsulta(LeerHistoriaClinicaRequest $request, HistoriaClinicaService $service): HistoriaClinicaResource
+  + versionesAntecedentes(LeerHistoriaClinicaRequest $request, HistoriaClinicaService $service): HistoriaClinicaResource
+}
+class ConsultaMedicaController <<E>> {
+  + actualizar(ActualizarConsultaRequest $request, ConsultaMedicaService $service): HistoriaClinicaResource
+  + registrar(RegistrarConsultaRequest $request, ConsultaMedicaService $service): JsonResponse
+}
+class HistoriaClinicaService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, MedicoRepository $medicos, HistoriaClinicaRepository $historias, ConsultaMedicaRepository $consultas)
+  - identidad(Usuario $actor): array
+  - autorizar(array $identidad, Paciente $paciente): void
+  - leer(string $id, bool $porCita, bool $historico, Closure $lectura): array
+  + consultar(string $paciente, array $filtros): array
+  + consulta(string $id, array $filtros): array
+  + versionesConsulta(string $id, array $filtros): array
+  + versionesAntecedentes(string $id, array $filtros): array
+}
+class ConsultaMedicaService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, MedicoRepository $medicos, CitaRepository $citas, HistoriaClinicaRepository $historias, ConsultaMedicaRepository $consultas, HistoriaClinicaService $lectura, BitacoraRepository $bitacora)
+  - identidad(Usuario $actor): array
+  - revalidar(array $identidad): void
+  + registrar(string $id, array $datos, array $contexto): array
+  + actualizar(string $id, array $datos, array $contexto): array
+  - guardar(string $id, array $datos, array $contexto, bool $actualizar): array
+}
+class HistoriaClinicaRepository <<E>> {
+  + paciente(string $id): ?Paciente
+  + referenciaCita(string $id): ?Cita
+  + cita(string $id, string $paciente): ?Cita
+  + relacionMedica(string $medico, string $paciente): bool
+  + consultas(string $paciente, array $filtros): LengthAwarePaginator
+  + consulta(string $cita, string $paciente): ?ConsultaMedica
+  - versionesConsulta(string $consulta, string $paciente, bool $interno): Builder
+  + versionConsulta(string $consulta, string $paciente, bool $interno): ?VersionConsulta
+  + historialConsulta(string $consulta, string $paciente, array $filtros): LengthAwarePaginator
+  - versionesAntecedentes(string $paciente, bool $interno): Builder
+  + antecedentes(string $paciente, bool $interno): ?VersionAntecedente
+  + historialAntecedentes(string $paciente, array $filtros): LengthAwarePaginator
+  + estudios(string $consulta, string $paciente, array $filtros): LengthAwarePaginator
+}
+class ConsultaMedicaRepository <<E>> {
+  + porCitaBloqueada(string $cita, string $paciente): ?ConsultaMedica
+  + referenciaAntecedente(string $paciente): ?VersionAntecedente
+  + crear(string $cita, CarbonImmutable $ahora): ConsultaMedica
+  + agregarVersion(string $consulta, string $autor, array $contenido, CarbonImmutable $ahora, int $numero = 1, ?string $motivo = null): VersionConsulta
+  + agregarAntecedentes(string $paciente, string $consulta, string $autor, int $numero, array $contenido, CarbonImmutable $ahora, ?string $motivo = null): VersionAntecedente
+}
+class AutenticacionService <<E>>
+class ContinuidadAdministrativaService <<E>>
+class PlanificacionRepository <<E>>
+class MedicoRepository <<E>>
+class Cita <<E>>
+class Paciente <<E>>
+class Usuario <<E>>
+class CitaRepository <<E>>
+class BitacoraRepository <<E>>
+class ConsultaMedica <<E>>
+class VersionAntecedente <<E>>
+class VersionConsulta <<E>>
+HistoriaClinicaController ..> HistoriaClinicaService
+ConsultaMedicaController ..> ConsultaMedicaService
+HistoriaClinicaService ..> AutenticacionService
+HistoriaClinicaService ..> ContinuidadAdministrativaService
+HistoriaClinicaService ..> PlanificacionRepository
+HistoriaClinicaService ..> MedicoRepository
+HistoriaClinicaService ..> HistoriaClinicaRepository
+HistoriaClinicaService ..> ConsultaMedicaRepository
+HistoriaClinicaService ..> Cita
+HistoriaClinicaService ..> Paciente
+HistoriaClinicaService ..> Usuario
+ConsultaMedicaService ..> AutenticacionService
+ConsultaMedicaService ..> ContinuidadAdministrativaService
+ConsultaMedicaService ..> PlanificacionRepository
+ConsultaMedicaService ..> MedicoRepository
+ConsultaMedicaService ..> CitaRepository
+ConsultaMedicaService ..> HistoriaClinicaRepository
+ConsultaMedicaService ..> ConsultaMedicaRepository
+ConsultaMedicaService ..> HistoriaClinicaService
+ConsultaMedicaService ..> BitacoraRepository
+ConsultaMedicaService ..> Usuario
+HistoriaClinicaRepository ..> Cita
+HistoriaClinicaRepository ..> ConsultaMedica
+HistoriaClinicaRepository ..> Paciente
+HistoriaClinicaRepository ..> VersionAntecedente
+HistoriaClinicaRepository ..> VersionConsulta
+ConsultaMedicaRepository ..> ConsultaMedica
+ConsultaMedicaRepository ..> VersionAntecedente
+ConsultaMedicaRepository ..> VersionConsulta
+@enduml
+```
+
+### 15.3. Bitácora efectiva acumulada y sus referencias
+
+Esta vista completa las firmas propias actuales de BitacoraRepository, no expone contenido clínico en eventos. Consulta/antecedentes conservan motivo y snapshots en almacenamiento clínico; bitácora general solo referencias/números/ejecutor auténtico.
+
+```plantuml
+@startuml CVS_auditoria_clinica_b6
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+class BitacoraRepository <<E>> {
+  + porId(string|int $id): ?Bitacora
+  + listar(array $filtros): LengthAwarePaginator
+  - filtrarRecurso(Builder $query, string $entidad, ?string $registro): void
+  - compararReferencia(Builder $query, string $valor, ?string $registro): void
+  - idSql(string $expresion): string
+  + medicoModificado(Medico $medico, Usuario $actor, array $contexto, string $tipo, array $campos, array $habilitaciones = []): void
+  + planificacionModificada(Usuario $actor, array $contexto, string $tipo, array $referencias, array $cambios): void
+  + citaProgramada(Cita $cita, Usuario $actor, array $contexto): void
+  + consultaRegistrada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, Usuario $actor, array $contexto): void
+  + antecedentesActualizados(Cita $cita, ConsultaMedica $consulta, VersionAntecedente $version, ?VersionAntecedente $anterior, Usuario $actor, array $contexto): void
+  + consultaActualizada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, VersionConsulta $anterior, Usuario $actor, array $contexto): void
+  + citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaLlegadaConfirmada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaInasistenciaRegistrada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaAtendida(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
+  + consultorioModificado(Consultorio $consultorio, Usuario $actor, array $contexto, string $tipo, array $campos): void
+  + especialidadModificada(Especialidad $especialidad, Usuario $actor, array $contexto, string $tipo, array $campos): void
+  + pacienteCreado(Paciente $paciente, Usuario $actor, array $contexto): void
+  + pacienteModificado(Paciente $paciente, Usuario $actor, array $contexto, array $campos, ?string $motivo, bool $estado = false): void
+  + autenticacion(string $tipo, string $resultado, array $contexto, ?Usuario $actor = null, ?string $causa = null, ?Usuario $objetivo = null, ?array $cambios = null): void
+}
+class Bitacora <<E>>
+class Cita <<E>>
+class ConsultaMedica <<E>>
+class Consultorio <<E>>
+class Especialidad <<E>>
+class Medico <<E>>
+class Paciente <<E>>
+class Usuario <<E>>
+class VersionAntecedente <<E>>
+class VersionConsulta <<E>>
+BitacoraRepository ..> Bitacora
+BitacoraRepository ..> Cita
+BitacoraRepository ..> ConsultaMedica
+BitacoraRepository ..> Consultorio
+BitacoraRepository ..> Especialidad
+BitacoraRepository ..> Medico
+BitacoraRepository ..> Paciente
+BitacoraRepository ..> Usuario
+BitacoraRepository ..> VersionAntecedente
+BitacoraRepository ..> VersionConsulta
+@enduml
+```
+
+## 16. Colaboración acumulativa frontend CU-22/CU-23 (2026-10-29)
+
+Vista complementaria de **fronteras React y módulos JavaScript implementados**, no clases de dominio PHP. Se integra con las clases clínicas/seguridad/agenda de §15, sin redefinirlas ni cambiar el censo PHP de 124 participantes selectivos o las 474 firmas verificadas. Las 24 fuentes PlantUML anteriores quedan intactas como historia. La interfaz no concede permisos ni implementa versiones persistidas: Laravel autoriza, aplica originales y conserva autoría/versiones; PostgreSQL sigue siendo la barrera de integridad. La evidencia de integración/cierre se registra en contexto §17.170 y análisis `cu22-cu23-frontend-fase6`, sin convertir mocks históricos en pruebas reales.
+
+```plantuml
+@startuml CVS_colaboracion_clinica_frontend_f6
+hide members
+skinparam packageStyle rectangle
+left to right direction
+package "React: fronteras implementadas" {
+  class "HistoriaClinicaPage" as Historia <<frontera React>>
+  class "ConsultaDetallePage" as Detalle <<frontera React>>
+  class "VersionesClinicasPage" as Versiones <<frontera React>>
+  class "ConsultaEditorPage" as Editor <<frontera React>>
+  class "RegistroConsultaForm" as Formulario <<componente React>>
+  class "ContenidoClinico" as Contenido <<componente React>>
+  class "ClinicaQuery" as EstadoConsulta <<componente React>>
+}
+package "React: coordinación y transporte implementados" {
+  class "useClinicaQuery" as Lectura <<hook React>>
+  class "useRegistroConsulta" as Escritura <<hook React>>
+  class "historiaClinica.service" as ServicioLectura <<modulo JS>>
+  class "consultaMedica.service" as ServicioEscritura <<modulo JS>>
+  class "api.js (Axios)" as API <<modulo JS>>
+  class "AuthContext / useAuth" as Auth <<contexto React>>
+}
+package "Laravel existente: referencias a §15" {
+  class HistoriaClinicaController <<E>>
+  class ConsultaMedicaController <<E>>
+  class HistoriaClinicaService <<E>>
+  class ConsultaMedicaService <<E>>
+  class HistoriaClinicaRepository <<E>>
+  class ConsultaMedicaRepository <<E>>
+}
+Historia ..> Lectura
+Detalle ..> Lectura
+Versiones ..> Lectura
+Historia ..> EstadoConsulta
+Detalle ..> EstadoConsulta
+Versiones ..> EstadoConsulta
+Detalle ..> Contenido
+Versiones ..> Contenido
+Editor ..> Escritura
+Editor ..> Formulario
+Lectura ..> ServicioLectura
+Escritura ..> ServicioLectura : contexto fresco / GET incierto
+Escritura ..> ServicioEscritura : revisión / POST o PATCH único
+ServicioLectura ..> API
+ServicioEscritura ..> ServicioLectura : proyección coherente
+ServicioEscritura ..> API : CSRF / época fijada
+Auth ..> API : ciclo de sesión
+Lectura ..> API : retirada por época / abort
+Escritura ..> API : retirada / sin replay
+API ..> HistoriaClinicaController : HTTP cookies / JSON
+API ..> ConsultaMedicaController : HTTP cookies / JSON
+HistoriaClinicaController ..> HistoriaClinicaService
+ConsultaMedicaController ..> ConsultaMedicaService
+HistoriaClinicaService ..> HistoriaClinicaRepository
+ConsultaMedicaService ..> ConsultaMedicaRepository
+note bottom of API
+  Cookies HttpOnly administradas por el navegador.
+  Época local no es autorización ni token.
+  Sin persistencia clínica en web storage.
+end note
+note bottom of Editor
+  Administrador / Médico: editor compartido.
+  Declaración explícita y revisión separada.
+  Guardar no ejecuta CU-19 ni marca Atendida.
+end note
+@enduml
+```
+
+Las páginas internas consultan también identidad/rol públicos mediante useAuth; el dibujo omite esas aristas repetidas para legibilidad. Selección administrativa reutiliza pacientes e historial existentes; el Paciente obtiene su ficha mediante perfil propio antes de leer historia. Rutas protegidas y visibilidad son controles de presentación, no sustituyen middleware/autorización por recurso. Históricos internos de solo lectura, antecedentes compartidos por Paciente y cambios posteriores a Atendida conservan las relaciones persistentes de §15; no nuevas tablas ni cambios al DER.
+
+## 17. Nota de diseño backend laboratorio — Fase 1 (2026-10-29)
+
+**Sin nueva implementación ni nuevo diagrama de ejecución.** Las 25 fuentes PlantUML previas/censo PHP se conservan exactamente como historia; la vista `CVS_laboratorio` sigue **P** para sus cuatro Controllers/Services y tres Repositories, no clases funcionales por haber cerrado diseño. Las firmas previstas históricas no son contrato PHP ejecutable: backend README/contexto §17.171/análisis `laboratorio-backend-fase1` concretan ahora HTTP, payloads y colaboración, incluyendo operación unificada de revisión y entrega GET/HEAD autorizada. Materializar clases dentro de `laboratorio/` de cada capa solo al implementar su fase; actualizar firmas/dependencias efectivas y acumulativo global al cierre del módulo, sin crear stubs ni renombrar las capas.
+
+Los cuatro Models E existentes solo prueban persistencia. Se diseñan autor Usuario `creada_por` en SolicitudLaboratorio y `revisada_por` en RevisionResultado como adiciones futuras F2/F4; Médico/Paciente responsables derivan de ConsultaMedica/Cita e id_medico de revisión conserva responsable, no ejecutor administrativo. No cambian ahora atributos/relaciones/censo del UML ni DER físico. Legado sin autor acreditado no se atribuye al Médico ni se reescribe en revisión inmutable. Versión de origen cruzada ya existente permite reasociación aprobada a destino Pendiente, incluso otro Paciente verificado, con bloqueo de ambos extremos, historia protegida y nueva revisión, sin otorgar acceso cruzado ni modificar Disponible. CU-22 conserva forma JSON y lectura de metadatos; sus proyecciones/consumidores deben entrar en regresión al implementar autoría/publicación. Sin RF/RN oficiales nuevos, frontend/producción ni Fase 2 iniciados.
+
+## 18. Incremento efectivo CU-24 — Fase 2 laboratorio (2026-10-30)
+
+**Participantes implementados en esta fase:** SolicitudLaboratorioController, ResultadoLaboratorioController, SolicitudLaboratorioService, ResultadoLaboratorioService y SolicitudLaboratorioRepository; ya no solo P para las operaciones implementadas siguientes. Se conservan las 25 fuentes previas como historia y el cierre global clínico §15, sin reescribir su censo de aquel momento. DocumentoLaboratorioController/Service/Repository y RevisionResultadoController/Service/ResultadoLaboratorioRepository continúan previstos; sus métodos de archivos/revisión aún no existen. Requests/Resources no pertenecen al censo PHP selectivo. Detalle de procedimientos P53/P54 y pruebas en análisis/contexto §17.172/backend README; no cierre integral de laboratorio ni recenso/reflexión global nuevo hasta F6.
+
+```plantuml
+@startuml CVS_incremento_laboratorio_b2
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+package "presentation/controllers/laboratorio" {
+  class SolicitudLaboratorioController <<E>> {
+    + crear(CrearSolicitudLaboratorioRequest $request, SolicitudLaboratorioService $service): JsonResponse
+  }
+  class ResultadoLaboratorioController <<E>> {
+    + listar(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+    + porConsulta(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+    + consultar(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+  }
+}
+package "business/services/laboratorio" {
+  class SolicitudLaboratorioService <<E>> {
+    + crear(string $id, array $datos, array $contexto): array
+  }
+  class ResultadoLaboratorioService <<E>> {
+    + identidad(Usuario $actor): array
+    + listar(array $filtros): array
+    + porConsulta(string $consulta, array $filtros): array
+    + consultar(string $id): array
+    - leer(array $filtros, ?string $solicitud, bool $porConsulta): array
+  }
+}
+package "data/repositories/laboratorio" {
+  class SolicitudLaboratorioRepository <<E>> {
+    + referenciaConsulta(string $id): ?ConsultaMedica
+    + referenciaSolicitud(string $id): ?SolicitudLaboratorio
+    + crear(string $consulta, string $autor, string $estudio, CarbonImmutable $ahora): SolicitudLaboratorio
+    + listar(array $ambito, array $filtros): LengthAwarePaginator
+    + consultar(string $id, array $ambito): ?object
+  }
+}
+package "Referencias acumulativas existentes" {
+  class AutenticacionService <<E>>
+  class ContinuidadAdministrativaService <<E>>
+  class PlanificacionRepository <<E>>
+  class MedicoRepository <<E>>
+  class HistoriaClinicaRepository <<E>>
+  class ConsultaMedicaRepository <<E>>
+  class BitacoraRepository <<E>>
+  class SolicitudLaboratorio <<E>> {
+    # creada_por: ?BigInt
+    + creadaPor(): BelongsTo
+  }
+  class Usuario <<E>> {
+    + solicitudesLaboratorioCreadas(): HasMany
+  }
+  class ConsultaMedica <<E>>
+  class Cita <<E>>
+}
+SolicitudLaboratorioController ..> SolicitudLaboratorioService
+ResultadoLaboratorioController ..> ResultadoLaboratorioService
+SolicitudLaboratorioService ..> ResultadoLaboratorioService
+SolicitudLaboratorioService ..> SolicitudLaboratorioRepository
+ResultadoLaboratorioService ..> SolicitudLaboratorioRepository
+SolicitudLaboratorioService ..> AutenticacionService
+ResultadoLaboratorioService ..> AutenticacionService
+SolicitudLaboratorioService ..> ContinuidadAdministrativaService
+ResultadoLaboratorioService ..> ContinuidadAdministrativaService
+SolicitudLaboratorioService ..> PlanificacionRepository
+ResultadoLaboratorioService ..> PlanificacionRepository
+SolicitudLaboratorioService ..> MedicoRepository
+ResultadoLaboratorioService ..> MedicoRepository
+SolicitudLaboratorioService ..> HistoriaClinicaRepository
+ResultadoLaboratorioService ..> HistoriaClinicaRepository
+SolicitudLaboratorioService ..> ConsultaMedicaRepository
+SolicitudLaboratorioService ..> BitacoraRepository : estudioSolicitado
+SolicitudLaboratorioRepository ..> SolicitudLaboratorio
+SolicitudLaboratorioRepository ..> ConsultaMedica
+SolicitudLaboratorio "0..*" --> "0..1" Usuario : creada_por acreditada
+SolicitudLaboratorio "0..*" --> "1" ConsultaMedica
+ConsultaMedica "0..1" --> "1" Cita : responsable / Paciente
+note bottom of SolicitudLaboratorio
+  Solo incremento de atributo/relación sobre Model existente.
+  NULL conserva autor desconocido de legado, sin backfill.
+  Nueva API exige Usuario real. No se modifica Disponible.
+end note
+@enduml
+```
+
+La vista muestra operaciones propias relevantes implementadas, no todas las firmas privadas/constructores, y referencias a colaboradores ya integrados, no clases nuevas duplicadas. Contexto editable de documentos, entrega de archivos y autor de revisión siguen las fases posteriores; guardar estudio no marca Atendida. La nueva relación/FK se documenta físicamente en DER §6.23, sin editar el Draw.io ni atributos originales para aparentar que ya incluían creada_por.
+
+## 19. Incremento efectivo CU-25 — Fase 3 laboratorio (2026-10-30)
+
+Vista acumulativa complementaria de carga/corrección y colaboración con solicitudes/seguridad/clínica ya integradas. Las 26 fuentes globales anteriores se conservan como historia; DocumentoLaboratorioController/Service/Repository y ResultadoLaboratorioRepository dejan de ser solo P para los métodos efectivos mostrados. ArchivoLaboratorioValidator/ArchivoLaboratorio son soporte técnico real, no nuevas entidades. No recenso selectivo global ni implementación de RevisionResultadoController/Service, revisión/publicación/entrega binaria o frontend por esta fase. Evidencia P55–P57 en análisis/contexto §17.173/backend README.
+
+```plantuml
+@startuml CVS_incremento_laboratorio_b3
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+package "presentation/controllers/laboratorio" {
+  class DocumentoLaboratorioController <<E>> {
+    + cargar(CargarDocumentoLaboratorioRequest $request, DocumentoLaboratorioService $service): JsonResponse
+    + corregir(CargarDocumentoLaboratorioRequest $request, DocumentoLaboratorioService $service): JsonResponse
+  }
+  class ResultadoLaboratorioController <<E>>
+}
+package "business/services/laboratorio" {
+  class DocumentoLaboratorioService <<E>> {
+    + cargar(string $id, array $datos, SplFileInfo $archivo, string $nombre, array $contexto): array
+    + corregir(string $id, array $datos, ?SplFileInfo $archivo, ?string $nombre, array $contexto): array
+  }
+  class ResultadoLaboratorioService <<E>> {
+    + contextoDocumental(SolicitudLaboratorio $solicitud, string $responsable): array
+    + versiones(string $id, array $filtros): array
+  }
+}
+package "Validación y bytes privados" {
+  class ArchivoLaboratorioValidator <<E>> {
+    + validar(SplFileInfo $archivo, string $nombre): array
+  }
+  class ArchivoLaboratorio <<E>> {
+    + comprobarTemporal(SplFileInfo $archivo, array $metadatos, Closure $comprobar): void
+    + guardar(SplFileInfo $archivo, array $metadatos): string
+    + verificar(string $ruta, array $metadatos): void
+    + retirarNuevo(string $ruta): void
+  }
+}
+package "data/repositories/laboratorio" {
+  class DocumentoLaboratorioRepository <<E>> {
+    + crear(string $ruta, array $metadatos, string $autor, CarbonImmutable $ahora): DocumentoLaboratorio
+    + porId(string $id): ?DocumentoLaboratorio
+    + rutaReferenciada(string $ruta): bool
+  }
+  class ResultadoLaboratorioRepository <<E>> {
+    + contexto(SolicitudLaboratorio $s): array
+    + version(?string $id): ?VersionResultado
+    + ultimaVersion(string $solicitud): ?VersionResultado
+    + ultimaRevision(?string $version): ?RevisionResultado
+    + fueReasociada(string $version, string $solicitud): bool
+    + agregarVersion(string $solicitud, string $documento, int $numero, ?string $origen, string $autor, ?string $motivo, CarbonImmutable $ahora): VersionResultado
+    + versiones(string $solicitud, array $filtros): LengthAwarePaginator
+  }
+  class SolicitudLaboratorioRepository <<E>> {
+    + contextos(array $ids): Collection
+    + bloquearOrdenadas(array $ids): Collection
+    + asignarVersion(SolicitudLaboratorio $solicitud, ?string $version): void
+  }
+}
+package "Referencias existentes acumuladas" {
+  class AutenticacionService <<E>>
+  class ContinuidadAdministrativaService <<E>>
+  class PlanificacionRepository <<E>>
+  class MedicoRepository <<E>>
+  class HistoriaClinicaRepository <<E>>
+  class ConsultaMedicaRepository <<E>>
+  class BitacoraRepository <<E>>
+  class SolicitudLaboratorio <<E>>
+  class DocumentoLaboratorio <<E>>
+  class VersionResultado <<E>>
+  class RevisionResultado <<E>>
+}
+DocumentoLaboratorioController ..> DocumentoLaboratorioService
+ResultadoLaboratorioController ..> ResultadoLaboratorioService
+DocumentoLaboratorioService ..> ResultadoLaboratorioService : contexto / lectura final
+DocumentoLaboratorioService ..> ArchivoLaboratorioValidator
+DocumentoLaboratorioService ..> ArchivoLaboratorio
+ArchivoLaboratorioValidator ..> ArchivoLaboratorio : copia cerrada para qpdf
+DocumentoLaboratorioService ..> SolicitudLaboratorioRepository
+DocumentoLaboratorioService ..> DocumentoLaboratorioRepository
+DocumentoLaboratorioService ..> ResultadoLaboratorioRepository
+ResultadoLaboratorioService ..> ResultadoLaboratorioRepository
+DocumentoLaboratorioService ..> AutenticacionService
+DocumentoLaboratorioService ..> ContinuidadAdministrativaService
+DocumentoLaboratorioService ..> PlanificacionRepository
+DocumentoLaboratorioService ..> MedicoRepository
+DocumentoLaboratorioService ..> HistoriaClinicaRepository
+DocumentoLaboratorioService ..> ConsultaMedicaRepository
+DocumentoLaboratorioService ..> BitacoraRepository : referencias seguras atómicas
+DocumentoLaboratorioRepository ..> DocumentoLaboratorio
+ResultadoLaboratorioRepository ..> VersionResultado
+ResultadoLaboratorioRepository ..> RevisionResultado
+SolicitudLaboratorioRepository ..> SolicitudLaboratorio
+VersionResultado "0..*" --> "1" DocumentoLaboratorio
+VersionResultado "0..*" --> "0..1" VersionResultado : origen conservado, sin acceso cruzado
+note bottom of ArchivoLaboratorio
+  Bytes privados / UUID exclusivo / SHA-256.
+  Compensar solo clave nueva tras rollback confirmado.
+  Commit incierto conserva archivo, sin replay.
+  qpdf / GD no son antivirus ni interpretación médica.
+end note
+@enduml
+```
+
+Se muestran métodos nuevos relevantes, no todas las firmas privadas/constructores; Collection se distingue en código como Illuminate Support/Eloquent según el repositorio. Models/relaciones físicos previos permanecen, sin migración nueva. La lectura interna omite origen/motivo cruzados al Médico de destino y el Paciente no obtiene histórico; la nueva vista no concede revisión ni descarga inexistentes. Configuración de qpdf/GD/Fileinfo y almacenamiento es infraestructura técnica, no un nuevo dominio ni permiso dinámico.
+
+## 20. Incremento efectivo CU-26 — Fase 4 laboratorio (2026-10-30)
+
+Complementa el global acumulativo sin reemplazar fuentes anteriores ni afirmar cierre del módulo. P58/contexto §17.174: revisión/publicación efectivas, sin entrega binaria/frontend. RevisionResultadoController/Service y Request dejan de ser solo previstos para lo mostrado; revisada_por es real con 000037 y sus relaciones preservan responsable clínico separado. No entidades adicionales ni autorización por suplantación.
+
+```plantuml
+@startuml CVS_incremento_laboratorio_b4
+skinparam classAttributeIconSize 0
+left to right direction
+class RevisarResultadoLaboratorioRequest <<boundary E>>
+class RevisionResultadoController <<E>> {
+  + crear(RevisarResultadoLaboratorioRequest $request, RevisionResultadoService $service): JsonResponse
+}
+class RevisionResultadoService <<E>> {
+  + revisar(string $id, array $datos, array $contexto): array
+}
+class ResultadoLaboratorioService <<E>>
+class ResultadoLaboratorioRepository <<E>> {
+  + agregarRevision(string $version, string $responsable, string $revisor, string $decision, ?string $motivo, CarbonImmutable $ahora): RevisionResultado
+}
+class SolicitudLaboratorioRepository <<E>> {
+  + publicar(SolicitudLaboratorio $solicitud, string $revision): void
+}
+class DocumentoLaboratorioRepository <<E>>
+class ArchivoLaboratorio <<E>>
+class BitacoraRepository <<E>> {
+  + resultadoLaboratorioRevisado(Usuario $actor, array $contexto, string $decision, array $referencias, CarbonImmutable $ahora): void
+}
+class AutenticacionService <<E>>
+class ContinuidadAdministrativaService <<E>>
+class PlanificacionRepository <<E>>
+class MedicoRepository <<E>>
+class HistoriaClinicaRepository <<E>>
+class ConsultaMedicaRepository <<E>>
+class RevisionResultado <<entity E>> {
+  + revisadaPor(): BelongsTo
+}
+class Usuario <<entity E>> {
+  + revisionesResultados(): HasMany
+}
+class Medico <<entity E>>
+class VersionResultado <<entity E>>
+RevisarResultadoLaboratorioRequest ..> RevisionResultadoController
+RevisionResultadoController ..> RevisionResultadoService
+RevisionResultadoService ..> ResultadoLaboratorioService
+RevisionResultadoService ..> ResultadoLaboratorioRepository
+RevisionResultadoService ..> SolicitudLaboratorioRepository
+RevisionResultadoService ..> DocumentoLaboratorioRepository
+RevisionResultadoService ..> ArchivoLaboratorio : integridad privada
+RevisionResultadoService ..> BitacoraRepository
+RevisionResultadoService ..> AutenticacionService
+RevisionResultadoService ..> ContinuidadAdministrativaService
+RevisionResultadoService ..> PlanificacionRepository
+RevisionResultadoService ..> MedicoRepository
+RevisionResultadoService ..> HistoriaClinicaRepository
+RevisionResultadoService ..> ConsultaMedicaRepository
+ResultadoLaboratorioRepository ..> RevisionResultado
+RevisionResultado "0..*" --> "0..1" Usuario : ejecutor acreditado / NULL legado
+RevisionResultado "0..*" --> "1" Medico : responsable clínico
+RevisionResultado "0..*" --> "1" VersionResultado : versión exacta
+note bottom of RevisionResultadoService
+  Devolver -> CU-25/nueva versión antes de revisar otra vez.
+  Autorizar -> Disponible de vigente comprobada.
+  Sin descarga HTTP ni mutación de bytes/históricos.
+end note
+@enduml
+```
+
+Firmas propias relevantes, sin inventario de constructores/privados ni duplicación de clases compartidas. Persistencia incremental en DER §6.24. La nueva autoría nullable no acredita autores antiguos y no muta revisiones inmutables. Análisis/pruebas y alcance real en P58; diagramas históricos permanecen como evolución, no se elimina el diseño previsto anterior.
+
+## 21. Incremento efectivo CU-27 — Fase 5 laboratorio (2026-10-30)
+
+Vista complementaria de clases **existentes ampliadas**, sin nuevo Service por rol/archivo ni cierre integral F6. P59/contexto §17.175/README documentan entrega binaria autorizada, límites de stream y concurrencia real. Se conservan las 28 fuentes globales previas como historia, sin alterar el censo selectivo anterior ni Models físicos. ArchivoLaboratorio entrega un descriptor PHP, no una entidad persistida ni DTO HTTP de negocio.
+
+```plantuml
+@startuml CVS_incremento_laboratorio_b5
+skinparam classAttributeIconSize 0
+left to right direction
+class LeerLaboratorioRequest <<boundary E>>
+class ResultadoLaboratorioController <<E>> {
+  + archivo(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): Response
+}
+class ResultadoLaboratorioService <<E>> {
+  + archivo(string $id, string $version): array
+}
+class ArchivoLaboratorio <<E>> {
+  + abrir(string $ruta, array $metadatos): array
+}
+class SolicitudLaboratorioRepository <<E>>
+class ResultadoLaboratorioRepository <<E>>
+class DocumentoLaboratorioRepository <<E>>
+class AutenticacionService <<E>>
+class ContinuidadAdministrativaService <<E>>
+class PlanificacionRepository <<E>>
+class MedicoRepository <<E>>
+class HistoriaClinicaRepository <<E>>
+LeerLaboratorioRequest ..> ResultadoLaboratorioController
+ResultadoLaboratorioController ..> ResultadoLaboratorioService
+ResultadoLaboratorioService ..> ArchivoLaboratorio : mismo descriptor verificado
+ResultadoLaboratorioService ..> DocumentoLaboratorioRepository
+ResultadoLaboratorioService ..> SolicitudLaboratorioRepository
+ResultadoLaboratorioService ..> ResultadoLaboratorioRepository
+ResultadoLaboratorioService ..> AutenticacionService
+ResultadoLaboratorioService ..> ContinuidadAdministrativaService
+ResultadoLaboratorioService ..> PlanificacionRepository
+ResultadoLaboratorioService ..> MedicoRepository
+ResultadoLaboratorioService ..> HistoriaClinicaRepository
+note bottom of ArchivoLaboratorio
+  Ruta propia, descriptor regular, MIME/tamaño/SHA-256.
+  Sin URL pública ni reapertura tras autorizar.
+end note
+note bottom of ResultadoLaboratorioController
+  Attachment privado y nombre sintético.
+  HEAD sin bytes, GET finally cierra descriptor.
+  Sin SQL durante transmisión / sin ETag ni 206/304.
+end note
+@enduml
+```
+
+Firmas de entrega relevantes; dependencias compartidas reflejan inyección efectiva del Service, no clases nuevas duplicadas. La integridad del descriptor se comprueba antes de cabeceras y la identidad/sesión se revalida al finalizar coordinación. No garantiza revocar bytes ya entregados ni recepción completa, ni crea auditoría de éxito por abrir stream. DER sin cambios y frontend/integración F6 pendientes.
+
+## 22. Cierre acumulativo CU-24–CU-27 — Fase 6 backend (2026-10-30)
+
+Integración dirigida correcta y regresión global en curso, contexto §17.176. Se integran once clases operativas antes P (cuatro Controllers/cuatro Services/tres Repositories), conservando Models ya E y mismos 124 participantes. **119 E/4 P+Sesion R**, 92 clases operativas con 529 métodos propios reflejados en PHP; 52 métodos son de las once clases de laboratorio. Pendientes solo RecordatorioController y ReporteController/Service/Repository; RecordatorioService/Repository conservan únicamente invalidación interna existente y ampliaciones P de CU-28. No simular generación/consulta administrativa CU-28, reportes o frontend.
+
+Las vistas siguientes complementan el global acumulativo: clases de seguridad, pacientes, médicos, planificación, citas, agenda, clínica y bitácora se reutilizan con sus identidades reales. Models solo atributos/relaciones, otras tres familias todos los miembros propios (incluidos privados/constructores), no heredados. Request/Resource, ArchivoLaboratorio/Validator, middleware, pruebas e infraestructura siguen excluidos del censo selectivo aunque sus tipos aparezcan en firmas reales; sus responsabilidades están en P55–P59. Las fuentes históricas no se reescriben ni se confunden con estado vigente.
+
+### 22.1. Índice global vigente
+
+```plantuml
+@startuml CVS_global_laboratorio_b6
+hide members
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+top to bottom direction
+package "presentation/controllers" as PRESENTACION {
+  class AutenticacionController <<E>>
+  class CambioCorreoController <<E>>
+  class ClaveController <<E>>
+  class CredencialTemporalController <<E>>
+  class CuentaController <<E>>
+  class InvitacionPersonalController <<E>>
+  class PersonalController <<E>>
+  class RecuperacionClaveController <<E>>
+  class RegistroPacienteController <<E>>
+  class CodigoActivacionController <<E>>
+  class MiPerfilController <<E>>
+  class PacienteController <<E>>
+  class EspecialidadController <<E>>
+  class MedicoController <<E>>
+  class AsignacionConsultorioController <<E>>
+  class ConsultorioController <<E>>
+  class ConfiguracionCitasController <<E>>
+  class HorarioController <<E>>
+  class DisponibilidadController <<E>>
+  class ReservaController <<E>>
+  class AgendaController <<E>>
+  class ConsultaCitaController <<E>>
+  class HistorialCitasController <<E>>
+  class BitacoraController <<E>>
+  class GestionCitaController <<E>>
+  class AsistenciaController <<E>>
+  class HistoriaClinicaController <<E>>
+  class ConsultaMedicaController <<E>>
+  class SolicitudLaboratorioController <<E>>
+  class DocumentoLaboratorioController <<E>>
+  class RevisionResultadoController <<E>>
+  class ResultadoLaboratorioController <<E>>
+  class RecordatorioController <<P>>
+  class ReporteController <<P>>
+}
+package "business/services" as NEGOCIO {
+  class AdministracionCuentaService <<E>>
+  class AutenticacionService <<E>>
+  class CambioCorreoService <<E>>
+  class ClaveService <<E>>
+  class ContinuidadAdministrativaService <<E>>
+  class ControlIntentosService <<E>>
+  class CorreoSeguridadService <<E>>
+  class CredencialTemporalService <<E>>
+  class InvitacionPersonalService <<E>>
+  class RecuperacionClaveService <<E>>
+  class RegistroPacienteService <<E>>
+  class CodigoActivacionService <<E>>
+  class MiPerfilService <<E>>
+  class PacienteService <<E>>
+  class EspecialidadService <<E>>
+  class MedicoService <<E>>
+  class AsignacionConsultorioService <<E>>
+  class ConsultorioService <<E>>
+  class ConfiguracionCitasService <<E>>
+  class HorarioService <<E>>
+  class DisponibilidadService <<E>>
+  class ReservaService <<E>>
+  class AgendaService <<E>>
+  class ConsultaCitaService <<E>>
+  class HistorialCitasService <<E>>
+  class BitacoraService <<E>>
+  class GestionCitaService <<E>>
+  class AsistenciaService <<E>>
+  class HistoriaClinicaService <<E>>
+  class ConsultaMedicaService <<E>>
+  class SolicitudLaboratorioService <<E>>
+  class DocumentoLaboratorioService <<E>>
+  class RevisionResultadoService <<E>>
+  class ResultadoLaboratorioService <<E>>
+  class RecordatorioService <<E_P>>
+  class ReporteService <<P>>
+}
+package "data/repositories" as PERSISTENCIA {
+  class CambioCorreoRepository <<E>>
+  class ControlIntentosRepository <<E>>
+  class RegistroPacienteRepository <<E>>
+  class SesionRepository <<E>>
+  class TokenAccesoRepository <<E>>
+  class UsuarioRepository <<E>>
+  class CodigoActivacionRepository <<E>>
+  class PacienteRepository <<E>>
+  class EspecialidadRepository <<E>>
+  class MedicoRepository <<E>>
+  class AsignacionConsultorioRepository <<E>>
+  class ConsultorioRepository <<E>>
+  class ConfiguracionCitasRepository <<E>>
+  class HorarioRepository <<E>>
+  class PlanificacionRepository <<E>>
+  class CitaRepository <<E>>
+  class DisponibilidadRepository <<E>>
+  class AgendaRepository <<E>>
+  class BitacoraRepository <<E_P>>
+  class HistoriaClinicaRepository <<E>>
+  class ConsultaMedicaRepository <<E>>
+  class SolicitudLaboratorioRepository <<E>>
+  class ResultadoLaboratorioRepository <<E>>
+  class DocumentoLaboratorioRepository <<E>>
+  class RecordatorioRepository <<E_P>>
+  class ReporteRepository <<P>>
+}
+package "data/models + Sesion conceptual" as ENTIDADES {
+  class Rol <<E>>
+  class Usuario <<E>>
+  class Sesion <<R>>
+  class TokenAcceso <<E>>
+  class ControlIntentos <<E>>
+  class Paciente <<E>>
+  class ContactoEmergencia <<E>>
+  class PreferenciaPaciente <<E>>
+  class CodigoActivacionPaciente <<E>>
+  class RegistroPacientePendiente <<E>>
+  class VerificacionCorreo <<E>>
+  class Consultorio <<E>>
+  class Medico <<E>>
+  class Especialidad <<E>>
+  class MedicoEspecialidad <<E>>
+  class HorarioAtencion <<E>>
+  class ConfiguracionClinica <<E>>
+  class Cita <<E>>
+  class CambioCita <<E>>
+  class Recordatorio <<E>>
+  class ConsultaMedica <<E>>
+  class VersionConsulta <<E>>
+  class VersionAntecedente <<E>>
+  class SolicitudLaboratorio <<E>>
+  class DocumentoLaboratorio <<E>>
+  class VersionResultado <<E>>
+  class RevisionResultado <<E>>
+  class Bitacora <<E>>
+}
+PRESENTACION ..> NEGOCIO : delega
+NEGOCIO ..> PERSISTENCIA : coordina
+PERSISTENCIA ..> ENTIDADES : consulta / persiste
+legend bottom
+  E = existente; P = previsto; E_P = existente con ampliaciones previstas
+  R = concepto persistido sin Model PHP propio
+  Mismos 124 participantes; detalle laboratorio vigente en 22.2 y 22.3
+endlegend
+@enduml
+```
+
+### 22.2. Laboratorio: firmas propias completas y colaboradores existentes
+
+```plantuml
+@startuml CVS_laboratorio_efectivo_b6
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+class SolicitudLaboratorioController <<E>> {
+  + crear(CrearSolicitudLaboratorioRequest $request, SolicitudLaboratorioService $service): JsonResponse
+}
+class DocumentoLaboratorioController <<E>> {
+  + cargar(CargarDocumentoLaboratorioRequest $request, DocumentoLaboratorioService $service): JsonResponse
+  + corregir(CargarDocumentoLaboratorioRequest $request, DocumentoLaboratorioService $service): JsonResponse
+}
+class RevisionResultadoController <<E>> {
+  + crear(RevisarResultadoLaboratorioRequest $request, RevisionResultadoService $service): JsonResponse
+}
+class ResultadoLaboratorioController <<E>> {
+  + archivo(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): Response
+  + versiones(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+  + listar(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+  + porConsulta(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+  + consultar(LeerLaboratorioRequest $request, ResultadoLaboratorioService $service): SolicitudLaboratorioResource
+}
+class SolicitudLaboratorioService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, MedicoRepository $medicos, HistoriaClinicaRepository $historias, ConsultaMedicaRepository $consultas, SolicitudLaboratorioRepository $solicitudes, ResultadoLaboratorioService $lectura, BitacoraRepository $bitacora)
+  + crear(string $id, array $datos, array $contexto): array
+}
+class DocumentoLaboratorioService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, MedicoRepository $medicos, HistoriaClinicaRepository $historias, ConsultaMedicaRepository $consultas, SolicitudLaboratorioRepository $solicitudes, ResultadoLaboratorioRepository $resultados, DocumentoLaboratorioRepository $documentos, ResultadoLaboratorioService $lectura, ArchivoLaboratorioValidator $validador, ArchivoLaboratorio $archivos, BitacoraRepository $bitacora)
+  + cargar(string $id, array $datos, SplFileInfo $archivo, string $nombre, array $contexto): array
+  + corregir(string $id, array $datos, ?SplFileInfo $archivo, ?string $nombre, array $contexto): array
+  - administrador(bool $bloquear = false): array
+  - ordenar(array $ids): array
+  - originales(array $originales, array $actuales): void
+  - guardar(string $id, array $datos, ?SplFileInfo $archivo, ?string $nombre, array $contexto, bool $corregir): array
+}
+class RevisionResultadoService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, MedicoRepository $medicos, HistoriaClinicaRepository $historias, ConsultaMedicaRepository $consultas, SolicitudLaboratorioRepository $solicitudes, ResultadoLaboratorioRepository $resultados, DocumentoLaboratorioRepository $documentos, ResultadoLaboratorioService $lectura, ArchivoLaboratorio $archivos, BitacoraRepository $bitacora)
+  + revisar(string $id, array $datos, array $contexto): array
+}
+class ResultadoLaboratorioService <<E>> {
+  + __construct(AutenticacionService $autenticacion, ContinuidadAdministrativaService $continuidad, PlanificacionRepository $planificacion, MedicoRepository $medicos, HistoriaClinicaRepository $historias, SolicitudLaboratorioRepository $solicitudes, ResultadoLaboratorioRepository $resultados, DocumentoLaboratorioRepository $documentos, ArchivoLaboratorio $archivos)
+  + identidad(Usuario $actor): array
+  + listar(array $filtros): array
+  + porConsulta(string $consulta, array $filtros): array
+  + consultar(string $id): array
+  + contextoDocumental(SolicitudLaboratorio $solicitud, string $responsable): array
+  + versiones(string $id, array $filtros): array
+  + archivo(string $id, string $version): array
+  - leer(array $filtros, ?string $solicitud = null, bool $porConsulta = false, bool $historico = false, ?string $archivoVersion = null): array
+}
+class SolicitudLaboratorioRepository <<E>> {
+  + contextos(array $ids): Collection
+  + bloquearOrdenadas(array $ids): Collection
+  + asignarVersion(SolicitudLaboratorio $solicitud, ?string $version): void
+  + publicar(SolicitudLaboratorio $solicitud, string $revision): void
+  + referenciaConsulta(string $id): ?ConsultaMedica
+  + referenciaSolicitud(string $id): ?SolicitudLaboratorio
+  + crear(string $consulta, string $autor, string $estudio, CarbonImmutable $ahora): SolicitudLaboratorio
+  - base(array $ambito): Builder
+  - publicadoSql(): string
+  - proyeccion(array $ambito): Builder
+  + listar(array $ambito, array $filtros): LengthAwarePaginator
+  + consultar(string $id, array $ambito): ?object
+}
+class ResultadoLaboratorioRepository <<E>> {
+  + contexto(SolicitudLaboratorio $s): array
+  + version(?string $id): ?VersionResultado
+  + ultimaVersion(string $solicitud): ?VersionResultado
+  + ultimaRevision(?string $version): ?RevisionResultado
+  + fueReasociada(string $version, string $solicitud): bool
+  + agregarRevision(string $version, string $responsable, string $revisor, string $decision, ?string $motivo, CarbonImmutable $ahora): RevisionResultado
+  + agregarVersion(string $solicitud, string $documento, int $numero, ?string $origen, string $autor, ?string $motivo, CarbonImmutable $ahora): VersionResultado
+  + versiones(string $solicitud, array $filtros): LengthAwarePaginator
+}
+class DocumentoLaboratorioRepository <<E>> {
+  + crear(string $ruta, array $metadatos, string $autor, CarbonImmutable $ahora): DocumentoLaboratorio
+  + porId(string $id): ?DocumentoLaboratorio
+  + rutaReferenciada(string $ruta): bool
+}
+class AutenticacionService <<E>>
+class ContinuidadAdministrativaService <<E>>
+class PlanificacionRepository <<E>>
+class MedicoRepository <<E>>
+class HistoriaClinicaRepository <<E>>
+class ConsultaMedicaRepository <<E>>
+class BitacoraRepository <<E>>
+class SolicitudLaboratorio <<E>>
+class Usuario <<E>>
+class ConsultaMedica <<E>>
+class RevisionResultado <<E>>
+class VersionResultado <<E>>
+class DocumentoLaboratorio <<E>>
+SolicitudLaboratorioController ..> SolicitudLaboratorioService
+DocumentoLaboratorioController ..> DocumentoLaboratorioService
+RevisionResultadoController ..> RevisionResultadoService
+ResultadoLaboratorioController ..> ResultadoLaboratorioService
+SolicitudLaboratorioService ..> AutenticacionService
+SolicitudLaboratorioService ..> ContinuidadAdministrativaService
+SolicitudLaboratorioService ..> PlanificacionRepository
+SolicitudLaboratorioService ..> MedicoRepository
+SolicitudLaboratorioService ..> HistoriaClinicaRepository
+SolicitudLaboratorioService ..> ConsultaMedicaRepository
+SolicitudLaboratorioService ..> SolicitudLaboratorioRepository
+SolicitudLaboratorioService ..> ResultadoLaboratorioService
+SolicitudLaboratorioService ..> BitacoraRepository
+DocumentoLaboratorioService ..> AutenticacionService
+DocumentoLaboratorioService ..> ContinuidadAdministrativaService
+DocumentoLaboratorioService ..> PlanificacionRepository
+DocumentoLaboratorioService ..> MedicoRepository
+DocumentoLaboratorioService ..> HistoriaClinicaRepository
+DocumentoLaboratorioService ..> ConsultaMedicaRepository
+DocumentoLaboratorioService ..> SolicitudLaboratorioRepository
+DocumentoLaboratorioService ..> ResultadoLaboratorioRepository
+DocumentoLaboratorioService ..> DocumentoLaboratorioRepository
+DocumentoLaboratorioService ..> ResultadoLaboratorioService
+DocumentoLaboratorioService ..> BitacoraRepository
+RevisionResultadoService ..> AutenticacionService
+RevisionResultadoService ..> ContinuidadAdministrativaService
+RevisionResultadoService ..> PlanificacionRepository
+RevisionResultadoService ..> MedicoRepository
+RevisionResultadoService ..> HistoriaClinicaRepository
+RevisionResultadoService ..> ConsultaMedicaRepository
+RevisionResultadoService ..> SolicitudLaboratorioRepository
+RevisionResultadoService ..> ResultadoLaboratorioRepository
+RevisionResultadoService ..> DocumentoLaboratorioRepository
+RevisionResultadoService ..> ResultadoLaboratorioService
+RevisionResultadoService ..> BitacoraRepository
+ResultadoLaboratorioService ..> AutenticacionService
+ResultadoLaboratorioService ..> ContinuidadAdministrativaService
+ResultadoLaboratorioService ..> PlanificacionRepository
+ResultadoLaboratorioService ..> MedicoRepository
+ResultadoLaboratorioService ..> HistoriaClinicaRepository
+ResultadoLaboratorioService ..> SolicitudLaboratorioRepository
+ResultadoLaboratorioService ..> ResultadoLaboratorioRepository
+ResultadoLaboratorioService ..> DocumentoLaboratorioRepository
+ResultadoLaboratorioService ..> SolicitudLaboratorio
+ResultadoLaboratorioService ..> Usuario
+SolicitudLaboratorioRepository ..> ConsultaMedica
+SolicitudLaboratorioRepository ..> SolicitudLaboratorio
+ResultadoLaboratorioRepository ..> RevisionResultado
+ResultadoLaboratorioRepository ..> SolicitudLaboratorio
+ResultadoLaboratorioRepository ..> VersionResultado
+DocumentoLaboratorioRepository ..> DocumentoLaboratorio
+@enduml
+```
+
+Collection y Builder conservan aquí nombres cortos de reflexión; sus namespaces exactos (Eloquent/Support/Query) se resuelven en PHP. ArchivoLaboratorio y ArchivoLaboratorioValidator aparecen solo como tipos auxiliares en firmas, no como clases seleccionadas del UML global.
+
+### 22.3. Bitácora: firmas propias acumuladas
+
+```plantuml
+@startuml CVS_auditoria_laboratorio_b6
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+left to right direction
+class BitacoraRepository <<E>> {
+  + porId(string|int $id): ?Bitacora
+  + listar(array $filtros): LengthAwarePaginator
+  - filtrarRecurso(Builder $query, string $entidad, ?string $registro): void
+  - compararReferencia(Builder $query, string $valor, ?string $registro): void
+  - idSql(string $expresion): string
+  + medicoModificado(Medico $medico, Usuario $actor, array $contexto, string $tipo, array $campos, array $habilitaciones = []): void
+  + planificacionModificada(Usuario $actor, array $contexto, string $tipo, array $referencias, array $cambios): void
+  + citaProgramada(Cita $cita, Usuario $actor, array $contexto): void
+  + estudioSolicitado(Cita $cita, SolicitudLaboratorio $solicitud, Usuario $actor, array $contexto): void
+  + documentoLaboratorioRegistrado(Usuario $actor, array $contexto, string $tipo, array $referencias, CarbonImmutable $ahora): void
+  + resultadoLaboratorioRevisado(Usuario $actor, array $contexto, string $decision, array $referencias, CarbonImmutable $ahora): void
+  + consultaRegistrada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, Usuario $actor, array $contexto): void
+  + antecedentesActualizados(Cita $cita, ConsultaMedica $consulta, VersionAntecedente $version, ?VersionAntecedente $anterior, Usuario $actor, array $contexto): void
+  + consultaActualizada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, VersionConsulta $anterior, Usuario $actor, array $contexto): void
+  + citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaLlegadaConfirmada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaInasistenciaRegistrada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaAtendida(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+  + asignacionConsultorio(Medico $medico, Usuario $actor, array $contexto, ?string $anterior, int $trasladadas): void
+  + consultorioModificado(Consultorio $consultorio, Usuario $actor, array $contexto, string $tipo, array $campos): void
+  + especialidadModificada(Especialidad $especialidad, Usuario $actor, array $contexto, string $tipo, array $campos): void
+  + pacienteCreado(Paciente $paciente, Usuario $actor, array $contexto): void
+  + pacienteModificado(Paciente $paciente, Usuario $actor, array $contexto, array $campos, ?string $motivo, bool $estado = false): void
+  + autenticacion(string $tipo, string $resultado, array $contexto, ?Usuario $actor = null, ?string $causa = null, ?Usuario $objetivo = null, ?array $cambios = null): void
+}
+class Bitacora <<E>>
+class Cita <<E>>
+class ConsultaMedica <<E>>
+class Consultorio <<E>>
+class Especialidad <<E>>
+class Medico <<E>>
+class Paciente <<E>>
+class SolicitudLaboratorio <<E>>
+class Usuario <<E>>
+class VersionAntecedente <<E>>
+class VersionConsulta <<E>>
+BitacoraRepository ..> Bitacora
+BitacoraRepository ..> Cita
+BitacoraRepository ..> ConsultaMedica
+BitacoraRepository ..> Consultorio
+BitacoraRepository ..> Especialidad
+BitacoraRepository ..> Medico
+BitacoraRepository ..> Paciente
+BitacoraRepository ..> SolicitudLaboratorio
+BitacoraRepository ..> Usuario
+BitacoraRepository ..> VersionAntecedente
+BitacoraRepository ..> VersionConsulta
+@enduml
+```
+
+### 22.4. Modelos de laboratorio y autoría separada vigentes
+
+Los cuatro Models ya existían; se muestran todos sus atributos persistidos actuales sin métodos/configuración Eloquent. Dos atributos nuevos por 000036/000037, no entidades nuevas. Las cajas de Usuario/ConsultaMedica/Medico son referencias a sus atributos completos anteriores, sin duplicarlos ni simular subclases por rol.
+
+```plantuml
+@startuml CVS_modelos_laboratorio_b6
+skinparam classAttributeIconSize 0
+left to right direction
+class SolicitudLaboratorio <<E>> {
+  + id_solicitud: int
+  + id_consulta: int
+  + estudio_solicitado: string
+  + solicitada_en: CarbonImmutable
+  + estado_interno: string
+  + id_version_actual: ?int
+  + id_revision_publicada: ?int
+  + creada_por: ?int
+}
+class DocumentoLaboratorio <<E>> {
+  + id_documento: int
+  + cargado_por: int
+  + ruta_privada: string
+  + nombre_original: string
+  + tipo_mime: string
+  + tamano_bytes: int
+  + sha256: string
+  + cargado_en: CarbonImmutable
+}
+class VersionResultado <<E>> {
+  + id_version_resultado: int
+  + id_solicitud: int
+  + id_documento: int
+  + numero_version: int
+  + id_version_origen: ?int
+  + id_autor: int
+  + registrada_en: CarbonImmutable
+  + motivo_cambio: ?string
+}
+class RevisionResultado <<E>> {
+  + id_revision: int
+  + id_version_resultado: int
+  + id_medico: int
+  + decision: string
+  + motivo: ?string
+  + revisada_en: CarbonImmutable
+  + revisada_por: ?int
+}
+class Usuario <<E>>
+class ConsultaMedica <<E>>
+class Medico <<E>>
+ConsultaMedica "1" <-- "0..*" SolicitudLaboratorio : consulta
+Usuario "0..1" <-- "0..*" SolicitudLaboratorio : creadaPor / legado desconocido
+SolicitudLaboratorio "1" <-- "0..*" VersionResultado : versiones
+DocumentoLaboratorio "1" <-- "0..*" VersionResultado : documento inmutable reutilizable
+Usuario "1" <-- "0..*" DocumentoLaboratorio : cargadoPor
+Usuario "1" <-- "0..*" VersionResultado : autor
+VersionResultado "0..1" <-- "0..*" VersionResultado : origen conservado
+VersionResultado "1" <-- "0..*" RevisionResultado : revisiones
+Medico "1" <-- "0..*" RevisionResultado : responsable clínico
+Usuario "0..1" <-- "0..*" RevisionResultado : revisadaPor / ejecutor real
+SolicitudLaboratorio "0..1" --> "0..1" VersionResultado : versionActual, misma solicitud
+SolicitudLaboratorio "0..1" --> "0..1" RevisionResultado : revisionPublicada, misma vigente
+note bottom of RevisionResultado
+  Legado sin autor acreditado conserva NULL.
+  Nueva API siempre Usuario real; no inferir desde Médico.
+  Revisión/versiones/bytes anteriores inmutables.
+end note
+@enduml
+```
+
+Los atributos de esta vista son tipos de dominio persistido/casts (BIGINT como int en PHP64 y fechas immutable_datetime); no declaraciones de propiedades PHP tipadas ni campos públicos de la API. La reutilización del Documento por reasociación no concede acceso al origen ni permite borrarlo: autorización siempre por solicitud/vigente/actor. Restricciones físicas y las dos FK compuestas en DER §6.23/§6.24. Sin esquema nuevo por F6; no presentar estado del DER o de modelos como garantía de frontend/producción.

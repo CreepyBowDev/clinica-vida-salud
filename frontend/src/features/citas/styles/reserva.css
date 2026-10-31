@@ -1,4 +1,5 @@
 .reserva-page { max-width: var(--layout-content); }
+.gestion-cita-page { overflow-wrap: anywhere; }
 .reserva-progress, .reserva-note { color: var(--color-muted); }
 .reserva-section { min-width: 0; padding: var(--panel-padding); margin-bottom: var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
 .reserva-section h2 { font-size: 1.4rem; margin-bottom: var(--space-4); }
@@ -30,3 +31,5 @@
 .reserva-review > p { max-width: var(--layout-readable); margin-block: var(--space-4); }
 .reserva-page .reserva-reason { padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
 @media (max-width: 600px) { .reserva-context { grid-template-columns: minmax(0, 1fr); } .reserva-filters > .button { width: 100%; } }
+.asistencia-declaracion { display: flex; align-items: flex-start; gap: 12px; padding-block: 12px; cursor: pointer; }
+.asistencia-declaracion input { flex: 0 0 20px; width: 20px; height: 20px; margin-block: 2px; }

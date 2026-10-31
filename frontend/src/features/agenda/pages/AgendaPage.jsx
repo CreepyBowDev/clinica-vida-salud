@@ -14,7 +14,7 @@ import { esFechaCivil, formatearFechaCivil } from '../utils/agendaFormat';
 import '../../../styles/catalogs.css';
 import '../styles/agenda.css';
 
-export default function AgendaPage() {
+export default function AgendaPage({ asistencia = false }) {
   const { usuario } = useAuth();
   const { workspace, setWorkspace } = useAgendaWorkspace();
   const { selectedId, draft, filters, catalog } = workspace;
@@ -33,7 +33,7 @@ export default function AgendaPage() {
     setErrors({}); change({ filters: { fecha: draft.fecha ?? effectiveDate, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); query.reload();
   }
   return <section className="workspace-page catalog-page agenda-page">
-    <PageHeading title="Agenda médica" description={own ? 'Consulta tus citas asignadas por fecha y estado.' : 'Selecciona un médico y consulta sus citas por fecha y estado.'} />
+    <PageHeading title={asistencia ? 'Seleccionar cita para asistencia' : 'Agenda médica'} description={own ? 'Consulta tus citas asignadas por fecha y estado.' : 'Selecciona un médico y consulta sus citas por fecha y estado.'} />
     {!own && <MedicoAgendaSelector selectedId={selectedId} catalog={catalog} onChange={next => change({ catalog: next })}
       onSelect={id => { change({ selectedId: id, filters: { fecha: draft.fecha, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); setErrors({}); results.current?.focus(); }} />}
     <AgendaFilters draft={draft} effectiveDate={filters.fecha ?? effectiveDate} onChange={next => { change({ draft: next }); setErrors({}); }} onApply={apply}
@@ -48,7 +48,8 @@ export default function AgendaPage() {
             emptyHint="Consulta otra fecha o selecciona todos los estados. Un resultado vacío no indica disponibilidad para reservar."
             onPage={page => { change({ filters: { ...filters, fecha: effectiveDate, page } }); results.current?.focus(); }}>
             <CitasTable citas={query.data?.data ?? []} caption="Citas de la agenda por hora de inicio ascendente"
-              onDetail={() => change({ detailSource: 'agenda', filters: { ...filters, fecha: effectiveDate } })} />
+              {...(asistencia ? { detailPath: id => `/citas/${id}/asistencia`, detailState: { origen: 'asistencia' } } : {})}
+              onDetail={() => change({ detailSource: asistencia ? 'asistencia' : 'agenda', filters: { ...filters, fecha: effectiveDate } })} />
           </CatalogResults>
         </>}
     </div>

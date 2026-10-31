@@ -54,6 +54,7 @@ class VinculacionPacienteTest extends TestCase
         DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$schema.'", public, pg_temp');
         DB::table('roles')->insert(['nombre' => 'Paciente']);
         config(['session.driver' => 'database', 'session.lottery' => [0, 100], 'seguridad.correo.mailer' => 'array']);
+        (require base_path('src/data/database/migrations/2026_10_31_000038_create_suscripciones_push_table.php'))->up();
         $this->app['env'] = 'local';
         Mail::fake();
         $this->paciente = new Paciente;

@@ -151,6 +151,7 @@ class AutenticacionService
                     $this->tokens->invalidarTemporales($id, CarbonImmutable::now('UTC'));
                     $this->sesiones->revocarUsuario($id);
                 }
+                $this->sesiones->revocarPushActual();
                 $this->sesiones->cerrar();
                 if ($usuario) {
                     $this->bitacora->autenticacion('AUTENTICACION_LOGOUT', 'EXITO', $contexto, $usuario);

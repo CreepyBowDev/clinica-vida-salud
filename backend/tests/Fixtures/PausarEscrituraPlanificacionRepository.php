@@ -3,16 +3,66 @@
 namespace Tests\Fixtures;
 
 use Clinica\data\models\Cita;
+use Clinica\data\models\ConsultaMedica;
 use Clinica\data\models\Especialidad;
 use Clinica\data\models\Medico;
 use Clinica\data\models\Paciente;
 use Clinica\data\models\Usuario;
+use Clinica\data\models\VersionAntecedente;
+use Clinica\data\models\VersionConsulta;
 use Clinica\data\repositories\bitacora\BitacoraRepository;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class PausarEscrituraPlanificacionRepository extends BitacoraRepository
 {
+    private bool $clinicaPausada = false;
+
+    private function pausarClinica(): void
+    {
+        // Ambos snapshots ya se persistieron antes del primer evento; solo una barrera por operación.
+        if (! $this->clinicaPausada) {
+            $this->clinicaPausada = true;
+            $this->pausar();
+        }
+    }
+
+    public function consultaRegistrada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, Usuario $actor, array $contexto): void
+    {
+        parent::consultaRegistrada($cita, $consulta, $version, $actor, $contexto);
+        $this->pausarClinica();
+    }
+
+    public function consultaActualizada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, VersionConsulta $anterior, Usuario $actor, array $contexto): void
+    {
+        parent::consultaActualizada($cita, $consulta, $version, $anterior, $actor, $contexto);
+        $this->pausarClinica();
+    }
+
+    public function antecedentesActualizados(Cita $cita, ConsultaMedica $consulta, VersionAntecedente $version, ?VersionAntecedente $anterior, Usuario $actor, array $contexto): void
+    {
+        parent::antecedentesActualizados($cita, $consulta, $version, $anterior, $actor, $contexto);
+        $this->pausarClinica();
+    }
+
+    public function citaLlegadaConfirmada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        parent::citaLlegadaConfirmada($cita, $actor, $contexto, $antes);
+        $this->pausar();
+    }
+
+    public function citaInasistenciaRegistrada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        parent::citaInasistenciaRegistrada($cita, $actor, $contexto, $antes);
+        $this->pausar();
+    }
+
+    public function citaAtendida(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        parent::citaAtendida($cita, $actor, $contexto, $antes);
+        $this->pausar();
+    }
+
     public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
     {
         parent::citaReprogramada($cita, $actor, $contexto, $antes);

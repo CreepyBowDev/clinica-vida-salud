@@ -35,6 +35,12 @@ class CitaRepository
         return Cita::query()->whereKey($id)->when($bloquear, fn ($q) => $q->lockForUpdate())->first();
     }
 
+    public function porIdParaAsistencia(string $id, ?string $medico, bool $bloquear = false): ?Cita
+    {
+        return Cita::query()->whereKey($id)->when($medico !== null, fn ($q) => $q->where('id_medico', $medico))
+            ->when($bloquear, fn ($q) => $q->lockForUpdate())->first();
+    }
+
     public function tieneConsulta(string $id): bool
     {
         return ConsultaMedica::query()->where('id_cita', $id)->exists();

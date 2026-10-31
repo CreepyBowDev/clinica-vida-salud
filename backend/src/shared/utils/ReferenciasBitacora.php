@@ -4,7 +4,7 @@ namespace Clinica\shared\utils;
 
 class ReferenciasBitacora
 {
-    public const ENTIDADES = ['Usuario', 'Paciente', 'Medico', 'Especialidad', 'Consultorio', 'HorarioAtencion', 'ConfiguracionClinica', 'Cita', 'CuentaPrueba', 'ConjuntoDemostracion'];
+    public const ENTIDADES = ['Usuario', 'Paciente', 'Medico', 'Especialidad', 'Consultorio', 'HorarioAtencion', 'ConfiguracionClinica', 'Cita', 'ConsultaMedica', 'VersionConsulta', 'VersionAntecedente', 'SolicitudLaboratorio', 'CuentaPrueba', 'ConjuntoDemostracion'];
 
     public const EVENTOS_PACIENTE = ['ACTIVACION_PACIENTE_EMITIDA', 'VINCULACION_PACIENTE_INICIADA', 'PACIENTE_CUENTA_VINCULADA'];
 
@@ -32,7 +32,27 @@ class ReferenciasBitacora
 
     public static function adicionales(string $tipo, mixed $referencias): object
     {
-        if (in_array($tipo, ['CITA_PROGRAMADA', 'CITA_REPROGRAMADA', 'CITA_CANCELADA'], true) && is_object($referencias)) {
+        if (in_array($tipo, ['ESTUDIO_SOLICITADO', 'DOCUMENTO_LABORATORIO_CARGADO', 'DOCUMENTO_LABORATORIO_CORREGIDO', 'DOCUMENTO_LABORATORIO_REASOCIADO', 'RESULTADO_LABORATORIO_AUTORIZADO', 'RESULTADO_LABORATORIO_DEVUELTO'], true) && is_object($referencias)) {
+            $salida = [];
+            foreach (['id_cita', 'id_paciente', 'id_medico', 'id_consulta', 'id_solicitud', 'id_solicitud_destino', 'id_version_resultado', 'id_revision'] as $clave) {
+                if (($id = self::id($referencias->{$clave} ?? null)) !== null) {
+                    $salida[$clave] = $id;
+                }
+            }
+
+            return (object) $salida;
+        }
+        if (in_array($tipo, ['CONSULTA_REGISTRADA', 'CONSULTA_ACTUALIZADA', 'ANTECEDENTES_ACTUALIZADOS'], true) && is_object($referencias)) {
+            $salida = [];
+            foreach (['id_cita', 'id_paciente', 'id_medico', 'id_consulta', 'id_version_consulta', 'id_version_antecedente'] as $clave) {
+                if (($id = self::id($referencias->{$clave} ?? null)) !== null) {
+                    $salida[$clave] = $id;
+                }
+            }
+
+            return (object) $salida;
+        }
+        if (in_array($tipo, ['CITA_PROGRAMADA', 'CITA_REPROGRAMADA', 'CITA_CANCELADA', 'CITA_LLEGADA_CONFIRMADA', 'CITA_INASISTENCIA_REGISTRADA', 'CITA_ATENDIDA'], true) && is_object($referencias)) {
             $salida = [];
             foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $clave) {
                 if (($id = self::id($referencias->{$clave} ?? null)) !== null) {

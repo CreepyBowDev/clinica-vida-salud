@@ -46,6 +46,7 @@ class CredencialTemporalTest extends TestCase
         (require base_path('src/data/database/migrations/2026_10_19_000029_allow_temporary_credentials_in_tokens_acceso.php'))->up();
         DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$schema.'", public, pg_temp');
         config(['session.driver' => 'database', 'session.lottery' => [0, 100], 'seguridad.correo.mailer' => 'array']);
+        (require base_path('src/data/database/migrations/2026_10_31_000038_create_suscripciones_push_table.php'))->up();
         $this->app['env'] = 'local';
         Mail::fake();
     }

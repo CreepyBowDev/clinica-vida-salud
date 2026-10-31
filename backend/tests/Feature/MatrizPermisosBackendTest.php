@@ -91,13 +91,27 @@ class MatrizPermisosBackendTest extends TestCase
         $agregar('Administrador,Recepcionista', ['GET pacientes', 'POST pacientes', 'GET pacientes/{id}', 'PATCH pacientes/{id}',
             'PATCH pacientes/{id}/estado', 'POST pacientes/{id}/codigo-activacion', 'GET pacientes/{id}/citas', 'GET agenda/medicos',
             'GET citas/{id}/disponibilidad-reprogramacion', 'GET citas/{id}/gestion', 'PATCH citas/{id}/reprogramacion',
-            'PATCH citas/{id}/cancelacion']);
+            'PATCH citas/{id}/cancelacion', 'PATCH citas/{id}/llegada', 'PATCH citas/{id}/inasistencia']);
+        $agregar('Administrador,Médico', ['PATCH citas/{id}/atencion']);
+        $agregar('Administrador,Médico', ['GET citas/{id}/consulta/versiones', 'GET pacientes/{id}/historia-clinica/antecedentes/versiones']);
+        $agregar('Administrador,Médico', ['POST citas/{id}/consulta']);
+        $agregar('Administrador,Médico', ['PATCH citas/{id}/consulta']);
+        $agregar('Administrador,Médico', ['POST consultas/{id}/solicitudes-laboratorio']);
+        $agregar('Administrador,Médico', ['GET solicitudes-laboratorio/{id}/versiones']);
+        $agregar('Administrador,Médico', ['POST solicitudes-laboratorio/{id}/revisiones']);
+        $agregar('Administrador', ['POST solicitudes-laboratorio/{id}/documentos', 'POST solicitudes-laboratorio/{id}/correcciones']);
+        $agregar('Administrador,Médico,Paciente', ['GET consultas/{id}/solicitudes-laboratorio', 'GET solicitudes-laboratorio', 'GET solicitudes-laboratorio/{id}']);
+        $agregar('Administrador,Médico,Paciente', ['GET solicitudes-laboratorio/{id}/archivo']);
+        $agregar('Administrador,Médico,Paciente', ['GET pacientes/{id}/historia-clinica', 'GET citas/{id}/consulta']);
         $agregar('Administrador,Recepcionista,Paciente', ['GET reservas/especialidades', 'GET reservas/medicos', 'GET reservas/disponibilidad',
             'POST reservas/propuesta', 'POST reservas/resultado', 'POST citas']);
-        $agregar('Administrador,Recepcionista,Médico', ['GET agenda']);
+        $agregar('Administrador,Recepcionista,Médico', ['GET agenda', 'GET citas/{id}/asistencia']);
         $agregar('Administrador,Recepcionista,Médico,Paciente', ['GET citas/{id}']);
         $agregar('Paciente', ['GET mi-perfil', 'PATCH mi-perfil', 'POST mi-perfil/correo', 'POST mi-perfil/correo/reenviar',
             'POST mi-perfil/correo/verificar', 'GET mis-citas']);
+        $agregar('Paciente', ['GET push/configuracion', 'GET push/suscripciones', 'PUT push/suscripcion',
+            'DELETE push/suscripcion', 'DELETE push/suscripciones/{id}']);
+        $agregar('Administrador,Paciente', ['GET recordatorios']);
 
         return $rutas;
     }

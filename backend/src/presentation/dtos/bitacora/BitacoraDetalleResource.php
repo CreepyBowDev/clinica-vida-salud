@@ -35,12 +35,25 @@ class BitacoraDetalleResource extends BitacoraListadoResource
             return (object) [];
         }
         $salida = [];
-        if (in_array($this->tipo_evento, ['CITA_REPROGRAMADA', 'CITA_CANCELADA'], true)) {
+        if (in_array($this->tipo_evento, ['CONSULTA_REGISTRADA', 'CONSULTA_ACTUALIZADA', 'ANTECEDENTES_ACTUALIZADOS'], true)) {
+            foreach (['version_anterior', 'version_nueva'] as $clave) {
+                $numero = $origen->{$clave} ?? null;
+                if (is_int($numero) && $numero >= ($clave === 'version_anterior' ? 0 : 1) && $numero <= 2147483647) {
+                    $salida[$clave] = $numero;
+                }
+            }
+        }
+        if (in_array($this->tipo_evento, ['CITA_REPROGRAMADA', 'CITA_CANCELADA', 'CITA_LLEGADA_CONFIRMADA', 'CITA_INASISTENCIA_REGISTRADA', 'CITA_ATENDIDA'], true)) {
             foreach (['antes', 'despues'] as $clave) {
                 $estado = $origen->{$clave} ?? null;
                 $valores = [];
-                $estados = $this->tipo_evento === 'CITA_CANCELADA' && $clave === 'despues'
-                    ? ['Cancelada'] : ['Programada', 'Confirmada'];
+                $estados = match ($this->tipo_evento) {
+                    'CITA_CANCELADA' => $clave === 'despues' ? ['Cancelada'] : ['Programada', 'Confirmada'],
+                    'CITA_LLEGADA_CONFIRMADA' => $clave === 'despues' ? ['Confirmada'] : ['Programada'],
+                    'CITA_INASISTENCIA_REGISTRADA' => $clave === 'despues' ? ['Inasistencia'] : ['Programada'],
+                    'CITA_ATENDIDA' => $clave === 'despues' ? ['Atendida'] : ['Programada', 'Confirmada'],
+                    default => ['Programada', 'Confirmada'],
+                };
                 if (is_object($estado) && in_array($estado->estado ?? null, $estados, true)) {
                     $valores['estado'] = $estado->estado;
                 }

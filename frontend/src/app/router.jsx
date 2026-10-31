@@ -52,6 +52,16 @@ import AgendaWorkspace from '../features/agenda/components/AgendaWorkspace';
 import HistorialCitasPage from '../features/agenda/pages/HistorialCitasPage';
 import MisCitasPage from '../features/agenda/pages/MisCitasPage';
 import SeleccionarPacienteHistorialPage from '../features/agenda/pages/SeleccionarPacienteHistorialPage';
+import GestionCitaPage from '../features/citas/pages/GestionCitaPage';
+import AsistenciaCitaPage from '../features/citas/pages/AsistenciaCitaPage';
+import HistoriaClinicaPage from '../features/historia-clinica/pages/HistoriaClinicaPage';
+import ConsultaDetallePage from '../features/historia-clinica/pages/ConsultaDetallePage';
+import VersionesClinicasPage from '../features/historia-clinica/pages/VersionesClinicasPage';
+import ConsultaEditorPage from '../features/historia-clinica/pages/ConsultaEditorPage';
+import LaboratorioPage from '../features/laboratorio/pages/LaboratorioPage';
+import SolicitudLaboratorioPage from '../features/laboratorio/pages/SolicitudLaboratorioPage';
+import SolicitarEstudioPage from '../features/laboratorio/pages/SolicitarEstudioPage';
+import RecordatoriosPage from '../features/recordatorios/pages/RecordatoriosPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -74,14 +84,37 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
     children: [{ element: <MainLayout />, children: [
       { path: '/inicio', element: <HomePage /> },
       { path: '/mi-cuenta/contrasena', element: <ChangePasswordPage /> },
+      { element: <RoleRoute roles={[ROLES.PACIENTE, ROLES.ADMINISTRADOR]} />, children: [{ path: '/recordatorios', element: <RecordatoriosPage /> }] },
+      { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE]} />, children: [
+        { path: '/laboratorio', element: <LaboratorioPage /> },
+        { path: '/laboratorio/consultas/:id', element: <LaboratorioPage contexto="consulta" /> },
+        { path: '/laboratorio/solicitudes/:id', element: <SolicitudLaboratorioPage /> },
+        { path: '/historia-clinica', element: <HistoriaClinicaPage /> },
+        { path: '/citas/:id/consulta', element: <ConsultaDetallePage /> },
+      ] },
+      { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.MEDICO]} />, children: [
+        { path: '/laboratorio/solicitar', element: <SolicitarEstudioPage seleccionar /> },
+        { path: '/citas/:id/consulta/solicitar-estudio', element: <SolicitarEstudioPage /> },
+        { path: '/registrar-consulta', element: <ConsultaEditorPage seleccionar /> },
+        { path: '/citas/:id/consulta/editar', element: <ConsultaEditorPage /> },
+        { path: '/historia-clinica/pacientes/:id', element: <HistoriaClinicaPage /> },
+        { path: '/citas/:id/consulta/versiones', element: <VersionesClinicasPage tipo="consulta" /> },
+        { path: '/historia-clinica/pacientes/:id/antecedentes/versiones', element: <VersionesClinicasPage tipo="antecedentes" /> },
+      ] },
       { element: <AgendaWorkspace />, children: [
-        { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA, ROLES.MEDICO]} />, children: [{ path: '/agenda', element: <AgendaPage /> }] },
+        { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA, ROLES.MEDICO]} />, children: [
+          { path: '/agenda', element: <AgendaPage /> },
+          { path: '/asistencia', element: <AgendaPage asistencia /> },
+          { path: '/citas/:id/asistencia', element: <AsistenciaCitaPage /> },
+        ] },
         { element: <RoleRoute roles={Object.values(ROLES)} />, children: [{ path: '/citas/:id', element: <CitaDetallePage /> }] },
         { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [
           { path: '/mis-citas', element: <MisCitasPage /> },
           { path: '/mis-citas/:id', element: <CitaDetallePage origin="mis-citas" /> },
         ] },
         { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA]} />, children: [
+          { path: '/recepcion/citas/gestion', element: <SeleccionarPacienteHistorialPage gestion /> },
+          { path: '/citas/:id/gestion', element: <GestionCitaPage /> },
           { path: '/recepcion/pacientes/:id/citas', element: <HistorialCitasPage /> },
           { path: '/recepcion/historial-citas/:id', element: <CitaDetallePage origin="historial" /> },
         ] },
@@ -98,6 +131,7 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
         { path: '/recepcion/pacientes/:id', element: <PatientDetailPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
+        { path: '/laboratorio/pacientes/:id', element: <LaboratorioPage contexto="paciente" /> },
         { path: '/administracion/consultorios', element: <ConsultoriosPage /> },
         { path: '/administracion/consultorios/nuevo', element: <ConsultorioEditorPage creating /> },
         { path: '/administracion/consultorios/:id/editar', element: <ConsultorioEditorPage /> },

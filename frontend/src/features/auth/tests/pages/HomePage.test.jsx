@@ -16,12 +16,21 @@ describe('inicio actualizado por rol', () => {
     const expected = navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page');
     expect(within(available).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(expected.map(item => item.to));
     expect(available).not.toHaveTextContent(/pendiente|próximamente|CU-\d/i);
-    const pending = screen.getByRole('region', { name: 'Próximos módulos' });
-    expect(within(pending).queryByRole('link')).not.toBeInTheDocument();
-    expect(pending).toHaveTextContent('Pendiente');
+    const pending = screen.queryByRole('region', { name: 'Próximos módulos' });
+    const expectedPending = navigationForRole(role).filter(module => module.items.some(item => item.kind === 'pending'));
+    if (expectedPending.length) {
+      expect(pending).toBeVisible();
+      expect(within(pending).queryByRole('link')).not.toBeInTheDocument();
+      expect(pending).toHaveTextContent('Pendiente');
+      expect(within(pending).getAllByRole('listitem')).toHaveLength(expectedPending.length);
+      for (const module of expectedPending) expect(pending).toHaveTextContent(module.label);
+    } else {
+      expect(pending).not.toBeInTheDocument();
+      expect(screen.queryByText('Pendiente')).not.toBeInTheDocument();
+    }
     if ([ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(role)) {
       expect(available).toHaveTextContent('Consultar historial de citas');
-      expect(pending).not.toHaveTextContent('Consultar historial de citas');
+      if (pending) expect(pending).not.toHaveTextContent('Consultar historial de citas');
       for (const label of ['Gestionar pacientes', 'Activación web', 'Programar cita']) expect(within(available).getByRole('link', { name: label })).toBeVisible();
     }
   });

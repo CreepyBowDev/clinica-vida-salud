@@ -1,866 +1,224 @@
 # AGENTS.md — Backend de Clínica Vida Salud
 
-Este archivo define las **instrucciones específicas para agentes de IA que trabajen en `backend/`** del proyecto **Sistema Web para la Gestión de Citas Médicas para la Clínica Vida Salud**.
+Complementa y **nunca contradice** `/AGENTS.md`, que es obligatorio. **Versión compacta (2026-10-31):** mismas reglas, prosa reducida. El detalle funcional vive en `docs/ai/`; el detalle técnico de módulos ya implementados (CU-28 F1–F3, laboratorio, gestión de citas) está en `README.md` — localizarlo con `grep`, nunca leerlo completo.
 
-**Es obligatorio aplicar también `/AGENTS.md`, ubicado en la raíz del repositorio.** Este documento complementa al archivo raíz: no modifica el examen, las decisiones funcionales aprobadas ni los permisos establecidos. Su objetivo es conservar la **arquitectura por capas, el flujo de peticiones, la separación de responsabilidades y el manejo centralizado de errores**, adaptados correctamente a PHP, Laravel, Eloquent y PostgreSQL.
-
-> **Estado de este documento:** define la arquitectura objetivo y las convenciones para el desarrollo. La estructura mostrada es una propuesta de organización del backend, **no una afirmación de que los archivos o carpetas ya existan**. Antes de crear o cambiar archivos, inspeccionar el repositorio y la versión instalada de Laravel.
-
----
-
-## 1. Prioridad del examen y documentación funcional
-
-Las funcionalidades deben cumplir el enunciado oficial del examen, incluidos **RF01–RF13** y **RN01–RN14**, y las decisiones más recientes aprobadas para Clínica Vida Salud. Ninguna recomendación técnica justifica contradecir una obligación del examen.
-
-Consultar, si existen, los documentos de la **raíz** del repositorio:
+## 1. Stack y límites
 
 ```text
-/docs/ai/contexto-maestro.md
-/docs/ai/requerimientos.md
-/docs/ai/reglas-negocio.md
-/docs/ai/casos-de-us.md
-/docs/ai/diagrama-entidad-relacion.md
-/docs/ai/diagrama-clases.md
-/docs/ai/analisis-clases.md
+PHP · Laravel · Eloquent · PostgreSQL (PDO/pdo_pgsql) · Composer · Artisan · API HTTP/JSON
+Sesiones Laravel; Sanctum stateful si la topología SPA lo permite · Brevo solo seguridad de cuentas
+Frontend separado: React + Vite + JavaScript
 ```
 
-- `contexto-maestro.md`: arquitectura, decisiones vigentes y progreso real.
-- `requerimientos.md`: RF/RN oficiales y ampliaciones diferenciadas.
-- `reglas-negocio.md`: restricciones, transiciones, permisos, plazos y validaciones.
-- `casos-de-us.md`: comportamientos aprobados de `CU-01` a `CU-30`.
-- `diagrama-entidad-relacion.md`: entidades, relaciones y restricciones de persistencia.
-- `diagrama-clases.md`: **modelo UML global y acumulativo**, actualizado al finalizar cada módulo.
-- `analisis-clases.md`: **análisis por CU**, actualizado al finalizar cada CU o pequeño grupo relacionado.
+- Prohibido introducir Node.js/Express/Sequelize, MySQL, Zod, JWT propio o `cookie-parser` en el backend.
+- No usar Blade como interfaz funcional ni añadir dependencias/**migraciones** por comodidad sin autorización (ej.: `minishlink/web-push` no está instalado; no instalarlo sin pedirlo).
+- Verificar versiones reales (`composer.json`, `bootstrap/app.php`) antes de escribir código dependiente de versión.
 
-No inventar el contenido de un archivo faltante ni afirmar que ya está implementado. Consultar las secciones relevantes, no releer documentos extensos sin necesidad. Ante una diferencia entre PDF antiguo, `docs/ai/` y decisiones posteriores, aplicar la jerarquía definida en `/AGENTS.md` y señalar el conflicto cuando no pueda resolverse con evidencia.
-
----
-
-## 2. Stack y límites del backend
+## 2. Flujo obligatorio por capas
 
 ```text
-Lenguaje:            PHP
-Framework:           Laravel
-Persistencia ORM:    Eloquent
-Base de datos:       PostgreSQL (extensión PDO/pdo_pgsql)
-Dependencias PHP:    Composer
-Herramientas CLI:    Artisan
-API:                 HTTP(S), JSON, respuestas y códigos HTTP coherentes
-Autenticación SPA:   Sesiones/cookies Laravel; Sanctum stateful si corresponde
-Correo transaccional: Brevo, únicamente para seguridad de cuentas
-Frontend separado:  React + Vite + JavaScript
+Route → Middleware → Controller (+FormRequest) → Service → Repository → Eloquent Model → PostgreSQL
 ```
 
-- El backend es la **única fuente de verdad** de reglas de negocio, autorización, estado y persistencia.
-- El frontend consume la API; jamás se conecta directamente a PostgreSQL.
-- No introducir Node.js/Express, Sequelize, MySQL, Zod, JWT personalizado ni `cookie-parser` en el backend.
-- No usar Blade como interfaz funcional principal: el frontend aprobado es React.
-- No incorporar tecnologías o librerías alternativas sin justificación y autorización cuando implique una nueva decisión arquitectónica.
-- Verificar versión de PHP, Laravel, Composer, paquetes, `composer.json` y `bootstrap/app.php` antes de escribir instrucciones dependientes de una versión específica.
+1. Rutas: solo URL, método, controller y middlewares. Sin lógica ni consultas.
+2. Middlewares: sesión, rol, cuenta habilitada, CSRF/origen, throttle. No sustituyen reglas de un CU.
+3. Controllers: HTTP, entrada validada, delegación y respuesta. Sin reglas de negocio ni transacciones.
+4. Services: reglas del CU, permiso sobre el recurso, transiciones, transacciones, excepciones de negocio.
+5. Repositories: consultas y escrituras Eloquent, locks, paginación. Sin decisiones de negocio.
+6. Models: tabla, PK, relaciones, casts, `fillable/guarded`, `hidden`. Sin flujos completos.
+7. PostgreSQL: unicidad, FK, CHECK, exclusión y concurrencia como última barrera.
 
----
+No saltar capas en operaciones de negocio ni crear abstracciones genéricas (`BaseRepository`) sin necesidad real.
 
-## 3. Arquitectura obligatoria: flujo por capas
-
-**Mantener la arquitectura conceptual existente, adaptada a Laravel:**
+## 3. Estructura y namespaces
 
 ```text
-React (página / componente)
-           ↓
-Frontend Service / Axios
-           ↓ HTTP(S) / JSON / cookie de sesión / CSRF
-Laravel Route
-           ↓
-Middleware (sesión, rol, controles transversales)
-           ↓
-Controller + FormRequest / Validator
-           ↓
-Service (reglas de negocio y transacciones)
-           ↓
-Repository (operaciones de persistencia)
-           ↓
-Eloquent Model
-           ↓
-PostgreSQL
+src/presentation/{controllers,routes,middlewares,dtos}
+src/business/{services,validators}
+src/data/{models,repositories,database/{config,migrations,seeders}}
+src/shared/{errors,utils,constants}
 ```
 
-**Reglas no negociables:**
+- Carpetas en minúsculas y nombres de CADEFAR; no sustituirlas por `Presentation/Business/Data/Shared`.
+- Módulos existentes dentro de `controllers/`, `dtos/`, `services/` y `repositories/`: `usuarios`, `pacientes`, `medicos`, `consultorios`, `horarios`, `citas`, `agenda`, `historia_clinica`, `laboratorio`, `recordatorios`, `bitacora`. Crear carpeta solo cuando tenga archivos.
+- Cada clase se define **una vez** en su módulo dueño (p. ej. `CuentaRequest`, `ClaveRequest`, `RespuestaError` en `dtos/usuarios/`); los demás módulos importan su namespace. Sin alias de compatibilidad.
+- `validators/` es plano, sin subcarpetas de módulo.
+- Autoload PSR-4 `"Clinica\\": "src/"` con mayúsculas exactas: `Clinica\business\services\medicos\MedicoService`. Ejecutar `composer dump-autoload` tras altas o movimientos.
+- `app/`, `bootstrap/`, `config/`, `routes/`, `database/`, `public/`, `resources/`, `storage/`, `tests/` son infraestructura del framework: puentes mínimos, sin duplicar controllers, services, repositories, models, rutas ni migraciones.
+- `config/auth.php` debe apuntar al modelo real de usuario de `src/data/models/`.
 
-1. Las rutas no contienen lógica de negocio ni consultas Eloquent.
-2. Los middlewares resuelven controles transversales; no sustituyen reglas de un CU.
-3. Los controllers gestionan HTTP, reciben datos validados y delegan.
-4. Los services toman las decisiones de negocio y coordinan transacciones.
-5. Los repositories realizan las consultas y escrituras sobre modelos Eloquent.
-6. Los models representan entidades y relaciones persistidas; no concentran flujos completos de CU.
-7. PostgreSQL refuerza integridad y concurrencia mediante restricciones apropiadas.
-8. Las respuestas al cliente y los errores se normalizan en los límites de presentación del backend.
+## 4. Rutas y middlewares
 
-No saltar capas por comodidad en operaciones de negocio. No agregar capas artificiales, interfaces vacías o abstracciones genéricas que no aporten una necesidad concreta.
+- Los archivos de rutas del negocio viven en `src/presentation/routes/` y se registran explícitamente desde `routes/api.php` (sin duplicar endpoints).
+- Middlewares propios en `src/presentation/middlewares/`, registrados con el mecanismo de la versión instalada.
+- Identificar públicos frente a autenticados; aplicar `auth:sanctum`, cuenta habilitada, sesión normal, rol y `throttle` según corresponda. No inventar alias no registrados.
+- Diseñar endpoints por caso de uso y necesidad real de React, no por tabla ni por clase.
 
----
+## 5. Validación, DTOs y Form Requests
 
-## 4. Estructura de carpetas: replicar la organización de CADEFAR
-
-**Decisión expresa del proyecto:** conservar la estructura de carpetas de CADEFAR **dentro de `backend/src/`, incluidos sus nombres en minúsculas y sus cuatro capas**. No cambiarla silenciosamente por `src/Presentation/`, `src/Business/`, `src/Data/` o `src/Shared/`, ni sustituir las capas por una raíz organizada por funcionalidades. **Actualización aprobada el 2026-10-21:** agrupar los archivos por módulo dentro de `controllers/`, `dtos/`, `services/` y `repositories/`, como se concreta en §4.2. El lenguaje y framework sí cambian: aquí se utilizan PHP, Laravel y Eloquent.
-
-```text
-backend/
-├── AGENTS.md
-├── src/
-│   ├── presentation/
-│   │   ├── controllers/
-│   │   ├── routes/
-│   │   ├── middlewares/
-│   │   └── dtos/
-│   ├── business/
-│   │   ├── services/
-│   │   └── validators/
-│   ├── data/
-│   │   ├── models/
-│   │   ├── repositories/
-│   │   └── database/
-│   │       ├── config/
-│   │       ├── migrations/
-│   │       └── seeders/
-│   └── shared/
-│       ├── errors/
-│       ├── utils/
-│       └── constants/
-│
-├── app/                   # Solo clases puente/infraestructura exigidas por Laravel
-├── bootstrap/             # Bootstrap oficial de Laravel
-├── config/                # Configuración oficial de Laravel
-├── routes/                # Archivos de entrada que registran las rutas de src/presentation/routes/
-├── database/              # Solo infraestructura/framework que sea imprescindible; sin duplicados
-├── public/                # index.php y archivos públicos necesarios del framework
-├── resources/             # Recursos requeridos por Laravel, no vistas Blade principales
-├── storage/
-├── tests/
-├── vendor/                # Generado por Composer, fuera de Git
-├── .env
-├── .env.example
-├── composer.json
-└── artisan
-```
-
-Este árbol **combina la organización específica solicitada con los archivos que Laravel realmente necesita**. No copiar archivos Node.js de CADEFAR (`app.js`, `server.js`, `package.json`, `.sequelizerc` o modelos Sequelize): sus equivalentes pertenecen al arranque y herramientas de Laravel.
-
-### 4.1. Rutas y middlewares
-
-- Los archivos que agrupen las rutas del negocio se organizarán en `src/presentation/routes/`, siguiendo CADEFAR.
-- `backend/routes/api.php` y los mecanismos de bootstrap reales de Laravel **registrarán explícitamente** esos archivos. No declarar por duplicado los mismos endpoints en ambas ubicaciones.
-- Middleware propio del proyecto: `src/presentation/middlewares/`, registrado con los mecanismos que admita la versión concreta de Laravel.
-- Las rutas y middlewares conservan el mismo lugar conceptual que en CADEFAR; nunca implementan las reglas centrales de un caso de uso.
-
-### 4.2. Controladores, validación y DTO
-
-**Organización interna aprobada:** las cuatro carpetas de Controllers, DTO, Services y Repositories contienen subcarpetas en minúsculas por módulo. Ubicaciones actuales:
-
-| Módulo propietario | Controllers / DTO / Services / Repositories |
+| Responsabilidad | Lugar |
 | --- | --- |
-| Usuarios y autenticación (CU-01–CU-06) | `usuarios/` en las cuatro carpetas; incluye registro/vinculación web, invitaciones, contraseñas, sesiones y correo de acceso |
-| Pacientes y perfil (CU-07/CU-08) | `pacientes/` en las cuatro carpetas; incluye emisión presencial del código de activación |
-| Médicos y especialidades (CU-09/CU-10) | `medicos/` en las cuatro carpetas; incluye catálogo de especialidades |
-| Bitácora (CU-30 backend local) | `bitacora/` en las cuatro carpetas: BitacoraController/Service/Repository, ListarBitacoraRequest y Resources de listado/detalle. Escritura automática compartida y consulta administrativa verificadas; frontend/producción pendientes. No crear carpetas vacías. |
+| Tipo, formato, obligatoriedad, rangos | FormRequest / Validator |
+| Acceso al endpoint y autorización de la petición | `authorize()`, policies, middleware |
+| Existencia, pertenencia, estados, reglas clínicas | **Service** |
+| Unicidad, FK, exclusión, concurrencia | **PostgreSQL** |
+| Estructuras de respuesta | `JsonResource` / DTO de presentación |
 
-Cada clase se define una sola vez en su módulo de responsabilidad principal, no según el número circunstancial de llamadas. Los consumidores de otros módulos importan su namespace real. `CuentaRequest`, `ClaveRequest` y `RespuestaError` pertenecen a `dtos/usuarios/` y siguen siendo reutilizables; RespuestaError conserva el renderizado central de toda la API desde `bootstrap/app.php`. No duplicar estas clases ni crear alias de compatibilidad para las ubicaciones anteriores. No extender automáticamente este reordenamiento a modelos, validadores, rutas, middlewares o migraciones.
+- Usar `validated()` o estructura explícita; nunca persistir `request->all()`.
+- Validar siempre en servidor aunque React valide; el cliente no fija `rol`, `estado`, hashes ni identificadores.
+- Rechazar filtros y cuerpos no previstos en endpoints de solo lectura.
+- Formato de CI/correo no prueba identidad.
 
-- Controllers: `src/presentation/controllers/`.
-- Los DTO y las clases de entrada HTTP de presentación (por ejemplo, Form Requests de Laravel) pueden residir en `src/presentation/dtos/`, sin crear automáticamente una carpeta `Requests/` adicional.
-- Validadores de negocio reutilizables sin dependencia de HTTP: `src/business/validators/`.
-- Services: `src/business/services/`.
-- Repositories: `src/data/repositories/`.
-- Models Eloquent: `src/data/models/`.
-- Errores y utilidades transversales: `src/shared/errors/`, `src/shared/utils/`, `src/shared/constants/`.
+## 6. Services
 
-### 4.3. Migraciones, seeders y configuración de datos
+- Implementan flujo principal y alternativos: precondiciones, permiso de recurso, transiciones, efectos y transacciones.
+- No dependen de `Request`/`Response` ni de estructuras de React; reciben datos validados y un actor claro.
+- Abren transacciones para operaciones atómicas y lanzan `AppError` reconocible ante conflictos esperados.
+- Sin dependencias circulares entre Services; reutilizar Services existentes antes de duplicar lógica.
 
-- La **ubicación objetivo única** de migraciones propias del proyecto es `src/data/database/migrations/`; para seeders propios, `src/data/database/seeders/`, igual que en CADEFAR.
-- Laravel no ejecuta automáticamente migraciones en ubicaciones personalizadas: **registrar expresamente esa ruta** con el proveedor/mecanismo adecuado para la versión instalada (por ejemplo, `loadMigrationsFrom(...)`), y comprobar que `php artisan migrate` las encuentre.
-- Cuando se generen migraciones nuevas con Artisan, indicar la ruta personalizada (por ejemplo, con `--path=src/data/database/migrations` cuando la versión lo soporte), sin crear por accidente otra migración equivalente en `backend/database/migrations/`.
-- Para seeders, utilizar namespaces/autoload explícitos y asegurar que `php artisan db:seed` o su invocación configurada ejecute realmente los seeders previstos. El `DatabaseSeeder` convencional de Laravel podrá mantenerse solo como **puente de arranque**, nunca como una segunda definición del catálogo de datos.
-- `src/data/database/config/` se reserva para configuración/accesorios de datos realmente propios del proyecto; los archivos que Laravel **exija** en `backend/config/` deben seguir allí. No duplicar la configuración oficial en dos lugares.
-- No utilizar `migrate:fresh`, eliminación destructiva o `Schema::drop` sobre datos reales sin autorización expresa.
+## 7. Repositories
 
-### 4.4. Composer, namespaces e integración
+- Encapsulan SQL/Eloquent: búsquedas, filtros, paginación, agregados, escrituras, `lockForUpdate`, keyset.
+- **No** deciden si una reserva es válida ni permisos: solo devuelven datos o persisten.
+- Consultas parametrizadas siempre; sin concatenar entrada del cliente.
 
-- Mapear `src/` en el autoload PSR-4 de `composer.json`, por ejemplo `"Clinica\\": "src/"`, respetando **mayúsculas/minúsculas exactas** de carpetas y namespaces.
-- Al conservar directorios y módulos en minúsculas, `src/business/services/medicos/MedicoService.php` utiliza el namespace `Clinica\business\services\medicos`, con nombre de clase `MedicoService` en PascalCase. Aplicar la misma correspondencia PSR-4 a Controllers, DTO y Repositories. Verificar mayúsculas/minúsculas exactas para Linux y ejecutar `composer dump-autoload` cuando corresponda.
-- El código auxiliar que Laravel obligue a mantener en `app/`, `bootstrap/`, `routes/` y `config/` debe ser mínimo y **no reemplazará** la ubicación de la lógica propia del proyecto en `src/`.
-- Si los modelos de autenticación están en `src/data/models/`, registrar el modelo correcto en `config/auth.php` y en cualquier configuración requerida; no generar un segundo modelo `User` para la misma cuenta.
-- No crear una versión paralela de cada Controller, Service, Repository, Model, middleware, migración o ruta en una carpeta convencional de Laravel.
-- Antes de desarrollar una función nueva, inspeccionar el repositorio real. No afirmar que una carpeta o clase exista si aún no se ha creado.
+## 8. Models
 
-### 4.5. Prioridad de estructura
+- Relaciones Eloquent, casts, PK no convencional y `guarded` restrictivo.
+- No ocultar flujos de negocio en observers, accessors o mutators.
+- Proteger serialización: `hidden` no basta, el Resource decide qué se expone.
 
-**Primero conservar el árbol y el flujo de CADEFAR. Segundo, integrar ese árbol con Laravel de forma funcional y verificable.** Si una pieza de infraestructura debe quedarse en una ubicación obligatoria del framework, documentar por qué, crear solo el puente imprescindible y **no cambiar la arquitectura ni los nombres de carpetas de `src/`**. Si una integración no es viable, explicarla antes de improvisar una reestructuración.
+## 9. Migraciones, seeders y PSR-4
 
----
+- Migraciones propias en `src/data/database/migrations/`, registradas con `loadMigrationsFrom(...)`; al generarlas usar `--path=src/data/database/migrations`. Sin duplicados en `backend/database/migrations/`.
+- Seeders propios en `src/data/database/seeders/`; `DatabaseSeeder` solo como puente.
+- IDs generados por PostgreSQL (identidad/secuencia); nunca `MAX(id)+1`.
+- PostgreSQL, no MySQL: sin `AUTO_INCREMENT` ni convenciones Sequelize.
+- Sin borrado físico de pacientes, médicos, citas ni registros clínicos con historial.
+- Seeds solo con catálogos y datos ficticios; nunca contraseñas de producción ni pacientes reales.
+- Nunca `migrate:fresh`, `db:wipe` ni `drop` sobre entornos persistentes sin autorización.
 
-## 5. Laravel Routes
-
-Las rutas deben:
-
-- Declarar URL, método HTTP y Controller.
-- Aplicar middlewares adecuados de sesión, acceso, tasa de solicitudes y otros controles transversales.
-- Identificar los endpoints públicos frente a los que requieren autenticación.
-- Ser coherentes en nombres y en su agrupación por módulo.
-
-Ejemplo **conceptual**, sujeto a la configuración real de Sanctum y middlewares del proyecto:
-
-```php
-Route::middleware('auth:sanctum')
-    ->post('/citas', [CitaController::class, 'store']);
-```
-
-**Nota:** `auth:sanctum` y cualquier middleware propio de roles requieren su configuración correspondiente. No inventar alias que no estén registrados. Las rutas no consultan Eloquent, no realizan transacciones y no determinan por sí mismas si una reserva está disponible.
-
-No crear un endpoint por cada clase o tabla. Diseñar operaciones a partir de los casos de uso aprobados y las necesidades reales de React.
-
----
-
-## 6. Middlewares y autorización transversal
-
-Usar middleware para responsabilidades compartidas:
-
-- Autenticación y comprobación de sesión válida.
-- Rechazo de cuentas desactivadas y activaciones pendientes.
-- Autorización preliminar por uno de los **cuatro roles fijos**.
-- Límites de solicitudes, protección CSRF/CORS y otras protecciones aplicables.
-- Identificador de correlación de peticiones cuando sea útil para observabilidad.
-
-Separar dos niveles de autorización:
-
-1. **Permiso de rol (middleware/policy):** ¿puede el rol ejecutar la clase de acción?
-2. **Permiso sobre el recurso (policy y/o Service):** ¿esa cita, consulta, paciente, médico o archivo corresponde realmente al actor?
-
-No confiar en un `idPaciente`, `idMedico`, `estado`, `rol` o `usuarioId` enviado por el cliente cuando deba derivarse de la sesión o comprobarse contra la base de datos.
-
-Una cuenta desactivada no puede continuar realizando operaciones aunque conserve una cookie anterior. Comprobar el estado en las peticiones protegidas y disponer de un mecanismo efectivo de invalidación de sesiones. La inactividad de una ficha de Paciente o registro de Médico **no equivale automáticamente** a desactivar su cuenta.
-
----
-
-## 7. Controllers: adaptadores HTTP
-
-Ubicación objetivo: `src/presentation/controllers/`.
-
-Los Controllers:
-
-- Reciben `Request`, parámetros, query y el usuario autenticado cuando corresponda.
-- Delegan validación estructural en Form Requests o validadores equivalentes.
-- Llaman al Service apropiado mediante inyección de dependencias.
-- Transforman el resultado en `JsonResource` u otra respuesta JSON definida.
-- Usan códigos HTTP coherentes: `201` para creación, `200` para resultado, `204` para operación sin contenido, según el contrato.
-- Dejan que las excepciones lleguen al manejador central cuando no tienen una recuperación concreta que hacer.
-
-Ejemplo conceptual:
-
-```php
-public function store(ProgramarCitaRequest $request, CitaService $service)
-{
-    $cita = $service->programar($request->validated(), $request->user());
-    return (new CitaResource($cita))->response()->setStatusCode(201);
-}
-```
-
-Los Controllers **no** deben implementar comprobaciones de solapamiento, transiciones de estados, autorización clínica compleja, hashes, envío de documentos ni transacciones de negocio. No utilizar un `try/catch` genérico por método solo para volver a lanzar la misma excepción.
-
----
-
-## 8. Form Requests, Validators y DTOs
-
-Separa las validaciones por tipo:
-
-| Responsabilidad | Lugar apropiado |
-| --- | --- |
-| Tipo, longitud, campo obligatorio, formato, rango básico | `FormRequest` / Validator de Laravel |
-| Comprobaciones de acceso al endpoint y autorización de solicitud | FormRequest `authorize()`, policies y middleware, según corresponda |
-| Existencia o pertenencia de relaciones, cambios de estado, reglas clínicas | **Service** |
-| Unicidad, claves, integridad referencial y restricciones de concurrencia | **PostgreSQL** como última barrera |
-| Estructuras de respuesta públicas | `JsonResource` / DTO de presentación |
-
-- Validar en el **servidor** todo lo que React envía, aunque React ya valide formularios.
-- Utilizar `validated()` o una estructura de entrada explícita; evitar persistir `request->all()` sin lista permitida.
-- Los DTOs no son obligatorios para toda operación: crearlos solo si simplifican contratos o evitan acoplamiento.
-- No confundir validación del formato del CI o correo con prueba de identidad real.
-- Las credenciales, roles o campos de control enviados indebidamente por el frontend no deben sobreescribir valores que determine el servidor.
-
----
-
-## 9. Services: centro de la lógica de negocio
-
-Ubicación objetivo: `src/business/services/`.
-
-Responsabilidades:
-
-- Implementar el flujo principal y las excepciones de un caso de uso.
-- Verificar precondiciones, permisos específicos del recurso y reglas vigentes.
-- Consultar y coordinar repositorios o Services existentes cuando realmente sea necesario.
-- Decidir las transiciones permitidas y los efectos secundarios.
-- Abrir y coordinar transacciones para operaciones atómicas.
-- Generar excepciones de negocio reconocibles ante conflictos esperados.
-- Coordinar eventos de auditoría, correo o tareas asincrónicas según sus garantías de consistencia.
-
-Ejemplos de preguntas que debe resolver el Service:
+## 10. Transacciones y concurrencia
 
 ```text
-¿El paciente está activo y puede recibir una nueva cita?
-¿El médico está activo, asociado a la especialidad y autorizado?
-¿Están libres el médico y el consultorio durante todo el intervalo?
-¿La cita admite esta transición de estado y este actor puede ejecutarla?
-¿El usuario autenticado es el médico responsable de esa atención?
-¿Este paciente ya tiene una cuenta vinculada?
-¿Siguen válidos los dos códigos para activar la cuenta?
-¿El documento a publicar es la versión revisada por el médico solicitante?
+Todos los pasos válidos → COMMIT · Cualquier paso necesario falla → ROLLBACK
 ```
 
-Los Services **no** deben depender de clases HTTP (`Request`, `Response`) ni de estructuras internas de React. Preferir datos validados y un contexto/actor autenticado expresado de forma clara. Evitar dependencias circulares entre Services.
+- **Citas:** proteger intervalos `[inicio, fin)` del Médico y del consultorio frente a reservas y reprogramaciones simultáneas (locks y/o restricción de exclusión). Una consulta de disponibilidad no reserva: revalidar y escribir de forma atómica. No alterar duración ni ubicación históricas.
+- **Registro/activación:** reservar el proceso pendiente, consumir ambos códigos y vincular en una sola transacción; sin duplicar cuentas ni fichas. Si la verificación falla, dejar estado recuperable y sin acceso.
+- **Clínica:** evitar dos consultas para la misma cita; mantener coherentes solicitud, versión documental, revisión y estado. No publicar una versión sustituida.
+- **Outbox de recordatorios:** aviso, auditoría y despachos iniciales se confirman juntos; los Pendientes obsoletos se descartan sin reabrir terminales. La generación nunca modifica Cita, consulta ni preferencias.
+- **Efectos externos** (correo, push) nunca forman parte del rollback SQL: despachar después del commit (`afterCommit` u outbox), registrar fallos y permitir reintentos sin duplicar.
 
----
+## 11. Errores centralizados
 
-## 10. Repositories: acceso a datos
-
-Ubicación objetivo: `src/data/repositories/`.
-
-Funciones propias:
-
-- Consultas de búsqueda, filtros, listado, paginación y agregados.
-- Consultas Eloquent y Query Builder, incluidas relaciones y proyecciones.
-- Inserciones, actualizaciones y recuperación de registros.
-- Consultas con bloqueos de base de datos cuando el Service coordine una transacción.
-- Persistencia de relaciones y versiones, sin alterar arbitrariamente la semántica del negocio.
-
-**No mover reglas del CU a un Repository.** Ejemplo:
-
-```text
-Repository: obtener citas que se superponen al intervalo solicitado.
-Service: decidir si se rechaza una nueva reserva por ese solapamiento.
-```
-
-No crear genéricos `BaseRepository` o interfaces para cada modelo de forma automática. Una clase de repositorio debe existir porque encapsula una responsabilidad de datos real.
-
----
-
-## 11. Eloquent Models
-
-Ubicación objetivo: `src/data/models/` (o ubicación real ya adoptada y configurada).
-
-- Representan tablas, claves, relaciones, casts, atributos y comportamientos de persistencia sencillos.
-- Utilizar relaciones Eloquent (`belongsTo`, `hasMany`, etc.) y evitar consultas manuales redundantes cuando no aporten valor.
-- Usar mass assignment de forma restrictiva (`fillable`/`guarded`) y no permitir que el cliente fije identificadores, hashes, roles o estados privilegiados libremente.
-- No esconder flujos completos de negocio en observers, accessors o mutators.
-- Proteger serialización de secretos y relaciones sensibles; no depender solamente de `hidden` si un Resource debe controlar explícitamente campos públicos.
-- No convertir los Models en sustitutos del Service ni de las restricciones PostgreSQL.
-
----
-
-## 12. Base de datos PostgreSQL y migraciones
-
-- Usar **migraciones Laravel** para crear o modificar el esquema; revisar primero el esquema real y el DER.
-- Preferir IDs generados por PostgreSQL (identidades/secuencias o mecanismo real elegido). Nunca calcular `MAX(id) + 1`.
-- Mantener PK/FK, índices, `UNIQUE`, `NOT NULL`, checks y reglas referenciales cuando correspondan.
-- La unicidad del **CI cuando corresponda**, de correo de acceso, y la relación de **máximo una cuenta web por Paciente** deben contar con restricciones que resistan concurrencia.
-- Garantizar **como máximo una consulta médica por cita**, también mediante una restricción de unicidad apropiada.
-- Almacenar la duración y ubicación efectivas de cada cita para proteger el historial frente a futuros cambios de configuración.
-- No borrar físicamente pacientes, médicos, citas y registros clínicos que deban conservar historia.
-- Usar consultas parametrizadas; no concatenar SQL con entradas del cliente.
-- PostgreSQL no es MySQL: no utilizar `AUTO_INCREMENT`, `sequelize.sync()`, convenciones de Sequelize ni SQL dependiente de MySQL.
-- No crear tablas a partir de nombres de módulos o reportes por inercia. **Sí** crear las estructuras reales necesarias para sesiones, activaciones, notificaciones internas, resultados, versiones y bitácora cuando las reglas y el diseño aprobados lo requieran.
-- Los seeders deben crear catálogos permitidos y, cuando corresponda, el primer Administrador de forma segura; nunca insertar contraseñas de producción o datos reales de pacientes.
-
----
-
-## 13. Transacciones, integridad y concurrencia
-
-Regla fundamental:
-
-```text
-Si todos los pasos de negocio son válidos → COMMIT.
-Si falla un paso necesario               → ROLLBACK.
-Nunca anunciar éxito ni dejar relaciones parciales.
-```
-
-Usar `DB::transaction()` y el mecanismo de bloqueo/restricción apropiado para operaciones que afectan varios registros relacionados.
-
-### 13.1. Citas y consultorios
-
-- Proteger los intervalos del Médico y del consultorio, incluidas reservas o reprogramaciones simultáneas.
-- Una consulta inicial de disponibilidad **no reserva el turno**: revalidar y proteger la escritura atómica.
-- Las protecciones pueden utilizar bloqueos transaccionales sobre recursos compartidos y/o restricciones PostgreSQL de no solapamiento; elegir y probar un mecanismo consistente con los intervalos configurados. No asumir que una transacción sin bloqueo evita una condición de carrera.
-- Evitar solapamientos de intervalos `[inicio, fin)` para permitir citas contiguas compatibles cuando corresponda.
-- No modificar la duración ni ubicación históricas por cambios de configuración posteriores.
-
-### 13.2. Registro y activación web
-
-- Proteger con restricciones y transacción la vinculación entre cuenta y ficha del Paciente.
-- Reservar el proceso de activación pendiente para evitar dos solicitudes simultáneas.
-- Verificar vigencias y límites, consumir ambos códigos y completar el vínculo sin crear dos cuentas ni fichas definitivas duplicadas.
-- Si la verificación queda pendiente o falla, preservar estado recuperable y no habilitar acceso protegido.
-
-### 13.3. Consulta clínica y resultados
-
-- Evitar que peticiones concurrentes creen dos consultas para una cita.
-- Mantener coherentes solicitud, versión documental, autorización médica y estado del laboratorio.
-- No publicar una versión sustituida durante la revisión.
-- En caso de fallo, conservar la versión válida anterior y la trazabilidad necesaria.
-
-**No enviar correo o ejecutar procesos externos irreversibles como si formaran parte de un rollback SQL.** Usar mecanismos de despacho después de confirmar la transacción (`afterCommit`) u otra coordinación confiable; registrar fallos de envío y permitir reintentos controlados sin duplicaciones.
-
----
-
-## 14. Manejo centralizado de errores: equivalente Laravel de AppError
-
-Conservar la filosofía del `AppError` de la arquitectura original, **pero usando excepciones PHP y el manejador oficial de Laravel**.
-
-- Las fallas esperadas del dominio pueden representarse con una excepción común propia, por ejemplo `AppError` en `src/shared/errors/`, o excepciones de negocio específicas que la extiendan.
-- Cada excepción de negocio deberá expresar un **código estable de error** y un mensaje seguro; su traducción a status HTTP se resolverá centralmente.
-- Integrar el renderizado JSON con el manejador de excepciones de la **versión instalada de Laravel** (por ejemplo, la configuración `withExceptions` en `bootstrap/app.php` cuando corresponda).
-- No copiar `next(error)` de Express; Laravel propaga excepciones y las procesa con su manejador.
-- No escribir `try/catch` en cada Controller para reenviar el mismo error. Capturar solo si hay recuperación, compensación, contexto seguro o traducción necesaria.
-- Laravel puede generar automáticamente fallos de `FormRequest`, autenticación, autorización y `ModelNotFoundException`; mantener su semántica y **normalizar su salida sin ocultar el código correcto**.
-
-### 14.1. Correspondencia HTTP
+- Excepción de dominio propia (`AppError` en `src/shared/errors/`) con **código estable** y mensaje seguro; la traducción a HTTP se resuelve centralmente en `bootstrap/app.php`.
+- Mantener la semántica de FormRequest, autenticación, autorización y `ModelNotFoundException`, normalizando la salida.
+- Sin `try/catch` por método para reenviar la misma excepción; capturar solo con recuperación o contexto.
 
 | Situación | HTTP |
 | --- | --- |
-| Petición mal formada | `400 Bad Request` |
-| Credenciales inválidas / sesión ausente | `401 Unauthorized` |
-| Actor autenticado sin permiso | `403 Forbidden` |
-| Recurso inexistente o no accesible cuando convenga no revelar existencia | `404 Not Found` |
-| Conflicto de cita, CI/correo único o transición inválida | `409 Conflict` |
-| Error de validación de campos | `422 Unprocessable Content` |
-| CSRF ausente o caducado en SPA Laravel | `419` (convención de Laravel) |
-| Límite de solicitudes o bloqueo por intentos de acceso | `429 Too Many Requests` |
-| Error inesperado del servidor | `500 Internal Server Error` |
+| Petición mal formada | 400 |
+| Sin sesión / credenciales inválidas | 401 |
+| Autenticado sin permiso | 403 |
+| Recurso inexistente o no accesible | 404 |
+| Conflicto (horario ocupado, unicidad, transición, push obsoleto) | 409 |
+| Validación de campos | 422 |
+| CSRF ausente o caducado | 419 |
+| Límite o bloqueo por intentos | 429 |
+| Error inesperado (o push no configurado) | 500 / 503 |
 
-No convertir un horario ocupado, un documento devuelto o un código vencido en un `500`. Evitar mensajes que revelen si un correo, CI o cuenta existe.
+Contrato de error: `{"success":false,"error":{"code","message","details?"}}`. Éxito: `data` (+ `meta` de paginación). Sin trazas, SQL, rutas internas, tokens ni datos clínicos. `204` sin cuerpo. No convertir un conflicto esperado en `500`. Códigos propios vigentes incluyen `PUSH_NO_CONFIGURADO` (503) y `PUSH_SUSCRIPCION_OBSOLETA` (409).
 
-### 14.2. Contrato JSON recomendado
+## 12. Autenticación SPA, estados y contraseñas
 
-Mantener un formato uniforme para la API, documentado y consumible desde Axios:
+- Login solo con correo y contraseña; `/api/auth/me` devuelve usuario público y rol sin hash ni datos clínicos.
+- Cookies de sesión protegidas, CSRF y validación de origen; sin tokens en `localStorage`/`sessionStorage`.
+- Distinguir: pendiente de verificación (solo activación), activa, desactivada (sin login ni sesiones previas) y bloqueo temporal (atributo de autenticación, no desactivación).
+- Contraseña mínima 12, hash con `Hash`; 3 fallos consecutivos → 10 minutos; los intentos durante el bloqueo no lo extienden; éxito o expiración reinician el contador; rate limit por IP.
+- Logout invalida sesión del servidor y regenera CSRF. Cambio o recuperación de contraseña y desactivación invalidan sesiones anteriores y exigen nuevo login.
+- Responder genéricamente para no revelar existencia de correo o cuenta.
+- Primer Administrador: instalación local idempotente, correo único, hash, sin valores por defecto versionados; no es alta general de Administradores.
 
-**Éxito:** usar `JsonResource` o una respuesta consistente con `data` y, si procede, `meta` de paginación.
+## 13. Registro, códigos y Brevo
 
-**Error:**
+- Paciente nuevo: CI obligatorio, código de correo de 6 dígitos, registro pendiente 24 h, sin duplicar fichas.
+- Paciente ya registrado: Recepción verifica presencialmente y emite código de 12 alfanuméricos (24 h, 5 intentos, un uso); el Paciente aporta CI + código + correo + contraseña y verifica el código de correo (10 min, 5 intentos); el vínculo es atómico y consume ambos códigos.
+- Reenvío: 60 s entre envíos y máximo 5 por hora por proceso y correo, más límites por origen; nunca amplía la vigencia principal.
+- Códigos y enlaces guardados con hash/resumen protegido; jamás en claro, en bitácora o en logs.
+- CI o correo por sí solos no prueban identidad ni permiten enumerar cuentas.
+- Brevo **solo** para seguridad de cuentas; nunca avisos de cita, historia ni resultados.
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "CITA_HORARIO_OCUPADO",
-    "message": "El horario seleccionado ya no está disponible.",
-    "details": {}
-  }
-}
-```
-
-- `error.code`: identificador estable para distinguir tipos de error.
-- `error.message`: mensaje comprensible, no técnico ni sensible.
-- `error.details`: errores de campos u otra información segura cuando corresponda; puede omitirse si no aplica.
-- No exponer traza, SQL, rutas internas, tokens, contraseñas, diagnósticos ni documentos privados.
-- Evitar cambiar el formato sin actualizar las expectativas del frontend y las pruebas.
-- No forzar cuerpo JSON en respuestas `204 No Content`.
-
-### 14.3. Registro técnico de errores
-
-- Mantener registros operativos útiles con contexto mínimo y un identificador de petición cuando exista.
-- No registrar `request->all()` ni cabeceras completas por defecto.
-- En producción, no exponer excepciones internas ni activar `APP_DEBUG=true`.
-- Diferenciar **logs técnicos** de la **bitácora funcional de auditoría**. Sus objetivos y permisos no son equivalentes.
-
----
-
-## 15. Autenticación para React SPA
-
-**El acceso de los cuatro roles es solo por correo electrónico y contraseña.** No admitir nombre de usuario como alternativa.
-
-Solución preferente, si la topología lo permite: **sesiones de Laravel + Sanctum en modo SPA stateful**, con cookies seguras y protección CSRF. Antes de implementarlo, verificar dominios, subdominios/puertos, CORS, `SESSION_DOMAIN`, `SANCTUM_STATEFUL_DOMAINS`, `supports_credentials`, `SameSite` y HTTPS en producción. Si estas condiciones no están confirmadas, no inventar una estrategia de JWT.
-
-Flujo orientativo para un frontend React separado:
-
-```text
-React solicita cookie CSRF cuando la configuración SPA la requiera.
-      ↓
-React envía POST de login con correo y contraseña.
-      ↓
-Laravel valida formato, cuenta, bloqueo temporal y credenciales.
-      ↓
-Laravel regenera el identificador de sesión al autenticarse.
-      ↓
-El navegador conserva cookies protegidas (no tokens en localStorage).
-      ↓
-React consulta /api/auth/me para recuperar usuario público y rol.
-      ↓
-Middleware y Service revalidan autorización en cada operación.
-```
-
-- `GET /api/auth/me` es un endpoint recomendado para restaurar el estado de sesión del frontend, sin incluir hash, contraseña, tokens ni datos clínicos.
-- Los endpoints `/sanctum/csrf-cookie` o equivalentes se usan **según la configuración real**; no asumir que están activos sin instalar/configurar Sanctum.
-- Evitar sesiones JWT autogestionadas, tokens de acceso en `localStorage` o `sessionStorage` y cookies manipulables por JavaScript para almacenar secretos de autenticación.
-- Aplicar protección CSRF para operaciones con cookies de sesión, validación de origen, y autorización real del lado servidor.
-- Al cerrar sesión: invalidar la sesión del servidor y regenerar el token CSRF según el mecanismo de Laravel, además de expirar cookies cuando corresponda.
-- En cambio/recuperación de contraseña, invalidar sesiones anteriores; en recuperación exigir **nuevo login**. En desactivación, rechazar inmediatamente cualquier petición protegida de esa cuenta.
-- Elegir y probar un mecanismo efectivo de invalidación de **múltiples sesiones**, compatible con el driver de sesiones real (por ejemplo, persistencia de sesiones en base de datos y revocación por usuario cuando sea apropiado). No suponer que `Auth::logout()` invalida todas las sesiones de otros dispositivos.
-
----
-
-## 16. Estados de acceso, contraseñas y bloqueo
-
-Distinguir claramente:
-
-- **Cuenta pendiente de verificación:** solo puede finalizar activación; no puede usar funciones protegidas normales.
-- **Cuenta activa:** puede autenticarse de acuerdo con su rol, vínculo y condiciones administrativas/profesionales.
-- **Cuenta desactivada:** no puede iniciar sesión ni continuar con sesiones previas.
-- **Bloqueo temporal:** atributo/condición temporal de autenticación, no una desactivación administrativa.
-
-Política aprobada:
-
-- Contraseña mínima de **12 caracteres**, hash seguro mediante Laravel `Hash`; nunca guardar texto plano ni devolver hash al frontend.
-- Tras **3 contraseñas incorrectas consecutivas**, bloquear por **10 minutos**.
-- Los intentos durante bloqueo no extienden el bloqueo.
-- Al finalizar los 10 minutos, contador nuevamente en cero; autenticación exitosa también lo reinicia.
-- Incorporar límites por IP/origen y solicitud para mitigar ataques y bloqueos provocados deliberadamente.
-- Responder genéricamente cuando corresponda, para no confirmar existencia de correo/cuenta.
-- Recuperar contraseña no activa una cuenta desactivada ni sustituye validación de identidad.
-
-Para trabajadores: solo el Administrador crea cuentas del personal; invitación segura al correo de **24 horas y un solo uso** para confirmar posesión y establecer contraseña. Credenciales temporales excepcionales exigen cambio obligatorio en el primer acceso.
-
-**Excepción controlada de instalación:** el primer Administrador se crea Activo, con correo único, contraseña privada de mínimo 12 caracteres y hash seguro, mediante un procedimiento local reservado al responsable autorizado, nunca un formulario público. No usar credenciales predeterminadas, secretos versionados ni logs de contraseñas. La creación debe ser idempotente, preservar cuentas/credenciales existentes y no reutilizarse como alta general de Administradores. Su marca de correo verificado por autorización de instalación no acredita control del buzón mediante Brevo, enlace o código; recomendar un correo legítimo bajo control del responsable para CU-06. No aplica al resto del personal ni a Pacientes. La implementación existente y su origen SISTEMA están documentados en contexto §17.12; preparar la cuenta no completa CU-01 ni sus controles de sesiones/autorización.
-
-Recuperación de contraseñas:
-
-- Los cuatro roles —Administrador, Recepcionista, Médico y Paciente— pueden recuperar su contraseña mediante **CU-06** cuando dispongan de un correo de acceso previamente verificado. Brevo envía un **enlace de 60 minutos**, de un solo uso; emitir otro invalida el anterior. La recuperación no reactiva cuentas desactivadas, invalida las sesiones anteriores y exige un nuevo inicio de sesión, sin autenticar automáticamente.
-- Si un trabajador —Administrador, Recepcionista o Médico— no tiene acceso a su correo verificado o todavía no dispone de uno verificado, puede solicitar el restablecimiento administrativo de **CU-03**. El Administrador debe comprobar su identidad y utilizar la invitación segura o credencial temporal autorizada, exigiendo establecer una contraseña nueva antes del acceso normal e invalidando las sesiones anteriores conforme a las reglas establecidas.
-- **El restablecimiento administrativo se aplica exclusivamente a cuentas del personal; no autoriza al Administrador a restablecer contraseñas de Pacientes.** Si un Paciente pierde el acceso a su correo verificado y no puede completar CU-06, el procedimiento alternativo queda pendiente de una definición funcional específica; no inventarlo ni implementarlo automáticamente.
-- El Administrador nunca consulta contraseñas anteriores ni se envían contraseñas permanentes en texto plano. Registrar los eventos relevantes en Bitácora sin contraseñas, hashes ni tokens.
-
-**Administración del acceso de Pacientes (CU-03 / PN02):**
-
-- Solo el Administrador con sesión válida puede consultar datos administrativos mínimos y desactivar/reactivar cuentas de Pacientes existentes y previamente verificadas. El servidor valida autorización, cuenta objetivo, verificación previa y vínculo original; no habilita cuentas pendientes ni crea una segunda cuenta.
-- Desactivar invalida todas las sesiones anteriores y conserva el historial. Reactivar una cuenta administrativamente desactivada solo restituye la habilitación de acceso: exige nuevo login, conserva el correo previamente verificado y no elimina ni omite un bloqueo temporal vigente.
-- Estado de cuenta, estado de ficha y bloqueo temporal son independientes. Reactivar la cuenta no activa la ficha ni habilita nuevas reservas si esta sigue inactiva. Usar los estados existentes: suspender significa desactivar y rehabilitar significa reactivar; no crear `Suspendida`.
-- Conservar identificador de Usuario, rol Paciente, contraseña, correo de acceso, vínculo con el mismo Paciente, antecedentes, citas, historial y resultados. Esta operación no concede permisos adicionales, no cambia identidad o credenciales y no sustituye CU-04, CU-05 o CU-06. Registrar responsable, resultado y referencias seguras en Bitácora, sin secretos ni contenido clínico.
-
----
-
-## 17. Registro de Paciente, códigos y Brevo
-
-Reglas obligatorias para `CU-04` y `CU-07`:
-
-### 17.1. Paciente nuevo
-
-- Se registra en la web con sus datos, **CI obligatorio**, correo y contraseña. Validar presencia, formato y unicidad del CI también en el servidor, aunque React lo valide; conservar la normalización vigente, sin inventar formatos nuevos.
-- El servidor impide duplicar ficha o cuenta.
-- Se envía un **código de verificación de correo de seis dígitos** mediante Brevo.
-- El registro pendiente dura **24 horas** desde su inicio; reintentos sobre el mismo proceso, sin duplicar fichas definitivas.
-- Solo después de verificar se activa la cuenta y se completa el vínculo con su ficha nueva.
-
-### 17.2. Paciente ya registrado por Recepción
-
-1. Administrador o Recepción verifican **presencialmente** identidad/ficha/CI y emiten el código administrativo por CU-07; los pasos personales de vinculación CU-04 siguen reservados al Paciente.
-2. Confirma que no tenga cuenta web vinculada.
-3. Genera un código de activación **alfanumérico aleatorio de 12 caracteres**, **24 horas**, **5 intentos incorrectos**, un solo uso.
-4. El Paciente introduce **CI, código de Recepción, correo y contraseña**.
-5. El servidor verifica y **reserva** la activación para impedir consumo concurrente.
-6. Brevo envía un **segundo código numérico de seis dígitos** al correo.
-7. El Paciente introduce el código del correo; dura **10 minutos** y admite **5 errores**.
-8. El servidor completa de forma atómica el vínculo y consume ambos códigos.
-9. El Paciente entra posteriormente **solo con correo y contraseña**.
-
-- Reenvío de código del correo: esperar **60 segundos** entre envíos y limitar a **5 por hora** por proceso y correo, además de controles por origen.
-- Reenviar no amplía las 24 horas del registro o código principal.
-- Sustituir un código invalida el anterior; uno vencido, usado o agotado no puede reutilizarse.
-- Si vence el código de Recepción durante una activación pendiente, solicitar otro **presencialmente** previa identidad.
-- Un Paciente con ficha histórica conserva identificador, citas, consultas y resultados autorizados; **no crear otra ficha**.
-- CI o correo por sí solos **no demuestran identidad**. No permitir enumeración pública de cuentas o datos clínicos.
-- Guardar códigos y enlaces de manera segura (hash o resumen criptográfico protegido apropiado al tipo de secreto), nunca en claro ni en bitácora.
-- No entregar a Recepción herramientas para crear contraseña o cuenta web del Paciente.
-
-**Diferencia entre CU-04 y CU-07:** el CI es obligatorio para crear o vincular una cuenta web por decisión del proyecto, sin convertir RF02 en una exigencia universal de documento. Recepción puede registrar excepcionalmente una ficha sin CI: mantener `Paciente.documento_identidad` nullable y la unicidad cuando se informa; no añadir CI a Usuario ni sustituir la PK de Paciente. Revisar posibles duplicados administrativamente sin asumir que nombres, nacimiento o teléfono prueban identidad y sin fusionar automáticamente fichas. La ficha sin CI puede recibir las citas presenciales autorizadas, pero no iniciar una vinculación web sin documento. Al obtener CI, Recepción comprueba identidad, formato y unicidad y lo incorpora a la misma ficha con trazabilidad y preservación de todas sus relaciones; no crea otra ficha ni cuenta. La vinculación posterior conserva reserva exclusiva y confirmación atómica de ambos códigos. El tratamiento de identidades dudosas queda pendiente de diseño administrativo.
-
-**Brevo se usa exclusivamente para correos de seguridad de cuentas.** No enviar avisos de cita, historia clínica o resultados médicos mediante Brevo.
-
----
-
-## 18. Roles y permisos fijos del dominio
-
-**Política definitiva 2026-10-24:** Administrador participa en **28/30 CU**, excluidos únicamente CU-04 y CU-08. Matriz y estado real en `docs/ai/casos-de-us.md` §3.1/contexto §17.117. Los demás roles conservan sus atribuciones. Las menciones anteriores a exclusividad de Recepción/Médico describen sus flujos, no excluyen al Administrador de los CU ahora autorizados. No equivalen a funcionalidad implementada ni permiten omitir integridad, estados, relaciones, disponibilidad, versiones o auditoría.
-
-Existen exactamente cuatro roles:
-
-| Rol | Backend autorizado |
-| --- | --- |
-| Administrador | Todas las operaciones de CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30; CU-07 incluye emitir códigos administrativos sin realizar CU-04; usar flujos compartidos y contextos administrativos explícitos |
-| Recepcionista | Registro administrativo de pacientes y códigos de activación, programación, reprogramación, cancelación, llegadas e inasistencias |
-| Médico | Agenda propia, historia clínica relacionada, consultas y mantenimiento autorizado de antecedentes según CU-23, solicitudes, revisión y autorización de laboratorio, marcar **sus propias** citas como Atendida |
-| Paciente | Alta y activación propia, perfil, reserva **solo propia**, historial e información clínica autorizada, documentos publicados y avisos internos |
-
-- No crear permisos editables, tablas de permisos dinámicos ni roles adicionales sin decisión explícita.
-- Administrador autorizado para asistencia/consulta clínica/laboratorio por sus CU; implementar únicamente funcionalidades existentes o fases aprobadas. **Usuario ejecutor, Paciente y Médico responsable son identidades separadas**: no simular una sesión de Médico/Recepcionista, falsificar la autoría ni reasignar la atención por ampliar permisos. CU-03 mantiene sus límites de cuentas de Pacientes y CU-05/CU-06 siguen siendo propios. CU-04/CU-08 no se habilitan para Administración.
-- Reutilizar rutas, Requests, Controllers, Services y Repositories existentes; no añadir endpoints/métodos por rol ni un bypass global del Administrador. Las comprobaciones propias del recurso continúan siendo obligatorias.
-- No conceder a Recepción permisos de modificar información clínica o crear credenciales de pacientes.
-- El Paciente **no puede reprogramar ni cancelar** citas.
-- El Médico debe estar vinculado a su identidad profesional y a las citas/consultas que realmente le correspondan.
-
-**Estados administrativos asociados:**
-
-- Paciente inactivo: no recibe **nuevas citas**, ni por web ni por Recepción; con cuenta activa puede consultar su propio historial autorizado. Las citas ya existentes se conservan y se gestionan únicamente por flujos ordinarios autorizados.
-- Médico inactivo: no recibe nuevas citas ni reprogramaciones a su favor; si mantiene cuenta activa puede completar atenciones y revisiones anteriores asignadas, de acuerdo con los CU vigentes. Una cuenta desactivada impide todo acceso protegido.
-- Nunca eliminar historiales automáticamente por inactivar una ficha.
-
----
-
-## 19. Consultorios, horarios y nuevas reservas (`CU-09` a `CU-16`)
-
-- Una sede, exclusivamente presencial, con consultorios identificados; cada Médico tiene consultorio fijo, compartible solo en horarios compatibles.
-- Una cita guarda código único, Paciente, especialidad, Médico, fecha, hora, duración efectiva, modalidad Presencial, consultorio y estado.
-- Duración inicial **15 minutos**, configurable; los cambios posteriores de duración no alteran automáticamente citas registradas.
-- El Médico debe estar activo, pertenecer a la especialidad y tener horario válido para **nuevas** citas.
-- Paciente de nueva reserva debe estar activo. Desde web solo se permite reservar para el Paciente vinculado a la sesión.
-- Comprobar en servidor horario completo, fecha válida, intervalos ocupados por **Médico o consultorio**, y condiciones simultáneas de concurrencia.
-- Administrador y Recepción pueden reprogramar/cancelar por CU-15/CU-16 cuando se implementen; conservar las mismas restricciones y el ejecutor real.
-- Los cambios de consultorio u horario del Administrador que afecten citas futuras deben identificar conflictos y **no** invalidar o reprogramar citas silenciosamente.
-- Una reprogramación mantiene el identificador de la cita; si estaba `Confirmada`, vuelve a `Programada`; actualiza avisos y conserva trazabilidad.
-- Para una cita ya existente de Paciente inactivo, aplicar estrictamente el CU-15 aprobado para gestión del mismo registro, sin autorizar crear reservas adicionales.
-- Cancelar no elimina el registro; libera el intervalo y retira el aviso de asistencia vigente.
-
----
-
-## 20. Estados de citas, asistencia y agenda (`CU-17` a `CU-21`)
-
-Los **únicos estados** de cita son:
-
-```text
-Programada | Confirmada | Atendida | Cancelada | Inasistencia
-```
-
-Transiciones ordinarias:
+## 14. Citas, roles y estados
 
 | Desde | Hacia | Responsable | Condición |
 | --- | --- | --- | --- |
-| Nueva cita | Programada | Administrador, Recepción o Paciente para sí mismo | Reserva válida |
-| Programada | Confirmada | Administrador o Recepción | Llegada real, identidad comprobada, cita del día de atención |
-| Programada/Confirmada | Atendida | Administrador o Médico responsable | Atención efectivamente realizada, ejecutor separado del Médico |
-| Programada/Confirmada | Cancelada | Administrador o Recepción | Cancelación antes de atención |
-| Programada | Inasistencia | Administrador o Recepción | Intervalo finalizado y ausencia comprobada |
-| Confirmada | Programada | Administrador o Recepción | Reprogramación válida, pierde confirmación anterior |
+| Nueva | Programada | Admin, Recepción o Paciente (para sí) | Reserva válida |
+| Programada | Confirmada | Admin o Recepción | Llegada real el día de atención |
+| Programada/Confirmada | Atendida | Admin o Médico responsable | Atención realizada, ejecutor real |
+| Programada/Confirmada | Cancelada | Admin o Recepción | Antes de la atención |
+| Programada | Inasistencia | Admin o Recepción | Intervalo finalizado y ausencia comprobada |
+| Confirmada | Programada | Admin o Recepción | Reprogramación válida |
 
-Reprogramar una `Programada` conserva ese estado. `Atendida`, `Cancelada` e `Inasistencia` son finales para flujos ordinarios; no inventar una vía de reapertura.
+- `Atendida`, `Cancelada` e `Inasistencia` son finales para flujos ordinarios.
+- La cita guarda código único, Paciente, especialidad, Médico, fecha, duración efectiva, modalidad Presencial, consultorio y estado; conserva duración y ubicación históricas.
+- Comprobar en servidor: fecha válida, horario habilitado, Médico activo y de la especialidad, y ausencia de solapamiento por Médico y por consultorio.
+- Recepción y Paciente no marcan `Atendida`. El Paciente nunca reprograma ni cancela.
+- Cancelar no elimina el registro, libera el intervalo y retira el aviso vigente.
+- Los cambios de consultorio u horario no deben invalidar ni reprogramar citas futuras en silencio: identificar conflictos.
 
-- No marcar una cita `Atendida` automáticamente al guardar consulta; registrar atención clínica y cambio de estado son operaciones distintas.
-- Recepción y Paciente no marcan `Atendida`; Administrador sí está autorizado por CU-19, sin atribuir su actuación al Médico.
-- Agenda e historial son **consultas autorizadas** y no conceden privilegios de modificar datos.
-- La ubicación y la duración históricas deben preservarse aunque luego cambie un consultorio o un horario.
+## 15. Historia clínica y laboratorio
 
----
+- Máximo una consulta por cita (restricción de unicidad). Registrar consulta no marca `Atendida`.
+- CU-22: solo consulta (Médico con relación asistencial, Administrador, Paciente el propio). CU-23: Médico responsable o Administrador registran o corrigen antecedentes con versiones, fechas y ejecutor real; Recepción y Paciente no.
+- No crear consultas ficticias ni registrar atención de citas `Cancelada`/`Inasistencia`.
+- Laboratorio: `Pendiente → En revisión → Disponible`; la devolución con motivo permanece `En revisión`. Publicar directamente si el documento es correcto; corregir y volver a revisar si no.
+- El Paciente ve `Pendiente` hasta la publicación y solo descarga su versión vigente publicada; verificar autorización **también al entregar bytes**.
+- Archivos en almacenamiento privado, fuera de rutas públicas; validar tipo real, tamaño y asociación; nunca confiar en MIME/extensión declarados.
 
-## 21. Historia clínica y consulta médica (`CU-22` y `CU-23`)
+## 16. Recordatorios internos y Web Push (CU-28)
 
-- La historia clínica integra antecedentes, consultas y laboratorios sin confundirse con historial administrativo de citas.
-- El Médico consulta información de pacientes vinculados a una atención autorizada; el Paciente solo la suya cuando sea autorizada.
-- **CU-22 es exclusivamente de consulta**, autorizado también al Administrador. **CU-23 / PN18** permite al Médico responsable o Administrador registrar, completar o corregir antecedentes de una atención real y autorizada. Validar cuenta, sesión, rol y recurso; conservar Paciente/Médico responsable y ejecutor real, versiones y fechas.
-- CU-08 no permite al Paciente editar antecedentes, diagnósticos, alergias clínicas, enfermedades crónicas, tratamientos o resultados. Recepción tampoco modifica antecedentes. Administración solo lo hace por CU-23, nunca por CU-08 ni creando consultas ficticias.
-- Cada cita admite **máximo una consulta**, incluso frente a solicitudes concurrentes.
-- El Médico responsable puede registrar la consulta durante la atención, sin exigir previamente `Atendida`; puede completar documentación de una atención realizada conforme a los CU.
-- No registrar una atención inexistente para citas `Cancelada` o con `Inasistencia`.
-- Actualizaciones clínicas importantes de consultas o antecedentes deben mantener responsable, fecha, motivo cuando corresponda y versiones anteriores y nuevas en almacenamiento clínico protegido. La bitácora general solo registra referencias y metadatos seguros, sin antecedentes, diagnósticos ni otro contenido clínico sensible. No sobrescribir silenciosamente información clínica previa.
-- La modificación de una consulta o de antecedentes **no** cambia automáticamente el estado de la cita.
-- Médico correspondiente o Administrador pueden registrar/modificar consultas y solicitar estudios asociados por CU-23/CU-24, sin convertir al Administrador en Médico responsable.
-- Proteger consultas, antecedentes y documentos ante acceso por ID ajeno o URL manipulada.
+- Generación automática por scheduler cada minuto (`recordatorios:generar`, lote 1–1000), sin sesión de Paciente ni pestaña abierta; `withoutOverlapping` es apoyo, la unicidad y las transacciones son la protección real.
+- Ventana `inicio_at − 24 h ≤ ahora < fin_at`, estados `Programada`/`Confirmada`, preferencia habilitada (ausencia de fila = habilitada, sin crear fila). Ventana en UTC con microsegundos, sin redondeos.
+- Un aviso por cita y programación; la reejecución es idempotente y recupera huecos sin duplicar. Reprogramar invalida los avisos anteriores; nunca se resucita un aviso invalidado.
+- El aviso interno no exige cuenta web, ficha activa ni Médico activo. Web Push exige consentimiento explícito, cuenta activa vinculada, autorización vigente y `ahora < inicio_at`; canal deshabilitado o clave pública inválida no impide el aviso interno.
+- Payload push genérico sin datos clínicos; suscripciones y claves en almacenamiento protegido, nunca en logs ni URLs.
+- Lo devuelto/transmitido no puede retirarse con garantía; no confundir aceptación del servicio con entrega o lectura.
+- Fases pendientes (transporte real, dispatcher, frontend/Service Worker) requieren autorización expresa; no instalar la librería ni generar claves privadas sin pedirlo.
 
----
+## 17. Bitácora y reportes
 
-## 22. Laboratorio digital (`CU-24` a `CU-27`)
+- Registrar eventos de autenticación, cuentas, códigos, pacientes, médicos, citas, consultas (metadatos), laboratorio y recordatorios; solo el Administrador consulta, con filtros y paginación.
+- Solo lectura: sin endpoints de edición o borrado. Sin contraseñas, hashes, tokens, códigos, cuerpos clínicos ni diagnósticos.
+- Eventos exitosos se registran con la transacción confirmada; actor SISTEMA cuando no hay usuario.
+- Reportes (CU-29): consultas agregadas en Repositories con filtros validados y paginación; no duplicar datos en tablas de reportes.
 
-- Cada consulta puede generar varias solicitudes de laboratorio. El estudio se realiza **fuera del sistema** por el laboratorio emisor.
-- El Administrador registra un PDF o imagen legible y puede corregir asociación o sustituir un documento devuelto; **no** edita el contenido médico del resultado.
-- Médico **solicitante** o Administrador autorizado comprueban correspondencia y deciden autorizar publicación o devolver con motivo por CU-26. No modificar el contenido del documento externo; separar solicitante/responsable de usuario revisor real. El esquema actual de revisión requiere evaluar soporte de autoría antes de implementar CU-26; no modificarlo en la Fase 1.
-- Estados internos de cada solicitud:
+## 18. Contratos API para React
 
-```text
-Pendiente → En revisión → Disponible
-```
+- Respuestas uniformes: `data` (+ `meta`), `201` al crear, `200` al leer, `204` sin cuerpo, `Cache-Control: no-store, private` en datos personales.
+- Listados con filtros, orden y paginación validados contra lista permitida; límites razonables; sin interpolar `orderBy` del cliente.
+- Distinguir `401`, `403` y `419` para orientar al frontend; documentar los cambios de contrato en `README.md`.
 
-La devolución o corrección permanece `En revisión`; no crea un cuarto estado.
+## 19. Pruebas
 
-**Flujo correcto:**
+- Usar PHPUnit/Laravel Feature y Unit con base de datos aislada; **nunca** migraciones destructivas sobre datos reales.
+- Una sola batería dirigida al final de la fase, con salida a archivo y solo el resumen en el chat; nada de suites globales rutinarias.
+- Priorizar: roles y acceso a recursos ajenos; bloqueo de 3 intentos; códigos y vencimientos; CI/correo únicos y una cuenta por Paciente; solapamientos y reprogramación concurrente; transiciones permitidas y prohibidas; consulta única; publicación/devolución de laboratorio; generación de recordatorios y outbox; bitácora sin secretos; contratos de error y paginación.
+- Simular Brevo y servicios externos; nunca enviar correos reales. La concurrencia real se verifica con PostgreSQL, no con SQLite.
+- No declarar probado lo que no se ejecutó; informar fallos de entorno.
 
-1. Documento correcto en revisión → Médico solicitante o Administrador autorizan directamente y pasa a `Disponible`.
-2. Documento incorrecto → revisor autorizado devuelve con motivo → Administrador corrige/sustituye → nueva revisión autorizada con ejecutor real → solo entonces se publica si corresponde.
+## 20. Seguridad
 
-- El Paciente ve `Pendiente` mientras el resultado no está publicado, aun cuando el estado interno sea `En revisión`.
-- El Paciente solo descarga la **versión vigente publicada** de sus propias solicitudes; nunca las versiones devueltas o privadas.
-- Comprobar autorización **también al entregar los bytes del archivo**, no solo al renderizar una lista.
-- Documentos clínicos en disco privado o almacenamiento protegido, fuera de rutas públicas; validar tipo real, tamaño, formato y asociaciones. No confiar solo en MIME/extensión declarada por el navegador.
-- Preservar trazabilidad de cargas, sustituciones, autorizaciones, fechas y responsables, con protección ante concurrencia sobre la versión revisada.
+- Mínimo privilegio y autorización de recurso en cada consulta o descarga.
+- Validar subidas, almacenar en privado y proteger contra acceso por identificador ajeno.
+- Cookies HttpOnly/Secure/SameSite según HTTPS y topología; sin tokens en URLs.
+- No registrar `request->all()` ni cabeceras completas; logs técnicos separados de la bitácora funcional.
+- `APP_DEBUG=false` en producción; nunca exponer excepciones internas.
 
----
+## 21. Cierre de tarea
 
-## 23. Recordatorios internos (`CU-28`)
+Antes: inspeccionar código y pruebas afectadas, consultar RF/RN/CU y contratos ya consumidos por React, detectar decisiones ambiguas.
+Durante: cambios mínimos, validación en la capa correcta, transacciones donde hay concurrencia, errores y respuestas coherentes, pruebas del comportamiento.
+Después: ejecutar verificaciones, revisar roles/recursos/integridad, mantener la cadena migración→modelo→repositorio→service→API→frontend→pruebas cuando cambie la persistencia, actualizar `docs/ai/analisis-clases.md` (y DER/UML si corresponde), relevo en `docs/ai/estado-fase.md` e informar archivos, pruebas, pendientes y límites.
 
-- Los recordatorios son **persistidos en PostgreSQL** y se generan automáticamente, sin intervención manual del Paciente o Recepción ni necesidad de una sesión activa del Paciente.
-- Anticipación definida: **24 horas antes de la fecha y hora programadas** de la cita. Si se registra exitosamente con menos de 24 horas de anticipación, generar el aviso después de guardar correctamente la reserva en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el recordatorio siga siendo válido conforme a las condiciones establecidas y el intervalo de atención no haya finalizado. No generar avisos de una reserva cuyo registro haya fallado; revalidar vigencia, estados y preferencias también al ejecutar el programador, evitando duplicados para la misma cita y programación.
-- **La generación no depende del estado `Confirmada` ni modifica el estado de la cita: una cita `Programada` puede generar su recordatorio y una `Confirmada` puede conservar sus avisos vigentes.** La reserva nueva permanece inicialmente `Programada`; guardarla no realiza automáticamente la transición a `Confirmada`, que significa exclusivamente llegada presencial verificada por Recepción.
-- Relacionar aviso con el identificador del Paciente y la cita, incluso si todavía no tiene cuenta web; al activar la cuenta, mostrar únicamente avisos propios que correspondan a citas futuras vigentes.
-- CU-28 autoriza además consulta administrativa del Administrador para el Paciente seleccionado, sin suplantar al titular, modificar sus preferencias de CU-08 ni convertir la generación automática en una operación manual. Su flujo funcional está pendiente.
-- Reprogramación recalcula el momento del aviso según la nueva fecha y hora y actualiza o invalida avisos desactualizados, incluido el consultorio cuando corresponda. Cancelación, `Atendida`, `Inasistencia` o intervalo finalizado impiden nuevos avisos de próxima asistencia y retiran los anteriores de próximos recordatorios, conservando el historial según las reglas existentes.
-- El programador de tareas de Laravel puede generar los avisos; hacer las tareas idempotentes y resistentes a repeticiones. **La frecuencia específica del programador se definirá durante el diseño técnico**, sin fijarla arbitrariamente en estos documentos.
-- **No enviar recordatorios mediante correo, SMS, WhatsApp, Brevo ni push externo.**
-
----
-
-## 24. Reportes (`CU-29`)
-
-- Cubrir reportes mínimos de `RF13`, con filtros autorizados por fecha, Médico, especialidad, estado, pacientes y período.
-- Consultas agregadas y filtros complejos pertenecen a Repositories/Query Builder; el Service coordina la lógica del reporte y el Controller responde.
-- No duplicar todos los datos en tablas `reportes` sin justificación; un reporte normalmente es una consulta sobre información existente.
-- Exportar CSV o PDF solo si se encuentra dentro del alcance opcional acordado.
-- Aplicar paginación o límites adecuados y permisos de acceso a datos administrativos.
-
----
-
-## 25. Bitácora del Sistema (`CU-30`)
-
-- Registrar automáticamente eventos relevantes de autenticación, cambios de cuentas y roles, códigos emitidos/consumidos, pacientes, médicos, citas, consultas clínicas **como metadatos**, resultados y autorizaciones de laboratorio.
-- Solo el **Administrador** consulta la bitácora general, con filtros y paginación, del más reciente al más antiguo.
-- No exponer operaciones normales de edición o eliminación de eventos.
-- No registrar contraseñas, hashes, códigos, tokens, enlaces secretos, cuerpos completos de formularios clínicos, diagnósticos ni archivos sensibles.
-- Registrar responsable real (o evento del sistema/anónimo), fecha/hora, tipo, operación, entidad afectada, resultado y metadatos seguros cuando correspondan.
-- Los eventos exitosos de operaciones de negocio deben reflejar **transacciones confirmadas**. Los intentos fallidos de seguridad que no confirman una operación pueden registrarse mediante un canal seguro independiente.
-- La bitácora general no sustituye una trazabilidad clínica documental más específica y no concede al Administrador privilegios para interpretar o cambiar información clínica.
-- Proteger contra alteración no autorizada y definir una política técnica de conservación sin inventar plazos exigidos por el examen.
-
----
-
-## 26. API: recursos, filtros y contratos para React
-
-- Construir endpoints y recursos según necesidades de `CU-01` a `CU-30`, no según cada tabla.
-- Para listados utilizar filtros, orden y paginación validados; imponer límites razonables y no interpolar campos `orderBy` recibidos directamente sin lista permitida.
-- En respuestas JSON incluir únicamente campos permitidos; preferir `JsonResource` sobre exponer modelos Eloquent completos indiscriminadamente.
-- Respetar `201` al crear, `200` para lectura/resultado, `204` sin cuerpo cuando corresponda.
-- Evitar respuestas que cambian arbitrariamente entre objetos, arrays y strings para el mismo endpoint.
-- Acordar y documentar desde el backend contratos que React pueda consumir de modo uniforme.
-- Diferenciar errores `401` (sesión ausente), `403` (sin permiso) y `419` (CSRF) para orientar correctamente el frontend.
-- No incluir diagnósticos o resultados clínicos como parte de listados administrativos si no están autorizados.
-
----
-
-## 27. Pruebas obligatorias por comportamiento
-
-Usar **pruebas automatizadas de Laravel** (Feature y Unit) cuando el proyecto las tenga habilitadas; comprobar configuración y base de datos aislada para pruebas. No ejecutar migraciones destructivas contra bases de datos con información real.
-
-Priorizar pruebas de:
-
-- Roles, sesión, estados de cuentas, invalidación de sesiones y acceso a recursos ajenos.
-- Bloqueo de 3 intentos durante 10 minutos, reinicio del contador y rate limits.
-- Registro nuevo y vinculación de existente con ambos códigos, vencimientos, reenvíos, errores y simultaneidad.
-- CI/correo únicos y una sola cuenta por Paciente.
-- Invitación del personal y recuperación de contraseña con un solo uso.
-- Reserva y reprogramación simultáneas; sin superposiciones de Médico o consultorio.
-- Transiciones permitidas/prohibidas; Recepción no puede marcar `Atendida` y Paciente no cancela/reprograma.
-- Consulta única por cita, restricciones de Médico responsable y trazabilidad de correcciones.
-- Publicación directa y devolución/corrección/nueva revisión de resultados; descargas sin permiso deben fallar.
-- Recordatorios de 24 horas, citas próximas, cambios de horario, cancelación y generación sin sesión.
-- Bitácora solo para Administrador, eventos correctos, ausencia de secretos y rechazo de cambios.
-- Contratos de errores HTTP/JSON y paginación.
-
-Simular Brevo y otros servicios externos en pruebas mediante mecanismos del framework; nunca enviar correos reales involuntariamente. Para detectar problemas de concurrencia utilizar pruebas sobre un motor y entorno capaces de reproducir la semántica real de PostgreSQL; SQLite no sustituye estas verificaciones.
-
----
-
-## 28. Actualización progresiva de `docs/ai/`
-
-La documentación de análisis **se desarrolla junto con el software**, no toda al final. Respetar los nombres exactos definidos en `/AGENTS.md`.
-
-### Al terminar un CU o pequeño grupo de CU
-
-1. Identificar CU y cambios realmente completados.
-2. Actualizar `/docs/ai/analisis-clases.md` con clases participantes, responsabilidades, colaboraciones, relaciones y flujo implementado.
-3. Revisar migraciones, modelos y restricciones; si hubo cambios de persistencia, actualizar `/docs/ai/diagrama-entidad-relacion.md`.
-4. Si surgieron cambios funcionales aprobados, sincronizar las secciones correspondientes de contexto, reglas y casos sin modificar unilateralmente los RF/RN oficiales.
-5. Mantener correspondencia entre pruebas, código y documentación.
-
-### Al terminar un módulo funcional
-
-1. Actualizar **el diagrama global acumulativo** `/docs/ai/diagrama-clases.md`, integrando las clases de ese módulo con las anteriores.
-2. Revisar que todos los CU finalizados del módulo estén presentes en `analisis-clases.md`.
-3. Comprobar relaciones entre Controllers, Services, Repositories, Models y demás clases efectivamente empleadas; no inventar componentes ni indicar que otros módulos pendientes ya fueron implementados.
-4. Verificar consistencia del DER con migraciones, claves, relaciones y restricciones reales.
-5. Si después se modifica un módulo ya terminado, actualizar sus entradas y relaciones afectadas.
-
-**No bloquear cambios menores por documentos todavía inexistentes que no sean necesarios para la tarea; sí reportar su ausencia y no afirmar una actualización que no ocurrió.** Si el usuario solicita iniciar esos documentos, crearlos usando la documentación aprobada y distinguir planificación de implementación.
-
----
-
-## 29. Seguridad, secretos y datos médicos
-
-- Nunca versionar `.env`, credenciales, `APP_KEY`, secretos de Brevo, cookies o sesiones reales, claves privadas, respaldos sensibles o documentos clínicos auténticos.
-- Mantener `APP_DEBUG=false` en producción y no exponer logs técnicos por HTTP.
-- Usar políticas de mínimo privilegio y autorización de recursos en cada petición de consulta/descarga.
-- Aplicar validación segura de subidas de archivos, almacenamiento privado, defensas frente a acceso por identificadores ajenos y control de cargas excesivas.
-- Respetar sesiones y cookies HttpOnly, Secure y SameSite según HTTPS y topología real; no incluir tokens en URLs ni respuestas cuando no corresponda.
-- No usar datos clínicos reales en seeds, capturas, logs de prueba o documentación de ejemplo.
-- Evitar exposición de correos/CI en respuestas públicas y registro de peticiones.
-- Cualquier acceso a datos de pacientes debe seguir su relación legítima con el usuario, no solo el rol general.
-
----
-
-## 30. Dependencias, Git y operaciones peligrosas
-
-- Usar Composer para PHP y Artisan para tareas Laravel; no instalar paquetes redundantes por moda.
-- Antes de migraciones o refactors revisar dependencias, impacto sobre datos existentes y archivos modificados.
-- No ejecutar `migrate:fresh`, `db:wipe`, `schema:drop`, borrados masivos ni equivalentes sobre entornos persistentes sin autorización explícita.
-- No ejecutar `git commit`, `push`, `merge`, `rebase`, crear ramas, despliegues ni cambios remotos automáticamente salvo solicitud explícita.
-- Respetar el estilo del código real y normas PHP compatibles (PSR-12 y PSR-4); no renombrar clases públicas sin actualizar sus consumidores.
-- No borrar ni reconstruir información histórica para simplificar la implementación.
-
----
-
-## 31. Procedimiento antes y después de cada tarea
-
-**Antes:**
-
-1. Inspeccionar rutas, Controllers, Services, Repositories, Models y pruebas afectados.
-2. Consultar `/AGENTS.md` y los RF/RN/CU/reglas vigentes relacionados.
-3. Confirmar la versión instalada de Laravel y las convenciones reales.
-4. Identificar actor, acceso al recurso, estados y efectos históricos.
-5. Revisar contratos API ya consumidos por React y dependencias con otros módulos.
-6. Detectar decisiones ambiguas antes de implementar reglas nuevas.
-
-**Durante:**
-
-1. Aplicar cambios mínimos, conservando la separación por capas.
-2. Usar validación estructural y de negocio en su lugar correcto.
-3. Proteger operaciones atómicas y concurrencia cuando corresponda.
-4. Mantener errores y respuestas coherentes y no filtrar datos sensibles.
-5. Añadir o actualizar pruebas relevantes.
-
-**Después:**
-
-1. Ejecutar comprobaciones de PHP, Laravel y pruebas que estén disponibles.
-2. Verificar roles, recursos, integridad, concurrencia, errores y auditabilidad.
-3. Actualizar `analisis-clases.md` para CU o grupo terminado; DER cuando cambie la base; `diagrama-clases.md` al completar módulo.
-4. Comprobar que las clases y nombres de los diagramas correspondan al código efectivo.
-5. Informar qué archivos cambiaron, pruebas ejecutadas, pendientes y documentos `docs/ai/` actualizados.
-
-No presentar como funcional algo que no se ejecutó ni como actualizado un diagrama que aún no se revisó.
-
----
-
-## 32. Regla final
-
-El backend de Clínica Vida Salud debe ser:
-
-```text
-Coherente con el examen
-Fiel a los 30 casos de uso aprobados
-Seguro con información personal y clínica
-Organizado por capas
-Integrable con React
-Consistente bajo concurrencia
-Trazable y verificable
-Compatible con Laravel y PostgreSQL
-Mantenible sin complejidad innecesaria
-```
-
-**Ante dos soluciones técnicamente válidas, elegir la más simple que cumpla esas condiciones.** No alterar decisiones aprobadas para adaptar el negocio a una implementación improvisada.
+Regla final: **coherente con el examen, seguro con datos clínicos, por capas, verificable y con la complejidad mínima suficiente.** Ante dos soluciones válidas, elegir la más simple que cumpla estas condiciones.

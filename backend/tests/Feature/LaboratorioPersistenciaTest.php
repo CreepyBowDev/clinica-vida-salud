@@ -31,13 +31,13 @@ class LaboratorioPersistenciaTest extends TestCase
         $this->seed(DatabaseSeeder::class);
     }
 
-    public function test_dictionary_columns_types_and_ten_restrictive_foreign_keys_are_preserved(): void
+    public function test_dictionary_columns_types_and_twelve_restrictive_foreign_keys_are_preserved(): void
     {
         $tables = [
-            'solicitudes_laboratorio' => ['id_solicitud', 'id_consulta', 'estudio_solicitado', 'solicitada_en', 'estado_interno', 'id_version_actual', 'id_revision_publicada'],
+            'solicitudes_laboratorio' => ['id_solicitud', 'id_consulta', 'estudio_solicitado', 'solicitada_en', 'estado_interno', 'id_version_actual', 'id_revision_publicada', 'creada_por'],
             'documentos_laboratorio' => ['id_documento', 'cargado_por', 'ruta_privada', 'nombre_original', 'tipo_mime', 'tamano_bytes', 'sha256', 'cargado_en'],
             'versiones_resultado' => ['id_version_resultado', 'id_solicitud', 'id_documento', 'numero_version', 'id_version_origen', 'id_autor', 'registrada_en', 'motivo_cambio'],
-            'revisiones_resultado' => ['id_revision', 'id_version_resultado', 'id_medico', 'decision', 'motivo', 'revisada_en'],
+            'revisiones_resultado' => ['id_revision', 'id_version_resultado', 'id_medico', 'decision', 'motivo', 'revisada_en', 'revisada_por'],
         ];
         $count = 0;
         foreach ($tables as $table => $columns) {
@@ -50,7 +50,7 @@ class LaboratorioPersistenciaTest extends TestCase
                 $count++;
             }
         }
-        $this->assertSame(10, $count);
+        $this->assertSame(12, $count);
         $keys = collect(Schema::getForeignKeys('solicitudes_laboratorio'))->keyBy('name');
         $this->assertSame(['id_solicitud', 'id_version_actual'], $keys['solicitudes_laboratorio_version_fk']['columns']);
         $this->assertSame(['id_solicitud', 'id_version_resultado'], $keys['solicitudes_laboratorio_version_fk']['foreign_columns']);
@@ -59,7 +59,7 @@ class LaboratorioPersistenciaTest extends TestCase
         foreach ($tables as $table => $columns) {
             $metadata = collect(Schema::getColumns($table))->keyBy('name');
             foreach ($columns as $column) {
-                if (str_starts_with($column, 'id_') || in_array($column, ['tamano_bytes', 'cargado_por'], true)) {
+                if (str_starts_with($column, 'id_') || in_array($column, ['tamano_bytes', 'cargado_por', 'creada_por', 'revisada_por'], true)) {
                     $this->assertSame('int8', $metadata[$column]['type_name']);
                 }
                 if (str_ends_with($column, '_en')) {

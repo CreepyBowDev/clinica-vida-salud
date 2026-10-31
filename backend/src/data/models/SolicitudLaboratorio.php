@@ -18,7 +18,7 @@ class SolicitudLaboratorio extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['estudio_solicitado'];
+    protected $hidden = ['estudio_solicitado', 'creada_por', 'creadaPor'];
 
     protected $attributes = ['estado_interno' => 'Pendiente'];
 
@@ -30,6 +30,11 @@ class SolicitudLaboratorio extends Model
     public function consulta(): BelongsTo
     {
         return $this->belongsTo(ConsultaMedica::class, 'id_consulta', 'id_consulta');
+    }
+
+    public function creadaPor(): BelongsTo
+    {
+        return $this->belongsTo(Usuario::class, 'creada_por', 'id_usuario');
     }
 
     public function versiones(): HasMany

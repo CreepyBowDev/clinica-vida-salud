@@ -1,0 +1,60 @@
+.lab-page { min-width: 0; }
+.lab-page h1, .lab-page h2, .lab-page dd, .lab-page td { overflow-wrap: anywhere; }
+.lab-filters { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: end; margin-bottom: var(--space-6); }
+.lab-filters > .field { flex: 1 1 160px; min-width: 0; margin: 0; }
+.lab-table-scroll { max-width: 100%; overflow-x: auto; }
+.lab-table { width: 100%; border-collapse: collapse; text-align: left; background: var(--color-surface); }
+.lab-table caption { text-align: left; padding: 12px 0; color: var(--color-muted); }
+.lab-table th, .lab-table td { padding: 16px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.lab-table th { font-weight: 600; }
+.lab-table td:first-child { max-width: 32ch; }
+.lab-note { display: block; margin-top: 6px; color: var(--color-muted); font-size: .9375rem; max-width: 60ch; }
+.lab-cell-label { display: none; }
+.lab-context { border-left: 4px solid var(--color-primary); padding: 16px 24px; background: var(--color-surface); }
+.lab-data { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 32px; margin: 20px 0; }
+.lab-data dt { color: var(--color-muted); font-size: .9375rem; }
+.lab-data dd { margin: 4px 0 0; }
+.lab-wide { grid-column: 1 / -1; }
+.lab-text { white-space: pre-wrap; max-width: 72ch; }
+.lab-document { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 1fr); gap: 32px; border-block: 1px solid var(--color-border); margin-top: 32px; padding: 24px 0; }
+.lab-document h2, .lab-section h2 { font-size: 1.375rem; margin-top: 0; }
+.lab-section { padding-top: 24px; }
+.lab-download { align-self: center; }
+.lab-patient-context { margin-bottom: 20px; }
+.lab-request-form { max-width: var(--layout-readable); margin-top: var(--space-6); }
+.lab-request-form .action-group { margin-top: var(--space-6); }
+.lab-declaration { border: 0; padding: 0; margin: 0; }
+.lab-declaration legend { font-weight: 600; margin-bottom: var(--space-3); }
+.lab-declaration label { display: flex; gap: var(--space-3); align-items: start; }
+.lab-declaration input { flex: none; width: 20px; height: 20px; margin-top: 3px; accent-color: var(--color-primary); }
+.lab-declaration p { margin-top: var(--space-3); }
+.lab-document-form { margin-top: var(--space-6); max-width: 100%; }
+.lab-form-fields { border: 0; margin: 0 0 var(--space-6); padding: 0; min-width: 0; max-width: var(--layout-readable); }
+.lab-form-fields legend { font-size: var(--text-section); font-weight: 600; margin-bottom: var(--space-6); }
+.lab-form-fields input[type=file] { height: auto; overflow: hidden; }
+.lab-form-fields .lab-declaration { margin-block: var(--space-5); }
+.lab-form-fields .field { margin-top: var(--space-5); }
+.lab-associations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); margin-block: var(--space-6); }
+.lab-association { border-left: 3px solid var(--color-primary); padding: var(--space-4); background: var(--color-surface); overflow-wrap: anywhere; }
+.lab-association h3 { margin-top: 0; }
+.lab-document-form .action-group { margin-top: var(--space-6); }
+.lab-review-form { max-width: var(--layout-readable); margin-top: var(--space-6); }
+.lab-review-form .action-group { margin-top: var(--space-6); }
+.lab-review-form .lab-declaration label > span { min-width: 0; overflow-wrap: anywhere; }
+.lab-workflow-switch { margin-block: var(--space-6); }
+.lab-destination .workspace-page { padding: 0; }
+.lab-versions { list-style: none; padding: 0; }
+.lab-versions > li { border-bottom: 1px solid var(--color-border); padding-block: var(--space-4); overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .lab-associations { grid-template-columns: minmax(0, 1fr); }
+  .lab-filters > .field, .lab-filters > .action-group { flex-basis: 100%; }
+  .lab-data, .lab-document { grid-template-columns: minmax(0, 1fr); }
+  .lab-context { padding: 16px; }
+  .lab-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lab-table, .lab-table tbody, .lab-table tr, .lab-table td { display: block; }
+  .lab-table caption { display: block; width: 100%; padding: 12px; }
+  .lab-table tr { padding: 16px 0; border-bottom: 1px solid var(--color-border); }
+  .lab-table td { padding: 6px 12px; border: 0; }
+  .lab-table td:first-child { max-width: none; }
+  .lab-cell-label { display: block; color: var(--color-muted); font-size: .9375rem; }
+}

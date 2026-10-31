@@ -5,14 +5,20 @@ namespace Clinica\data\repositories\bitacora;
 use Carbon\CarbonImmutable;
 use Clinica\data\models\Bitacora;
 use Clinica\data\models\Cita;
+use Clinica\data\models\ConsultaMedica;
 use Clinica\data\models\Consultorio;
 use Clinica\data\models\Especialidad;
 use Clinica\data\models\Medico;
 use Clinica\data\models\Paciente;
+use Clinica\data\models\Recordatorio;
+use Clinica\data\models\SolicitudLaboratorio;
 use Clinica\data\models\Usuario;
+use Clinica\data\models\VersionAntecedente;
+use Clinica\data\models\VersionConsulta;
 use Clinica\shared\utils\ReferenciasBitacora;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class BitacoraRepository
 {
@@ -64,7 +70,9 @@ class BitacoraRepository
             }
             $clave = match ($entidad) {
                 'Paciente' => 'id_paciente', 'Medico' => 'id_medico', 'Especialidad' => 'id_especialidad', 'Consultorio' => 'id_consultorio',
-                'HorarioAtencion' => 'id_horario', 'ConfiguracionClinica' => 'id_configuracion', default => null,
+                'HorarioAtencion' => 'id_horario', 'ConfiguracionClinica' => 'id_configuracion',
+                'Cita' => 'id_cita', 'ConsultaMedica' => 'id_consulta', 'VersionConsulta' => 'id_version_consulta',
+                'VersionAntecedente' => 'id_version_antecedente', 'SolicitudLaboratorio' => 'id_solicitud', default => null,
             };
             if ($clave !== null) {
                 $recursos->orWhere(function (Builder $referencia) use ($clave, $registro): void {
@@ -136,6 +144,113 @@ class BitacoraRepository
                 'estado' => 'Programada', 'duracion_minutos' => $cita->duracion_minutos]])->saveOrFail();
     }
 
+    public function recordatorioGenerado(Cita $cita, Recordatorio $recordatorio, CarbonImmutable $ahora): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'RECORDATORIO_GENERADO', 'tipo_actor' => 'SISTEMA',
+            'modulo' => 'RECORDATORIOS', 'operacion' => 'RECORDATORIO_GENERADO', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Recordatorio', 'registro_referido' => (string) $recordatorio->getKey(), 'ocurrido_en' => $ahora,
+            'correlacion' => (string) Str::uuid(),
+            'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente],
+            'cambios_seguros' => ['version_nueva' => $cita->version_programacion]])->saveOrFail();
+    }
+
+    public function suscripcionPushModificada(Usuario $actor, array $contexto, string $id, string $tipo, int $version): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => $tipo, 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'RECORDATORIOS', 'operacion' => $tipo, 'resultado' => 'EXITO',
+            'entidad_referida' => 'SuscripcionPush', 'registro_referido' => $id, 'ocurrido_en' => CarbonImmutable::now('UTC'),
+            'direccion_ip' => $contexto['ip'], 'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'cambios_seguros' => ['version_nueva' => $version]])->saveOrFail();
+    }
+
+    public function suscripcionPushObsoleta(string $id, int $version, CarbonImmutable $ahora): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'PUSH_REVOCADO', 'tipo_actor' => 'SISTEMA',
+            'modulo' => 'RECORDATORIOS', 'operacion' => 'PUSH_REVOCADO', 'resultado' => 'EXITO',
+            'entidad_referida' => 'SuscripcionPush', 'registro_referido' => $id, 'ocurrido_en' => $ahora,
+            'correlacion' => (string) Str::uuid(), 'cambios_seguros' => ['version_nueva' => $version]])->saveOrFail();
+    }
+
+    public function estudioSolicitado(Cita $cita, SolicitudLaboratorio $solicitud, Usuario $actor, array $contexto): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'ESTUDIO_SOLICITADO', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'LABORATORIO', 'operacion' => 'ESTUDIO_SOLICITADO', 'resultado' => 'EXITO',
+            'entidad_referida' => 'SolicitudLaboratorio', 'registro_referido' => (string) $solicitud->getKey(),
+            'ocurrido_en' => $solicitud->solicitada_en, 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente,
+                'id_medico' => (string) $cita->id_medico, 'id_consulta' => (string) $solicitud->id_consulta,
+                'id_solicitud' => (string) $solicitud->getKey()]])->saveOrFail();
+    }
+
+    public function documentoLaboratorioRegistrado(Usuario $actor, array $contexto, string $tipo, array $referencias, CarbonImmutable $ahora): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => $tipo, 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'LABORATORIO', 'operacion' => $tipo, 'resultado' => 'EXITO',
+            'entidad_referida' => 'SolicitudLaboratorio', 'registro_referido' => $referencias['id_solicitud'],
+            'ocurrido_en' => $ahora, 'direccion_ip' => $contexto['ip'], 'procedencia_ip' => $contexto['procedencia'],
+            'correlacion' => $contexto['correlacion'], 'referencias' => $referencias])->saveOrFail();
+    }
+
+    public function resultadoLaboratorioRevisado(Usuario $actor, array $contexto, string $decision, array $referencias, CarbonImmutable $ahora): void
+    {
+        $this->documentoLaboratorioRegistrado($actor, $contexto,
+            $decision === 'Autorizar' ? 'RESULTADO_LABORATORIO_AUTORIZADO' : 'RESULTADO_LABORATORIO_DEVUELTO', $referencias, $ahora);
+    }
+
+    public function consultaRegistrada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, Usuario $actor, array $contexto): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CONSULTA_REGISTRADA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'HISTORIA_CLINICA', 'operacion' => 'CONSULTA_REGISTRADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'ConsultaMedica', 'registro_referido' => (string) $consulta->getKey(),
+            'ocurrido_en' => $version->registrada_en, 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente,
+                'id_medico' => (string) $cita->id_medico, 'id_consulta' => (string) $consulta->getKey(),
+                'id_version_consulta' => (string) $version->getKey()],
+            'cambios_seguros' => ['version_anterior' => 0, 'version_nueva' => 1]])->saveOrFail();
+    }
+
+    public function antecedentesActualizados(Cita $cita, ConsultaMedica $consulta, VersionAntecedente $version, ?VersionAntecedente $anterior, Usuario $actor, array $contexto): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'ANTECEDENTES_ACTUALIZADOS', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'HISTORIA_CLINICA', 'operacion' => 'ANTECEDENTES_ACTUALIZADOS', 'resultado' => 'EXITO',
+            'entidad_referida' => 'VersionAntecedente', 'registro_referido' => (string) $version->getKey(),
+            'ocurrido_en' => $version->registrada_en, 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente,
+                'id_medico' => (string) $cita->id_medico, 'id_consulta' => (string) $consulta->getKey(),
+                'id_version_antecedente' => (string) $version->getKey()],
+            'cambios_seguros' => ['version_anterior' => $anterior?->numero_version ?? 0, 'version_nueva' => $version->numero_version]])->saveOrFail();
+    }
+
+    public function consultaActualizada(Cita $cita, ConsultaMedica $consulta, VersionConsulta $version, VersionConsulta $anterior, Usuario $actor, array $contexto): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CONSULTA_ACTUALIZADA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'HISTORIA_CLINICA', 'operacion' => 'CONSULTA_ACTUALIZADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'ConsultaMedica', 'registro_referido' => (string) $consulta->getKey(),
+            'ocurrido_en' => $version->registrada_en, 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente,
+                'id_medico' => (string) $cita->id_medico, 'id_consulta' => (string) $consulta->getKey(),
+                'id_version_consulta' => (string) $version->getKey()],
+            'cambios_seguros' => ['version_anterior' => $anterior->numero_version, 'version_nueva' => $version->numero_version]])->saveOrFail();
+    }
+
     public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
     {
         $referencias = [];
@@ -146,6 +261,60 @@ class BitacoraRepository
         $evento->forceFill(['tipo_evento' => 'CITA_REPROGRAMADA', 'tipo_actor' => 'USUARIO',
             'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
             'modulo' => 'CITAS', 'operacion' => 'CITA_REPROGRAMADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => $referencias, 'cambios_seguros' => [
+                'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
+                'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
+    }
+
+    public function citaLlegadaConfirmada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        $referencias = [];
+        foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
+            $referencias[$campo] = (string) $cita->getAttribute($campo);
+        }
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CITA_LLEGADA_CONFIRMADA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CITAS', 'operacion' => 'CITA_LLEGADA_CONFIRMADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => $referencias, 'cambios_seguros' => [
+                'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
+                'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
+    }
+
+    public function citaInasistenciaRegistrada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        $referencias = [];
+        foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
+            $referencias[$campo] = (string) $cita->getAttribute($campo);
+        }
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CITA_INASISTENCIA_REGISTRADA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CITAS', 'operacion' => 'CITA_INASISTENCIA_REGISTRADA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => $referencias, 'cambios_seguros' => [
+                'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
+                'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
+    }
+
+    public function citaAtendida(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    {
+        $referencias = [];
+        foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
+            $referencias[$campo] = (string) $cita->getAttribute($campo);
+        }
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'CITA_ATENDIDA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'CITAS', 'operacion' => 'CITA_ATENDIDA', 'resultado' => 'EXITO',
             'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
             'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
             'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],

@@ -174,7 +174,7 @@ describe('restablecer por enlace', () => {
     const user = userEvent.setup();
     const router = mount('/recuperar-clave', envelope, true);
     await screen.findByRole('heading', { name: 'Elige una nueva contraseña' });
-    expect(envelope.token).toBeNull();
+    await waitFor(() => expect(envelope.token).toBeNull());
     expect(document.body.textContent).not.toContain(token);
     expect(document.querySelector(`input[value="${token}"]`)).toBeNull();
     await fillNew(user);

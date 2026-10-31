@@ -238,7 +238,7 @@ class BitacoraListadoTest extends TestCase
             ['id_usuario_objetivo' => '1 OR 1=1'], ['tipo_actor' => 'Administrador'], ['resultado' => 'OK'], ['resultado' => ['EXITO']],
             ['modulo' => ''], ['modulo' => "VALOR\nINTERNO"], ['modulo' => str_repeat('x', 41)], ['operacion' => str_repeat('x', 61)],
             ['tipo_evento' => str_repeat('x', 81)], ['direccion_ip' => '192.0.2.1/24'], ['direccion_ip' => 'invalida'],
-            ['entidad_referida' => 'ConsultaMedica'], ['entidad_referida' => ['Paciente']], ['registro_referido' => '7'],
+            ['entidad_referida' => 'EntidadInexistente'], ['entidad_referida' => ['Paciente']], ['registro_referido' => '7'],
             ['entidad_referida' => 'Paciente', 'registro_referido' => '0'], ['entidad_referida' => 'Paciente', 'registro_referido' => '9223372036854775808'],
             ['entidad_referida' => 'Paciente', 'registro_referido' => ['7']], ['entidad_referida' => 'CuentaPrueba', 'registro_referido' => '../privado'],
             ['entidad_referida' => 'Paciente', 'registro_referido' => ''], ['page' => 0], ['page' => 1000001],

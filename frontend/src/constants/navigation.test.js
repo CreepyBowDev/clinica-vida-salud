@@ -10,7 +10,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     const patterns = NAVIGATION.flatMap(module => module.items.flatMap(item => item.patterns ?? []));
     expect(patterns.every(pattern => actual.includes(pattern))).toBe(true);
     const roots = ['/inicio', ...Object.values(AREAS).map(area => area.path)];
-    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|citas|mis-citas)(\/|$)/.test(path));
+    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|asistencia|citas|mis-citas|historia-clinica|registrar-consulta|laboratorio|recordatorios)(\/|$)/.test(path));
     expect([...patterns].sort()).toEqual(protectedPaths.sort());
   });
   it('conserva los treinta CU sin convertir acciones o flujos públicos en páginas protegidas', () => {
@@ -27,14 +27,26 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(modules.flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.to)).not.toContain('/login');
   });
   it.each([
-    [ROLES.ADMINISTRADOR, ['cuentas', 'contrasena', 'pacientes', 'activacion', 'especialidades', 'medicos', 'consultorios', 'horarios', 'programar', 'eventos', 'agenda', 'historial']],
-    [ROLES.RECEPCIONISTA, ['contrasena', 'pacientes', 'activacion', 'programar', 'agenda', 'historial']],
-    [ROLES.MEDICO, ['contrasena', 'agenda']],
-    [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas']],
+    [ROLES.ADMINISTRADOR, ['cuentas', 'contrasena', 'pacientes', 'activacion', 'especialidades', 'medicos', 'consultorios', 'horarios', 'programar', 'eventos', 'gestion-citas', 'asistencia-citas', 'agenda', 'historial', 'historia', 'consulta', 'resultados', 'solicitar', 'avisos']],
+    [ROLES.RECEPCIONISTA, ['contrasena', 'pacientes', 'activacion', 'programar', 'gestion-citas', 'asistencia-citas', 'agenda', 'historial']],
+    [ROLES.MEDICO, ['contrasena', 'asistencia-citas', 'agenda', 'historia', 'consulta', 'resultados', 'solicitar']],
+    [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas', 'historia', 'resultados', 'avisos']],
   ])('%s tiene exactamente sus páginas operativas sin nuevos privilegios para otros roles', (role, ids) => {
     expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id)).toEqual(ids);
   });
   it.each([
+    [ROLES.PACIENTE, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
+    [ROLES.ADMINISTRADOR, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
+    [ROLES.ADMINISTRADOR, '/laboratorio/solicitar', 'laboratorio', 'solicitar', 'Solicitar estudios'],
+    [ROLES.MEDICO, '/citas/41/consulta/solicitar-estudio', 'laboratorio', 'solicitar', 'Solicitar estudio de laboratorio'],
+    [ROLES.ADMINISTRADOR, '/laboratorio/pacientes/21', 'laboratorio', 'resultados', 'Estudios del paciente'],
+    [ROLES.MEDICO, '/laboratorio/consultas/44', 'laboratorio', 'resultados', 'Estudios de la consulta'],
+    [ROLES.PACIENTE, '/laboratorio/solicitudes/71', 'laboratorio', 'resultados', 'Solicitud de laboratorio'],
+    [ROLES.ADMINISTRADOR, '/historia-clinica/pacientes/42', 'historia', 'historia', 'Historia clínica'],
+    [ROLES.MEDICO, '/citas/42/consulta', 'historia', 'historia', 'Consulta médica'],
+    [ROLES.MEDICO, '/citas/42/consulta/versiones', 'historia', 'historia', 'Versiones de consulta'],
+    [ROLES.ADMINISTRADOR, '/historia-clinica/pacientes/42/antecedentes/versiones', 'historia', 'historia', 'Versiones de antecedentes'],
+    [ROLES.PACIENTE, '/historia-clinica', 'historia', 'historia', 'Consultar historia clínica'],
     [ROLES.ADMINISTRADOR, '/administracion/medicos/42/consultorio', 'consultorios', 'consultorios', 'Asignar consultorio'],
     [ROLES.ADMINISTRADOR, '/administracion/medicos/42/especialidades', 'medicos', 'medicos', 'Especialidades del médico'],
     [ROLES.ADMINISTRADOR, '/administracion/horarios/configuracion', 'consultorios', 'horarios', 'Duración de citas'],
@@ -48,6 +60,11 @@ describe('catálogo de navegación por responsabilidad', () => {
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/activacion', 'pacientes', 'pacientes', 'Activación web del paciente'],
     [ROLES.ADMINISTRADOR, '/recepcion/activacion-web', 'pacientes', 'activacion', 'Activación web'],
     [ROLES.ADMINISTRADOR, '/recepcion/citas/nueva', 'reserva', 'programar', 'Programar cita'],
+    [ROLES.ADMINISTRADOR, '/recepcion/citas/gestion', 'reprogramacion', 'gestion-citas', 'Gestionar citas'],
+    [ROLES.RECEPCIONISTA, '/citas/42/gestion', 'reprogramacion', 'gestion-citas', 'Gestionar cita'],
+    [ROLES.ADMINISTRADOR, '/asistencia', 'asistencia', 'asistencia-citas', 'Gestionar asistencia'],
+    [ROLES.RECEPCIONISTA, '/citas/42/asistencia', 'asistencia', 'asistencia-citas', 'Asistencia de la cita'],
+    [ROLES.MEDICO, '/citas/42/asistencia', 'asistencia', 'asistencia-citas', 'Asistencia de la cita'],
     [ROLES.ADMINISTRADOR, '/recepcion/historial-citas', 'agenda', 'historial', 'Consultar historial de citas'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/citas', 'agenda', 'historial', 'Historial de citas'],
     [ROLES.ADMINISTRADOR, '/recepcion/historial-citas/42', 'agenda', 'historial', 'Detalle de cita'],
@@ -68,20 +85,24 @@ describe('catálogo de navegación por responsabilidad', () => {
   });
   it('no reconoce una ruta ajena al rol, pública o inexistente como función propia', () => {
     const modules = navigationForRole(ROLES.PACIENTE);
-    for (const path of ['/administracion/cuentas', '/login', '/otro']) expect(navigationAtPath(modules, path)).toBeNull();
+    for (const path of ['/administracion/cuentas', '/login', '/otro', '/laboratorio/pacientes/21']) expect(navigationAtPath(modules, path)).toBeNull();
     expect(navigationAtPath(navigationForRole(ROLES.ADMINISTRADOR), '/administracion/medicos/42/inexistente')).toBeNull();
     expect(navigationTitle('/otro', null, AREAS[ROLES.PACIENTE])).toBe('Página no encontrada');
+    for (const path of ['/historia-clinica/pacientes/42', '/citas/42/consulta/versiones', '/historia-clinica/pacientes/42/antecedentes/versiones']) expect(navigationAtPath(modules, path)).toBeNull();
+    expect(navigationAtPath(navigationForRole(ROLES.RECEPCIONISTA), '/historia-clinica')).toBeNull();
   });
-  it('añade Administración sin cambiar Recepción en inasistencia o Médico en atendida, aún pendientes', () => {
+  it('integra las tres operaciones en una página compartida sin páginas por rol', () => {
     const items = NAVIGATION.flatMap(module => module.items);
-    expect(items.find(item => item.cases.includes('CU-18'))).toMatchObject({ id: 'inasistencia', kind: 'pending', roles: [ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA] });
-    expect(items.find(item => item.cases.includes('CU-19'))).toMatchObject({ id: 'atendida', kind: 'pending', roles: [ROLES.ADMINISTRADOR, ROLES.MEDICO] });
+    expect(items.find(item => item.cases.includes('CU-18'))).toMatchObject({ id: 'asistencia-citas', kind: 'page', cases: ['CU-17', 'CU-18', 'CU-19'] });
+    expect(items.find(item => item.cases.includes('CU-19')).id).toBe('asistencia-citas');
   });
-  it('representa 28 CU administrativos, sin perfil/registro propio del Paciente ni enlaces al Ciclo 2', () => {
+  it('representa 28 CU administrativos y un CU aún sin flujo operativo', () => {
     const items = navigationForRole(ROLES.ADMINISTRADOR).flatMap(module => module.items);
-    const cases = [...items.flatMap(item => item.cases), 'CU-01', 'CU-02', 'CU-06'];
+    const actions = ACCESS_FLOWS.filter(flow => ['action', 'pending-action'].includes(flow.kind) && flow.roles?.includes(ROLES.ADMINISTRADOR));
+    const cases = [...items.flatMap(item => item.cases), ...actions.flatMap(item => item.cases), 'CU-01', 'CU-02', 'CU-06'];
     expect([...new Set(cases)].sort()).toEqual(Array.from({ length: 30 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`).filter(id => !['CU-04', 'CU-08'].includes(id)));
-    expect([...new Set(items.filter(item => item.kind === 'pending').flatMap(item => item.cases))]).toHaveLength(13);
+    expect([...new Set([...items.filter(item => item.kind === 'pending'), ...actions.filter(a => a.kind === 'pending-action')].flatMap(item => item.cases))]).toHaveLength(1);
+    expect(items.find(item => item.id === 'gestion-citas').cases).toEqual(['CU-15', 'CU-16']);
     expect(items.filter(item => item.kind === 'pending').every(item => !item.to && !item.patterns)).toBe(true);
   });
   it.each(Object.values(ROLES))('%s reconoce detalle directo sin duplicar enlaces', role => {

@@ -14,7 +14,8 @@ import { usePatientQuery } from '../hooks/usePatientQuery';
 import '../styles/patients.css';
 
 const empty = { documento_identidad: '', nombres: '', apellidos: '', activo: '' };
-export default function PatientsPage({ historial = false }) {
+export default function PatientsPage({ historial = false, gestion = false, historia = false, laboratorio = false, onSeleccionar,
+  tituloSeleccion = 'Seleccionar paciente de destino', descripcionSeleccion = 'Busca al paciente de destino. Seleccionarlo todavía no corrige la asociación del documento.' }) {
   const [draft, setDraft] = useState(empty);
   const [filters, setFilters] = useState({ ...empty, page: 1 });
   const { data, failure, loading, reload } = usePatientQuery('list', filters);
@@ -22,9 +23,10 @@ export default function PatientsPage({ historial = false }) {
   const field = name => ({ value: draft[name], onChange: event => setDraft({ ...draft, [name]: event.target.value }), error: failure?.fields[name] });
   const paginate = page => { setFilters({ ...filters, page }); results.current?.focus(); };
   return <section className="workspace-page patients-page">
-    <PageHeading title={historial ? 'Seleccionar paciente para consultar historial' : 'Pacientes'}
-      description={historial ? 'Busca al paciente, abre su ficha y selecciona Consultar historial de citas. También puedes consultar fichas inactivas o sin cuenta web.' : 'Busca y consulta las fichas administrativas de la clínica.'}
-      actions={!historial && <Link className="button button--primary" to="/recepcion/pacientes/nuevo"><Icon name="user" />Registrar paciente</Link>} />
+    <PageHeading title={onSeleccionar ? tituloSeleccion : laboratorio ? 'Seleccionar paciente para consultar estudios' : historia ? 'Seleccionar paciente para consultar historia clínica' : gestion ? 'Seleccionar paciente para gestionar una cita' : historial ? 'Seleccionar paciente para consultar historial' : 'Pacientes'}
+      description={onSeleccionar ? descripcionSeleccion : laboratorio ? 'Busca al paciente y consulta sus estudios y resultados. Incluye fichas inactivas o sin cuenta web.' : historia ? 'Busca al paciente y abre su historia clínica. También puedes consultar fichas inactivas o sin cuenta web.' : gestion ? 'Busca al paciente, abre su ficha y selecciona Consultar historial de citas. Desde el detalle de una cita puedes consultar su gestión, incluidas fichas inactivas o sin cuenta web.'
+        : historial ? 'Busca al paciente, abre su ficha y selecciona Consultar historial de citas. También puedes consultar fichas inactivas o sin cuenta web.' : 'Busca y consulta las fichas administrativas de la clínica.'}
+      actions={!historial && !historia && !laboratorio && !onSeleccionar && <Link className="button button--primary" to="/recepcion/pacientes/nuevo"><Icon name="user" />Registrar paciente</Link>} />
     <form className="patients-filters" aria-label="Buscar pacientes" onSubmit={event => {
       event.preventDefault();
       setFilters({ documento_identidad: draft.documento_identidad.trim(), nombres: draft.nombres.trim(), apellidos: draft.apellidos.trim(), activo: draft.activo, page: 1 });
@@ -38,7 +40,7 @@ export default function PatientsPage({ historial = false }) {
     </form>
     <div ref={results} tabIndex="-1" aria-busy={loading}>
       {loading ? <QueryMessage loading title="Consultando pacientes…" /> : failure ? <div className="query-failure"><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div>
-        : <>{data.data.length ? <PatientsTable patients={data.data} /> : <QueryMessage title="No hay pacientes para estos filtros" description="Prueba otro CI, nombre, apellido o estado de ficha." />}
+        : <>{data.data.length ? <PatientsTable patients={data.data} historia={historia} laboratorio={laboratorio} onSeleccionar={onSeleccionar} /> : <QueryMessage title="No hay pacientes para estos filtros" description="Prueba otro CI, nombre, apellido o estado de ficha." />}
           <Pagination meta={data.meta} label="pacientes" onPage={paginate} /></>}
     </div>
     <p className="patients-note">Una ficha puede existir sin CI y sin cuenta web. El estado de la ficha es independiente del acceso a la cuenta.</p>

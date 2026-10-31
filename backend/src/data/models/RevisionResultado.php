@@ -18,7 +18,7 @@ class RevisionResultado extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['motivo'];
+    protected $hidden = ['motivo', 'revisada_por', 'revisadaPor'];
 
     protected function casts(): array
     {
@@ -33,6 +33,11 @@ class RevisionResultado extends Model
     public function medico(): BelongsTo
     {
         return $this->belongsTo(Medico::class, 'id_medico', 'id_medico');
+    }
+
+    public function revisadaPor(): BelongsTo
+    {
+        return $this->belongsTo(Usuario::class, 'revisada_por', 'id_usuario');
     }
 
     public function solicitudPublicada(): HasOne

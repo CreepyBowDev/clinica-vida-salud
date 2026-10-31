@@ -9,6 +9,15 @@ function errorConsulta(error, kind, allowedFields) {
     422: kind === 'detail' ? 'La consulta no es válida. Comprueba el identificador de la cita.' : 'Revisa los filtros indicados antes de volver a consultar.',
     500: 'No pudimos consultar las citas. Vuelve a intentarlo más tarde.' })[failure.status] ?? failure.message;
   if (!error.response) failure.message = kind === 'detail' ? 'No pudimos consultar la cita. Comprueba tu conexión y vuelve a intentarlo.' : 'No pudimos obtener la consulta. Comprueba tu conexión y vuelve a intentarlo.';
+  if (kind === 'gestion' && (failure.status === undefined || failure.status >= 500)) {
+    failure.message = 'No pudimos verificar la gestión de la cita. Vuelve a consultar antes de continuar.';
+  }
+  if (kind === 'asistencia') {
+    failure.message = ({ 404: 'La cita no está disponible o no tienes acceso a ella.',
+      419: 'La protección de la sesión ha caducado. Comprueba tu sesión y vuelve a consultar.',
+      422: 'La consulta no es válida. Comprueba el identificador de la cita.' })[failure.status] ?? failure.message;
+    if (failure.status === undefined || failure.status >= 500) failure.message = 'No pudimos verificar la asistencia de la cita. Vuelve a consultar antes de continuar.';
+  }
   return failure;
 }
 
@@ -46,7 +55,10 @@ export function useAgendaQuery(load, parameters, { enabled = true, kind = 'detai
     load(args, controller.signal).then(data => {
       if (operation === sequence.current && !controller.signal.aborted) setResult({ key, data });
     }, error => {
-      if (operation !== sequence.current || controller.signal.aborted || error.code === 'SESSION_SUPERSEDED') return;
+      if (operation !== sequence.current || controller.signal.aborted) return;
+      // Un logout fallido puede dejar esta misma identidad montada, pero la época HTTP cambió.
+      // Gestión debe salir de carga con un fallo seguro y permitir reconsulta explícita.
+      if (error.code === 'SESSION_SUPERSEDED' && !['gestion', 'reprogramacion', 'asistencia'].includes(kind)) return;
       const failure = errorConsulta(error, kind, JSON.parse(fieldsKey));
       if (failure.retryAfter) {
         limit.current = { identity, until: Date.now() + failure.retryAfter * 1000, failure };

@@ -655,6 +655,7 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 
 ## 26. Recordatorios internos (`CU-28`)
 
+- **Ampliación aprobada el 2026-10-30, pendiente de implementación:** avisos internos más Web Push opcional en dispositivos compatibles autorizados por el Paciente. Sustituye la prohibición anterior de push, no los demás límites; no crear app nativa. CU-28/contexto §17.183 y VS-NOT-07–11 son la referencia vigente.
 - Paciente ve solo avisos propios de la API; Administrador consulta los del Paciente seleccionado por CU-28 cuando esté implementado, sin editar preferencias personales ni generar avisos manualmente.
 - El backend genera recordatorios automáticamente, **aunque el Paciente no esté conectado**.
 - El proyecto establece un aviso **24 horas antes de la fecha y hora programadas** de la cita. Para reservas registradas exitosamente con menos de 24 horas de anticipación, el backend lo genera después de guardar correctamente la reserva en la base de datos o en la siguiente ejecución del programador de tareas, siempre que el aviso siga siendo válido y el intervalo no haya finalizado. La frecuencia del programador se definirá durante el diseño técnico; la interfaz no debe asumirla.
@@ -662,7 +663,8 @@ Utilizar `useState`, `useReducer` cuando ayude al formulario y props para el est
 - Los avisos son internos y persistidos en PostgreSQL, incluso sin cuenta web, asociados al Paciente y la cita. Tras activar su cuenta, el Paciente consulta solo avisos propios autorizados de citas futuras vigentes; la generación no requiere acciones manuales de Paciente o Recepción.
 - Reprogramaciones recalculan el momento del aviso y actualizan o invalidan fecha, hora y consultorio, evitando duplicados. Canceladas, Atendidas, Inasistencia o intervalo finalizado impiden nuevos avisos de próxima atención y retiran los anteriores de próximos recordatorios, según la respuesta del backend.
 - No crear recordatorios desde el navegador con `setTimeout` como fuente de verdad ni depender de la pestaña abierta.
-- No enviar recordatorios mediante Brevo, email, WhatsApp, SMS ni push externo. **Brevo solo se usa en correos transaccionales de seguridad**.
+- No enviar recordatorios mediante Brevo, email, WhatsApp ni SMS. **Brevo solo se usa en correos transaccionales de seguridad**. Web Push es el único canal externo adicional aprobado, opt-in por dispositivo: solicitar permiso mediante acción explícita del Paciente autenticado, gestionar suscripción/revocación propia y comunicar incompatibilidad o permiso denegado sin inutilizar los avisos internos. Administrador no habilita dispositivos ni cambia preferencias del titular.
+- HTTPS/Service Worker y soporte del navegador/instalación de la web según plataforma son condiciones técnicas por verificar. Notificaciones aun con portal cerrado solo cuando lo permita el dispositivo; no prometer entrega, sonido ni encender pantalla. No mostrar datos clínicos sensibles en notificación de sistema; al abrirla consultar estado vigente con autenticación/autorización, sin credenciales o datos clínicos en URL. Una notificación ya entregada puede quedar obsoleta y no se garantiza retirarla. No usar caché persistente de clínica para permitir push.
 - Mostrar estados vacíos o sin próximos avisos de forma comprensible, sin mensajes engañosos.
 
 ---

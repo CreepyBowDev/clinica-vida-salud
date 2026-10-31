@@ -1,8 +1,8 @@
 import { api, csrfURL } from '../../../api/api';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 
-export async function consultarMiPerfil(signal) {
-  const response = await api.get('/mi-perfil', { signal, sessionBound: true });
+export async function consultarMiPerfil(signal, sessionEpochExpected) {
+  const response = await api.get('/mi-perfil', { signal, sessionBound: true, ...(sessionEpochExpected === undefined ? {} : { sessionEpochExpected }) });
   return response.data.data;
 }
 

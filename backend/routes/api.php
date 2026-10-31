@@ -12,3 +12,6 @@ require base_path('src/presentation/routes/reservas.php');
 require base_path('src/presentation/routes/citas.php');
 require base_path('src/presentation/routes/agenda.php');
 require base_path('src/presentation/routes/bitacora.php');
+require base_path('src/presentation/routes/historia_clinica.php');
+require base_path('src/presentation/routes/laboratorio.php');
+require base_path('src/presentation/routes/recordatorios.php');

@@ -4,7 +4,7 @@ import QueryMessage from '../../../components/QueryMessage';
 import { useAuth } from '../../../hooks/useAuth';
 
 // Reutiliza la búsqueda administrativa sin conservar fichas entre identidades/restauraciones.
-export default function SeleccionarPacienteHistorialPage() {
+export default function SeleccionarPacienteHistorialPage({ gestion = false }) {
   const { usuario } = useAuth();
   const [hidden, setHidden] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -15,5 +15,5 @@ export default function SeleccionarPacienteHistorialPage() {
     return () => { window.removeEventListener('pagehide', hide); window.removeEventListener('pageshow', show); };
   }, []);
   return hidden ? <QueryMessage loading title="Consulta de pacientes pausada" />
-    : <PatientsPage key={`${usuario?.id_usuario}:${usuario?.rol}:${revision}`} historial />;
+    : <PatientsPage key={`${usuario?.id_usuario}:${usuario?.rol}:${revision}:${gestion}`} historial gestion={gestion} />;
 }

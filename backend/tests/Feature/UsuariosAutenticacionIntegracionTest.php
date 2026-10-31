@@ -49,6 +49,7 @@ class UsuariosAutenticacionIntegracionTest extends TestCase
             DB::table('roles')->insert(['nombre' => $rol]);
         }
         config(['session.driver' => 'database', 'session.lottery' => [0, 100], 'seguridad.correo.mailer' => 'array']);
+        (require base_path('src/data/database/migrations/2026_10_31_000038_create_suscripciones_push_table.php'))->up();
         $this->app['env'] = 'local'; // El Kernel conserva CSRF real en estos recorridos.
         Mail::fake();
     }

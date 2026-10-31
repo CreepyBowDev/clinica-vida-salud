@@ -116,8 +116,18 @@ class Usuario extends Authenticatable
         return $this->hasMany(DocumentoLaboratorio::class, 'cargado_por', 'id_usuario');
     }
 
+    public function solicitudesLaboratorioCreadas(): HasMany
+    {
+        return $this->hasMany(SolicitudLaboratorio::class, 'creada_por', 'id_usuario');
+    }
+
     public function versionesResultados(): HasMany
     {
         return $this->hasMany(VersionResultado::class, 'id_autor', 'id_usuario');
+    }
+
+    public function revisionesResultados(): HasMany
+    {
+        return $this->hasMany(RevisionResultado::class, 'revisada_por', 'id_usuario');
     }
 }

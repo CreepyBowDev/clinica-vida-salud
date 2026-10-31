@@ -4,9 +4,9 @@ import { destinoSeguro } from '../constants/roles';
 import SessionGate from '../features/auth/components/SessionGate';
 
 export default function GuestRoute() {
-  const { status } = useAuth();
+  const { status, usuario } = useAuth();
   const location = useLocation();
   return <SessionGate>{status === 'authenticated'
-    ? <Navigate to={destinoSeguro(location.state?.from)} replace />
+    ? <Navigate to={destinoSeguro(location.state?.from, usuario?.rol)} replace />
     : status === 'restricted' ? <Navigate to="/clave-obligatoria" replace /> : <Outlet />}</SessionGate>;
 }

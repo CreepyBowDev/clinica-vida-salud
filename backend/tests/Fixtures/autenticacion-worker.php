@@ -4,6 +4,7 @@
 use Carbon\CarbonImmutable;
 use Clinica\business\services\usuarios\CorreoSeguridadService;
 use Clinica\data\repositories\bitacora\BitacoraRepository;
+use Clinica\data\repositories\horarios\PlanificacionRepository;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,7 @@ use Tests\Fixtures\PausarConsultaBitacora;
 use Tests\Fixtures\PausarEscrituraPlanificacionRepository;
 use Tests\Fixtures\PausarLecturaBitacoraRepository;
 use Tests\Fixtures\PausarRespuestaAutenticacion;
+use Tests\Fixtures\RelojTrasPlanificacionRepository;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
@@ -91,9 +93,16 @@ try {
     }
     if ($data['mode'] === 'gestion-http') {
         $app['env'] = 'local';
+        config(['seguridad.correo.mailer' => 'array']);
+        Mail::fake();
+        if (isset($data['ahora_tras_planificacion'])) {
+            $app->instance(PlanificacionRepository::class,
+                new RelojTrasPlanificacionRepository($data['ahora_tras_planificacion']));
+        }
         if ($data['pausar_antes'] ?? false) {
             $app['events']->listen(RouteMatched::class, function (RouteMatched $event): void {
-                if (str_starts_with($event->route->uri(), 'api/citas/')) {
+                if (str_starts_with($event->route->uri(), 'api/citas/')
+                    || str_contains($event->route->getActionName(), '\\historia_clinica\\')) {
                     $event->route->middleware(PausarConsultaAgenda::class);
                 }
             });

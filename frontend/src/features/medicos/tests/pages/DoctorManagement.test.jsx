@@ -54,7 +54,7 @@ describe('datos profesionales y alta CU-10 fase 3', () => {
     expect(within(screen.getByRole('group', { name: 'Contacto profesional' })).getByLabelText('Correo de contacto')).toHaveValue('contacto@example.test');
     await user.clear(screen.getByLabelText('Teléfono')); await user.click(screen.getByRole('button', { name: 'Guardar datos profesionales' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Revisa los campos'); expect(screen.getByLabelText('Nombres')).toHaveValue('Profesional');
-    expect(screen.getByLabelText('Teléfono')).toHaveFocus(); expect(writes()).toHaveLength(0);
+    await waitFor(() => expect(screen.getByLabelText('Teléfono')).toHaveFocus()); expect(writes()).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Guardar datos profesionales' }).parentElement).toHaveClass('form-actions');
   });
   it.each(['Recepcionista', 'Médico', 'Paciente'])('protege las tres nuevas rutas frente a %s sin consultar datos', async rol => {

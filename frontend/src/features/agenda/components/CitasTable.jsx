@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { formatearInstanteCita } from '../utils/agendaFormat';
 
-export default function CitasTable({ citas, caption, onDetail, historial = false, detailPath = id => `/citas/${id}` }) {
+export default function CitasTable({ citas, caption, onDetail, historial = false, detailPath = id => `/citas/${id}`, detailState }) {
   return <div className="catalog-table-wrap query-table agenda-table"><table className="catalog-table" role="table"><caption>{caption}</caption>
     <thead role="rowgroup"><tr role="row">{['Cita y horario', historial ? 'Médico' : 'Paciente', 'Especialidad', 'Consultorio', 'Modalidad', 'Estado'].map(label => <th key={label} scope="col" role="columnheader">{label}</th>)}</tr></thead>
     <tbody role="rowgroup">{citas.map(cita => <tr key={cita.id_cita} role="row">
-      <td role="cell"><Link to={detailPath(cita.id_cita)} aria-label={`Ver cita ${cita.codigo_cita}`} onClick={onDetail}><strong>{cita.codigo_cita}</strong></Link>
+      <td role="cell"><Link to={detailPath(cita.id_cita)} state={detailState} aria-label={`Ver cita ${cita.codigo_cita}`} onClick={onDetail}><strong>{cita.codigo_cita}</strong></Link>
         <span className="agenda-cell-secondary">Inicio: <time dateTime={cita.inicio_at}>{formatearInstanteCita(cita.inicio_at)}</time></span>
         <span className="agenda-cell-secondary">Fin: <time dateTime={cita.fin_at}>{formatearInstanteCita(cita.fin_at)}</time></span>
         {historial && <span className="agenda-cell-secondary">Registro: <time dateTime={cita.creada_en}>{formatearInstanteCita(cita.creada_en)}</time></span>}</td>

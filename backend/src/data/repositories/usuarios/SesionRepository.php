@@ -4,6 +4,8 @@ namespace Clinica\data\repositories\usuarios;
 
 use Clinica\data\models\TokenAcceso;
 use Clinica\data\models\Usuario;
+use Clinica\data\repositories\recordatorios\SuscripcionPushRepository;
+use Clinica\shared\utils\InstalacionPush;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Session\DatabaseSessionHandler;
@@ -15,7 +17,8 @@ use RuntimeException;
 
 class SesionRepository
 {
-    public function __construct(private AuthManager $auth, private SessionManager $sessions) {}
+    public function __construct(private AuthManager $auth, private SessionManager $sessions,
+        private SuscripcionPushRepository $push, private InstalacionPush $instalacion) {}
 
     private function guard(): SessionGuard
     {
@@ -73,6 +76,7 @@ class SesionRepository
 
     public function iniciar(Usuario $usuario, ?TokenAcceso $credencial = null): void
     {
+        $this->push->revocarInstalacion($this->instalacion->resumen($this->instalacion->actual()), (string) $usuario->getKey());
         if (config('session.driver') !== 'database'
             || ! config('session.encrypt')
             || ! $this->store()->getHandler() instanceof DatabaseSessionHandler
@@ -120,10 +124,16 @@ class SesionRepository
         if (DB::transactionLevel() === 0) {
             throw new LogicException('La revocación por usuario requiere una transacción coordinada con su cuenta.');
         }
+        $this->push->revocarUsuario($id);
         $query = DB::table(config('session.table'))->where('user_id', $id);
         if ($excepto !== null) {
             $query->where('id', '<>', $excepto);
         }
         $query->delete();
+    }
+
+    public function revocarPushActual(): void
+    {
+        $this->push->revocarInstalacion($this->instalacion->resumen($this->instalacion->actual()));
     }
 }

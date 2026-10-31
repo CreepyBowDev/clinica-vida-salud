@@ -12,12 +12,31 @@ export const AREAS = Object.freeze({
   [ROLES.PACIENTE]: { path: '/paciente', label: 'Mi atención', description: 'Tu espacio personal de atención en Clínica Vida Salud.', tasks: ['Reserva de citas propias', 'Historial e información autorizada', 'Resultados publicados y avisos internos'] },
 });
 
-export function destinoSeguro(pathname) {
+export function destinoSeguro(pathname, rol) {
+  if (pathname === '/recordatorios') return [ROLES.PACIENTE, ROLES.ADMINISTRADOR].includes(rol) ? pathname : '/inicio';
+  if (typeof pathname === 'string' && pathname.startsWith('/laboratorio')) {
+    if (![ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE].includes(rol)) return '/inicio';
+    if (pathname === '/laboratorio') return pathname;
+    if (pathname === '/laboratorio/solicitar') return [ROLES.ADMINISTRADOR, ROLES.MEDICO].includes(rol) ? pathname : '/inicio';
+    const match = pathname.match(/^\/laboratorio\/(pacientes|consultas|solicitudes)\/([1-9][0-9]{0,18})$/);
+    return match && BigInt(match[2]) <= 9223372036854775807n && (match[1] !== 'pacientes' || rol === ROLES.ADMINISTRADOR) ? pathname : '/inicio';
+  }
+  if (pathname === '/registrar-consulta') return [ROLES.ADMINISTRADOR, ROLES.MEDICO].includes(rol) ? pathname : '/inicio';
+  if (typeof pathname === 'string' && (pathname.startsWith('/historia-clinica') || /^\/citas\/[^/]+\/consulta/.test(pathname))) {
+    const interno = [ROLES.ADMINISTRADOR, ROLES.MEDICO].includes(rol);
+    if (!interno && rol !== ROLES.PACIENTE) return '/inicio';
+    if (pathname === '/historia-clinica') return pathname;
+    const match = pathname.match(/^\/citas\/([1-9][0-9]{0,18})\/consulta(\/(?:versiones|editar|solicitar-estudio))?$/)
+      ?? (interno ? pathname.match(/^\/historia-clinica\/pacientes\/([1-9][0-9]{0,18})(\/antecedentes\/versiones)?$/) : null);
+    return match && BigInt(match[1]) <= 9223372036854775807n && (interno || !match[2]) ? pathname : '/inicio';
+  }
   return ['/inicio', '/mi-perfil', '/mi-perfil/correo', '/mi-cuenta/contrasena', '/administracion/cuentas', '/administracion/cuentas/nueva', '/administracion/medicos', '/administracion/especialidades', '/recepcion/pacientes', '/recepcion/pacientes/nuevo', ...Object.values(AREAS).map((area) => area.path)].includes(pathname)
     || pathname === '/administracion/especialidades/nueva'
     || pathname === '/administracion/medicos/nuevo'
     || pathname === '/administracion/bitacora'
-    || ['/recepcion/activacion-web', '/recepcion/citas/nueva', '/recepcion/historial-citas'].includes(pathname)
+    || ['/recepcion/activacion-web', '/recepcion/citas/nueva', '/recepcion/citas/gestion', '/recepcion/historial-citas'].includes(pathname)
+    || pathname === '/asistencia'
+    || /^\/citas\/[1-9][0-9]{0,18}\/(gestion|asistencia)$/.test(pathname)
     || /^\/recepcion\/pacientes\/[1-9][0-9]{0,18}\/citas$/.test(pathname)
     || /^\/recepcion\/historial-citas\/[1-9][0-9]{0,18}$/.test(pathname)
     || /^\/administracion\/bitacora\/[1-9][0-9]{0,18}$/.test(pathname)

@@ -1,5 +1,2361 @@
 # Análisis de clases — Clínica Vida Salud
 
+<a id="recordatorios-backend-fase3"></a>
+## CU-28 — Backend Fase3: generación y preparación recuperable de despachos (2026-10-31)
+
+**Incremento efectivo de CU-28, no módulo terminado.** Contexto §17.186/README; conservar F1/F2, sus decisiones y participantes. No nueva clase de Controller de recordatorios ni dispatcher, API de avisos/Service Worker/envíos externos no implementados.
+
+| Participante | Colaboración efectiva |
+| --- | --- |
+| routes/console.php / scheduler Laravel | Comando recordatorios:generar valida lote1–1000, delega a Service y muestra solo conteos/errores seguros; programado cada minuto/withoutOverlapping10 de apoyo, no envío. No regla de negocio o SQL en comando ni sesión HTTP requerida. |
+| RecordatorioService | generar(lote=100) recorre cursor/techo finitos; generarParaCita privado coordina transacción/locks/cuenta/preferencia/vigencia/ventanas/relectura reloj, crea aviso único/bitácora y reconcilia outbox. invalidarPorCita conserva contrato usado por gestión/asistencia, sin generar por invalidar. |
+| RecordatorioRepository | ultimoIdCita/candidatas keyset con pendientes/retiro, localizar vínculo inicial, retirarObsoletos, porProgramacion con lock y crear. Encapsula SQL/Eloquent; no decide permisos/envío ni rompe UQ existente. |
+| EnvioRecordatorioPushRepository (nuevo) | pendientesPorCita con lock ordenado, descartar Pendiente y preparar con ON CONFLICT DO NOTHING; no reabre terminales/oculta errores FK ni implementa transporte. |
+| UsuarioRepository/PacienteRepository/CitaRepository/PlanificacionRepository/ContinuidadAdministrativaService | Coordinación compatible con cuenta/perfil/gestión: continuidad→Usuario→planificación→Paciente→cita antes de aviso/suscripción/envío. No exige actor/sesión al scheduler; origen relacional vigente, lectura inicial no concede destinatario si cambió vínculo. |
+| SuscripcionPushRepository/AutorizacionPushValidator | paraPaciente bloquea suscripciones propias por ID; validador comparte huella F2 y cuenta normal habilitada/vínculo. SuscripcionPushService delega la misma huella sin cambiar su API ni crear dependencia inversa con generación. |
+| BitacoraRepository/Recordatorio/EnvioRecordatorioPush | recordatorioGenerado crea evento SISTEMA/correlación/referencias/versión sin clínica o endpoint; Model conserva UQ/versiones/fechas, leido_en intacto. Aviso/evento/outbox inicial confirman juntos; resultado externo no existe en esta fase. |
+
+**Flujo real:** scheduler→candidatas por cursor y techo ID→transacción por cita/continuidad/vínculo inicial→lock Usuario si existe/planificación/Paciente/cita→aviso y suscripciones/Pendientes bloqueados→reloj fresco→24h<=/fin estricto/estado/preferencia→crear aviso+auditar una vez→descartar Pendientes obsoletos→preparar para cuenta/huella/consentimiento vigentes/antes de inicio/canal habilitado→commit. Siguiente tick completa avisos previamente persistidos sin envíos sin repetir aviso/evento. Sin cuenta se crea solo interno, sin preferencia se habilita interno sin crear fila. Generación no cambia estados/clínica/ubicación; futuras lecturas siguen la cita vigente. Cada preparación vuelve a comprobar reloj/caducidad; terminales y destinatario anterior no se reinterpretan.
+
+**Verificación:**79/950 correctas,24,519s/118MB,código0,33 nuevas+42 suscripciones+cuatro recorridos gestión. Dos procesos PHP/PID SQL independientes bloqueados realmente antes de competir→un aviso/evento/outbox, datos ficticios y correo/HTTP impedidos. Cortes/microsegundos/cursor/menos anticipación/preferencias/no cuenta/inactivos/autorización/varios dispositivos/reprogramación final/tick/rollback/riesgo de reloj tras espera y cancelación API reales en su alcance; cambios de tiempo/ubicación preparados como fixtures no prueban esas APIs por sí solos. Primer ensayo concurrente corrigió fixture local sin offset a UTC explícito, no tolerancias de negocio. Sintaxis/Pint11 PHP, inventario PostgreSQL final igual al inicial/sin residuos propios, sin nuevas dependencias/migraciones/frontend. No generación por reserva fallida inexistente ni promesa de puntualidad/entrega/retirada de push transmitido. API de consulta/F4, transporte/F5, carreras de despacho/F6 e integración/cierre F7 pendientes.
+
+<a id="recordatorios-backend-fase2"></a>
+## CU-28 — Backend Fase2: persistencia y suscripciones propias (2026-10-31)
+
+**Incremento efectivo, no CU-28 completo.** Contexto §17.185/README; conserva diseño F1 y análisis/diagramas anteriores. Cinco rutas disponibles exclusivamente Paciente normal: configuración/lista/autorizar actual/revocar actual o propia seleccionada. Generación/listado de avisos/transporte/scheduler/frontend siguen pendientes.
+
+| Clase efectiva | Responsabilidad y colaboración |
+| --- | --- |
+| SuscripcionPushController / SuscripcionPushRequest | Adaptar HTTP/formato cerrado/CSRF/scope de ruta, entrega JSON no-store y confirmar cookie solo tras transacción exitosa. Request no autoriza por ID enviado ni llama Eloquent. InstalacionPush adapta cookie cifrada/HttpOnly/host-only/180d/Secure producción, no autentica. |
+| SuscripcionPushService | Actor normal/Paciente actual bajo lock, configuración pública validada, listado mínimo, opt-in explícito/normalización/colisión/versiones/huella/caducidad y revocación propia. DB::transaction coordina suscripción/outbox pendiente/auditoría; equivalencia no muta ni duplica evento. No acceso Request/Response, envío de red o reglas clínicas añadidas. |
+| SuscripcionPushValidator | Lista exacta de hosts HTTPS443 y forma/paths sin userinfo/IP/fragmento/backslash/espacios; P-256 pública válida y auth16bytes/base64url canónico. Alta sin DNS/HTTP. No afirma defensa de transporte contra rebinding aún no implementada (F5). |
+| SuscripcionPushRepository | Eloquent para ámbito Usuario/Paciente, locks por instalación/recurso propio, lookup endpoint/hash y listado paginado; guardar/revocar/descartar solo Pendiente. SQL UQ cubre colisiones simultáneas conocidas→409; errores ajenos no se disfrazan. |
+| SuscripcionPush / EnvioRecordatorioPush | Dos Models/000038/000039 con datos cifrados/hidden y relaciones reales; outbox conserva destinatario/versiones originales al cambiar dueño de la instalación. Estados propios no son estados de Cita ni confirmación de recepción. No generador/worker por existir Model. |
+| AutenticacionService / SesionRepository | Logout explícito llama revocarPushActual antes de cerrar; cerrar por sesión inválida no. Iniciar otra identidad revoca instalación anterior sin reasignarla; revocarUsuario retira suscripciones de todos los dispositivos en flujos de cuenta/clave/correo existentes. Depende de Repository/auxiliar, no de Service que ya depende de auth: sin ciclo Service→Service. |
+| BitacoraRepository | suscripcionPushModificada(actor,contexto,id,tipo,version) registra PUSH_AUTORIZADO/PUSH_REVOCADO atómicos con referencia/versión y autor real, sin datos de suscripción. Logout/revocación global conservan eventos de seguridad propios existentes. GET/repetición no auditan ficticiamente otro consentimiento. |
+| RespuestaError / rutas/middlewares compartidos | Dos códigos push nuevos409/503 y preservación segura de Retry-After numérico del throttle estándar429; origen/Sanctum/cuenta/rol/CSRF60/min. No alterar permisos de otros CU ni tratar403 como logout. |
+
+**Flujos:** PUT→validar JSON/true→preparar token instalación sin encolarlo→auth/Paciente bloqueado→config/endpoint/keys/caducidad→instalación con lock/colisión endpoint→sin cambios si equivalente o versión+1/cifrado/descarte pendientes→auditoría→commit→cookie/201 o200. DELETE propio→auth/scope/lock→revocar/descarte Pendiente/auditoría si efectiva→204; ajeno404. Listado/configuración no generan ni envían ni marcan leído. Logout solo navegador reconocido; natural expiración conserva consentimiento; nuevo titular requiere PUT explícito, endpoints ajenos no se adoptan por conocerlos. Cuenta/clave revocadas no se rehabilitan por reactivar/login. Registro de cada envío preserva destinatario capturado, no se hereda del propietario actual.
+
+**Verificación dirigida final:**187/2861 correctas,46,916s/118MB,código0,42 pruebas nuevas más regresión afectada de auth/clave/cuenta y muestras de invitación/recuperación/correo/vinculación/integración/matriz. Cookies/CSRF/PostgreSQL in-process,9 fixtures auth parciales incluyen000038, sin tabla ausente ignorada en producto. Falsificación/caducidad de cookie, cifrado, idempotencia JSON reordenado, scope/roles, no red/SSRF de alta, opt-in, logout/cambio identidad, revocación/clave/reactivación, rollback de guardado/auditoría,429/Retry-After, down/up/constraints y privacidad/snapshots cubiertos. Transporte/recepción navegador/carreras nuevas con procesos independientes no acreditados por esta selección; quedan F5/F6/frontend. Esquema30/272/51 solo aislado; inventario final igual al inicial/sin residuos propios. Censo incremental124 E/4 P/Sesion R,129 participantes selectivos (29 Models/33 Controllers/36 Services/26 Repositories);95 operativas/554 firmas por reflexión. UML global no cerrado en F2; fuentes anteriores conservadas y actualización acumulativa final F7.
+
+<a id="recordatorios-backend-fase1"></a>
+## CU-28 — Backend Fase 1: diseño de avisos, suscripciones y despacho (2026-10-30)
+
+**Diseño concretado, no implementación ni cierre del CU.** Alcance §17.183 y decisiones confirmadas §17.184/README backend; VS-NOT-12–14 separan logout local/corte de push antes de inicio/default interno habilitado sin preferencia. Scheduler cada minuto/minishlink-web-push VAPID aprobados, biblioteca aún ausente. No RF/RN oficial nuevo ni procedimiento ficticio terminado por este documento.
+
+| Participantes reales o propuestos | Responsabilidad/collaboración prevista |
+| --- | --- |
+| Recordatorio/RecordatorioService/RecordatorioRepository (existentes solo invalidación) | Reutilizar persistencia/UQ y ampliar generación/consulta elegible; no atribuir métodos futuros al código actual. Scheduler sin sesión, permisos propios/administrativos para consultas; coordinar con planificación/cita/preferencia y origen vigente. |
+| RecordatorioController (previsto en UML) y Requests/Resource a concretar | GET por ámbito/paginación/fechas; lectura sin generación, transporte, datos clínicos o marcado automático de leido_en. No controladores por rol. |
+| SuscripcionPush/Service/Repository/Controller (propuestos) | Consentimiento explícito, instalación lógica protegida, vinculación Usuario/Paciente/versiones/revocación. Cookie no autenticante, endpoints/claves cifrados, restricciones de destino; no takeover por ID/endpoint ni permisos administrativos. |
+| EnvioRecordatorioPush/Repository y DespachoPushService (propuestos) | Outbox durable, destinatario y versión capturados/UQ aviso-dispositivo, claims cortos/leases/token de intento, revalidación/TTL/corte de inicio/resultado seguro. No reinterpretar historia por nuevo titular; HTTP fuera de SQL, Incierto sin replay automático. |
+| WebPushTransport/comandos de consola (auxiliares propuestos) | Adaptar minishlink/VAPID y scheduler, sin criptografía propia/negocio en comando ni Redis/jobs del framework obligatorios; fuera del censo UML selectivo. No nuevos archivos vacíos de F1. |
+| AutenticacionService/SesionRepository, MiPerfilService/PacienteRepository, planificación/gestión/asistencia/cuenta (existentes) | Integrar logout explícito/cambio de titular/revocaciones y preferencias en orden transaccional; conservar otros dispositivos y expiración natural no equivalente a logout. Coordinación sin inyectar Service de suscripción consumidor de auth dentro de auth ni crear ciclos. Gestión/asistencia ya invalidan; generación/envío nuevos todavía no colaboran operativamente. |
+
+**Flujos previstos:** scheduler→revalidar cita/preferencia/programación→insertar aviso único→planificar outbox/commit→claim/revalidación corta→payload mínimo/HTTP sin locks SQL→resultado con token de intento. Consulta propia/admin solo lectura. Opt-in autenticado→validar endpoint/keys/cookie→persistir autorización versionada; logout/cambio de cuenta revoca solo instalación reconocida y nuevo login no reactiva. Barrido recupera hueco commit→envío sin duplicación; TTL/corte antes de inicio para push, fin de intervalo para aviso interno.201 de proveedor solo Aceptado, no lectura/recepción; fallos inciertos no disparan replay. Concurrencia de revocación después de última lectura puede cruzar una petición en vuelo: no garantía de atomicidad SQL+red/retirada. Todo sujeto a futuras pruebas dirigidas por riesgo; no se ejecutan suites por diseño documental.
+
+**Persistencia/diagramas:** dos tablas propuestas detalladas en DER/README, sin migración/Model/FK nuevos en F1; esquema000037 y censo119 E/4 P/Sesion R intactos. Fuentes históricas preservadas, sin nuevo render o diagrama operativo de clases no creadas. Fases2–7/frontend/recepción en teléfono pendientes; seis rutas previstas no se presentan como implementadas.
+
+## CU-28 — Cambio de alcance aprobado: Web Push opcional (2026-10-30)
+
+**Solo actualización funcional/documental, no análisis de implementación terminada.** El usuario aprueba avisos internos más Web Push opcional a dispositivos compatibles autorizados, aun con portal cerrado cuando la plataforma lo permita; encendido/sonido/recepción/lectura no garantizados. Referencias: CU-28, requerimientos §5.8, VS-NOT-01/07–11 y contexto §17.183. No nuevo CU/RF/RN ni aplicación nativa; correo/SMS/WhatsApp/Brevo siguen excluidos para recordatorios.
+
+Se conserva lo ya implementado de invalidación interna en RecordatorioService/Repository y el Model Recordatorio, **sin atribuirles generación/consulta/envío push inexistentes**. El diseño posterior deberá concretar generación automática/persistencia, suscripciones propias por dispositivo, transporte asíncrono posterior al guardado, revalidación/deduplicación/reintentos y fronteras web HTTPS/Service Worker/consentimiento, con privacidad en pantalla bloqueada y autenticación al abrir el detalle. Se reutilizarán capas/participantes efectivos cuando corresponda; no se inventan ahora nombres de clases, firmas, tablas, endpoints o diagramas de ejecución. Permisos de consulta administrativa no conceden habilitar dispositivos ni editar preferencias del Paciente. Diagramas/análisis históricos y cierres de laboratorio intactos; implementación/backend/frontend/pruebas de Web Push pendientes.
+
+<a id="laboratorio-frontend-fase6"></a>
+## CU-24–CU-27 — Frontend Fase 6: colaboración integrada y cierre local (2026-10-30)
+
+**Control exclusivo de cierre:**835 archivos iniciales/830 intactos/cinco documentos ampliados/cero nuevos; textos previos y112 bloques históricos preservados, UTF-8/cercas/anclas/diff --check correctos. Código productivo/backend/DER/Router/dependencias sin cambios; PostgreSQL sigue Running y su inventario final coincide exactamente con el inicial. Evidencia externa laboratorio-ui6-check.cjs/scope.json; anotación final sin repetir suite funcional.
+
+**Seis fases del módulo frontend cerradas localmente, con integración real; no producción.** Integra los análisis frontend F2–F5 anteriores con P53–P59/backend existente, sin inventar clases PHP/procedimientos/entidades ni modificar sus contratos. Contexto §17.182/frontend README registran ejecución, alcance y limpieza finales.
+
+| CU / frontera efectiva | Colaboración implementada y contrastada |
+| --- | --- |
+| CU-24 / SolicitarEstudioPage, SolicitudEstudioForm, useSolicitudEstudio | Consulta clínica existente→enlace contextual→consultarContextoSolicitud (lectura clínica mínima y contexto laboratorio de misma época/versión)→declaración/revisión→solicitarEstudio→Axios/CSRF→P53. GET posterior por consulta/P54, sin consulta/cita ficticia ni cambio de estado. Preparación de las consultas en integración mediante API CU-23, no fixture que simule éxito del alta. |
+| CU-25 / GestionDocumentoLaboratorio, DocumentoLaboratorioForm, SeleccionarDestinoDocumento, useDocumentoLaboratorio | Detalle/originales→archivo o selección explícita de paciente/solicitud destino→revisión/flags/motivo→documentoLaboratorio.service→P55/P56/P57. Backend verifica formato real/integridad/actor/versión, conserva privado e historia de ambos extremos; nueva carga de origen y revisión de destino independientes. |
+| CU-26 / GestionRevisionResultado, RevisionResultadoForm, useRevisionResultado | Contexto exclusivo/reconsulta→decisión vacía/declaración/identidad/versiones→revisionResultado.service→P58. Publica vigente exacta o devuelve con motivo; una sola gestión/blocker montada. POST obsoleto409 y corte tras commit exigen GET/decisión nueva, no replay ni autorrevisión prohibida inventada. |
+| CU-27 / LaboratorioPage, SolicitudLaboratorioPage, SolicitudesTable, VersionesResultado, DescargarResultado | Selector administrativo por paciente o ámbito propio→laboratorio.service/P54→detalle/metadatos; GET binario versión exacta/P59→Blob→descarga fuera del portal→retiro de URL. Paciente sin contexto interno/histórico/archivo devuelto; Médico sin origen ajeno por reasociación; Recepción excluida tanto por React como servidor. |
+| Infraestructura y dominio compartidos | AuthContext/useAuth/api/useLaboratorioQuery y middlewares reales de Sanctum/sesión/rol/origen; Controller→Service→Repository→Model→PostgreSQL y almacenamiento protegido. Los Services autorizan/transaccionan, Repositories persisten y Models relacionan; React coordina presentación/estados, nunca sustituye esas decisiones. Sesión/CSRF/época/abort, errores seguros, lock y recuperación manual conservados. |
+
+**Flujos realmente integrados:** solicitud administrativa/PDF/publicación directa; solicitud Médico/PNG/devolución/sustitución JPEG/publicación versión2; solicitud con respuesta cortada/GET; devolución simultánea→409 de publicación obsoleta; reasociación entre fichas/responsables→origen En revisión sin vigente/destino con revisión propia→recarga numerada2 del origen y publicación separada. Cuatro solicitudes/cinco documentos/seis versiones/seis revisiones finales, identidades/autorías/publicación/historia y hashes/tamaños privados comprobados en SQL. Snapshots de citas/consultas/versiones clínicas/antecedentes/cambios/recordatorios preservados. Bitácora solo metadatos seguros; no contenidos privados de fixtures.
+
+**Evidencia final:** Chrome/React/Axios/Laravel/Sanctum/PostgreSQL reales, esquema/rol restringidos de tests y archivos ficticios, qpdf/GD efectivos, correo bloqueado.23 controles funcionales/90 layouts/36 axe sin violaciones, cero excepciones JS/blockers simultáneos/web storage. Cuatro descargas completas a disco con bytes idénticos (PNG interno y PDF/JPEG/PNG propios publicados); URL retirada por navegación SPA en comprobación adicional que no cuenta como descarga guardada. Tres cortes de respuesta201 posterior a commit (solicitud/carga/publicación), GET sin replay;409/419/422/403/404/401 reales, filtros/paginación/enlace clínico/teclado/restauración/revocación. Ensayos preliminares solo corrigieron arnés, incluida ruta Windows de descarga/reloj ficticio para429; evidencia final no suma esos intentos. No se ejecutan nuevas carreras SQL multiproceso: conservan evidencia backend previa, no se atribuyen a React.
+
+**Regresión/cierre:** global nueva3356/3356 en115 archivos,178,06s,código0; build correcto con aviso JS>500kB. No código productivo/dependencias nuevos por F6. UML global contrastado por reflexión (529 firmas/92 operativas/27 Models/124 participantes/33 fuentes/226 dependencias distintas/cero ciclos); mismas fuentes/censo PHP selectivo, frontend no se dibuja como clases de dominio. DER000037 contrastado sin nuevo esquema/migración. Procesos/esquema/documentos privados/credenciales propios retirados e inventario PostgreSQL pre/post idéntico; solo datos ficticios/evidencia descartable fuera de Git. Cierre acumulativo local de CU-24–CU-27; producción/operación estable de almacenamiento/base habitual-remota y otros módulos no acreditados.
+
+<a id="laboratorio-frontend-fase5"></a>
+## CU-26 — Frontend Fase 5: revisión, devolución y publicación autorizadas (2026-10-30)
+
+**Control de alcance F5:**828 archivos iniciales/818 intactos/10 existentes afectados/siete nuevos de laboratorio; textos previos y79 bloques históricos conservados, UTF-8/cercas/anclas únicas/diff --check correctos. Allowlist propia contrastada con baseline F5, sin cambios backend/DER/UML/Router/dependencias. Evidencia externa laboratorio-ui5-check.cjs/scope.json; una interceptación Chrome cancelada al navegar, no excepción de aplicación.
+
+**Frontera de revisión CU-26 implementada/verificada localmente, no módulo frontend cerrado ni integración Laravel/PostgreSQL.** Conserva F2–F4; contexto §17.181/frontend README. Sin clase PHP/procedimiento/regla/entidad nueva; backend P58 sigue autorizando/transaccionando/versionando la decisión real y P59 autoriza bytes al titular.
+
+| Participante efectivo | Responsabilidad/colaboración |
+| --- | --- |
+| SolicitudLaboratorioPage | Contexto opt-in por actor, entrada Revisar resultado con GET fresco, modo documental/revisión excluyente y retorno sin pérdida silenciosa. Un workflow/blocker activo; bloquea cambiar con borrador/riesgo/espera. Sin nuevas rutas/sidebar por rol. |
+| proyectarSolicitud/consultarSolicitud | Contexto revision con originales literales y acción revisar exclusivamente para Admin/Médico con opt-in local; no flag HTTP ni permisos administrativos al Médico. Mantiene lectura mínima ordinaria y exclusión del Paciente/Recepción; Admin puede pedir ambos contextos en objetos independientes. |
+| RevisionResultadoForm | Decisión inicialmente vacía, declaración desmarcada, motivo obligatorio solo al devolver y eliminado al autorizar, revisión explícita de identidad/estudio/versión/responsable/ejecutor/consecuencias. Foco y mensajes seguros, sin visor ni requisito artificial de pulsar descarga o revisor distinto. |
+| GestionRevisionResultado | Estado/resultado/retirada de vistas viejas, GET de recuperación, actualización tras guardar y preparación manual de otra decisión. Blocker/beforeunload ante borrador/riesgo, espera429 y exclusión del workflow documental. Contexto nuevo no permite revisar misma versión devuelta ni Disponible. |
+| revisionResultado.service | prepararRevision/revisarResultado/consultarEstadoRevision: allowlist JSON, true estricto, motivo omitido al autorizar, snapshots de originales/identidad/época pre-CSRF, POST único/201 verificado y GET autorizado. Verifica versión exacta, asociación, decisión/motivo/usuario revisor y responsable separados; no manipula cita/archivo clínico. |
+| useRevisionResultado | Inicial/enviando/guardada/validacion/error/incierto/consultando/consultada; lock/StrictMode, secuencia/abort/época, errores locales/Retry-After, distinción predespacho e incertidumbre posterior, recuperación solo GET y retiro por sesión/pagehide/desmontaje. Sin replay o caché persistente. |
+| GestionDocumentoLaboratorio (adaptación mínima) | Informa bloqueo de cambio de workflow por borrador/envío/riesgo/espera; no se monta simultáneamente con gestión de revisión. Conserva cargas/correcciones F4 para completar circuito posterior a devolución. |
+| api/useAuth/useLaboratorioQuery/descarga/componentes globales y backend P58/P59 | Infraestructura compartida existente de sesión/CSRF/presentación y GET de bytes protegidos. Backend revalida rol/relación/versiones/archivo íntegro, guarda revisión/autoría/publicación/auditoría y conserva responsable/ejecutor separados. |
+
+**Flujos reales:** detalle autorizado→GET fresco→versión vigente En revisión sin revisión previa/acción servidor→examen externo del documento→decisión y declaración humanas→revisión/confirmación→snapshot pre-CSRF→POST JSON único→201 validado→GET actualizado. Autorizar publica directamente como Disponible la versión exacta; Devolver requiere motivo, mantiene En revisión/sin archivo público y obliga corrección documental antes de otra revisión. Admin puede corregir por F4 y luego revisar/publicar la versión nueva con identidad propia; no cambia a Médico ni se prohíbe autorrevisión por regla inventada. Paciente consulta/descarga solamente su vigente publicada por CU-27, sin formulario/revisor/motivo internos.
+
+**Errores/ciclo de vida:**422 solo de campos conocidos conserva decisión/motivo del contexto vigente, retira declaración/confirmación con mensajes locales; originales u otros campos/409 requieren GET fresco.401 central,403 no logout,419 sin replay,429 espera incluyendo cambio de workflow. CSRF fallido antes del despacho no afirma guardado; red/5xx/201 incoherente posteriores son inciertos y solo permiten GET expreso, sin atribuir causalidad/rollback/fin del envío. Preparar otra decisión requiere nuevo contexto/revisión/declaración y acción servidor; misma devuelta/Disponible no se revisa por flujo ordinario. Sesión/pagehide retiran datos/borrador/resultados y conservan advertencia de riesgo si había envío/recuperación; abort/unmount descartan tardías, no revierten servidor. Descarga no se vuelve permiso de publicación ni visor inline.
+
+**Verificación final:** **483/483 dirigidas,17 archivos,20,78s,código0**, sin sumar ensayos ni globales rutinarias; servicio/hook/páginas/roles/navegación y F2–F4 conservadas, incluyendo circuito devolución→sustitución→publicación nueva y un solo blocker. Build correcto con aviso de chunk>500kB. Chrome/API simulada:98 layouts/zoom,46 axe sin violaciones, cero excepciones JS/web storage; diez POST ficticios (nueve revisiones JSON y sustitución multipart), tres Blob PDF15bytes/nombre sintético con guardado final interceptado. Capturas/foco/teclado/privacidad y corrección de desbordamiento320px/texto200% revisados; no umbral relajado. No SQL/CSRF/cookies/qpdf reales ni integración backend acreditados por mocks. CU-26 cambia a action de detalle en ACCESS_FLOWS sin nueva ruta. DER/UML PHP/Router intactos; cierre del módulo/revisión acumulativa e integración real F6 pendientes.
+
+<a id="laboratorio-frontend-fase4"></a>
+## CU-25 — Frontend Fase 4: documentos, correcciones y versiones internas (2026-10-30)
+
+**Implementación local de la frontera documental administrativa; no módulo frontend completo ni CU-26 implementado en UI.** Materializa F1 conservando lecturas/descargas F2 y altas F3. Contexto §17.180/frontend README. Sin clases PHP, procedimientos nuevos, reglas o persistencia: backend P55–P57 existente conserva autorización/validación/transacción/versionado.
+
+| Participante efectivo | Responsabilidad/colaboración real |
+| --- | --- |
+| SolicitudLaboratorioPage / GestionDocumentoLaboratorio | Detalle compartido y acciones administrativas por contexto explícito; coordinación de borrador/riesgo/blocker/beforeunload, resultados y actualización por GET. Retira detalle/descarga/historial anteriores ante envío/incertidumbre/error, no los presenta como estado persistido nuevo. |
+| DocumentoLaboratorioForm | File único y ayudas de formato/tamaño/nombre, motivo si corresponde, declaraciones desmarcadas y revisión. Sustitución solo sobre contexto devuelto; reasociación compara origen/destino y exige dos verificaciones. Al422 de campos conocidos conserva motivo/destino actuales, limpia File/declaraciones/revisión. No visor inline, interpretación clínica ni publicación. |
+| SeleccionarDestinoDocumento / SolicitudesDestino / ComprobarDestino | Reutiliza búsqueda de paciente administrativa con callback, lista Pendiente por paciente y GET del detalle elegido. Confirma destino distinto/sin vigente/revisión/versiones, muestra responsables/identidades y no deduce elegibilidad solo del listado; descarta respuestas obsoletas con useLaboratorioQuery. Foco de selección y retorno explícitos. |
+| PatientsPage/PatientsTable (adaptación mínima) | Callback onSeleccionar opcional para selección sin navegación a ficha ni alta. Modos existentes conservados; no duplica buscador ni lo ofrece a Médico/Paciente. Laravel sigue autorizando. |
+| laboratorio.service: consultarSolicitud/proyectarSolicitud | Proyección documental opt-in exclusivamente Admin, originales literales coherentes con estado/vigente/revisión/número y acciones cargar/corregir/reasociar. No indicador HTTP ni contexto/revisión futura en lecturas ordinarias/Paciente/Médico. |
+| documentoLaboratorio.service | validarArchivoLaboratorio/originalesDocumento/esDestinoDocumento/prepararDocumento/guardarDocumento/consultarEstadoDocumento: allowlist, límites y payloads FormData/JSON, snapshots antes de CSRF, POST único/201 y ambos extremos verificados. Validación real, legitimidad y concurrencia siguen PHP/SQL. |
+| useDocumentoLaboratorio | Lock/StrictMode, marca anterior/posterior a despacho, errores seguros/422 local/Retry-After, resultado incierto y GET manual de ambos extremos. Retira File/contexto/resultados por sesión/pagehide y descarta tardíos. Solo referencia opaca del destino de operación incierta en memoria para GET autorizado; identidad/rol/recurso nuevos desmontan el hook. Sin cache persistente o replay. |
+| consultarVersionesResultado / VersionesResultado | Metadata paginada descendente, fecha local/usuario/motivo permitido, referencia de origen solo Admin sin expansión/enlace/bytes. Médico respeta omisión del motivo cruzado, Paciente/Recepción no reciben historial. Refresco tras cambios documentales. |
+| api/useAuth/useLaboratorioQuery/componentes globales y backend P55–P57 | Sesión/CSRF/cancelación/errores y presentación existentes; backend autoriza, verifica archivos reales, aplica originales/locks/transacciones y conserva versiones/ejecutor real, sin cambiar consulta/cita ni publicar. |
+
+**Flujos efectivos:** cargar Pendiente→File/declaración/revisión→multipart con flags1/null vacío→201 En revisión/versión acumulada; recargar origen En revisión sin vigente/historia exige motivo. Sustituir vigente devuelta→nuevo File/motivo/declaración/revisión→201 versión nueva/sin revisión anterior. Reasociar devuelta→selección de ambos pacientes/estudios/destino Pendiente sin historia→motivo/dos declaraciones/revisión→JSON sin File con ambos originales→201 origen sin vigente conservando historial y destino→GET protegido del destino para verificar versión nueva/revisión pendiente. Ningún extremo Disponible se modifica ordinariamente. La referencia de origen no otorga acceso a documentos ajenos ni históricos.
+
+**Recuperación/errores:** épocas/objetivos/originales capturados antes de CSRF; fallo antes del despacho no afirma alta, red/5xx/201 incoherente tras POST son inciertos. Fallo del GET de destino posterior a201 también incierto, aun con404. No retry; GET expreso de ambos extremos y advertencia de que estado actual no prueba causalidad/rollback/fin de la petición. Nueva operación requiere contexto y declaraciones nuevos.422 de campos corrige conservando solo motivo/destino del contexto actual, no File/revisión; originales/otros campos,409/413/419 exigen reconsulta;401 central,403 sin logout,429 espera. Snapshot de clínica y File nunca en web storage/logs/URL. Retirada UI no revoca bytes ya enviados ni revierte servidor.
+
+**Verificación final:** **575/575 pruebas dirigidas,19 archivos,22,60s,código0**, sin sumar ensayos/globales rutinarias; incluye páginas pacientes/navegación afectadas y F2/F3. Build correcto con aviso chunk>500kB. Chrome/API simulada:60 layouts/zoom,28 axe sin violaciones, cero excepciones JS/web storage, siete POST simulados; multipart nativo/JSON sin File, comparación entre pacientes, sustitución, recarga numerada, incertidumbre y negativos revisados en capturas. Cancelación CDP esperada separada de excepción de aplicación en el arnés y control repetido; no SQL/qpdf/cookies/CSRF reales ni backend funcional acreditados por mocks. README detalla evidencia/límites. CU-25 pasa a action de detalle en ACCESS_FLOWS, CU-26 pendiente. DER/UML PHP intactos; F5/F6/revisión acumulativa del módulo aún pendientes.
+
+**Conservación final F4:** 819 archivos iniciales cotejados/807 intactos/12 existentes afectados/nueve nuevos solo en laboratorio. Texto anterior y79 bloques históricos de diagramas preservados; UTF-8/cercas/anclas/diff-check correctos, archivos nuevos sin espacios finales. Router/backend/DER/UML/dependencias intactos respecto del inicio; sin suites funcionales nuevas por esta anotación. Control externo laboratorio-ui4-check/scope.
+
+<a id="laboratorio-frontend-fase3"></a>
+## CU-24 — Frontend Fase 3: solicitar estudios desde consulta real (2026-10-30)
+
+**Frontera CU-24 implementada y verificada localmente, no módulo laboratorio frontend completo ni integración Laravel/PostgreSQL real.** Concreta F1 y conserva F2; contexto §17.179/frontend README. Ninguna clase PHP, procedimiento P60, entidad, regla de negocio o migración nueva; backend P53/P54 existente sigue autorizando/guardando.
+
+| Participante efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| SolicitarEstudioPage / Solicitud | Guía desde sidebar y página contextual por cita, carga segura, identidad, estado/impedimentos del servidor, resultado y recuperación; blocker/beforeunload para borrador/riesgo, retirada por sesión y BFCache. No recibe identidad confiable desde location.state o IDs manuales. |
+| SolicitudEstudioForm | Estudio requerido<=255 puntos de código/espacios extremos recortados, declaración desmarcada, revisión explícita de Paciente/consulta/responsable/ejecutor/texto y confirmación. Con422 recuperable conserva texto, retira revisión/declaración; nunca confunde usuario ejecutor con Médico. |
+| laboratorio.service: consultarContextoSolicitud | Reutiliza consultarConsulta por id_cita, luego listarSolicitudes por id_consulta real con contexto interno explícito. Verifica época/versiones/asociaciones; proyecta solo datos necesarios para solicitud, sin retener contenido clínico de CU-23. Sin consulta existente o autorización no hay alta implícita. |
+| laboratorio.service: listarSolicitudes/prepararSolicitud/solicitarEstudio | Lectura F2 sigue descartando edición por defecto. Flag local paraSolicitar proyecta solo contexto CU-24 real, no es parámetro HTTP. Preparación/CSRF/POST allowlist y originales fijados antes de esperar; respuesta201/autoría/asociaciones/estudio/Pendiente verificadas. Marcas locales solicitudEnviada/época no se envían al servidor ni conceden permisos. |
+| useSolicitudEstudio | Estado inicial/enviando/registrada/validacion/error/incierto/consultando/consultada; exclusión de doble clic, abort/secuencia/sesión, espera429, rechazo de replay y GET expreso. Error predespacho distinto de resultado incierto posterior. Reconsulta no se presenta como identificación causal del envío anterior. |
+| ConsultaDetallePage / LaboratorioPage / Router/NAVIGATION/destinoSeguro | Acceso desde consulta registrada, guía desde lista sin inventar id_cita a partir de id_consulta. Ruta /laboratorio/solicitar y contextual /citas/:id/consulta/solicitar-estudio solo Admin/Médico; sidebar/títulos/retorno login coherentes. Paciente y Recepción sin formulario/contexto editable. |
+| ConsultarConsulta/api/useAuth/componentes globales y backend P53/P54 | Reutilización de lectura existente, sesión central/CSRF y presentación; backend verifica estado/relación/titularidad/versiones/fecha y escribe solicitud/auditoría con ejecutor real, sin cambiar estado de cita/clínica. React no reemplaza esta cadena. |
+
+**Colaboración normal:** guía→cita→consulta registrada→GET de contexto de laboratorio (también vacío legítimo de primera solicitud)→formulario→declaración→revisión→payload/originales/objetivo/época capturados→CSRF→POST único→201 validado→resultado Pendiente/enlaces a detalle/lista con GET fresco. Una segunda solicitud, incluso mismo nombre, requiere preparar contexto/revisión/declaración nuevos. La ruta contextual por cita es concreción técnica de F1: GET laboratorio por consulta no aporta paciente ni id_cita cuando la lista está vacía; no nueva API o permiso.
+
+**Alternativos reales:** 422 solo de campos conocidos conserva borrador con mensajes locales y nueva declaración; originales/otros campos requieren GET fresco.409 retira revisión y exige contexto nuevo;401 central/403 sin logout/419 sin replay/429 espera; red/5xx/201 incoherente tras despacho permanecen inciertos. GET explícito recupera primera página de solicitudes y enlace al total, sin deduplicar por texto/fecha, atribuir causalidad o inferir rollback por vacío. Cambiar sesión/pagehide borra borrador/resultados, aborta y descarta tardías; riesgo durante envío/recuperación persiste como advertencia local tras BFCache. Salida advertida no revierte el servidor ni conserva datos clínicos en almacenamiento persistente.
+
+**Evidencia final:** dirigida **336/336,13 archivos,25,86s,código0**, sin suma de ejecuciones ni suite global rutinaria; servicios/hook/guardas/páginas afectadas y F2 conservados. Build correcto, advertencia chunk>500kB. Chrome con HTTP simulado:77 layouts/zoom,34 axe sin violaciones, cero excepciones/web storage y seis POST simulados; captura/revisión/foco/teclado/recuperación con estudios del mismo nombre comprobados. No SQL/CSRF/cookies reales ni integración backend acreditada en F3. README explica ensayos fallidos del test/arnés y correcciones. F4–F6 pendientes; DER/UML PHP intactos, revisión acumulativa del módulo al cerrar F6.
+
+**Conservación final F3:** 813 archivos previos cotejados/799 intactos/14 existentes afectados/seis nuevos solo en laboratorio; texto histórico y79 bloques de diagramas preservados, UTF-8/cercas/anclas/diff-check correctos. Backend/DER/UML/dependencias intactos respecto del inicio F3; sin repetir pruebas funcionales por esta anotación.
+
+<a id="laboratorio-frontend-fase2"></a>
+## CU-27 — Frontend Fase 2: solicitudes y descarga protegida (2026-10-30)
+
+**Implementación local de la frontera de lectura CU-27, no cierre del módulo CU-24–CU-27 ni integración real.** F1 proyectada permanece como historia; F2 materializa solo lecturas/descarga. Contexto §17.178/frontend README. CU-24/25/26 UI siguen pendientes, backend P53–P59 no cambia. Estas funciones/componentes React no son clases de dominio PHP ni se incorporan al censo UML PHP selectivo.
+
+| Participante existente tras F2 | Responsabilidad y colaboración real |
+| --- | --- |
+| LaboratorioPage / Listado / SeleccionPaciente | Selección administrativa mediante PatientsPage, ámbito propio Médico/Paciente, contexto de paciente/consulta, filtros civiles, paginación y estados; sin cola global administrativa. Selector retira fichas al cambiar sesión/pagehide. |
+| SolicitudLaboratorioPage / Detalle | Identidad autorizada, estudio, responsable, autoría interna diferenciada y documento vigente; última revisión solo interno. Paciente no presenta información privada ni controles de escritura. |
+| SolicitudesTable / LaboratorioQuery | Presentación responsive y enlaces por solicitud; carga/vacío/fallo/reconsulta y espera429. Componentes presentacionales sin Axios propio. |
+| laboratorio.service.js | listarSolicitudes/consultarSolicitud/proyectarSolicitud/obtenerArchivo: GET allowlist por contrato, IDs textuales, proyección mínima por rol, coherencia de metadatos/ámbito/versiones; transporte sessionBound/época/cancelación. Descarga por versión, Blob verificado y errores JSON binarios acotados; no POST ni reglas autoritativas. |
+| useLaboratorioQuery / laboratorioError | Estado por identidad/recurso/filtros/revisión, abort y descarte tardío, pausa por sesión/BFCache, retiro de datos y reconsulta explícita; errores seguros/Retry-After sin cuerpo técnico ni reintentos automáticos. Hook específico conserva mensajes/ciclo de laboratorio sin refactor de otros módulos. |
+| DescargarResultado / iniciarDescarga | Lock de doble clic, descarga explícita, Blob solo en memoria y nombre sintético, enlace download sin visor, URL retirada a60s/contexto/desmontaje, error exige GET fresco. Ciclo StrictMode comprobado; no promesa de recepción completa ni revocación de bytes ya recibidos. |
+| PatientsPage / PatientsTable (adaptación mínima) | Prop laboratorio dirige a /laboratorio/pacientes/:id y omite Registrar paciente en selección; modos anteriores intactos. Servicios administrativos existentes siguen autorizados por backend/guardas, no se ofrecen al Médico. |
+| ConsultaDetallePage / Router / NAVIGATION / destinoSeguro | Enlace por id_consulta real (distinto de id_cita), detalle de cada solicitud; guardas por rol, títulos/sidebar/login. Dos entradas de laboratorio: lectura activa y Solicitar pendiente; CU-25/26 son pending-action de detalle en ACCESS_FLOWS, no páginas inexistentes. |
+| api / useAuth / componentes globales / P54/P59 PHP | Infraestructura compartida de sesión, autorización HTTP y presentación; backend revalida titularidad/relación/publicación/versión al servir bytes. Ninguna autorización definitiva o persistencia trasladada a React. |
+
+**Flujo:** selección/ámbito → GET listado paginado → detalle con proyección por rol → versión vigente exacta (Paciente desde resultado publicado, internos desde vigente del detalle) → GET Blob → validación MIME/tamaño/coherencia → enlace download sintético → «Descarga iniciada» → retirar URL. En Pendiente Paciente no recibe control de descarga; versión interna En revisión puede descargarse sin exponer edición futura. 409/documento no disponible requiere consultar solicitud de nuevo, no descargar otra versión automáticamente. 401 vigente invalida por api;403 conserva sesión;419 consulta manual;429 espera local orientativa;404 neutro;red/5xx/200 incoherente no se convierten en vacío o archivo válido. No copia global/persistente de clínica, Blob o tokens.
+
+**Evidencia final:** dirigida frontend **433/433,15 archivos,26,49s, código0**, incluyendo módulos afectados/guardas/API/hook/descarga; build correcto con advertencia de bundle >500kB. Chrome con HTTP simulado:76 verificaciones de layout/zoom,26 axe sin violaciones, cero excepciones/escrituras/persistencia; capturas examinadas. Tres roles autorizados prueban respuesta Blob15bytes/nombre/retirada de URL, con click final de guardado interceptado. No integración real Laravel/PostgreSQL ni guardado final en disco. README detalla comando/evidencia externa/límites. DER/UML PHP no cambian; módulo frontend sin cerrar, integración/revisión global F6 pendientes. F3 no iniciada; ningún procedimiento PHP nuevo ni cambios de RF/RN por implementar esta frontera.
+
+**Conservación:** 796 archivos previos cotejados,785 intactos/11 existentes afectados/17 nuevos solo feature laboratorio; texto histórico y79 bloques de diagramas previos preservados, UTF-8/cercas/anclas/diff-check correctos. Backend/DER/UML/dependencias intactos respecto del inicio F2.
+
+<a id="laboratorio-frontend-fase1"></a>
+## CU-24–CU-27 — Frontend Fase 1: diseño de fronteras y contratos (2026-10-30)
+
+**Fase 1 cerrada documentalmente, no implementación de CU frontend.** Backend P53–P59 y sus cierres permanecen efectivos; frontend aún sin feature laboratorio/páginas/servicios/rutas funcionales. Las cuatro entradas de navegación son pendientes. Fuente de contratos: Routes/Requests/Resources/Services/Controller de archivo PHP reales, frontend README/contexto §17.177 y diseño frontend-design en README. No nueva clase PHP, entidad, procedimiento P60, regla funcional, dependencia o cambio de persistencia.
+
+| Frontera/colaborador previsto | Responsabilidad diseñada y relación con implementación existente |
+| --- | --- |
+| LaboratorioPage (P) | Entrada/listado contextual y paginación: Admin paciente/consulta seleccionados, Médico solicitudes propias, Paciente propias con estado agrupado por servidor. Reutilizar patrón de selección administrativa sin otorgar buscador general al Médico. |
+| SolicitudLaboratorioPage (P) | Detalle compartido con identidad/estudio/versión y acciones de la fase implementada intersectadas con contexto servidor. Formularios/versiones como componentes del módulo, no página por rol o tabla. |
+| SolicitarEstudioPage (P) | Guía hacia consulta registrada autorizada, no creación implícita de consulta ni captura libre de IDs como prueba de identidad. Entrada desde ConsultaDetallePage existente usando id_consulta real, distinto del id_cita de su ruta. |
+| laboratorio.service.js (P) | Lecturas/alta mediante api Axios existente, allowlists de datos/IDs/texto/fechas y proyección segura; leer data/meta/edicion exactas sin reimplementar reglas. |
+| documentoLaboratorio.service.js (P) | FormData para carga/sustitución y JSON sin archivo para reasociación, originales de ambos extremos/flags1 y motivo; sin estado/actor/rutas impuestos por cliente. |
+| revisionResultado.service.js (P) | JSON de Autorizar/Devolver con originales y true estricto, motivo solo al devolver; decisión final/transacción son RevisionResultadoService PHP existente. |
+| descargaLaboratorio.js (P) | Blob autorizado, errores binarios JSON normalizados, MIME/tamaño/nombre sintético/URL temporal y retirada; no visor PDF inline ni enlace público/ruta física. |
+| Componentes/hook de feature (P, solo si necesarios) | Lista, contexto documental y formularios con estados de consulta/envío/revisión/incierto; patrón de cancelación/época y retiro de datos existentes, sin nuevo store clínico global ni abstracciones vacías. |
+| MainLayout, componentes compartidos, api/useAuth/ROLES/errores/fechas/IDs (E) | Infraestructura existente reutilizada. useClinicaQuery/PatientsPage son referencias de patrón, no se afirma que sean genéricos o ya soporten laboratorio. |
+| Backend P53–P59 (E) | Route→Middleware→Controller/Request→Service→Repository→Model→PostgreSQL, autorización/estados/versiones/archivo íntegro y auditoría. React no suplanta esta cadena ni convierte ocultación de acciones en permiso. |
+
+**Navegación prevista:** /laboratorio, /laboratorio/pacientes/:id (Admin), /laboratorio/consultas/:id (ámbito del servidor), /laboratorio/solicitudes/:id y /laboratorio/solicitar (Admin/Médico, F3). Dos entradas funcionales futuras «Estudios y resultados» y «Solicitar estudios»; cargar/revisar son acciones del detalle. Router/RoleRoute/NAVIGATION/títulos/destinoSeguro se adaptarán juntos por fases, sin activar enlaces inexistentes en F1. Nadie de Recepción obtiene acceso clínico.
+
+**Flujos diseñados:** P53 recibe estudio<=255/original de consulta/true; P55/P56 un archivo PDF/JPEG/PNG<=10MiB, multipart con flags1, motivo y originales documentales exactos; reasociación origen devuelto/destino Pendiente sin historia/vigente con comprobación fresca de ambos. P58 no autoriza misma versión devuelta y distingue Usuario revisor de Médico responsable; motivo obligatorio al devolver/omitido al autorizar. P59 usa versión exacta: internos desde edicion.vigente, Paciente desde resultado publicado; resultado null no significa que un interno tenga URL pública alternativa. Los listados no incluyen nombre/ruta/hash de archivo ni garantizan elegibilidad de destino sin GET detalle. Detalle interno muestra última revisión, no una lista inventada de todas las revisiones; histórico disponible es de versiones/metadatos autorizados.
+
+**Ciclo de vida:** selección→GET autorizado→borrador/revisión y declaraciones desmarcadas→CSRF/envío único→respuesta validada/GET posterior. Errores422 conservan solo datos corregibles del contexto vigente;409 requiere originales/revisión nuevos;401 retira sesión/contexto,403 no fuerza logout,419/429 no reenvían, red/5xx/respuesta201 no verificable tras envío dejan estado incierto y solo GET explícito. GET de lista tras alta incierta no identifica solicitud solo por texto/fecha ni acredita causalidad; no retry automático/idempotencia inventada. Epoch/AbortController/pagehide/BFCache/contexto impiden usar respuestas/File/Blob/URL antiguos. Descarga iniciada no equivale a recepción completa ni permite revocar bytes recibidos.
+
+**Diseño revisado con frontend-design:** expediente de identidad/estudio/versión como único acento; Source Sans3/tokens existentes, filas comparables en lista y documento/acción diferenciados en detalle, apilados en móvil. Se descartan hero, dashboard de tarjetas/KPI no soportados, nueva fuente/tema, visor PDF incrustado y modal grande de expediente. Bocetos, paleta de seis tokens, escala, microcopy y criterios de accesibilidad en frontend README. No capturas de UI o tests funcionales atribuidos a una propuesta documental.
+
+**Cierre F1 y cadencia:** diseño preparado para implementar F2, no inicio automático. Pruebas futuras dirigidas por comportamiento/riesgo; integración real/revisión visual/cierre en F6 y una global frontend si está justificada, sin repetir global PHP por documentación. Este análisis proyectado no cierra CU frontend ni altera el UML PHP selectivo (119 E/4 P/Sesion R) o el DER000037/28 entidades/246 atributos/45 FK. Fuentes históricas conservadas y documentación progresiva de la implementación posterior obligatoria.
+
+**Evidencia de cierre documental:** 796 archivos cotejados/793 intactos/tres documentos ampliados/sin nuevos archivos del repositorio;79 bloques históricos y texto previo de esos documentos preservados, UTF-8/cercas/anclas/diff-check correctos. Nueve rutas PHP de laboratorio contrastadas; sin código/DER/UML ni pruebas funcionales/build/migraciones nuevos, sin capturas o aprobación visual atribuida al usuario. F2 permanece pendiente.
+
+<a id="laboratorio-backend-fase6"></a>
+## CU-24–CU-27 — Backend Fase 6: integración y revisión acumulativa (2026-10-30)
+
+**Cierre definitivo local de Fase 6 y análisis backend P53–P59:** regresión global única **4088 pruebas/58 622 aserciones correctas**, código 0, 27 min 10,105 s/580 MB; no sumar dirigida 7/784 ni otras fases. PostgreSQL final idéntico al inicial/sin raíces temporales propias residuales, controles de alcance/calidad y UML correctos (529 firmas/92 clases operativas, 33 fuentes globales/108 diagramas históricos conservados). Los siete procedimientos y sus clases/colaboraciones efectivos quedan integrados en el global §22, sin inventar P60 ni participantes por ejecutar tests. Las notas siguientes en curso son cronología superada por este cierre; sin nueva suite funcional por anotarlo, frontend/producción/otros módulos pendientes. Evidencia definitiva en README/contexto §17.176.
+
+**Integración dirigida correcta; cierre local sujeto aún a regresión global/inventario final.** **7 pruebas/784 aserciones**, 7,404 s/66 MB, en LaboratorioIntegracionTest. No nuevo procedimiento ficticio: se revisan P53–P59 y sus participantes efectivos, conservando diseños históricos y fuentes anteriores. RN12/RN14/ampliación PN19–PN22, permisos y reglas VS-LAB vigentes sin nuevos RF/RN. Contexto §17.176/README registran evidencia y estado final.
+
+| Procedimiento efectivo | Participantes y cierre integrado comprobado |
+| --- | --- |
+| P53 CU-24 solicitar estudio | SolicitudLaboratorioController/Service/Repository, CrearSolicitudLaboratorioRequest/Resource, ConsultaMedica/Cita/Usuario y lectura autorizada; parte de consulta realmente creada por API y conserva solicitante/ejecutor reales. |
+| P54 CU-27 consultar metadatos | ResultadoLaboratorioController/Service, LeerLaboratorioRequest/Resource y SolicitudLaboratorioRepository; listas/detalle/CU-22, ámbitos/estado agrupado del Paciente y proyección sin secretos. |
+| P55 CU-25 cargar archivo | DocumentoLaboratorioController/Service, CargarDocumentoLaboratorioRequest, ArchivoLaboratorioValidator/ArchivoLaboratorio y Documento/ResultadoLaboratorioRepository; PDF/JPEG/PNG reales con Fileinfo/GD/qpdf y almacenamiento privado, sin cambio clínico. |
+| P56 CU-25 corregir/reasociar | Mismos participantes de carga más ambos contextos/punteros/autor/origen, transacción y auditoría; devolución previa, versiones/bytes inmutables, traslado entre fichas, recarga fuente max+1 y revisión independiente. |
+| P57 CU-25/CU-26 versiones internas | ResultadoLaboratorioController/Service/Repository/Resource; historial paginado solo interno autorizado, sin motivo/origen cruzado para Médico destino, Paciente sin versiones privadas. |
+| P58 CU-26 decidir/publicar | RevisionResultadoController/Service, RevisarResultadoLaboratorioRequest, Resultado/SolicitudLaboratorioRepository, archivo íntegro/bitácora; devolución no autoriza misma versión, revisión nueva con revisada_por y Médico responsable separados. |
+| P59 CU-27 entregar bytes | ResultadoLaboratorioController/Service, LeerLaboratorioRequest, repositorios de solicitud/resultado/documento y ArchivoLaboratorio; vigente exacta y ámbito/estado/archivo revalidados, GET/HEAD privado, descriptor verificado sin locks durante transmisión. |
+
+Colaboradores compartidos Autenticacion/Continuidad/Planificacion/Medico/HistoriaClinica/ConsultaMedica/Bitacora conservan responsabilidades descritas en los análisis previos, no clases duplicadas por rol. Las pruebas crean consulta por API, recorren publicación directa o devolución/sustitución, reasociación entre dos fichas/consultas/médicos, recarga fuente y publicación independiente; verifican snapshots clínicos intactos, conservación física, secretos ausentes en bitácora consultada por API y revocación/reactivación real sin recuperar cookie anterior ni duplicar escrituras por GET.
+
+**Modelo global acumulativo:** §22 de diagrama-clases integra 119 clases E/4 P/Sesion R (mismos 124 participantes), 529 métodos propios de 92 clases operativas cotejados, 287 participaciones/226 dependencias distintas de inyección sin ciclos de Services. Cuatro vistas nuevas complementan las 29 fuentes globales anteriores; atributos/FK de autoría efectivos, no autores de legado inventados. Requests/Resources/validadores/utilidades/fixtures siguen fuera del censo selectivo, aunque participan en este análisis por CU. No nuevas entidades físicas: DER 000037/28 entidades/246 atributos/45 FK.
+
+**Límites de evidencia:** los recursos/identidades verificadas/Citas son fixtures declaradas; consulta y todo el circuito de laboratorio son APIs reales in-process con cookies/CSRF/PostgreSQL/archivos ficticios/correo simulado, no navegador/servidor por socket ni certificación de seguridad/legibilidad del documento. Concurrencia multiproceso permanece en F5 y se incluye en regresión global. Siete casos dirigidos no sustituyen la global única prevista para cerrar F6. Producción/instalación estable de herramientas, validación operativa del almacenamiento/legado y frontend siguen pendientes; no afirmar módulo cerrado antes del resultado global final.
+
+**Controles acumulativos recibidos:** 34 PHP sintaxis/Pint/PSR-4, Composer/rutas/UTF-8/cercas/diff-check correctos, 795 archivos protegidos salvo ocho documentos/un test nuevo. Texto y 108 diagramas históricos íntegros. UML global 33 fuentes, cuatro SVG nuevos y tres PNG inspeccionados (laboratorio completo regenerado a mayor límite de render, requiere zoom). Se comprobaron 529 firmas/92 clases operativas y todas sus inyecciones sin ciclos; no se añaden participantes o procedimientos por ejecutar pruebas. Evidencia global/inventario final aún en curso, contexto §17.176.
+
+<a id="laboratorio-backend-fase5"></a>
+## CU-27 — Backend Fase 5: consultar y descargar bytes vigentes autorizados (2026-10-30)
+
+**Cierre local P59/Fase 5:** **191 pruebas/2513 aserciones correctas**, código 0, 1 min 09,536 s/142 MB, incluye 36 casos nuevos (siete de concurrencia real). SQL/raíces propias limpios y PostgreSQL igual al inventario inicial. Sintaxis/Pint de nueve PHP, fuentes históricas y dos nuevos UML renderizados a SVG comprobados; no suite global. Las notas en curso siguientes son cronología superada. Módulo integrado F6/frontend/producción pendientes; no inicio automático de otra fase. Evidencia/filtro en README/contexto §17.175.
+
+**P59 efectivo, verificación dirigida en curso.** Admin/Médico solicitante/Paciente titular, PN22/ampliación de laboratorio, RN12/RN14 y VS-LAB-08/09/10/13. Contexto §17.175/README contienen contratos/resultados. No cierre global del módulo, F6 ni frontend; fuentes P53–P58 preservadas.
+
+| Clase existente ampliada | Responsabilidad efectiva |
+| --- | --- |
+| LeerLaboratorioRequest / ResultadoLaboratorioController | Query cerrada de archivo/versiones exactas canónicas y rechazo de cuerpo; Controller adapta descriptor autorizado a StreamedResponse/HEAD, cabeceras privadas/attachment y cierre. No decide pertenencia ni usa rutas/consultas de negocio. |
+| ResultadoLaboratorioService | Reutiliza coordinación/ámbito/relaciones de lectura, exige vigente última y estado/publicación según actor, abre archivo mediante colaborador y revalida sesión/identidad al final. Cierra descriptor si falla antes de devolver, incluso fallo al completar transacción. No Request/Response de HTTP en negocio. |
+| SolicitudLaboratorioRepository / ResultadoLaboratorioRepository | Solicitud por ámbito, bloqueo y contexto de versiones/última revisión existentes; no reglas nuevas en persistencia ni consultas desde Controller. |
+| DocumentoLaboratorioRepository | Metadatos privados por documento de la versión exacta; no búsqueda por ruta/documento impuestos por cliente. |
+| ArchivoLaboratorio | abrir valida ruta propia/MIME-extensión/regularidad/tamaño/hash y rebobina el mismo descriptor; no reabre ruta al servir. Resource de PHP se entrega al Controller, que lo cierra tras GET/HEAD. Sin URL pública/transformación/borrado de históricos. |
+| Colaboradores de seguridad/recursos ya integrados | Autenticacion/Continuidad/Planificacion/Medico/HistoriaClinica, misma sesión/locks/ámbito, sin suplantación ni privilegio por vínculo de versión. |
+
+### P59 — Entregar archivo sin ampliar permisos por su URL
+
+GET/HEAD /solicitudes-laboratorio/{id}/archivo?id_version_resultado=... → Request → Controller → Service. Dentro de coordinación de lectura se revalida ámbito y recurso: Médico solo solicitudes propias, Paciente solo sus publicaciones vigentes. No alcanza una relación asistencial genérica ni un id_version_origen. Versión debe ser vigente última y de esa solicitud; publicación binaria exige última revisión Autorizar, responsable/versión/puntero exactos. Internos pueden abrir vigente En revisión para revisar/corregir, no versiones anteriores ni origen ya vacío tras traslado. NULL legado sigue desconocido, sin invalidar por sí solo publicación íntegra.
+
+ArchivoLaboratorio abre descriptor regular privado con MIME-extensión acotados/tamaño<=10 MiB/SHA-256, lo rebobina y Service revalida identidad/sesión. Si falla cierra descriptor y devuelve error seguro, no bytes. Commit/lectura terminan antes del stream: HEAD cierra inmediato y no emite cuerpo; GET sirve mismo descriptor y cierra en finally. Attachment sintético/no-store/nosniff/CSP y sin ETag/206/304, Range/condicionales nunca evitan permisos. No locks SQL durante transmisión, revocación de bytes ya entregados ni evento falso de descarga completada. Corte posterior a cabeceras puede truncar respuesta, no normalizarse a JSON ni confirmar recepción.
+
+```plantuml
+@startuml CVS_P59_archivo_laboratorio
+hide members
+left to right direction
+class LeerLaboratorioRequest <<boundary E>>
+class ResultadoLaboratorioController <<E>>
+class ResultadoLaboratorioService <<E>>
+class SolicitudLaboratorioRepository <<E>>
+class ResultadoLaboratorioRepository <<E>>
+class DocumentoLaboratorioRepository <<E>>
+class ArchivoLaboratorio <<E>>
+LeerLaboratorioRequest ..> ResultadoLaboratorioController
+ResultadoLaboratorioController ..> ResultadoLaboratorioService : ámbito y versión exacta
+ResultadoLaboratorioService ..> SolicitudLaboratorioRepository
+ResultadoLaboratorioService ..> ResultadoLaboratorioRepository : vigente / última revisión
+ResultadoLaboratorioService ..> DocumentoLaboratorioRepository
+ResultadoLaboratorioService ..> ArchivoLaboratorio : abrir y verificar mismo descriptor
+note bottom of ResultadoLaboratorioController
+  HEAD cierra sin bytes; GET finally cierra.
+  Attachment sintético, privado/no-store.
+  Transacción ya terminada antes de servir.
+end note
+note bottom of ResultadoLaboratorioService
+  Revalida actor después de abrir.
+  Error cierra descriptor; sin rutas en API.
+  Paciente solo publicación propia vigente.
+end note
+@enduml
+```
+
+**Verificación diseñada/ejecutada parcialmente:** pruebas de API/cookies/archivos ficticios/PG exclusivo, worker de Kernel HTTP con conexiones/PIDs distintos y bloqueos observados. Revisiones simultáneas, lector binario y CU-22 durante publicación, lectura durante reasociación y revocación concurrente; commit/rollback sin bytes/punteros mezclados. No confundir esta concurrencia real SQL/procesos con servidor por socket/navegador (F6/frontend). Resultado final en README/contexto, no suite global ni cambios de esquema por F5.
+
+<a id="laboratorio-backend-fase4"></a>
+## CU-26 — Backend Fase 4: revisar y publicar versión exacta (2026-10-30)
+
+**Cierre local de P58/Fase 4:** dirigida final **199 pruebas/2108 aserciones correctas**, código 0, 1 min 05,781 s/138 MB, incluidos 28 casos nuevos. PostgreSQL idéntico al inventario inicial, sin raíces propias residuales; sin suite global ni cambio de base habitual. Resultado/selección en README/contexto §17.174. Las notas siguientes de verificación en curso son cronología superada; no cierre integral del módulo ni entrega de bytes/frontend/F5/F6.
+
+**P58 efectivo, incremento en verificación dirigida; no cierre integral de laboratorio.** Actores Admin/Médico solicitante, PN21/ampliación de laboratorio, RN12/RN14 y VS-LAB-06/07/10/13. Se conservan P53–P57 y sus fuentes históricas; entrega binaria/frontend y seguridad integrada posterior siguen F5/F6. Contratos/resultados en README/contexto §17.174.
+
+| Clase participante | Responsabilidad efectiva |
+| --- | --- |
+| RevisarResultadoLaboratorioRequest / RevisionResultadoController | Frontera JSON cerrada, originales canónicos, decisión/declaración/motivo; Controller adapta HTTP y delega, devuelve Resource/201 sin consultas de negocio. |
+| RevisionResultadoService | Actor interno y Médico propio o Admin; coordina transacción/locks, compara todos los originales, exige vigente última y no revisada, verifica archivo, anexa revisión y publica si Autorizar. No modifica archivo/atención; revalida identidad/sesión antes de devolver. |
+| ResultadoLaboratorioService | Contexto/originales/acciones de revisión al Admin y Médico responsable; Médico sin acciones de CU-25. Respuesta posterior revalida ámbito; Paciente no recibe contexto privado. |
+| ResultadoLaboratorioRepository / SolicitudLaboratorioRepository | Consultas/versiones/revisión existentes, agregarRevision con Usuario ejecutor y Médico responsable separados; publicar actualiza solo estado/puntero. Reglas de decisión en Service, no en Repository. |
+| DocumentoLaboratorioRepository / ArchivoLaboratorio | Recuperar metadatos y comprobar bytes privados de vigente (existencia/tamaño/SHA-256), sin URL/entrega HTTP, transformación ni eliminación. |
+| RevisionResultado / Usuario | Relación revisadaPor/revisionesResultados mediante nueva FK nullable para legado. Nuevas revisiones API siempre acreditan actor real; hidden restringe serialización, Resource interno controla exposición explícita. |
+| Autenticacion/Continuidad/Planificacion/Medico/HistoriaClinica/ConsultaMedica | Colaboradores ya implementados para actor/locks/relación asistencial: continuidad→actor→planificación→Médico→Paciente→Cita→Consulta→Solicitud. Inactividad profesional no equivale a cuenta desactivada. |
+| BitacoraRepository / ReferenciasBitacora | Eventos de autorización/devolución con metadatos numéricos seguros y ejecutor real, atómicos con revisión/punteros; sin motivos clínicos/bytes. |
+
+### P58 — Decidir sobre la vigente comprobada
+
+POST /revisiones → Request/Controller → Service. Rechaza rol, sesión o Médico ajeno; bajo coordinación valida asociaciones, originales y estado. Solo En revisión/vigente última/sin publicación/sin revisión previa; una devolución obliga nueva versión por CU-25. Archivo ausente/alterado y originales obsoletos409. Anexa RevisionResultado con id_medico responsable, revisada_por real, fecha/decisión/motivo solo al devolver. Autorizar publica esa versión directamente; Devolver permanece En revisión sin puntero publicado. Auditoría y cambios SQL confirman juntos, sin efectos sobre disco/Cita/clínica/avisos. Revalidación final de identidad/sesión protege respuesta y rollback ante revocación durante persistencia. Fallo de respuesta posterior a commit se reconcilia por GET, no se repite revisión ni se borra archivo.
+
+```plantuml
+@startuml CVS_P58_revision_laboratorio
+hide members
+left to right direction
+class RevisarResultadoLaboratorioRequest <<boundary E>>
+class RevisionResultadoController <<E>>
+class RevisionResultadoService <<E>>
+class ResultadoLaboratorioService <<E>>
+class ResultadoLaboratorioRepository <<E>>
+class SolicitudLaboratorioRepository <<E>>
+class DocumentoLaboratorioRepository <<E>>
+class ArchivoLaboratorio <<E>>
+class BitacoraRepository <<E>>
+class RevisionResultado <<entity E>>
+class Usuario <<entity E>>
+RevisarResultadoLaboratorioRequest ..> RevisionResultadoController
+RevisionResultadoController ..> RevisionResultadoService
+RevisionResultadoService ..> ResultadoLaboratorioService : contexto y lectura autorizada
+RevisionResultadoService ..> ResultadoLaboratorioRepository : agregar revisión exacta
+RevisionResultadoService ..> SolicitudLaboratorioRepository : bloquear / publicar
+RevisionResultadoService ..> DocumentoLaboratorioRepository
+RevisionResultadoService ..> ArchivoLaboratorio : verificar integridad, sin servir bytes
+RevisionResultadoService ..> BitacoraRepository : evento atómico sin motivo
+ResultadoLaboratorioRepository ..> RevisionResultado
+RevisionResultado "0..*" --> "0..1" Usuario : revisadaPor / legado desconocido
+note bottom of RevisionResultadoService
+  Devolver exige CU-25 antes de otra revisión.
+  Autorizar publica la vigente, no el origen reasociado.
+  Usuario ejecutor no sustituye Médico responsable.
+end note
+@enduml
+```
+
+**Persistencia/alcance verificado:** 000037 agrega BIGINT NULL/índice/FK restrictiva sin backfill o modificación de triggers; legado publicado se preserva. Nuevas revisiones exigen revisor de sesión. Pruebas HTTP con PostgreSQL/raíz propia y regresión de módulos afectados, sin suite global por rutina. Persisten fases posteriores para navegador/entrega y nuevas carreras multiproceso; resultado definitivo pendiente de dirigida en curso, no se presenta como completo por existencia del código.
+
+<a id="laboratorio-backend-fase3"></a>
+## CU-25 — Backend Fase 3: documentos, correcciones y versiones (2026-10-30)
+
+**Cierre local de Fase 3:** P55–P57 y el alcance documental CU-25 de esta fase quedan verificados con la suite global ya finalizada: **4002 pruebas/56 779 aserciones correctas**, código 0, 27 min 23,548 s/550 MB. Inventario PostgreSQL idéntico al inicial y sin raíces temporales propias de archivos pendientes. Se conservan análisis y fuentes UML históricos; las notas de verificación en curso siguientes son cronología superada. No cierre integral de laboratorio ni inicio de F4/CU-26, descarga CU-27, frontend o producción. Cierre documental sin nueva ejecución funcional.
+
+**Incremento implementado/verificación en curso:** P55 cargar documento, P56 corregir/sustituir/reasociar y P57 leer versiones internas de laboratorio. Ampliación PN20/RN12/RN14, reglas VS-LAB y decisiones aprobadas de F1; no CU-26/publicación/descarga binaria de CU-27 ni frontend. Backend README/contexto §17.173 contienen contratos/entorno/resultados finales. Se conservan todos los análisis/diagramas anteriores; los cuatro Models ya existentes no se vuelven a contar como nuevos ni se añaden columnas de revisión en esta fase.
+
+| Participante efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| CargarDocumentoLaboratorioRequest / DocumentoLaboratorioController | Boundary multipart/JSON sin archivo para reasociar: allowlists, originales/punteros/revisión exactos, declaraciones 1 y motivo; adapta UploadedFile a SplFileInfo para negocio, no persiste ni decide permisos. |
+| DocumentoLaboratorioService | P55/P56: Admin preliminar, prepara archivo fuera de locks largos, coordina actor/planificación/recursos ordenados/solicitudes, revalida originales/estado/devolución/asociaciones y guarda documento/versión/punteros/auditoría en una transacción. Reasociación conserva fuente sin vigente y destino con versión nueva, no consulta/Médico/Paciente reasignados ni publicación. |
+| ArchivoLaboratorioValidator | Formato/tamaño real, Fileinfo/extensión concordante, GD con dimensiones/píxeles acotados y qpdf con timeout/sin shell para PDF no cifrado/estructura correcta/páginas. No interpreta laboratorio ni certifica malware/legibilidad. Herramienta ausente rechaza seguro. |
+| ArchivoLaboratorio | Bytes privados con claves UUID exclusivas, copia efímera cerrada para qpdf en Windows, hashes/tamaño y compensación de archivo nuevo. No entrega HTTP, URL pública ni borrado de historial/clave ajena; conserva privado ante commit/rollback dudoso. |
+| DocumentoLaboratorioRepository / ResultadoLaboratorioRepository | Metadatos inmutables y nuevas versiones con autor/origen/numeración; consultas de vigente/última/revisión y paginación histórica. No Storage/negocio ni modificación de versiones/revisiones anteriores. |
+| SolicitudLaboratorioRepository | Contextos cruzados de ambos extremos, bloqueos de solicitudes ordenados y cambio atómico de punteros/En revisión. No nuevas tablas, reglas en Repository ni estados nuevos. |
+| ResultadoLaboratorioService / Resource / LeerLaboratorioRequest / Controller | P57 y detalle: contexto administrativo orientativo/originales, lectura histórica por ámbito y proyección explícita. Médico del destino no recibe origen ni motivo de reasociación que puede contener datos ajenos; Paciente no recibe históricos/contexto. Los listados previos conservan forma y C22 sus metadatos. |
+| Colaboradores E existentes | Autenticacion/Continuidad/Planificacion/Medico/HistoriaClinica/ConsultaMedica coordinan sesión/locks y atención; BitacoraRepository/ReferenciasBitacora auditan solo referencias numéricas y ejecutor real, no nombres/estudios/motivos/archivos. |
+
+### P55 — Cargar un documento privado
+
+POST → Request → Controller → Service: comprueba Admin, valida bytes y prepara clave privada exclusiva fuera de transacción; continuidad → actor/sesión → planificación → Médicos → Pacientes → Citas → consultas → solicitudes ordenados. Revalida identidad/originales y carga permitida: Pendiente sin versiones, o fuente En revisión vacía tras reasociación acreditada que exige motivo/max+1. Crea Documento/VersionResultado y apunta vigente En revisión, audita y devuelve detalle autorizado/201, sin publicar ni cambiar Cita/clínica/avisos. Archivo inválido/declaración422, estado/obsoleto409, herramienta503 y error inesperado500 seguro. Documento físico y SQL no comparten rollback: compensar solo clave nueva con rollback confirmado/no referencias; conservar ante incertidumbre o limpieza fallida.
+
+### P56 — Sustituir o corregir asociación devuelta
+
+Mismo Service y límites; versión vigente debe ser última y su revisión más reciente Devolver por responsable, originales exactos incluyendo revisión. Sustituir agrega Documento y versión con origen anterior, motivo y actor; no sobrescribe bytes. Reasociar exige destino distinto Pendiente sin historial/documento, comprobación explícita de paciente/estudio en ambos extremos, incluso otras fichas. Bloquea conjuntos en orden global, verifica bytes previos y reutiliza documento sin copiarlo: versión nueva del destino con origen, fuente sin vigente En revisión e historial intacto. Ambas puntas/evento en una transacción; destino requiere revisión futura propia, Disponible jamás se altera. Motivo cruzado/origen no se proyectan al Médico de destino por histórico; no cambia relación asistencial ni concede acceso cruzado.
+
+```plantuml
+@startuml CVS_P55_P56_documentos_laboratorio
+hide members
+left to right direction
+class CargarDocumentoLaboratorioRequest <<boundary E>>
+class DocumentoLaboratorioController <<E>>
+class DocumentoLaboratorioService <<E>>
+class ArchivoLaboratorioValidator <<E>>
+class ArchivoLaboratorio <<E>>
+class SolicitudLaboratorioRepository <<E>>
+class DocumentoLaboratorioRepository <<E>>
+class ResultadoLaboratorioRepository <<E>>
+class BitacoraRepository <<E>>
+class ResultadoLaboratorioService <<E>>
+CargarDocumentoLaboratorioRequest ..> DocumentoLaboratorioController
+DocumentoLaboratorioController ..> DocumentoLaboratorioService
+DocumentoLaboratorioService ..> ArchivoLaboratorioValidator : validar antes de locks SQL
+ArchivoLaboratorioValidator ..> ArchivoLaboratorio : temporal privado cerrado
+DocumentoLaboratorioService ..> ArchivoLaboratorio : clave exclusiva / verificar / compensar
+DocumentoLaboratorioService ..> SolicitudLaboratorioRepository : extremos ordenados / punteros
+DocumentoLaboratorioService ..> DocumentoLaboratorioRepository : metadatos / referencias
+DocumentoLaboratorioService ..> ResultadoLaboratorioRepository : version / origen inmutables
+DocumentoLaboratorioService ..> BitacoraRepository : evento atómico seguro
+DocumentoLaboratorioService ..> ResultadoLaboratorioService : contexto / respuesta autorizada
+note bottom of ArchivoLaboratorio
+  No atomicidad SQL del disco ni borrado tras commit incierto.
+  qpdf / GD validan estructura, no malware ni identidad clínica.
+  Solo claves privadas propias, sin URL pública.
+end note
+@enduml
+```
+
+### P57 — Leer contexto y versiones internas
+
+GET/HEAD /solicitudes-laboratorio/{id}/versiones pasa por gate Admin/Médico, ámbito SQL existente, coordinación de lectura y revalidación final. Repository selecciona metadatos de versión por solicitud y orden numérico descendente; Resource no entrega bytes/ruta/hash/nombre_original ni expande origen. Admin ve autor/motivo/origen; Médico responsable ve versiones de su solicitud, omitiendo motivo/origen de una reasociación desde otra solicitud. Paciente/Recepción403, Médico ajeno404, HEAD autorizado sin cuerpo. Detalle administrativo añade originales/acciones/vigente/última devolución; no se habilita revisión o descarga inexistente.
+
+```plantuml
+@startuml CVS_P57_versiones_laboratorio
+hide members
+left to right direction
+class ResultadoLaboratorioController <<E>>
+class LeerLaboratorioRequest <<boundary E>>
+class ResultadoLaboratorioService <<E>>
+class ResultadoLaboratorioRepository <<E>>
+class SolicitudLaboratorioResource <<boundary E>>
+class VersionResultado <<entity E>>
+class RevisionResultado <<entity E>>
+LeerLaboratorioRequest ..> ResultadoLaboratorioController
+ResultadoLaboratorioController ..> ResultadoLaboratorioService
+ResultadoLaboratorioController ..> SolicitudLaboratorioResource
+ResultadoLaboratorioService ..> ResultadoLaboratorioRepository : contexto / versiones por ámbito
+ResultadoLaboratorioRepository ..> VersionResultado
+ResultadoLaboratorioRepository ..> RevisionResultado
+VersionResultado "0..*" --> "0..1" VersionResultado : origen trazable, no permiso
+note bottom of SolicitudLaboratorioResource
+  Admin: motivo / origen protegidos.
+  Médico: sin información del origen cruzado.
+  Paciente sin histórico ni contexto privado.
+end note
+@enduml
+```
+
+**Pruebas/entorno:** archivos ficticios reales qpdf/GD sobre raíz exclusiva por caso y PostgreSQL/esquema aislado, cookies/CSRF y herramientas con salida controlada, correo simulado. PDF tmpfile de tests Windows impedía lectura a qpdf; copia privada cerrada de iguales bytes resuelve sin relajar validación. Error esperado de `_method=1` es400 por método HTTP inválido, no405; contexto nuevo de detalle Admin permite motivo de devolución, sin relajar privacidad de Médico/Paciente. Nueva prueba protege motivo de reasociación de otro paciente ante Médico del destino. Resultado final, regresión/calidad/limpieza e incidencias en README/contexto. Sin carrera multiproceso nueva ni integración navegador, que conservan fases posteriores; no nueva migración ni física DER en esta fase.
+
+<a id="laboratorio-backend-fase2"></a>
+## CU-24 — Backend Fase 2: solicitud y lectura por ámbito (2026-10-30)
+
+**Incremento implementado, no módulo completo:** P53 registrar solicitud y P54 consultar solicitudes/metadatos, vinculados a PN19/RN12/RN14/ampliación de laboratorio. CU-25/CU-26/entrega de bytes CU-27 siguen pendientes. Backend README/contexto §17.172 detallan cuatro rutas y evidencia final; análisis/diagramas anteriores permanecen históricos. No se representa un Controller por cada rol ni un método por tabla.
+
+| Participante efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| CrearSolicitudLaboratorioRequest / LeerLaboratorioRequest | Boundary HTTP: allowlists, ID canónico, cuerpo/query separados, booleano true, estudio no vacío <=255, originales de consulta, fechas locales y paginación. No conceden acceso por existencia del ID. |
+| SolicitudLaboratorioController | Adapta POST, extrae datos validados/contexto seguro y responde Resource/201; no SQL ni negocio. |
+| ResultadoLaboratorioController | Adapta tres GET/HEAD (por consulta/lista/detalle) al Service y Resource; no descargas ni rutas públicas. |
+| SolicitudLaboratorioService | P53: coordina continuidad/sesión/planificación/recursos, exige Admin/Médico responsable, consulta/version vigente/originales/atención real desde inicio, crea solicitud y audita. Retorna detalle autorizado del Service de lectura en misma transacción; rollback conjunto ante fallo. |
+| ResultadoLaboratorioService | P54: obtiene identidad por sesión normal, acota Médico solicitante o Paciente titular; selección administrativa y filtros por ámbito. Materializa SQL/edición orientativa de alta y revalida cuenta/rol/vínculo/sesión antes de responder. identidad(Usuario) reutilizada por Service de alta, sin ciclo de dependencias. |
+| SolicitudLaboratorioRepository | Resuelve referencias de consulta/solicitud, crea Eloquent y lista/detalle por ámbito con joins/proyección seleccionada/criterio SQL de publicación consistente; sin permisos de negocio ni autor autoasignado desde payload. |
+| SolicitudLaboratorio/Usuario | Entidades con creada_por nullable/FK restrictiva e inversas; API nueva siempre guarda ejecutor real. NULL legado desconocido, no Médico inventado; hidden de atributo y relación ante serialización automática. |
+| Colaboradores existentes | AutenticacionService, ContinuidadAdministrativaService, PlanificacionRepository, MedicoRepository, HistoriaClinicaRepository y ConsultaMedicaRepository aportan coordinación/identidad/locks y contexto clínico existente. BitacoraRepository registra ESTUDIO_SOLICITADO con referencias seguras; Resources/ReferenciasBitacora filtran salida de CU-30. |
+
+### P53 — Registrar estudio desde una consulta real
+
+POST/Request → Controller → Service: continuidad → actor bloqueado/sesión → planificación → Médico responsable → Paciente → Cita → Consulta bloqueada. Referencias previas se revalidan, original de versión exacto y declaración true; reloj fresco comprueba inicio/Cita compatible, sin exigir ficha/profesional activo para atención previa. Repository crea Pendiente con Usuario ejecutor, Service audita atómicamente y lee detalle autorizado antes de commit. No cambia consulta/antecedentes/Cita/avisos; dos estudios con mismo texto son dos solicitudes permitidas, no idempotencia de intención. 409 obsoleto/estado, 404 ajena/inexistente, 422 campos/declaración y error inesperado seguro sin guardar parcialmente.
+
+```plantuml
+@startuml CVS_P53_solicitar_laboratorio
+hide members
+left to right direction
+class CrearSolicitudLaboratorioRequest <<boundary E>>
+class SolicitudLaboratorioController <<E>>
+class SolicitudLaboratorioService <<E>>
+class ResultadoLaboratorioService <<E>>
+class SolicitudLaboratorioRepository <<E>>
+class BitacoraRepository <<E>>
+class SolicitudLaboratorio <<entity E>>
+class Usuario <<entity E>>
+class ConsultaMedica <<entity E>>
+class Cita <<entity E>>
+CrearSolicitudLaboratorioRequest ..> SolicitudLaboratorioController
+SolicitudLaboratorioController ..> SolicitudLaboratorioService
+SolicitudLaboratorioService ..> SolicitudLaboratorioRepository
+SolicitudLaboratorioService ..> ResultadoLaboratorioService : identidad / detalle confirmado
+SolicitudLaboratorioService ..> BitacoraRepository : evento seguro atómico
+SolicitudLaboratorioRepository ..> SolicitudLaboratorio
+SolicitudLaboratorio "0..*" --> "0..1" Usuario : creada_por acreditada
+SolicitudLaboratorio "0..*" --> "1" ConsultaMedica
+ConsultaMedica "0..1" --> "1" Cita : Paciente / Médico responsable
+note bottom of SolicitudLaboratorioService
+  Colaboradores de seguridad/locks existentes reutilizados.
+  Guardar estudio no modifica atención ni estado de Cita.
+  Legado NULL no permite inventar autor.
+end note
+@enduml
+```
+
+### P54 — Consultar solicitudes y metadatos autorizados
+
+GET/HEAD/Request → Controller → ResultadoLaboratorioService → coordinación y Repository bajo transacción, ámbito SQL de Médico responsable/Paciente propio. Admin exige paciente o consulta en lista general; por consulta incluso vacía entrega edición de alta solo Admin/responsable. Resource selecciona campos/IDs textuales/UTC6 y meta; Paciente no recibe autor/contexto privado ni diferencia interna En revisión. Criterio Autorizar/responsable/punteros/última versión determina metadatos publicados; no afirma que bytes existan/estén íntegros ni habilita descarga. Consulta desconocida/ajena no se convierte en lista legítima vacía, filtros no amplían ámbito. Revalidación final de sesión descarta datos materializados tras revocación; HEAD sin cuerpo, no mutación clínica.
+
+```plantuml
+@startuml CVS_P54_consultar_solicitudes
+hide members
+left to right direction
+class LeerLaboratorioRequest <<boundary E>>
+class ResultadoLaboratorioController <<E>>
+class ResultadoLaboratorioService <<E>>
+class SolicitudLaboratorioRepository <<E>>
+class SolicitudLaboratorioResource <<boundary E>>
+class AutenticacionService <<E>>
+class PlanificacionRepository <<E>>
+class HistoriaClinicaRepository <<E>>
+LeerLaboratorioRequest ..> ResultadoLaboratorioController
+ResultadoLaboratorioController ..> ResultadoLaboratorioService
+ResultadoLaboratorioController ..> SolicitudLaboratorioResource
+ResultadoLaboratorioService ..> AutenticacionService : sesión al inicio / final
+ResultadoLaboratorioService ..> PlanificacionRepository : misma coordinación que escritores
+ResultadoLaboratorioService ..> HistoriaClinicaRepository : vínculo / Cita / versión
+ResultadoLaboratorioService ..> SolicitudLaboratorioRepository : ámbito SQL / metadatos
+note bottom of SolicitudLaboratorioResource
+  Admin/Médico: creada_por (o NULL legado).
+  Paciente: solo estado proyectado / resultado vigente válido.
+  No ruta, hash, nombre_original ni bytes.
+end note
+@enduml
+```
+
+**Persistencia y límites:** migración 000036 añade creada_por a solicitud y relación inversa Usuario, sin modificar triggers ni migraciones previas; DER §6.23 vigente. Revisión aún sin revisada_por/F4, archivos/reasociación F3, entrega y seguridad ampliada F5, cierre global F6. Nuevas pruebas de API/cookies/CSRF/PostgreSQL aislado/rollback/proyección/legado y hooks de revalidación, no nuevas carreras SQL multiproceso de negocio. Resultado y controles finales en README/contexto, sin convertir pruebas previas en evidencia nueva ni afirmar aplicada la migración habitual.
+
+**Cierre final de Fase 2/P53–P54:** suite global nueva **3937 pruebas/56 226 aserciones correctas**, 28:57,640/534 MB con límite solo CLI 768M, tras ensayo de 512M interrumpido por memoria; no sumar ejecuciones. Inventario PostgreSQL final idéntico al inicial y esquema parcial propio retirado; controles de sintaxis/Pint/Composer/rutas/alcance/UML/documentación correctos, evidencia y particularidad del código de salida PowerShell en contexto §17.172/backend README. **Fase 2 backend cerrada localmente**, no módulo completo, entrega de bytes, frontend ni producción. Los participantes/relaciones anteriores de esta entrada describen implementación efectiva, sin anticipar CU-25/CU-26 o fases posteriores.
+
+<a id="laboratorio-backend-fase1"></a>
+## CU-24–CU-27 — Backend Fase 1: diseño de participantes y contratos (2026-10-29)
+
+**Estado:** diseño previsto P, no ejecución funcional terminada. Laboratorio es ampliación aprobada, vinculada a RN12/RN14 y PN19–PN22; RF/RN oficiales no cambian. Contexto §17.171/backend README contienen endpoints **previstos** y matriz de fases. Models/persistencia existentes E no acreditan cargas/descargas/revisión; la lectura CU-22 solo entrega metadatos. No crear procedimientos P53–P56 ni diagramas de ejecución por numerar CU antes de implementar; conservar todos los análisis y UML históricos.
+
+| CU / participantes previstos (no archivos nuevos) | Responsabilidad y colaboración diseñada |
+| --- | --- |
+| CU-24: SolicitudLaboratorioController/Service/Repository | Request valida estudio/original/declaración; Service autentica Admin/Médico responsable y consulta/atención autorizada desde inicio, incluso Atendida/inactivo profesional con cuenta activa. Repository crea Pendiente con creada_por real prevista y origen de consulta, sin nueva identidad clínica ni estado de Cita. |
+| CU-25: DocumentoLaboratorioController/Service/Repository, SolicitudLaboratorioRepository y ResultadoLaboratorioRepository | Admin verifica asociación; validar bytes PDF/JPEG/PNG <=10 MiB y disco privado; anexar versión y punteros/auditoría. Sustituir exige devolución, motivo e historial intacto; reasociar bloquea ambos ámbitos/solicitudes ordenados, crea versión de destino Pendiente con origen, deja fuente En revisión sin vigente y permite nueva carga numerada. No mover consulta/Paciente/Médico ni transformar el contenido emitido. |
+| CU-26: RevisionResultadoController/Service, ResultadoLaboratorioRepository y colaboración de documento | Admin/Médico solicitante revisan versión vigente; revalidar originales/revisión/archivo y decisión, anexar revisión con revisada_por prevista y Médico responsable separado. Autorizar publica directamente; devolver exige motivo y corrección/nueva revisión, sin cuarto estado ni cambio de Disponible. |
+| CU-27: ResultadoLaboratorioController/Service, repositorios y DocumentoLaboratorioService | Lista/detalle proyectados por ámbito, solo publicado vigente para Paciente; GET/HEAD de archivo reautorizados y descriptor privado íntegro, sin URL pública ni caché/bytes antiguos. Médico solicitante no hereda historia de origen ajeno por reasociación. |
+| E existentes compartidos | SolicitudLaboratorio, DocumentoLaboratorio, VersionResultado y RevisionResultado conservan tablas/FK/triggers. ConsultaMedica/Cita derivan identidad clínica; Usuario es ejecutor. AutenticacionService/ContinuidadAdministrativaService/PlanificacionRepository/MedicoRepository y BitacoraRepository permiten coordinar sesión/rol/relaciones y evento real, sin duplicar seguridad. |
+
+**Colaboración:** Request/Controller → Service → Repositories/Eloquent → PostgreSQL; Service de documento coordina adaptador físico privado y compensación solo de archivo nuevo con rollback comprobado, nunca supone transacción del disco ni borra después de commit incierto. Lecturas/descargas verifican sesión/cuenta/rol/relación y publicación bajo contexto fresco; no decisiones en React. Originales incluyen versión/revisión/punteros de solicitud, no solo nombre de archivo; corrección/publicación/traslado con carreras obligan lectura nueva. Ante corte de red no repetir automáticamente operaciones ni afirmar rollback. Clases previstas se crean dentro de `laboratorio/` de cada capa solo cuando su fase las necesite, no un árbol vacío; Requests/Resources también de presentación, no dominio.
+
+**Brechas diseñadas:** creada_por de solicitud y revisada_por de revisión serán migraciones aditivas de Fases 2/4. Legado sin autor comprobable permanece desconocido; no hacer pasar Médico responsable por ejecutor ni mutar revisión inmutable publicada para inventarlo. FK de publicación no prueba Autorizar/rol ni integridad del archivo. Los contratos vigentes CU-22 se preservan; nueva autoría de revisión mantiene id_medico como responsable clínico y exige regresión sobre lectura de metadatos/publicación.
+
+**Decisiones aprobadas por usuario:** VS-LAB-11–13, archivos/formato/límite; solicitudes de atención previa incluso inactividad profesional/Atendida; reasociación a destino Pendiente incluso otro Paciente verificado y origen sin vigente conservado. Configuración técnica pendiente de validar al implementar F3: inspección PDF/imagen, límites de píxeles/PHP/proxy y eventual dependencia que requerirá autorización; no certificación antivirus por Fileinfo. Entrega prevista attachment/nosniff, no PDF activo embebido en origen de la SPA.
+
+**Cierre de esta fase:** documental, sin código/SQL/archivos clínicos/dependencias/API nuevos ni pruebas funcionales ejecutadas como evidencia de laboratorio. Matriz diseñada de autorización/legado/rollback-disco/publicación/errores/concurrencia/descarga e integración en README; ejecutar con PostgreSQL y archivos ficticios aislados al implementar cada fase. UML global conserva fuentes/censo y participantes P; DER solo nota de evolución prevista, no nuevo esquema aplicado. Fases 2–6/frontend/producción pendientes, no iniciar automáticamente.
+
+<a id="cu22-cu23-frontend-fase6"></a>
+## CU-22/CU-23 — Frontend Fase 6: integración y cierre local (2026-10-29)
+
+**Objetivo/actores:** cierre de las fronteras de lectura CU-22 y documentación CU-23 para Administrador/Médico responsable, con lectura propia vigente del Paciente y exclusión clínica de Recepción. Se conservan RF/RN y decisiones clínicas aprobadas, sin ampliar permisos ni introducir reglas en React. Contexto §17.170/README y colaboración acumulativa UML §16; análisis previos conservados como historia, no sustituidos por este resumen.
+
+**Participantes efectivos:** HistoriaClinicaPage coordina selección administrativa o perfil propio y lectura; ConsultaDetallePage representa vigente, metadatos de estudios y acceso al editor según respuesta; VersionesClinicasPage consulta versiones internas paginadas. ConsultaEditorPage/useRegistroConsulta coordinan contexto fresco, alta/corrección/no-op, declaración/revisión, exclusión de duplicados y recuperación incierta solo GET. RegistroConsultaForm presenta cambios y ContenidoClinico muestra contenido permitido; useClinicaQuery/ClinicaQuery coordinan lectura, vacío/error/retirada. historiaClinica.service proyecta respuestas autorizadas, consultaMedica.service prepara allowlist y valida confirmación, api.js mantiene cookies/CSRF/época local sin otorgar permisos. AuthContext/useAuth y rutas existentes preservan identidad pública. Son componentes/hooks/módulos JavaScript, **no nuevas clases PHP**.
+
+**Colaboración real verificada:** Chrome → Page/Component → hook → Feature Service → Axios/CSRF → middleware/Controller → Service/Repository clínicos existentes → PostgreSQL. Alta Administrador y Médico, corrección conjunta y solo antecedentes, históricos, no-op y documentación posterior a Atendida conservan versiones y ejecutor/responsable separados. Modificar antecedentes desde otra cita produce 409 en el borrador obsoleto, retira revisión y exige contexto nuevo, sin rebase. Corte de POST/PATCH después de commit deja resultado incierto; GET explícito recupera vigente sin atribuir indebidamente autoría ni repetir escritura. CU-19 queda separado; Paciente no recibe internos/versiones/edición, recurso ajeno da 404 y Recepción recibe 403 sin invalidar su sesión. Revocación de sesión Laravel sí retira clínica.
+
+**Verificación:** recorrido final 15 comprobaciones reales, 14 vistas/70 disposiciones y 28 axe sin infracciones automáticas, teclado/foco y cero excepciones JS. Persistencia: 4 citas/3 consultas/5 versiones de consulta/4 de antecedentes/9 eventos clínicos/1 cambio de asistencia; snapshots iniciales intactos y bitácora sin contenido privado. Suite global frontend nueva **2954/2954 en 100 archivos**, integración backend dirigida nueva **25/3842** (3:18,834/90 MB), build correcto con aviso 806,94kB. No nueva suite global backend, certificación de accesibilidad integral, zoom completo ni prueba productiva. Errores reales observados y límites de fixtures/correos/HTTP se distinguen en README/contexto de la matriz simulada anterior.
+
+**Cierre:** arneses corregidos y repetidos íntegramente desde esquema nuevo; intentos parciales y PHPUnit interrumpido no se suman. Solo esquemas/procesos/credenciales propios retirados, inventario PostgreSQL idéntico al inicial y servicio del usuario Running. Sin cambios productivos nuevos, persistencia/DER/RF/RN intactos, sin otro módulo/producción. **Fase 6 y seis fases frontend CU-22/CU-23 cerradas localmente**, integradas al backend cerrado §17.164. La evidencia no implementa laboratorio/recordatorios/reportes pendientes.
+
+<a id="cu22-cu23-frontend-fase5"></a>
+## CU-22/CU-23 — Frontend Fase 5: aislamiento y robustez verificados (2026-10-29)
+
+**Incremento de seguridad de la interfaz, no integración real ni cierre de módulo.** Contexto §17.169/frontend README. Se preservan análisis/diagramas históricos y backend cerrado; no nuevas clases PHP, reglas, permisos, endpoints o persistencia. Cuatro reproducciones nuevas fallaron antes del cambio (lectura retenida al avanzar época, escritura pendiente no retirada y despacho POST/PATCH bajo época distinta) y pasan después; no se infiere una vulnerabilidad de autorización Laravel a partir de estos defectos de contexto cliente.
+
+| Participante efectivo ampliado | Responsabilidad y colaboración |
+| --- | --- |
+| api.js | Contador/aviso local de avance de época y opción sessionEpochExpected antes de despacho; descarta éxito/error de contexto clínico sustituido sin invalidar nueva sesión por 401 antiguo. No crea sesiones, decide roles ni reenvía solicitudes. Opción compatible con consumidores anteriores. |
+| historiaClinica.service / consultarMiPerfil | Lecturas clínicas y cadena de perfil propio→historia usan una sola época; contexto de edición incorpora epocaSesion local y descartable, sin modificar Resource/API Laravel/AuthContext. Argumento opcional de perfil no altera consumidores existentes. |
+| consultaMedica.service | Exige contexto de lectura de época actual y la fija en CSRF/POST/PATCH; snapshot intacto de antecedentes o nueva versión/ID/autor/origen coherentes al confirmar alta. Metadata de transporte nunca se incluye en payload. |
+| useClinicaQuery | Retirada de datos/secuencia y abort inmediato por pagehide o avance de época; pausa segura sin GET automático y reconsulta explícita. No presenta resultado de otra identidad/recurso/revisión. |
+| useRegistroConsulta | Al cambiar época retira resultado y descarta respuesta pendiente, conservando solo incertidumbre de envío/recuperación en curso. No replay tras aborto ni afirmación de rollback; 422/409/419/429 y GET incierto mantienen sus flujos. |
+| SeleccionAdministrativa de HistoriaClinicaPage | Desmonta lista de fichas ante cambio local de sesión y exige acción explícita para consultar de nuevo; no tabla privada retenida tras logout fallido. |
+| describirErrorClinico | Mensajes seguros reutilizados y espera Retry-After numérica/fecha HTTP; tiempo de presentación, nunca regla de disponibilidad/atención. |
+
+**Colaboración endurecida:** AuthContext continúa siendo dueño del estado público y sus acciones ya avanzan época → aviso local retira fronteras clínicas/aborta → sesión Laravel sigue siendo fuente de verdad → acción manual solicita contexto mediante GET ligado a época → formulario/revisión → CSRF y escritura ligados al mismo contexto → API descarta despacho/respuesta sustituida → coordinación muestra confirmado/error/incertidumbre sin datos antiguos. El cierre fallido de sesión no afirma logout, pero tampoco conserva datos visibles. Error tardío 401 de otra época no revoca sesión actual; 401 vigente conserva invalidación central existente.
+
+**Verificación/cierre local de Fase 5:** dirigida 313 pruebas correctas en 14 archivos (clínica/navegación/perfil), con matriz HTTP de ambos escritores, épocas/CSRF/retirada/cambio de rol/BFCache/límites/proyección y ausencia de replay. Regresión global final nueva **2954/2954 correctas en 100 archivos**, aproximadamente 156s (`pnpm test --maxWorkers=4`), sin sumar ejecuciones. Build correcto con aviso de tamaño; Chrome con API simulada trece vistas sin overflow/excepciones, logout fallido retirando lectura/revisión y reconsulta manual sin restaurar borrador/declaración. No integración real ni nuevos ensayos SQL de revocación/concurrencia/inmutabilidad. Control exclusivo: 763 archivos cotejados, 751 intactos, 12 existentes modificados/5 nuevos, backend/UML/DER/rutas/CSS y cuatro contenidos documentales históricos íntegros, UTF-8/cercas/diff-check correctos. Contexto §17.169; helpers React/transporte no se convierten en clases de dominio PHP. Fase 6/módulo frontend completo/producción pendientes, no iniciados.
+
+<a id="cu23-frontend-fase4"></a>
+## CU-23 — Frontend Fase 4: corrección y antecedentes implementados (2026-10-29)
+
+**Incremento efectivo de corrección, no cierre del módulo/frontend completo.** Contexto §17.168/frontend README. Se reutiliza frontera de Fase 3, lectura e históricos de Fase 2 y backend clínico cerrado §17.164; fuentes históricas y UML selectivo/DER intactos, sin clases de dominio nuevas ni participantes PHP ficticios. No nuevas reglas/RF/RN, endpoints, tablas ni permisos.
+
+| Participante efectivo ampliado | Responsabilidad y colaboración |
+| --- | --- |
+| ConsultaDetallePage / ConsultaEditorPage | Enlace de corrección según acción autorizada; editor común decide alta/corrección mediante consulta vigente/GET fresco. Mantiene contexto responsable por recurso y misma ruta protegida; no permite edición al Médico meramente relacionado ni Paciente/Recepción. |
+| RegistroConsultaForm | Precarga tipo/motivo, presenta vigentes de opcionales/antecedentes y acciones conservar/modificar/quitar, motivo de corrección ante cambio efectivo y declaración real desmarcada; revisión vigente/después de guardar y caso sin cambios explícito, sin nueva página/modal. |
+| prepararCorreccion / cambiosCorreccion | Preparan allowlist parcial y validación de experiencia, distinguen omisión/null/igualdad sin normalizar contenido. Motivo solo ante cambio efectivo; originales no se reconstruyen. Esta comparación no autoriza recursos ni sustituye el orden de validación Laravel. |
+| actualizarConsulta / proyectarConsulta | CSRF/sessionBound → PATCH existente → verifica 200/modificado, consulta/código/identidades/fechas/programación preservadas, snapshots por bloque/autor/motivo/origen y valores combinados; no decide ni persiste versiones en React. No-op requiere respuesta vigente validada, no éxito local. |
+| useRegistroConsulta | Mismo coordinador para alta/corrección, elección de transporte por contexto y error motivo_cambio permitido; lock/abort/secuencia/429 y recuperación exclusivamente GET de resultado incierto, sin reconvertir a alta ni replay. |
+| navigation | Sidebar «Registrar o corregir consulta» y título contextual «Documentar consulta médica», sin ruta nueva ni duplicación por rol. |
+
+**Colaboración efectiva:** entrada autorizada → GET clínico/Resources → originales y acciones responsables → formulario de corrección/revisión/declaración → prepararCorreccion → Axios CSRF/PATCH → ConsultaMedicaController/ActualizarConsultaRequest → ConsultaMedicaService valida recurso/actor/originales/atención/estado y compara contenido → repositorios versionados/bitácora segura → Resource transaccional 200/modificado → proyección/resultado → GET vigente e históricos internos existentes. Usuario ejecutor conserva identidad y Médico responsable no cambia; antecedentes usan la consulta real de origen y versión coordinada por Paciente. Modificar solo antecedentes no crea otra consulta ni cambia versión de consulta intacta; ambos bloques modificados generan sus snapshots en backend; primeros antecedentes después del alta admiten versión 1.
+
+**Flujos alternativos:** no-op sin motivo conserva versiones tras validación del servidor, nunca evita originales obsoletos. 409 por consulta/antecedentes compartidos retira borrador y exige contexto nuevo/revisión, sin rebase de originales bajo un formulario anterior. 422 conserva datos corregibles en memoria y desmarca declaración; otros rechazos conocidos exigen consulta manual/espera. Incertidumbre tras PATCH o respuesta inválida bloquea escrituras y solo permite GET que no atribuye autoría/terminación/rollback. Se conservan retirada por identidad/recurso/pagehide/desmontaje y BFCache; no persistencia clínica ni filtrado por CSS de históricos del Paciente.
+
+**Evidencia/cierre local de Fase 4:** dirigida 242 pruebas correctas de clínica/navegación en nueve archivos; regresión global final nueva **2892/2892 correctas en 96 archivos**, aproximadamente 150s (`pnpm test --maxWorkers=4`), sin sumar ejecuciones. Build correcto con aviso de tamaño; doce vistas Chrome con API simulada (1440/390/320px) sin overflow/excepciones, cambios/no-op y recuperación GET sin replay. Pruebas de snapshots son mocks de contrato/presentación, no nuevos ensayos PostgreSQL de inmutabilidad/concurrencia ni integración real. Control exclusivo: 761 archivos cotejados, 747 intactos, 14 existentes modificados/2 tests nuevos; backend/UML/DER/rutas y cuatro contenidos documentales históricos íntegros, UTF-8/cercas/diff-check correctos. Contexto §17.168; no cerrar Fases 5–6 ni módulo por este incremento y conservar todas las fuentes anteriores.
+
+<a id="cu23-frontend-fase3"></a>
+## CU-23 — Frontend Fase 3: alta implementada (2026-10-29)
+
+**Incremento de alta; correcciones/frontend completo no cerrados.** Se concreta el alta prevista en §17.165 sobre backend cerrado §17.164, sin cambios de reglas VS-CLI-01–12 ni PHP/persistencia. Contexto §17.167/frontend README contienen diseño, estados y evidencia. Se preservan análisis/vistas/procedimientos y cierre de lectura anteriores; no se inventan clases PHP para funciones React ni se amplía el censo UML selectivo.
+
+| Participante efectivo nuevo o ampliado | Responsabilidad y colaboración |
+| --- | --- |
+| ConsultaEditorPage | Selección guiada de cita por rol y alta por cita con GET fresco, elegibilidad del servidor, resultado/relectura y protección de salida. Misma página Administrador/Médico responsable; existente no habilita corrección. |
+| RegistroConsultaForm / TextoClinico | Secciones etiquetadas de consulta y antecedentes vigentes; acciones explícitas conservar/modificar/quitar; validación de experiencia, declaración desmarcada y revisión inmutable por paso. Ejecutor visible separado del profesional; retiro de revisión al volver/corregir. |
+| historiaClinica.service / proyectarConsulta | Reutiliza proyección de detalle, validación opcional interna de edicion/originales/acciones/impedimentos para registro y respuesta 201 de escritura. La lectura ordinaria/Paciente sigue descartando contexto editable y extras. |
+| consultaMedica.service / prepararAlta / registrarConsulta | Allowlist de payload, originales intactos, preparación CSRF, un POST ligado a sesión y validación/proyección de alta confirmada; distingue fallo previo a envío de resultado posterior incierto. Sin reglas de autorización definitivas ni replay. |
+| useRegistroConsulta | Máquina local de envío/validación/conflicto/incertidumbre/GET de recuperación, lock síncrono, abort/secuencia/retirada, espera 429 y no reutilización automática de originales. No persistencia clínica ni éxito inferido de GET posterior. |
+| Router/navigation/destinoSeguro/ConsultaDetallePage | Entrada `/registrar-consulta` y editor `/citas/:id/consulta/editar` solo A/M; enlace de alta en detalle según contexto responsable. Sidebar ya tiene alta, pero no acredita PATCH/correcciones. |
+
+**Flujo efectivo:** selección desde agenda/historial existente → detalle o editor GET → HistoriaClinicaController/HistoriaClinicaService y Resources existentes → contexto responsable proyectado → formulario/revisión/declaración → prepararAlta → Axios CSRF/sessionBound → POST existente → ConsultaMedicaController/RegistrarConsultaRequest → ConsultaMedicaService/repositorios clínicos/Models/bitácora segura → lectura transaccional Resource 201 → proyección/validación → resultado de alta y posterior lectura fresca. Se preserva autor Usuario real frente a Médico responsable, máximo una consulta por cita, originales vigentes y antecedentes aportados atómicos según backend. No dependencia circular nueva ni Service PHP/UI de laboratorio/asistencia instanciados.
+
+**Contratos y estados:** registro desde inicio según acción del servidor, sin Confirmada/fin/mismo día ni cambio automático a Atendida. IDs grandes como texto/UTC seis decimales copiados sin Date/toISOString; omitidos conservan/null explícito limpia opcional, sin trim silencioso. 422 por campo conocido conserva borrador y exige revisar/declarar otra vez; 409/419 y errores conocidos exigen nueva consulta de contexto; red/5xx/respuesta posterior incoherente mantienen incertidumbre, nunca reenvío automático. GET de recuperación no atribuye autoría ni acredita terminación/rollback de petición anterior. pagehide retira contenido/revisión/declaración y preserva solo riesgo si había envío; desmontaje/identidad aborta e ignora respuestas obsoletas. useBlocker/beforeunload sin guardar contenido en URL/state/storage.
+
+**Verificación/cierre local de Fase 3:** dirigida final 187 pruebas correctas (130 clínicas/57 navegación) en siete archivos; regresión global final nueva **2837/2837 correctas en 94 archivos**, aproximadamente 144s (`pnpm test --maxWorkers=4`), sin sumar ejecuciones. Build correcto con aviso de tamaño de chunk; once vistas Chrome con API simulada a 1440/390/320px sin overflow/excepciones y recuperación de envío simulado por GET. Incluye error de declaración vinculado, 401 durante POST y respuesta tardía tras abandono. No integración real ni correcciones. Control exclusivo: 754 archivos cotejados, 741 intactos, 13 existentes modificados/7 nuevos; backend/UML/DER y cuatro contenidos documentales históricos íntegros, UTF-8/cercas/diff-check correctos. Fuentes históricas/DER/UML operativo se preservan; no cierre de módulo que requiera promover participantes al modelo PHP selectivo. Contexto §17.167; Fase 4 y producción no iniciadas.
+
+<a id="cu22-frontend-fase2"></a>
+## CU-22 — Frontend Fase 2: lectura implementada (2026-10-29)
+
+**Incremento de lectura frontend implementado, sin cierre del módulo CU-22/CU-23.** Se concreta la frontera prevista de Fase 1/contexto §17.165; no se altera el backend cerrado §17.164 ni las vistas/procedimientos anteriores. Ver `frontend/README.md` y contexto §17.166 para alcance/verificación. Editor y servicio de escritura de CU-23 permanecen previstos, no archivos vacíos ni participantes promovidos a implementados.
+
+| Participante de interfaz efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| HistoriaClinicaPage | Coordina entrada por rol, paginación de consultas, identidad/antecedentes/listado. Administración reutiliza PatientsPage/PatientsTable con selección clínica; Médico sigue a su agenda; Paciente pide titular mediante consultarMiPerfil sin modificar sesión pública. |
+| ConsultaDetallePage | Lectura compartida de contexto de cita/consulta vigente nullable, antecedentes actuales y metadatos de estudios; pagina estudios, no consultas; retorno a cita o historia con rutas construidas localmente. |
+| VersionesClinicasPage | Vista compartida por tipo de histórico, solo Administrador/Médico; pagina versiones y muestra metadatos internos autorizados, sin restauración o modificación. |
+| ContenidoClinico, IdentidadClinica, FechaClinica | Componentes presentacionales por props: etiquetas clínicas, identidad mínima y fecha visible local sin reinterpretar la programación como hecho real; nulos desconocidos, saltos de línea y texto escapado por React. |
+| ClinicaQuery / useClinicaQuery | Estados de carga/error/listo, retiro de datos por identidad/recurso/página, secuencia/AbortController, pagehide/pageshow, Retry-After y reconsulta manual. Estado local sin persistencia clínica; Axios protege época de sesión. |
+| historiaClinica.service.js | Consume cuatro GET reales, valida identificadores/páginas/forma/coherencia y proyecta campos por rol; no decide relación asistencial ni escribe clínica. Descarta contexto editable/archivos/extras en esta fase. |
+| Router, RoleRoute, navigation, destinoSeguro y GuestRoute | Rutas y menú por rol/retorno seguro exacto clínico, sin conceder permiso sobre recurso; CU-23 sigue pendiente. Enlaces desde cita para A/M/P y ficha solo A, Recepción conserva recorrido administrativo sin pedir clínica. |
+
+**Flujo de lectura efectivo:** ruta protegida → Page → hook local → Service → Axios central sessionBound/cookies → HistoriaClinicaController/LeerHistoriaClinicaRequest → HistoriaClinicaService/Repositories/Models existentes → HistoriaClinicaResource/VersionClinicaResource → proyección explícita → componentes por props. Paciente entra por GET `/mi-perfil` antes de historia propia; no deduce PK desde Usuario ni conserva perfil completo en contexto clínico. Médico relacionado puede leer consultas de otros responsables por permiso del servidor; interfaz no crea selector médico general ni obtiene permisos de edición por leer. Los históricos requieren autorización también en servidor, no ocultamiento posterior con CSS.
+
+**Separación y errores:** cuatro GET, ninguna escritura clínica/CU-19/laboratorio nuevo. Originales BIGINT y fechas UTC seis decimales no se convierten para volver a enviarse; aquí solo se representan datos y se descarta `edicion`. Paginación de consultas/estudios/versiones independiente. 200 inválido no es vacío, 401 retira sesión, 403 no se confunde con logout, 404 no confirma existencia ajena, 419/red/5xx permiten GET manual, 422 orienta y 429 espera. Petición abandonada no actualiza otra identidad/recurso; BFCache obliga relectura. Sin persistencia/URL/state clínico/logs ni HTML inyectado.
+
+**Documentación acumulativa:** los participantes React no son clases de dominio PHP ni se incorporan al censo selectivo de 124 identidades. UML operativo/DER históricos se conservan, sin nuevas tablas/atributos/relaciones. No se cierra CU-23 ni se reemplaza la integración real de Fase 6 por tests de mocks/presentación. Fuentes históricas preservadas íntegramente.
+
+**Verificación final/cierre local de Fase 2:** dirigida 125 pruebas correctas (68 clínicas/57 navegación); regresión global final nueva **2775/2775 correctas en 91 archivos**, aproximadamente 145s (`pnpm test --maxWorkers=4`), build correcto con aviso de tamaño de chunk. Chrome con API simulada, nueve layouts de lectura sin overflow a 1440/390/320px, proyección propia y solo GET; no integración real. Control exclusivo de fase: baseline 742 archivos, 729 intactos, 13 existentes modificados/12 nuevos solo en feature clínica, backend/UML/DER y cuatro contenidos documentales históricos conservados. Contexto §17.166; no sumar conteos de ejecuciones distintas. Fases 3–6/frontend clínico completo/producción pendientes, sin iniciarlas automáticamente.
+
+<a id="cu22-cu23-frontend-fase1"></a>
+## CU-22/CU-23 — Frontend Fase 1: fronteras y colaboraciones previstas (2026-10-29)
+
+**Diseño documental terminado; frontend clínico aún no implementado.** Contexto §17.165 y `frontend/README.md` contienen bocetos escritorio/móvil, contratos efectivos, entradas por rol, estados y plan de verificación. Se preservan íntegros análisis y diagramas anteriores (incluidos P49–P52 y cierre backend §17.164); no se agregan clases de dominio, procedimientos ficticios ni se promueven participantes previstos a implementados.
+
+**Fronteras previstas, no clases PHP:** HistoriaClinicaPage coordinará identidad autorizada/antecedentes/lista de consultas; ConsultaDetallePage, vigente/contexto de cita/estudios; ConsultaEditorPage, alta o corrección explícitas con revisión; vista de versiones, lectura interna paginada. Componentes de feature presentan datos y callbacks; los compartidos MainLayout/PageHeading/FormField/FormSection/Alert/QueryMessage/Pagination/ConfirmationPanel se reutilizarán. No hay interfaz de edición global de antecedentes fuera de una atención real CU-23.
+
+**Control de interfaz previsto:** servicios `historiaClinica.service.js` y `consultaMedica.service.js` en `features/historia-clinica/services/` consumirán los seis endpoints existentes mediante `src/api/api.js`; proyección/payload explícitos, sesión ligada/abort y originales intactos, sin reglas clínicas autoritativas. Estado de peticiones/revisión/escritura incierta será local y descartable por identidad/recurso. Tests futuros en `features/historia-clinica/tests/` por responsabilidad. No se crean archivos vacíos ni otro Context de pacientes o diagnósticos.
+
+**Colaboración prevista CU-22:** ruta protegida/rol → entrada propia, selección administrativa reutilizada de CU-07 o cita de agenda médica propia → Page → Feature Service → Axios/cookies → cuatro GET existentes → HistoriaClinicaController/HistoriaClinicaService/Repositories/Resources efectivos. UsuarioAutenticadoResource no expone id_paciente: Paciente reutilizará `consultarMiPerfil`/GET `/mi-perfil`, proyectando solo ID para pedir historia propia, sin extender AuthContext ni deducir PK de Usuario. Médico no obtiene buscador de pacientes ajenos; relación asistencial se comprueba en servidor. Paciente solo vigente, sin pedir versiones internas; Recepción no carga clínica. Meta de historia pagina consultas, meta de detalle pagina estudios y cada histórico sus versiones. Laboratorio solo metadatos autorizados, sin simular descarga/publicación.
+
+**Colaboración prevista CU-23:** detalle GET fresco → `edicion.acciones/originales/impedimentos` → formulario por cita y actor → revisión/declaración real desmarcada inicialmente → POST 201 o PATCH 200 → ConsultaMedicaController/ConsultaMedicaService efectivos → lectura final autorizada. Usuario ejecutor y Médico responsable siguen distintos; guardar no llama a CU-19. IDs BIGINT/timestamps de seis decimales conservados literalmente; omitir conserva, null explícito limpia opcional. Motivo requerido solo para corrección efectiva; no-op se representa según `modificado=false`, nunca como replay. Conflicto exige nueva consulta/revisión y red/timeout no demuestra rollback: reconciliar mediante GET sin afirmar autoría ni reenviar ciegamente.
+
+**Alcance de esta actualización:** bocetos de expediente legible, controles de privacidad/sesión, retornos locales por allowlist y criterios de pruebas de las fases 2–6; no cierre funcional de CU-22/CU-23 frontend. Sin cambio de reglas VS-CLI-01–12, RF/RN, UML de clases operativas, DER, PHP, JSX, CSS, router/sidebar ni dependencias. Diagramas globales/persistencia se conservan porque no cambian clases operativas ni esquema. Implementación e integración requerirán autorización de las fases siguientes por separado.
+
+<a id="cu22-cu23-backend-fase6"></a>
+## CU-22/CU-23 — Backend Fase 6: integración y cierre acumulativo (2026-10-29)
+
+**Fase 6 y módulo backend CU-22/CU-23 cerrados localmente.** Se revisan P49–P52 contra seis endpoints reales y clases efectivas descritas en Fases 2–4; las 73 vistas/52 procedimientos/17 antecedentes y 76 bloques previos se conservan, sin crear procedimiento por una prueba. Fase 5 cerrada localmente con 2597/37392 correcta, evidencia histórica §17.163; no equivale a suite global de esta fase.
+
+**Colaboración integral efectiva:** React/UI no participa en esta fase. HTTP/cookies/CSRF → middleware de cuenta/rol/sesión → HistoriaClinicaController/LeerHistoriaClinicaRequest para cuatro lecturas o ConsultaMedicaController/RegistrarConsultaRequest/ActualizarConsultaRequest para escrituras → HistoriaClinicaService/ConsultaMedicaService → repositorios propios y seguridad/planificación/Médico/Cita/bitácora → Models/PostgreSQL → Resources mínimos. El escritor reutiliza lectura final dentro de transacción, no hay ciclo Service→Service. Motivo/snapshots quedan clínicos y bitácora solo actor/referencias/números. Administrador ejecutor no suplanta Médico responsable, Paciente solo vigente propia y Recepción sin lectura/edición clínica. No dependencia de laboratorio funcional P inexistente para devolver metadatos permitidos.
+
+**Prueba nueva ClinicaIntegracionTest:** 25/3842 correcta, 22,786 s/64 MB, primer intento. Matriz 3 reservantes × 2 autores de alta × 2 correctores × llegada opcional =24, más desactivación/reactivación de cuenta con nuevo login. Preparación funcional por APIs de catálogos/Médico/sala/asignación/horario/invitación/aceptación/login/habilitación/reserva, luego lectura anticipada/alta desde inicio, inactivación profesional real sin perder atención asignada, consulta incompleta/primer antecedente, correcciones/motivo/versiones/no-op/revisión/originales, CU-19 separado y corrección documental posterior, auditoría segura, lectura de Paciente/histórico interno/roles, nuevo login/GET sin replay. Identidades verificadas/ficha vinculada y aviso previo son fixtures; no CU-04/CU-28/laboratorio nuevos. Reconciliación lógica de commit conocido, no corte de red real. Esquema aleatorio PostgreSQL/35 migraciones/commits reales/afterCommit, Mail::fake/HTTP externo impedido, teardown solo propio; sin base habitual.
+
+**Revisión UML y persistencia:** diagrama-clases §15 integra tres vistas nuevas conservando 21 anteriores; 474 firmas propias/81 clases operativas cotejadas por reflexión, 239 participaciones de inyección/183 aristas distintas, cero ciclos Service→Service. Índice vigente 124 identidades/108 E/15 P+Sesion R. Todos los métodos propios públicos/privados/constructores de las seis clases clínicas y BitacoraRepository concretados; Request/Resources auxiliares fuera del modelo selectivo. 24 PlantUML verificados/renderizados a SVG local, tres PNG inspeccionados, requieren zoom; ni render remoto ni reescritura histórica. DER contrastado con Models/migraciones y protegido: sin cambio de entidades/atributos/FK/UQ/triggers, máximo una consulta por cita, versiones inmutables y origen/autor legítimos. No nuevos RF/RN ni clase/tabla HistoriaClinica.
+
+**Cierre verificado:** suite global final nueva **3828 pruebas/55111 aserciones correctas**, 27 min 12,393 s/498 MB, incluye integración/concurrencia sin sumar dirigidas. Inventario PostgreSQL pre/post dos esquemas/doce tablas/public vacío conservado. Controles finales correctos de 674 archivos protegidos/un test nuevo/siete documentos, sintaxis/UTF-8/PSR-4/Pint de 26 PHP acumulados/Composer/cercas/anclas/diff-check, seis endpoints clínicos y 84 rutas API únicas; UML cotejado de nuevo sin ciclos y fuentes históricas intactas. Resultado/comando en contexto §17.164/README. Fuente editable acumulativa en Markdown, recursos externos solo temporales aprobados. **Seis fases backend cerradas localmente; frontend clínico/producción/otros módulos no iniciados.**
+
+<a id="cu22-cu23-backend-fase5"></a>
+## CU-22/CU-23 — Backend Fase 5: verificación de seguridad y concurrencia (2026-10-29)
+
+**Cierre local confirmado:** regresión ampliada final 2597/37392 correcta, 20 min 17,889 s/436 MB, incluidos 226 casos finales; inventario aislado pre/post conservado, controles de 672 archivos protegidos/tres PHP/seis Markdown/rutas/cercas/anclas correctos. Misma estructura/76 bloques de análisis/148 UML intactos, sin nueva vista por prueba. No suite global. Las notas de ejecución siguientes conservan su alcance histórico; evidencia §17.163, Fase 6 autorizada posteriormente.
+
+**Pruebas ampliadas en curso; no clases productivas ni procedimiento nuevo.** RN12/RN14 y VS-CLI-01–12 sin cambio. P49–P52 efectivos/diseños conservan 73 vistas/52 procedimientos/17 antecedentes; 76 bloques cercados previos intactos. La concurrencia observa las mismas colaboraciones Controller/Request → Service → Repository → Models/PostgreSQL, no justifica inventar entidades o sustituir análisis histórico.
+
+- **ClinicaConcurrenteTest** orquesta procesos independientes, cookies/sesión/CSRF y esquemas PostgreSQL propios, alta inicial por API real cuando corresponde y verificación SQL de solo su fixture. Espera de lock observada, no inferida de retardos; dos escritores y lector ante commit/rollback, versiones/números/origen/autoría, citas/avisos y eventos íntegros.
+- **PausarEscrituraPlanificacionRepository** amplía tres métodos de bitácora clínica: ejecuta persistencia real y una barrera por operación, aun con dos bloques; confirmar continúa flujo real o fallo simulado revierte todo. **autenticacion-worker** reutiliza gestion-http y la barrera posterior a middleware para rutas clínicas por cita/Paciente; Mail::fake y HTTP externo bloqueado.
+- **RelojTrasPlanificacionRepository/PausarConsultaAgenda** se reutilizan sin cambios, respectivamente reloj determinista después de lock y barrera antes de Controller. No modificación de código productivo ni sustitución de reglas por mocks.
+- **Seguridad:** seis operaciones/todos sus roles válidos revalidados tras cuenta bloqueada y cambios confirmados/revertidos de estado/rol/sesión/hash/vínculo/dualidad; ámbito del Médico tras planificación, sin convertir mera lectura en escritura. Lector Paciente vigente sin metadatos internos.
+- **Consistencia:** alta única, versiones protegidas/no-op/originales obsoletos y antecedentes desde consultas de distintos Médicos; cruces reales con asistencia/gestión y duración. Registro clínico nunca marca Atendida ni altera programación/avisos; CU-19 independiente. Cambio de relación bajo protocolo es fixture SQL, no reasignación clínica nueva. No garantías ante SQL arbitrario fuera del protocolo.
+
+**Evidencia/estado:** ensayo de carga inicial falló por helper result() final de PHPUnit, corregido a resultado() antes de ejecutar pruebas. Selección de escritores 20/1040 correcta, 20,211 s/58 MB, previa al refuerzo de autoría/origen y duración. Batería completa/regresión ampliada, consumidores del worker, controles e inventario finales pendientes en contexto §17.163/README; no suite global ni suma de ejecuciones. Fixtures/relojes de participantes/cortes documentados no prometen historia de pared para toda preparación. Fuentes UML/DER intactas, censo selectivo sin clases nuevas; análisis estructural/cierre integral en Fase 6. **No iniciar Fase 6.**
+
+<a id="cu23-backend-fase4"></a>
+## CU-23 — Backend Fase 4: corrección clínica y antecedentes efectivos (2026-10-28)
+
+**Fase 4 cerrada localmente, no cierre integral del módulo.** PN18/ampliación clínica con RN12/RN14 y VS-CLI-05/08/12, sin nuevos requisitos/reglas. P52 efectivo complementa el previsto: **73 vistas acumuladas, 52 procedimientos y 17 antecedentes**. Conserva las 72 vistas anteriores y cuatro diseños de Fase 1, sin reemplazar el análisis histórico. Fases 5–6/frontend/producción pendientes.
+
+| Clase efectiva | Responsabilidad/colaboración |
+| --- | --- |
+| ConsultaMedicaController.actualizar | Adapta PATCH/validated() y devuelve HistoriaClinicaResource/200; no consultas ni reglas clínicas |
+| ActualizarConsultaRequest → RegistrarConsultaRequest | Reutiliza ID/originales/declaración/longitudes/arrays cerrados; PATCH parcial y motivo opcional estructural, consulta/versión originales obligatorias |
+| ConsultaMedicaService.actualizar / registrar / guardar privado | Flujo transaccional común sin duplicación por rol: recurso/sesión/originales/atención/estado, mezcla y comparación, motivo efectivo, versionado por bloque/no-op, auditoría y respuesta revalidada |
+| ConsultaMedicaRepository.agregarVersion / agregarAntecedentes | Inserciones inmutables con número/motivo del Service; parámetros opcionales conservan alta versión 1/motivo null, sin UPDATE de snapshots |
+| HistoriaClinicaService / Repository y CitaRepository / MedicoRepository / PlanificacionRepository | Lectura delimitada/originales/acción actualizar, coordinación de padres/recursos existentes; el escritor reutiliza lectura final sin ciclo |
+| HistoriaClinicaResource / VersionClinicaResource | Respuesta explícita, modificado solo para PATCH y snapshots clínicos protegidos; vigente únicamente para Paciente |
+| BitacoraRepository / ReferenciasBitacora / BitacoraDetalleResource | CONSULTA_ACTUALIZADA y ANTECEDENTES_ACTUALIZADOS atómicos por bloque; números/referencias sin datos o motivo clínicos |
+| AutenticacionService / ContinuidadAdministrativaService y Models existentes | Revalidación y persistencia previas, mismos actores/entidades/esquema; Usuario ejecutor separado de Médico responsable |
+
+### P52 — Vista efectiva de corrección parcial, versiones por bloque y no-op autorizado
+
+```mermaid
+classDiagram
+    direction LR
+    class FronteraCorreccionE52["ConsultaMedicaController · ActualizarConsultaRequest"] {
+        <<boundary>>
+        +actualizar()
+    }
+    class ControlCorreccionE52["ConsultaMedicaService"] {
+        <<control>>
+        +actualizar()
+        -guardar()
+        -identidad()
+        -revalidar()
+    }
+    class DatosCorreccionE52["ConsultaMedicaRepository"] {
+        <<repository>>
+        +porCitaBloqueada()
+        +referenciaAntecedente()
+        +agregarVersion()
+        +agregarAntecedentes()
+    }
+    class LecturaCorreccionE52["HistoriaClinicaService · HistoriaClinicaResource"] {
+        <<boundary_control>>
+        +consulta()
+    }
+    class AuditoriaCorreccionE52["BitacoraRepository"] {
+        <<repository>>
+        +consultaActualizada()
+        +antecedentesActualizados()
+    }
+    class VersionesCorreccionE52["VersionConsulta · VersionAntecedente"] {
+        <<entity>>
+    }
+    FronteraCorreccionE52 --> ControlCorreccionE52
+    ControlCorreccionE52 --> DatosCorreccionE52
+    ControlCorreccionE52 --> LecturaCorreccionE52
+    ControlCorreccionE52 --> AuditoriaCorreccionE52
+    DatosCorreccionE52 --> VersionesCorreccionE52
+```
+
+Vista simplificada de métodos/participantes propios; cajas compuestas no son nuevas clases PHP ni expansión transitiva exhaustiva. Contexto GET sigue en HistoriaClinicaService, no nuevo Controller/ruta por rol. ActualizarConsultaRequest hereda estructura de alta y concreta obligatoriedad/presencia parcial; no introduce DTO de negocio ni dependencia HTTP en el Service.
+
+**Flujo/garantías:** continuidad → actor normal/planificación → referencia acotada → Médico → Paciente → Cita releída/acotada → Consulta padre bloqueado → vigentes/originales/revalidación → declaración y mezcla → revalidación/reloj fresco/estado/atención → motivo obligatorio solo si cambio efectivo → snapshots por bloque/eventos → lectura final/revalidación → commit. No-op recorre permisos/originales/atención/estado y devuelve modificado false sin INSERT/UPDATE de dominio ni bitácora; nunca acepta originales obsoletos como replay. PATCH sin consulta 404, incoherencia/versiones obsoletas 409, validación/motivo 422; errores centrales seguros. Los padres protegen versión+1 incluso ante ausencia de antecedentes y conservan originales entre distintas atenciones; carreras multiproceso ampliadas se verificarán en Fase 5.
+
+**Contenido/historia:** omitido conserva, null explícito borra opcionales, obligatorios presentes no vacíos. Snapshots completos solo para bloques cambiados, razón/autor/fecha y número máximo controlado, sin sobrescritura de versiones ni duplicar consulta. Antecedentes con origen de la misma cita real y Paciente; cambios desde otra atención invalidan formulario previo aunque solo se envíe consulta. Paciente ve vigente corregida sin motivo/autor/edición/versiones previas, independientemente de completitud. Bitácora solo números/referencias, nunca motivo/contenido. Cita/estado/programación/fechas/CambioCita/avisos permanecen intactos y CU-19 separado.
+
+**Pruebas/cierre:** dirigida inicial ActualizarConsultaTest 72/894 correcta; once casos añadidos después completan 83 casos finales incluidos en regresión ampliada posterior a Pint **1628 pruebas/14590 aserciones correctas**, 6 min 3,044 s/194 MB. No sumar ejecuciones ni suite global. Alta real preparatoria, fixtures explícitas para avisos/estados/versión máxima; callbacks de fallo/revocación no prueban multiproceso. Matriz añade PATCH/ocho combinaciones y pruebas anteriores solo actualizan disponibilidad de edición. Pint/Composer/sintaxis/UTF-8/PSR-4 de 15 PHP, siete Markdown/cercas/anclas/diff-check correctos. 658 archivos protegidos y 75 bloques previos de análisis/148 UML conservados, trece existentes/dos nuevos previstos; 84 rutas API únicas/cuatro GET y dos escrituras clínicas, reflexión de 31 Services sin ciclos/métodos cotejados. Inventario PostgreSQL pre/post dos esquemas/doce tablas/public vacío conservado. Evidencia/comando en contexto §17.162/README. DER sin cambios; nota incremental UML conserva fuentes históricas sin render nuevo, revisión estructural acumulativa en Fase 6. **No iniciar Fase 5.**
+
+<a id="cu23-backend-fase3"></a>
+## CU-23 — Backend Fase 3: contexto de alta y registro efectivo (2026-10-28)
+
+**Fase 3 cerrada localmente, no CU-23 completo.** RN12/RN14 y ampliación clínica/PN18; reglas VS-CLI-02–06/08/11/12 sin modificarlas. P50/P51 efectivos se agregan como dos vistas a las 70 anteriores: **72 vistas, 52 procedimientos y 17 antecedentes**. Las cuatro previstas de Fase 1 y la lectura efectiva de Fase 2 permanecen intactas; P52 y corrección posterior siguen previstos. No nuevos identificadores de procedimiento por concretar vistas previas.
+
+| Participante real | Responsabilidad y colaboración |
+| --- | --- |
+| HistoriaClinicaController / LeerHistoriaClinicaRequest / HistoriaClinicaService | GET consulta reutilizado; lectura autorizada y, solo para Administrador/Médico responsable, originales de cita/consulta/versiones y elegibilidad de registrar. Paciente/Médico meramente relacionado sin contexto editable |
+| ConsultaMedicaController / RegistrarConsultaRequest | Adaptación HTTP POST/201 y validación cerrada/anidada/IDs/null explícitos/fecha exacta/booleano true/límites de contenido. Sin decisión clínica en Controller |
+| ConsultaMedicaService | Autoriza rol/recurso propio, coordina locks y originales, declara atención real y reloj fresco desde inicio, crea consulta/snapshot 1 y antecedentes aportados efectivos, audita y materializa lectura dentro de la misma transacción |
+| ConsultaMedicaRepository | Consulta padre bloqueada por cita/Paciente, referencia de versión de antecedentes, inserción Eloquent de consulta/versión/antecedentes. UUID servidor y persistencia, no decide permiso/estado/plazo |
+| HistoriaClinicaRepository / CitaRepository / MedicoRepository / PlanificacionRepository | Lectura clínica acotada/vigente, cita filtrada y releída bajo lock, recursos existentes y coordinación compartida; no nuevas capas paralelas |
+| AutenticacionService / ContinuidadAdministrativaService | Sesión/rol/vínculo revalidados y coordinación administrativa existente, sin suplantación |
+| HistoriaClinicaResource / VersionClinicaResource | Proyección explícita del detalle de lectura/alta y bloque edicion cuando autorizado; privados no-store, IDs texto/UTC con microsegundos |
+| BitacoraRepository / ReferenciasBitacora / BitacoraDetalleResource | Eventos atómicos CONSULTA_REGISTRADA/ANTECEDENTES_ACTUALIZADOS, filtros/referencias/números seguros, jamás contenido clínico o motivos |
+| ConsultaMedica / VersionConsulta / VersionAntecedente / Cita / Paciente / Usuario | Models E existentes y FK/UQ/triggers sin cambio; ejecutor Usuario distinto de Médico responsable derivado de Cita |
+
+### P50 — Vista efectiva del contexto de registro por cita
+
+```mermaid
+classDiagram
+    direction LR
+    class FronteraContextoE50["HistoriaClinicaController · LeerHistoriaClinicaRequest"] {
+        <<boundary>>
+        +consulta()
+    }
+    class ControlContextoE50["HistoriaClinicaService"] {
+        <<control>>
+        +consulta()
+        -leer()
+    }
+    class PersistenciaContextoE50["HistoriaClinicaRepository · ConsultaMedicaRepository"] {
+        <<repository>>
+        +referenciaAntecedente()
+    }
+    class SalidaContextoE50["HistoriaClinicaResource"] {
+        <<boundary>>
+        +toArray()
+    }
+    FronteraContextoE50 --> ControlContextoE50
+    ControlContextoE50 --> PersistenciaContextoE50
+    FronteraContextoE50 --> SalidaContextoE50
+```
+
+El contexto conserva GET lectura CU-22 en vez de crear otro GET/Controller por rol. Incluye originales explícitos y registrar según consulta ausente/estado/inicio; actualizar sigue no disponible. Es orientativo: no reserva ni acredita atención real, siempre se revalida al guardar. Profesional relacionado por otra cita puede leer pero no escribir ni obtener contexto. Consulta/antecedente desconocidos se expresan null, sin inventar hechos.
+
+### P51 — Vista efectiva de alta transaccional de consulta y antecedentes aportados
+
+```mermaid
+classDiagram
+    direction LR
+    class FronteraAltaE51["ConsultaMedicaController · RegistrarConsultaRequest"] {
+        <<boundary>>
+        +registrar()
+    }
+    class ControlAltaE51["ConsultaMedicaService"] {
+        <<control>>
+        +registrar()
+        -identidad()
+        -revalidar()
+    }
+    class DatosAltaE51["ConsultaMedicaRepository"] {
+        <<repository>>
+        +porCitaBloqueada()
+        +referenciaAntecedente()
+        +crear()
+        +agregarVersion()
+        +agregarAntecedentes()
+    }
+    class LecturaAltaE51["HistoriaClinicaService"] {
+        <<control>>
+        +consulta()
+    }
+    class AuditoriaAltaE51["BitacoraRepository"] {
+        <<repository>>
+        +consultaRegistrada()
+        +antecedentesActualizados()
+    }
+    class EntidadesAltaE51["ConsultaMedica · VersionConsulta · VersionAntecedente"] {
+        <<entity>>
+    }
+    FronteraAltaE51 --> ControlAltaE51
+    ControlAltaE51 --> DatosAltaE51
+    ControlAltaE51 --> LecturaAltaE51
+    ControlAltaE51 --> AuditoriaAltaE51
+    DatosAltaE51 --> EntidadesAltaE51
+```
+
+Vistas simplificadas de participantes propios; cada caja compuesta no es una clase PHP nueva ni catálogo transitivo exhaustivo. Service→Service real: ConsultaMedicaService → HistoriaClinicaService, nunca dependencia circular; lectura no depende de escritor, solo de su Repository para referencias de versión.
+
+**Flujo:** continuidad/actor → planificación → referencia acotada → Médico → Paciente → Cita releída/acotada → Consulta padre → originales/versiones y revalidación → declaración true/contenido permitido → revalidación/reloj fresco/estado/plazo → inserción consulta/versión 1/antecedentes efectivos → eventos → lectura final revalidada → commit. Cita controla unicidad antes de existir consulta y Paciente serializa antecedentes entre distintas citas; UQ PostgreSQL última barrera. El reloj del guardado no sustituye hora real: iniciada_en queda NULL. Paciente/Médico responsable derivados de Cita, autor Usuario real. Ficha/catálogos/profesional inactivos no eliminan asignaciones; cuenta desactivada sí impide operar.
+
+**Versiones/alternativos:** alta sin motivo de corrección, primera versión de consulta completa con opcionales NULL. Antecedentes omitidos/iguales/desconocidos no generan versión; cambios iniciales aportados se combinan con previos, preservando anteriores y origen real. Cambio de originales de cualquier atención obliga revisión/409; repetir alta no es replay ni crea segunda consulta. Máximo INTEGER controlado. No modificación de Cita/avisos/CambioCita ni Atendida automática; CU-19 separado. Históricos/autor/motivo nunca al Paciente ni contenido a bitácora general. Escritos posteriores, motivo/no-op de corrección y PATCH siguen Fase 4. Rechazos 401/403/404/409/419/422 y 500 seguro mediante manejador central.
+
+**Verificación/cierre:** dirigida nueva **101 pruebas/777 aserciones correctas**; regresión ampliada posterior a Pint **1537/13564 correctas**, 6 min 16,320 s/170 MB, no suite global ni suma de ejecuciones. Incidencias/comando exacto en contexto §17.161/README: expectativa de CSRF ajustada sin cambio de seguridad, ensayo conjunto con timeout no se presenta como correcto. Pint/Composer/sintaxis/UTF-8/PSR-4 de 15 PHP y siete Markdown/cercas/anclas/diff-check correctos. 656 archivos protegidos, contenido previo de matriz/negativa de bitácora y 73 bloques históricos de análisis/148 UML conservados; diez archivos existentes/cinco nuevos previstos. Reflexión de 31 Services sin ciclos y métodos propios nuevos cotejados; cuatro rutas GET/HEAD y un POST clínicos únicos/83 rutas API. Inventario PostgreSQL pre/post conservado: dos esquemas/doce tablas/public vacío. Fixtures clínicas previas/avisos son preparación declarada, no flujo de corrección/laboratorio/generación. Callbacks de esperas/revocación no prueban carreras multiproceso; Fase 5 pendiente. DER sin cambios de persistencia; UML nota incremental conserva fuentes históricas sin render nuevo, revisión estructural completa al cerrar módulo. **No iniciar Fase 4.**
+
+<a id="cu22-backend-fase2"></a>
+## CU-22 — Backend Fase 2: lectura clínica efectiva (2026-10-28)
+
+**Fase 2 cerrada localmente; P49 efectivo verificado, CU-23/P50–P52 escritura siguen previstos.** Son cuatro GET/HEAD sin escritura clínica. Esta vista efectiva complementa las cuatro previstas de Fase 1, no las sustituye: 70 vistas totales (65 históricas + cuatro previstas + una efectiva), 52 procedimientos y 17 antecedentes. RN12/RN14/perfil del Paciente y VS-CLI-01/07/09/10, sin nuevos RF/RN/reglas funcionales.
+
+### Participantes efectivos y colaboración
+
+| Clase/archivo real | Responsabilidad |
+| --- | --- |
+| HistoriaClinicaController | Cuatro adaptadores HTTP historia/consulta/versionesConsulta/versionesAntecedentes; recibe validated() y delega |
+| LeerHistoriaClinicaRequest | ID BIGINT de ruta, page/per_page acotados; rechaza extras/query de ámbito, cuerpos y formatos inválidos |
+| HistoriaClinicaService | Ámbito servidor por rol/vínculo/relación; coordina transacción/seguridad/locks, materializa lecturas y revalida identidad/relación antes de devolver. Valida coherencia de publicación para metadatos de estudios |
+| HistoriaClinicaRepository | Consultas SQL/Eloquent acotadas por Paciente: referencia/cita/relación/antecedente vigente/consultas/resumen/versión vigente/históricos/estudios. No decide rol ni publica documentos |
+| HistoriaClinicaResource | Forma explícita data/meta de las cuatro vistas; identidad mínima, resumen sin diagnóstico completo, detalle permitido y estudios sin archivos; no-store |
+| VersionClinicaResource | Campos clínicos de snapshot + IDs/UTC/microsegundos; añade autor/motivo/origen solo en ámbito interno construido por Service, no por query del cliente |
+| AutenticacionService / ContinuidadAdministrativaService / PlanificacionRepository / MedicoRepository | E reutilizados, misma coordinación de cuenta/sesión/planificación/profesionales que módulos anteriores; no reglas de clínica en middlewares |
+| Paciente / Cita / ConsultaMedica / VersionConsulta / VersionAntecedente y Models de laboratorio | Persistencia E reutilizada sin cambios; no entidad HistoriaClinica ni nuevas migraciones |
+
+### P49 — Vista efectiva de historia, detalle y versiones autorizadas
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorHistoriaE49["Administrador · Médico relacionado · Paciente titular"] {
+        <<actor>>
+    }
+    class FronteraHistoriaE49["LeerHistoriaClinicaRequest · HistoriaClinicaController"] {
+        <<boundary>>
+        +historia()
+        +consulta()
+        +versionesConsulta()
+        +versionesAntecedentes()
+    }
+    class ControlHistoriaE49["HistoriaClinicaService — efectivo"] {
+        <<control>>
+        +consultar()
+        +consulta()
+        +versionesConsulta()
+        +versionesAntecedentes()
+        -leer()
+        -identidad()
+        -autorizar()
+    }
+    class DatosHistoriaE49["HistoriaClinicaRepository — efectivo"] {
+        <<repository>>
+        +paciente()
+        +referenciaCita()
+        +cita()
+        +relacionMedica()
+        +consultas()
+        +consulta()
+        +antecedentes()
+        +versionConsulta()
+        +historialConsulta()
+        +historialAntecedentes()
+        +estudios()
+    }
+    class SalidaHistoriaE49["HistoriaClinicaResource · VersionClinicaResource"] {
+        <<boundary>>
+        +toArray()
+        +with()
+        +withResponse()
+    }
+    ActorHistoriaE49 --> FronteraHistoriaE49
+    FronteraHistoriaE49 --> ControlHistoriaE49
+    ControlHistoriaE49 --> DatosHistoriaE49
+    FronteraHistoriaE49 --> SalidaHistoriaE49
+```
+
+Vista simplificada de participantes/métodos propios efectivos, no expansión transitiva de todas las llamadas de seguridad ni clase PHP adicional por caja. Histogramas P49–P52 previos permanecen como diseño; contexto editable P50 todavía no se implementa. GET consulta de esta fase lo sirve HistoriaClinicaController/Service como lectura CU-22; no crear ConsultaMedicaController/Service vacíos para anticipar Fase 3.
+
+**Flujo principal:** middleware de sesión/rol → ID/filtros validados → continuidad → actor bloqueado → planificación → Médico(s) ordenados sin perder precisión de IDs → Paciente → Cita si detalle. Primero autorizar con relación propia Programada/Confirmada/Atendida o vínculo titular, luego recuperar texto con ámbito SQL de Paciente. Médico relacionado puede leer una consulta de otro profesional del mismo Paciente; no habilita escritura. Revalidar identidad/sesión y relación después de materializar datos, antes de salir. Cuenta/ficha/profesional son estados independientes; inactividad de ficha/profesional no rechaza por sí sola lecturas ya autorizadas. Administración usa permiso explícito sin suplantar al Médico.
+
+**Proyección:** historia muestra antecedentes vigentes y consultas paginadas por inicio de cita/ID descendentes; detalle consulta vigente y antecedentes/estudios; históricos paginados por versión descendente solo internos. Paciente no consulta columnas de autor/motivo_cambio ni recibe origen interno/historial/contexto editable; vigente incompleto permitido y desconocidos NULL. Paginación page/per_page de detalle se concreta para estudios, no para versiones ni nuevas escrituras. Resumen no arrastra diagnóstico/síntomas completos, CI/contactos/nacimiento/motivo de reserva. Antecedente cuyo origen no corresponde al Paciente se excluye; si es la mayor versión no se presenta una menor como vigente. BIGINT texto/UTC seis decimales/no-store y HEAD vacío.
+
+**Laboratorio:** Repository une solo estudios de esa consulta/Paciente y punteros coherentes, Service comprueba Disponible/Autorizar/versión actual-mayor/revisor responsable según esquema vigente. Paciente ve Pendiente hasta publicación coherente; internos ven estado real sin metadata documental incoherente. Resource solo entrega estudio/fecha/estado/número/fecha de publicación; no rutas/nombres/hashes/IDs de documento/revisión/bytes ni enlaces de descarga. Lectura CU-22 no implementa carga/revisión/CU-27 ni soluciona autoría administrativa futura de laboratorio.
+
+**Alternativos/errores:** ajeno/inexistente 404 neutro, Recepción 403 y Paciente históricos 403; sesión ausente/revocada/desactivada 401, restricción legítima 403. Extras/cuerpo/filtros/ID inválidos 422, verbos de escritura 405; 500 central seguro. Sin consulta o antecedentes: null/colección vacía, nunca crear al abrir ni inventar hechos. GET no modifica Cita/versiones/CambioCita/avisos/bitácora clínica; las sesiones sí mantienen su infraestructura normal. No originales/acciones de edición hasta fases de escritura, evitando anunciar capacidad inexistente.
+
+**Verificación dirigida nueva:** HistoriaClinicaTest (87 casos con esquemas PostgreSQL propios) + MatrizPermisosBackendTest ampliada en 30 combinaciones de las cuatro rutas → **656 pruebas/3449 aserciones correctas**, 34,614 s/92 MB, antes del formateo sin cambios semánticos; Pint/sintaxis de diez PHP y Composer validate correctos. Primer intento detenido en 61/594 por expectativa errónea: cambiar marca de clave obligatoria sin sesión temporal válida invalida con 401; se conserva rechazo y se agrega emisión/login restringido real para 403. No cambio de autenticación productiva ni relajación. Laboratorio/versiones son fixtures de solo preparación, no flujos CU-23/CU-26. Callbacks de revocación/revalidación no son concurrencia multiproceso. Regresión ampliada posterior correcta: **1117 pruebas/8966 aserciones**, 3 min 22,081 s/132 MB; incluye dirigida, no suite global ni pruebas frontend. Inventario aislado dirigido/ampliado pre/post dos esquemas/doce tablas/public vacío conservado. Controles finales de UTF-8/PSR-4/alcance, matriz previa, cuatro rutas únicas de lectura y registro único correctos; 659 archivos protegidos/68 bloques históricos de análisis/148 bloques UML conservados, ocho archivos nuevos previstos. DER sin cambio físico, fuentes UML previas intactas con nota incremental; cierre integral del módulo y estructura global se revisarán en Fase 6. **No iniciar Fase 3.**
+
+<a id="cu22-cu23-backend-fase1"></a>
+## CU-22/CU-23 — Backend Fase 1: diseño clínico autorizado (2026-10-28)
+
+**Diseño P, no implementación:** se agregan cuatro vistas previstas P49–P52 a las 65 vistas anteriores intactas: 69 vistas totales, 52 procedimientos (P01–P52) y 17 antecedentes. No 69 procedimientos ni métodos PHP nuevos. Backend/README contiene los seis contratos HTTP previstos, payloads cerrados, proyecciones, coordinación, errores y matriz de pruebas; contexto §17.159. CU-22/CU-23 son ampliación clínica aprobada y perfil del Paciente, con RN12/RN14; no se modifica el examen ni se declaran completas las fases 2–6.
+
+**Decisiones confirmadas por el responsable:** Paciente ve versiones vigentes propias, incluso consultas guardadas incompletas, sin historial/motivos internos; Médico con cita propia Programada/Confirmada/Atendida lee historia del Paciente incluso antes del inicio, sin caducidad adicional y sin habilitación por Cancelada/Inasistencia solas. Alta CU-23 desde inicio vigente + declaración de atención real iniciada/realizada (no atención terminada CU-19); corrección efectiva posterior exige motivo y versión nueva. No-op válido devuelve vigente sin nueva versión/evento, siempre después de autorización y originales actuales.
+
+### Participantes y estado real
+
+| Participante | Estado / responsabilidad |
+| --- | --- |
+| HistoriaClinicaController / Service / Repository | P, candidatos ya incluidos en UML: HTTP/ámbito clínico/lecturas filtradas y proyección por rol; no entidad HistoriaClinica |
+| ConsultaMedicaController / Service / Repository | P, apertura de contexto/alta/corrección atómicas de misma consulta y anexado de snapshots; no setter de estado de Cita |
+| Requests y Resources de historia/consulta | P, en dtos/historia_clinica; formatos/allowlists y salida explícita. No clases vacías ni nombres definitivos inventados como existentes |
+| ConsultaMedica / VersionConsulta / VersionAntecedente | E, persistencia ya disponible: consulta única por cita y versiones inmutables con autor Usuario/origen; no funcionalidades CU-22/CU-23 ejecutadas por existir los Models |
+| AutenticacionService / ContinuidadAdministrativaService / PlanificacionRepository / CitaRepository / MedicoRepository | E reutilizables; coordinación de cuenta/rol/sesión/vínculo/planificación/Médico/cita y revalidación posterior a esperas |
+| BitacoraRepository / ReferenciasBitacora / Resources de bitácora / RespuestaError | E con ampliaciones P para eventos/referencias/códigos clínicos seguros; sin volcar contenido ni motivos a bitácora |
+| Paciente / Cita / Medico / Usuario | E; identidades y relaciones fuente de verdad. No duplicar Paciente/Médico en ConsultaMedica ni confundir sus PK con Usuario |
+| Modelos de laboratorio existentes | E de persistencia, lectura mínima prevista en CU-22 según publicación vigente; flujos/servicios/descargas CU-24–CU-27 aún P |
+
+Subcarpetas historia_clinica en controllers/dtos/services/repositories, conforme al diseño previo. Firmas preliminares P de UML (`guardar`, constructor dependiente de ResultadoLaboratorioService P) son antecedentes; se concretarán con abrir/registrar/actualizar y sin dependencia obligatoria de un servicio inexistente. No introducir capa artificial ni nuevo Service clínico dentro de las carpetas de agenda/usuarios.
+
+### P49 — Consultar historia clínica y versiones permitidas (CU-22, previsto)
+
+```mermaid
+classDiagram
+    direction LR
+    class ActorHistoriaP49["Administrador · Médico relacionado · Paciente titular"] {
+        <<actor>>
+    }
+    class FronteraHistoriaP49["Frontera HTTP prevista — historia y detalle"] {
+        <<boundary>>
+        String idPaciente
+        Integer page
+        Integer per_page
+    }
+    class ControlHistoriaP49["Control previsto — HistoriaClinicaService"] {
+        <<control>>
+        +consultar()
+        -comprobarAmbito()
+        -proyectarPorRol()
+    }
+    class DatosHistoriaP49["Datos previstos — HistoriaClinicaRepository"] {
+        <<repository>>
+        +relacionMedica()
+        +antecedentes()
+        +consultas()
+        +versionConsulta()
+    }
+    class EntidadesHistoriaP49["Models existentes — Paciente, Cita, ConsultaMedica y versiones"] {
+        <<entity>>
+    }
+    ActorHistoriaP49 --> FronteraHistoriaP49
+    FronteraHistoriaP49 --> ControlHistoriaP49
+    ControlHistoriaP49 --> DatosHistoriaP49
+    DatosHistoriaP49 --> EntidadesHistoriaP49
+```
+
+**Colaboración:** sesión/rol/vínculo → ámbito construido por servidor → relación comprobada antes de recuperar texto → antecedentes vigentes y consultas paginadas con detalle autorizado. Administración no suplanta a Médico; Médico relacionado puede leer atenciones de otros profesionales del mismo Paciente, pero no modificarlas. Paciente solo versión vigente propia: no contexto editable ni motivos/autoría interna/versiones anteriores, aunque la consulta esté incompleta. GET históricos se reservan a Administrador/Médico con ámbito clínico, paginados; Recepción/Paciente reciben 403. Ajeno/inexistente, 404 neutro. Sin historia/antecedentes: null/colección vacía, no inventar «sin alergias». Laboratorio solo metadatos permitidos, sin bytes/rutas/enlaces inventados ni servicio futuro simulado.
+
+### P50 — Abrir consulta/contexto de edición de una cita (CU-23, previsto)
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresContextoP50["Administrador · Médico responsable"] {
+        <<actor>>
+    }
+    class FronteraContextoP50["Frontera HTTP prevista — consulta por cita"] {
+        <<boundary>>
+        String idCita
+    }
+    class ControlContextoP50["Control previsto — ConsultaMedicaService"] {
+        <<control>>
+        +abrir()
+        -validarResponsable()
+        -revalidarSesion()
+    }
+    class DatosContextoP50["Repositorios previstos y reutilizados"] {
+        <<repository>>
+        +coordinar()
+        +porIdParaAsistencia()
+        +porCita()
+        +ultimoAntecedente()
+    }
+    class ContextoConsultaP50["Cita y versiones vigentes existentes"] {
+        <<entity>>
+    }
+    OperadoresContextoP50 --> FronteraContextoP50
+    FronteraContextoP50 --> ControlContextoP50
+    ControlContextoP50 --> DatosContextoP50
+    DatosContextoP50 --> ContextoConsultaP50
+```
+
+**Colaboración:** GET por cita entrega null si no hay consulta, o la vigente; contexto de edición solo a Administrador/Médico responsable. Ese mismo recurso puede leerse por CU-22 con proyección titular/relación y sin edición. Originales obligatorios del contexto: versión/timestamp exacto de Cita e IDs actuales de consulta/VersionConsulta/VersionAntecedente, null explícito cuando no existen. Apertura no crea consulta ni reserva el alta. Lecturas revalidan acceso y no garantizan snapshot entre peticiones. Paciente/profesional relacionados por otra cita no reciben originales de edición ni permiso de escritura.
+
+### P51 — Registrar atención clínica y primeras versiones (CU-23, previsto)
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresAltaP51["Administrador · Médico responsable"] {
+        <<actor>>
+    }
+    class FronteraAltaP51["Frontera HTTP prevista — alta explícita"] {
+        <<boundary>>
+        Object originales
+        Boolean atencion_real_verificada
+        Object consulta
+        Object antecedentes
+    }
+    class ControlAltaP51["Control previsto — ConsultaMedicaService"] {
+        <<control>>
+        +registrar()
+        -validarAtencionReal()
+        -compararOriginales()
+        -anexarVersiones()
+    }
+    class DatosAltaP51["ConsultaMedicaRepository previsto"] {
+        <<repository>>
+        +pacienteBloqueado()
+        +porCita()
+        +crear()
+        +anexarVersion()
+        +anexarAntecedente()
+    }
+    class ClinicaAltaP51["ConsultaMedica · VersionConsulta · VersionAntecedente existentes"] {
+        <<entity>>
+    }
+    OperadoresAltaP51 --> FronteraAltaP51
+    FronteraAltaP51 --> ControlAltaP51
+    ControlAltaP51 --> DatosAltaP51
+    DatosAltaP51 --> ClinicaAltaP51
+```
+
+**Colaboración:** transacción/continuidad/sesión/planificación → Médico/Paciente/Cita/Consulta en orden estable → cuenta/rol/vínculo/recurso/originales revalidados tras esperas → ahora fresco >= inicio_at, estado permitido y declaración true estricta → alta única + VersionConsulta 1 + antecedentes solo si aportan cambio efectivo + auditoría segura → commit/201. Autor Usuario real, responsable por Cita. No fecha de inicio real inventada: iniciada_en NULL si se desconoce. UQ id_cita resiste dos altas; segunda devuelve 409, no duplica ni sobrescribe con un supuesto upsert. No CambioCita/Atendida/avisos automáticos. Existencia de consulta, incluso inicio NULL, bloquea gestión/llegada/inasistencia incompatibles según módulos ya implementados.
+
+### P52 — Completar/corregir consulta o antecedentes sin sobrescribir (CU-23, previsto)
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresCorreccionP52["Administrador · Médico responsable"] {
+        <<actor>>
+    }
+    class FronteraCorreccionP52["Frontera HTTP prevista — misma consulta"] {
+        <<boundary>>
+        Object originales
+        Boolean atencion_real_verificada
+        Object consulta
+        Object antecedentes
+        String motivo_cambio
+    }
+    class ControlCorreccionP52["Control previsto — ConsultaMedicaService"] {
+        <<control>>
+        +actualizar()
+        -compararOriginales()
+        -detectarCambioEfectivo()
+        -exigirMotivo()
+    }
+    class DatosCorreccionP52["ConsultaMedicaRepository previsto"] {
+        <<repository>>
+        +porCita()
+        +ultimaVersion()
+        +ultimoAntecedente()
+        +anexarVersion()
+        +anexarAntecedente()
+    }
+    class VersionesCorreccionP52["Snapshots clínicos inmutables existentes"] {
+        <<entity>>
+    }
+    OperadoresCorreccionP52 --> FronteraCorreccionP52
+    FronteraCorreccionP52 --> ControlCorreccionP52
+    ControlCorreccionP52 --> DatosCorreccionP52
+    DatosCorreccionP52 --> VersionesCorreccionP52
+```
+
+**Colaboración:** mismos controles/bloqueos/originales del contexto antes de no-op; PATCH exige consulta existente. Campo omitido conserva; null borra solo opcionales de la nueva versión, nunca una versión previa. Cambios efectivos de cada bloque anexan snapshot completo con motivo/fecha/autor; bloque idéntico no se versiona. Solo antecedentes, solo consulta o ambos son válidos y atómicos. Padre Paciente protege numeración y originales de antecedentes frente a dos atenciones distintas; padre Consulta protege versiones de consulta. No-op 200 modificado=false, sin versión/evento nuevo, pero un original obsoleto siempre 409. Motivo clínico permanece en versiones protegidas, no bitácora general.
+
+### Dependencias, verificación y cierre de fase
+
+El protocolo previsto mantiene coordinación común con gestión/asistencia/planificación/cuentas: continuidad → actor → planificación → Médico → Paciente → Cita → Consulta, numeración de versiones bajo sus padres. No se cambian los locks de módulos terminados sin pruebas de cruces; verificar seguridad/concurrencia con PostgreSQL aislado en Fase 5, no inferirla de esta vista. Ampliaciones futuras de bitácora/allowlists/códigos de error son necesarias, no implementadas. Motivos/diagnósticos/antecedentes excluidos de auditoría general; no afirmar que hidden basta para Resources.
+
+Las cuatro vistas son simplificadas **previstas**, no censo de llamadas/métodos existentes ni sustituto del UML acumulativo. Clases E reutilizadas permanecen en su módulo propietario. Firmas operativas definitivas y participaciones de repositorio se contrastarán con código al implementar, sin inventar E a partir de diseño P. Dos textos del DER se corrigen por permisos administrativos aprobados; no nueva tabla/atributo/migración. Se anota la concreción en UML sin alterar sus 21 fuentes ni censo 102 E/21 P+Sesion R. Controles correctos: 660 archivos protegidos intactos, ocho documentos UTF-8/cercas/anclas/diff-check; los 68 bloques cercados anteriores de análisis se conservan exactamente y solo se agregan estas cuatro vistas previstas, 148 bloques UML intactos. Sin render nuevo, pruebas funcionales/SQL/migraciones/APIs ni suites históricas atribuidas a esta fase. **Fase 1 documental cerrada; detenerse antes de Fase 2.**
+
+<a id="cu17-cu19-frontend-fase6"></a>
+## CU-17–CU-19 — Frontend Fase 6: integración real y cierre (2026-10-28)
+
+**Fase 6 y seis fases frontend cerradas localmente: fronteras P45–P48 integradas en navegador real y suite global nueva correcta.** No nuevos procedimientos/clases productivas/firmas ni cambios del modelo persistido. Se conservan las 65 vistas del análisis y las 21 PlantUML globales; React no se convierte en clase PHP ni se amplía silenciosamente el alcance selectivo del UML. RF10/RN10/RN12/RN14 y VS-EST-01–09 intactos; evidencia/contexto §17.158 y frontend/README. Producción y otros módulos pendientes, no iniciados.
+
+### Colaboración efectiva verificada de extremo a extremo
+
+1. **AgendaPage/selector/CitasTable/Workspace y AsistenciaCitaPage:** selección administrativa o agenda propia médica, ruta compartida de asistencia. GET asistencia orientativo + detalle para etiquetas mínimas cotejadas; estado/programación/elegibilidad nunca se toman de otra lectura ni de reloj del navegador. Paciente sin acceso y cada rol sin escrituras ajenas.
+2. **AsistenciaResumen/ConfirmacionAsistencia:** declaración inicialmente desmarcada → revisión de identidad/programación/efecto → confirmación explícita. Casilla por teclado/foco de revisión y layouts reales verificados. Llegada/inasistencia no son atención, ni tiempo/documentación prueban automáticamente el hecho. Ejecutar como Administrador no atribuye autoría al profesional.
+3. **useAsistenciaCita/asistenciaCita.service/Axios:** señales/lock/originales/CSRF, wrappers específicos → Routes/middleware → AsistenciaController/Request → AsistenciaService → repositorios/modelos/PostgreSQL. Seis reservas reales y transiciones de los tres tipos, cortes de respuesta tras commit y GET sin replay/causalidad inequívoca. Resumen anterior no vigente, 409 entre revisión y escritura exige reconsulta sin reapertura.
+4. **Laravel/persistencia y seguridad:** cuatro roles/cookies/CSRF reales; originales obsoletos/419/422/permisos rechazados, sesión restaurada por recarga y revocación real. Médico profesionalmente inactivo con cuenta activa conserva asignaciones anteriores. Programación/versión/Paciente/Médico/ejecutor/historial preservados; bitácora mínima, avisos propios invalidados y ninguna consulta clínica creada.
+
+### Evidencia y alcance
+
+Arnés loopback temporal con base/rol de tests sin privilegios elevados, esquema exclusivo de 35 migraciones existentes y correo fake/HTTP externo impedido. Reloj fijado explícitamente en dos momentos del día de fixture, avisos preexistentes y profesional inactivo preparados como fixture; no generador CU-28 ni CU-23 operativo. Recorrido final independiente: **15 comprobaciones, cuatro respuestas cortadas tras commit, 80 disposiciones y 32 axe sin infracciones automáticas**, cero excepciones JS, Web Storage vacío, cookie HttpOnly/SameSite Lax y CORS con credenciales. Anchos 1440/768/390/320/texto 200% a 320; foco/teclado/salto al contenido/Escape menú y capturas representativas inspeccionados. No certificación exhaustiva/HTTPS/SLA ni carreras SQL nuevas.
+
+Verificación SQL final de solo lectura: seis citas (4 Atendidas/2 Inasistencia), ocho cambios (2 LLEGADA/2 INASISTENCIA/4 ATENCION), catorce eventos de negocio (seis reservas incluidas), seis avisos invalidados/cero consultas/versión 1 intacta. Esquema/reloj/fixture/credenciales y procesos propios retirados, inventario inicial de esquemas/estructura public conservado, no auditoría de filas ajenas. Dos supuestos de arnés corregidos antes de repetición completa con fixture nueva: h1 real del selector y distinción lógica de Usuario/Médico (PK numéricamente coincidentes entre tablas no son identidad compartida). Producto intacto, no replay ni suma de intentos.
+
+**Revisión acumulativa:** comprobadores reejecutados cotejan 433 firmas/75 clases operativas/218 participaciones de inyección y cero ciclos Service→Service; P45–P48 mantienen 17/20/21/20 participaciones transitivas y diagramas intactos. UML global anota integración frontend conservando 124 participantes/102 E/21 P/Sesion R y sus 21 vistas; DER no requiere modificación. Build nuevo correcto, aviso conocido >500 kB/sin lint; **suite global final nueva 2702 pruebas/88 archivos correctos**, 266,58 s, §17.158/README; no sumar comprobaciones del navegador ni reutilizar suite anterior. Sin cambios productivos/CSS/dependencias ni pruebas versionadas nuevas; documentación de cierre no convierte CU-22–CU-29/producción en implementados.
+
+<a id="cu17-cu19-frontend-fase5"></a>
+## CU-17–CU-19 — Frontend Fase 5: robustez ampliada (2026-10-28)
+
+**Verificación transversal de fronteras P45–P48, sin nuevos participantes productivos, firmas, reglas ni diagramas.** CU-17/18/19 conservan RF10/RN10/RN12/RN14 y declaraciones explícitas según cada operación. Esta fase añade infraestructura de prueba, no clases del dominio ni procesos clínicos. Consulta/etiquetas/cotejo de identidades P45, llegada P46, ausencia P47 y atención P48 reutilizan exactamente los componentes/hooks/services efectivos documentados en Fases 2–4. Administrador/Recepción y Administrador/Médico propio mantienen sus permisos específicos, sin suplantar al Médico responsable.
+
+### Colaboraciones comprobadas
+
+- **Transporte privado ↔ Axios:** AbortSignal y época HTTP antes/después de CSRF y tras PATCH. Barreras de inicio del adapter establecen orden, sin sleeps. Cancelación anterior no envía; cancelación posterior no prueba rollback. Época anterior se descarta, no reenvía. Quince errores HTTP y respuestas 201/202/204/206 no se convierten en éxito confirmado. GET discordantes por identidad no mezclan etiquetas ni programación; detalle anterior solo aporta etiquetas cotejadas, no elegibilidad/estado.
+- **Coordinador ↔ tres wrappers/GET:** un lock cruzado impide doble envío/recuperación, no reset durante incertidumbre; operación real conservada tras pagehide y GET fallido. Estados no contractuales posteriores bloquean hasta GET explícito, rechazos conocidos retiran revisión sin replay. Retry-After inválido no inventa espera, espera válida persiste al ocultar y no ejecuta nada al vencer. Campos 422 limitados al hecho propio/originales; sin contenido clínico/técnico ni declaración ajena.
+- **Página/formulario ↔ sesión/router/consulta:** identidad/rol/restricción/revocación/cita cambiados retiran borrador, abortan señal y descartan respuesta anterior; Médico ajeno sigue sujeto a Laravel. Navegación durante PATCH advierte, permite permanecer o salir sin asegurar reversión; beforeunload se retira al desmontar. GET/PATCH/CSRF descartados tras logout fallido no dejan busy permanente ni publican respuesta anterior. Recuperación rechazada conserva bloqueo y GET sin cambio no acredita causalidad ni replay. 429/pagehide/pageshow no habilitan otra escritura ni conservan declaración; datos no persisten en Web Storage.
+
+### Infraestructura y evidencia nueva
+
+Tres archivos bajo citas/tests: `hooks/useAsistenciaCitaRobustez.test.js` (108 casos), `services/asistenciaCitaRobustez.service.test.js` (159), `pages/AsistenciaCitaRobustez.test.jsx` (84). Matriz de seis combinaciones autorizadas; Router/AuthProvider/servicios/Axios reales, sesión/HTTP simulados. **Dirigida 351 pruebas/3 archivos correctos**, 43,28 s, comando en frontend/README. Primer intento 338/339 por dato ficticio de especialidad idéntico al original, corregido sin cambio productivo ni relajación; doce escenarios adicionales de rol/GET rechazado incluidos en la dirigida final. No se detectó defecto productivo en el alcance probado. Build nuevo correcto con artefactos iguales a Fase 4, aviso conocido >500 kB/sin lint. **Suite global final nueva 2702 pruebas/88 archivos correctos**, 265,76 s, contexto §17.157; incluye dirigidas, no sumar ejecuciones. **Fase 5 cerrada localmente con API simulada.**
+
+README/contexto/CU/análisis sincronizados. Controles exclusivos de fase: 658 archivos protegidos intactos, tres tests nuevos/cuatro documentos; UTF-8/cercas/anclas de siete archivos/diff-check correctos, 68 bloques del análisis/148 del UML preservados (65 diagramas/21 PlantUML anteriores). Las clases/relaciones/diagramas previos de P45–P48 y UML global selectivo PHP permanecen; DER/reglas/RF/RN/código productivo/dependencias intactos. Pruebas simuladas no acreditan nueva integración Laravel/PostgreSQL/concurrencia SQL/cookies ni revisión real de navegador/axe/responsive. Módulo frontend no cerrado, Fase 6/producción pendientes; no iniciarlas automáticamente.
+
+<a id="cu19-frontend-fase4"></a>
+## CU-19 — Frontend Fase 4: marcar Atendida (2026-10-28)
+
+**Frontera P48 implementada con API/sesión simuladas; Fases 5–6 pendientes.** Corresponde a RF10/RN10/RN12/RN14 y VS-EST-03, sin modificar requisitos/reglas ni afirmar persistencia nueva probada desde React. Reutiliza consulta P45/coordinación P46–P47. No nuevo procedimiento ni clase PHP; conserva todos los diagramas de procedimientos y UML global selectivo backend.
+
+| Participante existente ampliado | Responsabilidad efectiva |
+| --- | --- |
+| asistenciaCita.service | marcarAtendida(entrada, signal) fija acción/campo/ruta/destino/operación y comparte escribirAsistencia privado. Atención admite Administrador/Médico y Programada/Confirmada; llegada/inasistencia mantienen sus roles/estado anteriores. Proyección de respuesta mínima y verificación del actor sin enviarlo |
+| useAsistenciaCita | marcarAtendida(entrada) usa un único lock/secuencia/AbortSignal/espera para las tres escrituras, con operacion ATENCION durante incertidumbre/recuperación/pagehide. Traduce CITA_ATENCION_ANTICIPADA y admite exclusivamente atencion_realizada/originales en errores de campos |
+| ConfirmacionAsistencia | Prop operacion ATENCION, declaración desmarcada de atención real, revisión de identidades/programación/efecto final y confirmación explícita. No depende de consulta clínica ni crea formulario de clínica |
+| AsistenciaCitaPage | Preparar/abandonar atención, selección exclusiva de formulario, foco en preparación/revisión/retorno, resultados específicos y recuperación GET sin replay. Refresco fallido conserva guardado confirmado |
+| AsistenciaResumen / navigation.js | Atención ya disponible y explicación de separación con clínica; CU-17–CU-19 comparten una entrada de lectura/gestión, sin conceder operaciones por su trazabilidad de navegación |
+| Tests de atención, hook y fixtures/navegación | Nuevos archivos de servicio/página y ampliaciones existentes: roles/estados/contrato/privacidad/declaración/revisión/foco/limpieza/errores/lock/incertidumbre, sin clases de producción nuevas |
+
+**Colaboración P48:** Administrador o Médico propio seleccionan cita; GET asistencia/etiquetas mínimas cotejadas proporcionan contexto. Preparar atención → declarar que el Médico responsable realmente atendió → revisar misma cita/Paciente/profesional/estado/intervalo/duración/ubicación y efecto → Marcar como Atendida. No se deriva el hecho de tiempo transcurrido ni de existencia de ConsultaMedica. Elegibilidad exclusivamente del servidor: no exigir Confirmada previa, fin, mismo día ni consulta; cuenta/vínculo/titularidad se revalidan en Laravel, sin simular el rol profesional para Administración.
+
+**Escritura:** CSRF → PATCH /citas/{id}/atencion con originales exactos + atencion_realizada JSON true, sin IDs de actor/profesional/estado/otros hechos/diagnósticos → comprobar 200 Atendida, programación/versión intactas, timestamp creciente, cambio ATENCION y ejecutor esperado → resultado → GET separado. Conserva responsable y ejecutor independientes, BIGINT/microsegundos/versión máxima. No modifica consulta/antecedentes/documentos ni crea atención clínica ficticia; el backend conserva historial/retira avisos propios/audita dentro de sus garantías ya implementadas.
+
+**Alternativas:** finales/anticipada/rol ajeno impiden preparar según servidor. 409 obsoleto/estado/inicio exige consulta y nueva declaración/revisión; 401 limpia sesión, 403/404 seguros, 419 sin reenvío, 422 campo específico, 429 espera sin autoenvío. Red/408/5xx/200 inválido tras enviar → incierto y bloqueo compartido, GET explícito sin replay/causalidad inequívoca. Abandono no prueba rollback; pagehide conserva operación incierta, descarta respuestas tardías y limpia borrador. Volver/abandonar/cambiar acción/actualizar retiran declaración/revisión; sin Web Storage ni resumen anterior presentado vigente.
+
+**Verificación:** primera dirigida 379/383 con cuatro colisiones de datos ficticios actor/Médico, corregidas sin cambio de lógica. Dirigida posterior **176 pruebas/4 archivos correctos**, 11,35 s; ampliada **415 pruebas/10 archivos correctos**, 20,27 s, incluye llegada/inasistencia/Inicio/sidebar. Build correcto, aviso conocido >500 kB/sin lint. UTF-8 de 28 archivos acumulados/cercas/anclas/diff-check correctos, 633 archivos protegidos y 68 bloques cercados previos preservados (65 diagramas). **Suite global final nueva 2351 pruebas/85 archivos correctos**, 244,93 s, §17.156/README; incluye dirigidas, no sumar ejecuciones. HTTP/session adapter simulados con Router/AuthProvider/services reales, sin integración nueva Laravel/PostgreSQL ni navegador/axe. README/contexto/CU/análisis P48 sincronizados; P45–P47 revisados por reutilización, diagramas anteriores/21 PlantUML globales conservados. **Fase 4 cerrada localmente con API simulada**; módulo frontend no cerrado, Fases 5–6/producción/otros módulos no iniciados.
+
+<a id="cu18-frontend-fase3"></a>
+## CU-18 — Frontend Fase 3: inasistencia comprobada (2026-10-28)
+
+**Frontera de P47 implementada con API simulada; P48 frontend permanece previsto.** Reutiliza P45 consulta y la coordinación de P46 llegada, sin nuevo procedimiento/diagrama/clase PHP ni pantallas por rol. 65 vistas/48 procedimientos/17 antecedentes y 21 PlantUML globales conservados; backend/DER/reglas RF10/RN12/RN14/VS-EST-01–09 intactos. La consulta orientativa no acredita ausencia: requiere declaración responsable del usuario autorizado y nueva validación de Laravel al guardar.
+
+### Participantes efectivos y cambios sobre Fase 2
+
+| Participante existente ampliado | Responsabilidad efectiva |
+| --- | --- |
+| asistenciaCita.service | Nueva registrarInasistencia(entrada, signal), que fija internamente ruta/estado/campo/operación. Comparte escribirAsistencia privado con confirmarLlegada, sin aceptar estado/ruta de la UI; valida y proyecta respuesta específica |
+| useAsistenciaCita | Nueva registrarInasistencia(entrada) en el mismo coordinador, con operacion en estado local. Un lock/secuencia/AbortSignal para ambas acciones; retiene nombre de acción al recuperar/pagehide, no formularios ni declaraciones |
+| ConfirmacionAsistencia({ contexto, onGuardar, operacion = 'LLEGADA' }) | Formulario y revisión compartidos para llegada/inasistencia, con declaración desmarcada/etiqueta/efecto/botón específicos. Cambios de modo/consulta/originales desmontan revisión; volver o abandonar no escribe |
+| AsistenciaCitaPage | Preparar/abandonar inasistencia, foco en encabezado y retorno al botón preparatorio, revisión/confirmación/resultado con acción real; no nuevas rutas ni búsquedas. El componente muestra una sola preparación a la vez |
+| AsistenciaResumen y navigation.js | Inasistencia ya no se anuncia como función futura, CU-17/CU-18 comparten entrada de consulta/gestión y CU-19 sigue pending. Rol de lectura médica en esa página no concede escritura de ausencia |
+| Tests de servicio/página nuevos, hook/fixtures/navegación existentes ampliados | Contrato/seguridad/flujo/ciclo de vida y regresión de llegada con HTTP/session adapter simulados; no clases productivas ni prueba de SQL real |
+
+**Colaboración P47:** GET asistencia determina registrar_inasistencia; Administrador/Recepción eligen Preparar inasistencia, declaran ausencia comprobada, revisan misma cita/estado/intervalo/duración/ubicación/responsable/efecto y confirman. No inferir ausencia por haber terminado el intervalo, no forzar desde Confirmada ni reabrir un final. Campo ausencia_verificada JSON true exclusivo, junto a versión/timestamp originales; no presencia_verificada, atencion_realizada, rol/actor/IDs/motivo/fecha del hecho. idActor solo verifica respuesta. POST/GET clínicos o de recordatorios no se solicitan. Criterio temporal es del servidor (incluida igualdad en fin y posibilidad de registrar otro día), no cálculo del navegador.
+
+**Guardado específico:** CSRF → PATCH /citas/{id}/inasistencia → 200 de identidad/programación/versión intactas, Inasistencia/timestamp creciente/último cambio INASISTENCIA/ejecutor esperado → resultado confirmado → GET de elegibilidad separado. Validación compartida no debilita llegada, cuyo destino/campo/operación siguen fijos. La programación histórica y duración/ubicación no cambian por la transición; versión máxima y microsegundos conservados. Advertencia clara de final sin reapertura y retiro de avisos existentes propios por backend, no gestión CU-28 en cliente ni nueva consulta médica.
+
+**Errores/recuperación:** un solo lock bloquea llegada y ausencia durante envío/recuperación; los mensajes/errores 422 admitidos siguen la operación real. CITA_INASISTENCIA_ANTICIPADA, originales obsoletos, documentación o transición inválida → 409 seguro y nueva consulta/declaración/revisión. 401 limpia sesión, 403/404/419/422 rechazan sin éxito/replay, 429 espera local sin autoenvío. Red/5xx/408/respuesta no verificable tras envío → incierto sin formularios ni resumen previo vigente; GET explícito puede recuperar estado pero no causalidad inequívoca ni replay. Guardado confirmado no se pierde al fallar refresco. Abandonar preparación devuelve foco/limpia declaración; pagehide/abort conservan incertidumbre de una escritura en vuelo sin afirmar rollback, descartan respuestas tardías y no guardan Web Storage.
+
+**Verificación dirigida:** **288 pruebas/6 archivos correctos**, 11,13 s, incluidos los casos de llegada y navegación; comando en frontend/README. Dos archivos nuevos de inasistencia para servicio/página y ampliación de hook/fixtures/navegación; no nuevos componentes funcionales ni dependencias. Build correcto con aviso conocido >500 kB/sin script lint; sesión/HTTP simulados, no evidencia nueva de Laravel/PostgreSQL/concurrencia SQL/navegador/axe. Regresión global/comprobaciones finales en contexto §17.155, sin sumar ejecuciones ni atribuir la global de Fase 2 a esta fase.
+
+Primera global interrumpió el cierre documental con dos expectativas obsoletas en HomePage.test.jsx: Recepcionista ya no tiene módulos pendientes. Se adaptó únicamente la prueba transversal para verificar tanto presencia como ausencia de la sección según el catálogo real, sin cambiar HomePage ni el análisis de clases de autenticación ni sus permisos. Dirigida posterior **88 pruebas/3 archivos correctos**, 10,98 s; **suite global final nueva 2256 pruebas/83 archivos correctos**, 237,62 s, contexto §17.155/README. Incluye dirigidas; la global anterior 2254/2256 (239,20 s) no se presenta como correcta ni se suman resultados.
+
+**Documentación/límites:** README/contexto/CU/P47 actualizados y P45/P46 revisados por reutilización, sin modificar sus diagramas anteriores; P48 frontend no se implementa. UTF-8 de 26 archivos acumulados/cercas/anclas/diff-check correctos, 633 archivos protegidos y 68 bloques cercados previos preservados; 65 diagramas/21 PlantUML globales conservados. UML global selectivo backend/DER/RF/RN/reglas/paquetes/CSS/PHP sin cambios. **Fase 3 cerrada localmente con API simulada**; Fases 4–6/producción pendientes, detenerse antes de Fase 4.
+
+<a id="cu17-frontend-fase2"></a>
+## CU-17 — Frontend Fase 2: lectura de asistencia y llegada (2026-10-28)
+
+**Fronteras implementadas de P45/P46 con API simulada; P47/P48 frontend siguen previstos.** Se conservan los 65 diagramas/48 procedimientos/17 antecedentes; no añadir uno por el incremento ni sustituir fuentes previas. Clases PHP/relaciones del backend no cambian; componentes/hooks/funciones JavaScript son fronteras/coordinadores reales, no nuevas clases de dominio del UML global filtrado. Reglas RF10/RN12/RN14/VS-EST-01–09 intactas, sin decisiones funcionales nuevas.
+
+### Responsabilidades y colaboración efectivas
+
+| Participante real | Responsabilidad en esta fase |
+| --- | --- |
+| AgendaPage({ asistencia = false }), CitasTable(..., detailPath, detailState), AgendaWorkspace | La entrada /asistencia reutiliza consulta/criterios/origen de agenda; Médico propio, selección administrativa para Administrador/Recepción. DetailPath existente y nuevo estado opcional acotado navegan a asistencia sin cambiar el detalle ordinario |
+| CitaDetallePage, router.jsx, navigation.js, destinoSeguro | Enlace contextual autorizado, rutas compartidas protegidas, sidebar/Inicio/título/retornos fijos. El catálogo incorpora CU-17 como página de consulta/llegada, con lectura médica, no permiso de llegada para ese rol; CU-18/CU-19 siguen pending |
+| AsistenciaCitaPage | Valida ID, remonta flujo por identidad/rol/ID, coordina lectura de contexto/confirmación/resultado/espera/bloqueo/retorno. Nunca escribe HTTP directamente ni toma reglas clínicas |
+| AsistenciaResumen | Identidades mínimas/programación y condiciones del servidor por acción, último cambio seguro y distinción ejecutor/Médico. Ausencia/Atendida informadas, sin botones operativos |
+| ConfirmacionAsistencia | Solo llegada por ahora: casilla de presencia/identidad desmarcada, revisión explícita de programación/efecto, confirmación o vuelta sin envío; limpieza de declaración al cambiar/actualizar/abandonar |
+| useAsistenciaCita(id, rol, idActor) | Coordinación local de llegada, lock/secuencia/señales/resultado/error/Retry-After/incertidumbre/recuperación; no amplía useGestionCita con otras transiciones ni guarda estado global de pacientes |
+| asistenciaCita.service | consultarAsistenciaCita({ id, rol }, signal), consultarContextoAsistencia({ id, rol }, signal), confirmarLlegada({ id, rol, original, declaracion, idActor }, signal), con HTTP/proyección/validación de contrato. idActor sirve solo para comprobar respuesta, nunca viaja en payload |
+| useAgendaQuery | Reutilización de lectura con kind asistencia; mensajes de ese contrato y salida de carga para SESSION_SUPERSEDED. Adaptación local preserva otros tipos de consulta |
+| Button/Alert/ActionGroup/PageHeading/QueryMessage, formatos agenda, describirError, useAuth, api/csrfURL | Reutilizados: controles/fechas/errores/sesión/Axios; sin nueva dependencia o instancia HTTP. Declaración usa label/input nativos accesibles con estilo local, sin coerción de booleano |
+
+**Lectura P45:** GET asistencia y detalle autorizado en paralelo → comprobar IDs/código → retener solo nombres/apellidos/especialidad del detalle → programación/versiones/acciones exclusivamente de asistencia. No snapshot atómico prometido entre GET separados; una divergencia de identidad falla cerrada. CI/teléfono/nacimiento/motivo/clínica/UUID no pasan al contexto. Impedimentos por acción deben ser conocidos/no duplicados y coherentes con booleano; un rol sin permiso recibe únicamente ACCESO_DENEGADO en esa acción. No recalcular tiempo ni ofrecer privilegios por una respuesta contradictoria. Operación desconocida de último cambio se muestra como Cambio administrativo, no en bruto ni como confirmación causal.
+
+**Escritura P46:** declaración inicialmente false → revisar → confirmar → CSRF real de transporte simulado → PATCH /citas/{id}/llegada con tres campos permitidos → verificar 200 de identidad/programación/versión conservadas, Confirmada, timestamp UTC creciente y CambioCita LLEGADA/actor esperado → resultado confirmado → GET separado para elegibilidad. Nunca enviar estado/actor/Médico/fecha del hecho/motivo ni redondear originales. Versión máxima válida porque llegada no incrementa version_programacion. Sin interfaces para registrar ausencia/atención, consulta clínica o CU-28.
+
+**Estados/riesgos:** preparación/revisión se eliminan al modificar declaración, volver, actualizar o abandonar. Un solo envío activo; no reenviar en red/timeout/5xx/408/200 inválido. Resultado incierto bloquea reset/escrituras hasta GET explícito, cuyo fallo mantiene incertidumbre; lectura exitosa no prueba causalidad inequívoca ni activa reenvío automático. Guardado confirmado no desaparece si falla GET de refresco. Resumen anterior oculto tras envío/error y hasta consulta con timestamp no anterior al resultado validado; declaraciones no persisten. pagehide/abort/desmontaje descartan respuestas tardías sin afirmar rollback; beforeunload/useBlocker avisan al salir. Errores seguros 401/403/404/409/419/422/429 y Retry-After local sin autoenvío. Axios/AuthContext global intactos; no Web Storage.
+
+**Verificación:** dirigida de cinco archivos, **214 pruebas correctas**, 7,77 s, con Router/layout/AuthProvider/hooks/services/Axios reales y API/sesión simuladas. Payloads/respuestas/roles/ID/microsegundos/versión máxima/identidad mínima, declaración y revisión, ejecución/retorno directo/historial/agenda médica propia, errores/lock/abandonos/incertidumbre/recuperación sin replay y futuras acciones no operativas; navegación/layout actualizados sin reducir permisos negativos. Build correcto con aviso conocido de tamaño, sin lint configurado. **Suite global final nueva 2158 pruebas/81 archivos correctos**, 234,74 s, comando/límites en contexto §17.154/README; incluye dirigidas, no sumar ejecuciones ni atribuir integración PostgreSQL/navegador/axe/responsive real nueva.
+
+**Documentación/límites:** README/CU/contexto y análisis de P45/P46 actualizados; diseño Fase 1 conserva su estado histórico. Verificación UTF-8 de 23 archivos afectados/cercas/anclas/diff-check correcta; 634 archivos protegidos y 68 bloques cercados previos del análisis preservados. Las 65 vistas del análisis y 21 PlantUML globales se mantienen íntegras; no cambio del censo PHP/DER/RF/RN/reglas/backend/dependencias. **Fase 2 cerrada localmente con API simulada**; Fases 3–6/producción pendientes, detenerse antes de Fase 3.
+
+<a id="cu17-cu19-frontend-fase1"></a>
+## CU-17–CU-19 — Frontend Fase 1: diseño y contratos (2026-10-28)
+
+**Diseño previsto, no implementación React.** Backend cerrado localmente (§17.152), con P45 consulta, P46 llegada, P47 inasistencia y P48 atención ya implementados. Esta fase prepara sus fronteras frontend, sin crear otro procedimiento/diagrama por CU ni sustituir los existentes: se conservan 65 vistas/48 procedimientos/17 antecedentes. RF10/RN12/RN14 y VS-EST-01–09 no cambian. El UML global selectivo solo backend conserva 21 vistas/102 E/21 P+Sesion R; componentes/hooks/funciones JavaScript no se cuentan como clases PHP.
+
+### 1. Navegación y límites de permisos previstos
+
+Entrada única «Gestionar asistencia» bajo «Asistencia y estados», para Administrador/Recepcionista/Médico, trazable internamente a CU-17–CU-19 sin mostrar esos códigos en menús. Sustituirá progresivamente los tres elementos pending, sin crear tres búsquedas/páginas por acción ni duplicar por rol. Ruta de entrada prevista `/asistencia` reutiliza AgendaPage con un modo de navegación/presentación explícito: Administrador/Recepción seleccionan profesional mediante el selector existente; Médico ve exclusivamente su agenda, sin selector ajeno. Misma API `/agenda`/`/agenda/medicos`, filtros y paginación actuales, sin inventar listado global de asistencia. CitasTable ya acepta detailPath; en esta entrada dirigirá a `/citas/:id/asistencia`, mientras `/agenda` conserva el detalle actual.
+
+Ruta de trabajo prevista `/citas/:id/asistencia` dentro de AgendaWorkspace y ProtectedRoute/RoleRoute para esos tres roles. CitaDetallePage incorporará enlace para los mismos roles desde agenda/detalle directo o historial administrativo. Retorno por enum de origen acotado: `asistencia` → `/asistencia`, `direct` → `/citas/{id}`, `historial` → `/recepcion/historial-citas/{id}`; al entrar directamente a URL, retorno fijo al detalle. Nunca aceptar un returnTo externo/arbitrario ni IDs/roles de location.state como autorización. La procedencia solo orienta navegación, no modifica recursos ni permisos.
+
+El workspace puede recordar filtros/selector/origen, nunca la cita, declaraciones o resultados clínicos; se limpia al cambiar identidad/rol y pagehide como actualmente. Una vuelta a agenda/detalle/historial vuelve a consultar, conservando criterios pero no una copia vieja de filas. Se actualizarán router.jsx/navigation.js/contextPages/destinoSeguro/pruebas de navegación únicamente en Fase 2, sin cambiar rutas de los demás módulos. No enlazar asistencia desde Mis citas ni habilitarla al Paciente; acceso directo queda denegado sin GET protegido. Un Médico que manipula ID recibe el 404 neutro de Laravel.
+
+| Actor | Lectura asistencia | Llegada | Inasistencia | Atendida |
+| --- | --- | --- | --- | --- |
+| Administrador | Sí | Sí, si elegible | Sí, si elegible | Sí, si elegible; conserva Médico responsable |
+| Recepcionista | Sí | Sí, si elegible | Sí, si elegible | No |
+| Médico | Solo propia | No | No | Solo propia y elegible |
+| Paciente | No | No | No | No |
+
+No recalcular permiso/elegibilidad con fecha local del navegador, estado de ficha/catálogos o suposiciones clínicas. Usar acciones/impedimentos del servidor y lista fija de roles como protección de presentación, nunca como autorización suficiente. Si se descubre una respuesta que contradice el rol esperado, cerrar el flujo de forma segura, no mostrar una acción privilegiada. En Fase 2 solo lectura/llegada operativas; Fase 3 incorpora ausencia y Fase 4 atención: los campos del GET se validan sin falsear sus valores ni ofrecer escrituras todavía no construidas.
+
+### 2. Contrato real HTTP que consumirá React
+
+Axios central existente (`api`, cookies/Sanctum, `sessionBound: true`, época de sesión, AbortSignal), sin instancia nueva ni cambios de timeout/reintentos globales. Preparar CSRF mediante csrfURL antes de cada escritura; no reenviar PATCH automáticamente por 419/red/conflicto. API relativa a la base `/api`:
+
+| Método/ruta real | Entrada |
+| --- | --- |
+| GET `/citas/{id}/asistencia` | Solo ID de ruta, sin query/cuerpo |
+| PATCH `/citas/{id}/llegada` | version_programacion_original, actualizada_en_original, presencia_verificada=true |
+| PATCH `/citas/{id}/inasistencia` | version_programacion_original, actualizada_en_original, ausencia_verificada=true |
+| PATCH `/citas/{id}/atencion` | version_programacion_original, actualizada_en_original, atencion_realizada=true |
+
+IDs canónicos positivos BIGINT hasta 9223372036854775807 como texto, versión entera positiva hasta 2147483647 y originales UTC `Y-m-d\TH:i:s.u\Z` con seis decimales. Mantener los strings originales íntegros: Number/Date/toISOString no deben redondear identificadores ni perder microsegundos. Formatos y límites son comprobaciones de contrato/usabilidad, no sustituir reglas Laravel. La versión máxima sigue válida para asistencia porque estas escrituras no la incrementan.
+
+**GET 200/data:** programación mínima de id_cita/codigo_cita/id_paciente/id_medico/id_especialidad/id_consultorio, estado, inicio_at/fin_at, duracion_minutos, modalidad Presencial, sede_atencion/consultorio_atencion, version_programacion/actualizada_en. Añade zona_horaria America/La_Paz, consultado_en, acciones (confirmar_llegada/registrar_inasistencia/marcar_atendida), impedimentos con un array **por cada acción**, ultimo_cambio mínimo o null (id_cambio_cita/id_actor/operacion/realizado_en). Cada acción exige booleano y coherencia true ↔ impedimentos vacíos; códigos desconocidos/estructura inconsistente impiden ofrecer envío. No reutilizar parser de GET gestión, que recibe impedimentos planos y solo dos acciones.
+
+Códigos de impedimentos vigentes: ACCESO_DENEGADO (solo acción de otro rol); CITA_TRANSICION_NO_PERMITIDA; CITA_CON_ATENCION_DOCUMENTADA (llegada/ausencia); CITA_LLEGADA_FUERA_DE_PLAZO (llegada); CITA_INASISTENCIA_ANTICIPADA (ausencia); CITA_ATENCION_ANTICIPADA (atención). Pueden concurrir varios impedimentos; no ocultar uno porque otro exista. No requerir OPERACION_NO_DISPONIBLE, que fue un antecedente backend parcial y ya no lo emite el servicio actual. El último cambio puede ser de gestión/ubicación u otra operación permitida: mostrar etiqueta segura genérica para una operación no reconocida, sin imprimir un texto arbitrario del servidor ni atribuir causalidad.
+
+**Contexto de identidad:** consultarCita ya autoriza/proyecta nombres. El futuro consultarContextoAsistencia combinará esa lectura con GET asistencia solo para los tres roles válidos, cotejando id_cita/codigo_cita/id_paciente/id_medico/id_especialidad antes de retener nombres/apellidos y nombre de especialidad. Si divergen IDs/código, rechazar el contexto y pedir reconsulta. Programación/estado/versiones/acciones proceden **solo de GET asistencia**; no adoptar los del detalle ni prometer snapshot atómico entre GET independientes. CI/teléfono/nacimiento/motivo_breve/UUID/clínica del detalle se descartan del contexto de asistencia. No ampliar endpoint/contrato para traer nuevas identidades o permisos.
+
+**PATCH 200/data:** misma proyección mínima y ultimo_cambio, sin acciones/impedimentos/consultado_en/declaración. Verificar identidad y todos los campos de programación contra la revisión enviada, estado destino específico, version_programacion inalterada, actualizada_en estrictamente creciente, último cambio con operación LLEGADA/INASISTENCIA/ATENCION y actor coincidente con la identidad que inició el envío. Proyectar solo campos permitidos; no exponer extras ni tratar una respuesta 200 malformada como éxito. La lectura posterior no reutiliza acciones del snapshot anterior. Mostrar el resultado validado aunque falle el refresco; no presentar el resumen previo como vigente hasta nueva consulta con timestamp no anterior al resultado.
+
+### 3. Flujo de interacción, declaraciones y revisión
+
+Página compartida de programación/identidades, último cambio y acciones del rol. Si hay varias acciones elegibles (por ejemplo llegada y atención durante el turno, o ausencia y atención después del fin), el Administrador elige explícitamente una; no escoger/despachar por estado o edad de la cita. Inasistencia/Atendida son finales para estos flujos, no hay botón de deshacer/reabrir. La elegibilidad del GET es orientativa y puede caducar; Laravel comprueba estado/tiempo/relaciones de nuevo al escribir.
+
+Cada operación prepara una declaración inicialmente **desmarcada**, con texto inequívoco:
+
+| Operación | Declaración de interfaz | Efecto que se revisa |
+| --- | --- | --- |
+| Llegada | He verificado presencialmente la presencia y la identidad del paciente. | Programada → Confirmada; conserva avisos, no marca Atendida |
+| Inasistencia | He comprobado que el paciente no se presentó a esta cita. | Programada → Inasistencia; final, retira avisos propios vigentes |
+| Atendida | Confirmo que la atención de esta cita fue efectivamente realizada. | Programada/Confirmada → Atendida; final, retira avisos propios; no crea consulta clínica |
+
+Seleccionar acción/declaración no envía. «Revisar» comprueba la declaración y fija la revisión de la misma cita/versión/timestamp; muestra Paciente, Médico responsable, especialidad, código, estado, inicio/fin/duración, sede/consultorio histórico, declaración y efecto. «Confirmar llegada», «Registrar inasistencia» o «Marcar como Atendida» ejecutan **solo después de esa revisión**; «Volver»/«Abandonar» no escriben. Cambiar cita/acción/declaración/reconsulta/originales limpia revisión y exige declarar de nuevo; sin casilla preseleccionada ni persistida. Sin motivo/diagnóstico/fecha del hecho del cliente. No usar nombre o rol del Médico como si fuera el ejecutor administrativo.
+
+Explicaciones de negocio tomadas del contrato ya aprobado: llegada solo mismo día America/La_Paz/antes del fin y sin consulta; ausencia desde fin sin tolerancia/sin consulta; atención desde inicio sin exigir fin/mismo día/consulta. El navegador muestra estas condiciones, no las verifica como autoridad. Médico profesionalmente inactivo con cuenta activa puede completar sus asignaciones; ficha/catálogos inactivos no bloquean por sí solos asistencia de cita existente. Desactivar cuenta sí impide acceso. No cargar clínica para comprobar existencia ni crear consulta ficticia.
+
+### 4. Máquina de estado de interfaz prevista y protección de datos
+
+Consulta: carga → disponible/error/sin acceso, con actualización manual. Acción: inicial → preparación → revisión → guardando → guardada/error/incierto; recuperación explícita incierto → consultando → recuperada/incierto. Son estados **de interfaz**, no nuevos estados de Cita. Un solo lock inmediato y secuencia coordinan las tres operaciones; deshabilitar todas las escrituras durante guardado/consulta incierta y no aceptar doble clic ni otra acción paralela. Resultado confirmado/recuperado queda separado del GET actualizado; nueva acción requiere consulta/revisión/declaración nuevas.
+
+| Situación | Respuesta prevista |
+| --- | --- |
+| Fallo preparando CSRF antes de enviar PATCH | Indicar que no se envió; no afirmar resultado incierto de un PATCH inexistente, retirar revisión y solicitar consulta nueva |
+| 401 | Integración con invalidación de sesión existente, limpiar datos privados y dirigir al login de forma segura; destinoSeguro no concede rol |
+| 403 | Acceso denegado, sin cerrar sesión por asumir 401 ni mostrar datos previos |
+| 404 | Cita no disponible/no accesible, mensaje neutro sin enumeración |
+| 409 | Explicar mediante código seguro obsolescencia/transición/documentación/plazo, retirar revisión y pedir GET antes de otra acción; sin reenvío ni adopción automática de originales |
+| 419 | Protección caducada, sin replay; consulta y revisión explícitas antes de un nuevo intento |
+| 422 | Solo errores de los dos originales y de la declaración específica; error seguro si faltan/no son de campos permitidos |
+| 429 | Respetar Retry-After local al flujo, bloquear envío/consulta según espera y no autoenviar al vencer |
+| Red/timeout/5xx/408/otro estado inesperado o 200 malformado después de enviar PATCH | Resultado incierto; ocultar programación anterior como vigente, bloquear escrituras y permitir solo GET explícito de recuperación |
+| GET de recuperación falla o es inválido | Mantener incertidumbre/bloqueo; no permitir reset que habilite reenvío ciego |
+| 200 PATCH válido y luego falla GET de refresco | Guardado confirmado no se convierte en fallo; mostrar éxito y que falta consultar elegibilidad actual |
+
+GET recuperado muestra estado/último cambio persistidos, **no confirma qué petición los causó** ni demuestra rollback por estado igual. No hay replay de asistencia; tampoco utilizar propuesta/resultado de reserva CU-14 para recuperar esta escritura. Al cambiar sesión/época/ID/desmontar, abortar solicitudes e ignorar respuestas tardías; cancelar espera HTTP no demuestra rollback. pagehide limpia datos/declaración, conserva incertidumbre mientras viva el flujo si se envió PATCH y evita un PATCH tardío después de abandonar durante CSRF. Volver mediante pageshow no restaura revisión ni dispara escritura; consulta normal de entrada puede repetirse con GET, pero no debe resolver silenciosamente una recuperación incierta que requiere acción explícita. Recarga completa inicia consulta fresca sin guardar historial local de operaciones, nunca reenvía PATCH.
+
+Reutilizar useAgendaQuery para lectura con adaptación acotada del tipo `asistencia`: hoy SESSION_SUPERSEDED sale de carga solo para gestion/reprogramacion; el nuevo flujo no debe quedar cargando indefinidamente tras cambio de época/logout fallido. Usar mensajes propios, no los textos de login o gestión, y mantener sin cambios el comportamiento de otras consultas. No modificar Axios/AuthContext global salvo defecto demostrado. Reutilizar el patrón de ciclo de vida/bloqueo de useGestionCita, **no añadirle ramas para tres operaciones ajenas** ni crear una abstracción genérica sin necesidad.
+
+Confirmaciones/resultados con encabezado enfocable, etiquetas visibles, teclado y mensajes aria-live/aria-busy sin anunciar éxito anticipado. Resumen responsive en estilos existentes; no comunicar estado solo por color. Cerrar/abandonar limpia declaración/contexto privado; beforeunload/useBlocker advierten si una escritura puede haberse confirmado. No contexto global de citas, localStorage/sessionStorage, cookies JS de autenticación, logs de payloads o datos reales. Retry-After del navegador no sustituye límites del servidor ni se promete protección entre pestañas.
+
+### 5. Participantes existentes y previstos
+
+| Participante | Estado al terminar esta fase | Responsabilidad prevista/reutilización |
+| --- | --- | --- |
+| AgendaPage, CitasTable, AgendaWorkspace, CitaDetallePage | Existentes; adaptación pendiente Fase 2 | Selección/origen/criterios/enlace, con detailPath ya disponible, sin nueva página de agenda por rol |
+| ProtectedRoute, RoleRoute, navigation.js, destinoSeguro, useAuth, api.js | Existentes | Presentación/autenticación/época/HTTP central; ampliar rutas explícitas, no permisos de servidor |
+| AsistenciaCitaPage en citas/pages/ | **Previsto, sin archivo** | Coordinación de consulta/acción/revisión/resultado/retorno; clave por identidad/rol/ID |
+| AsistenciaResumen en citas/components/ | **Previsto, sin archivo** | Identidad mínima, programación de asistencia, impedimentos por acción y último cambio seguro; no reutilizar GestionCitaResumen con contrato incompatible |
+| ConfirmacionAsistencia en citas/components/ | **Previsto, sin archivo** | Formulario/revisión parametrizados por las tres acciones fijas, declaración desmarcada/limpieza; no tres clones por rol |
+| useAsistenciaCita en citas/hooks/ | **Previsto, sin archivo** | Un coordinador de escrituras para todo este flujo, lock/secuencia/CSRF/resultado/espera/incertidumbre/recuperación/ciclo de vida |
+| asistenciaCita.service.js en citas/services/ | **Previsto, sin archivo** | consultarAsistenciaCita({ id }, signal), consultarContextoAsistencia({ id, rol }, signal), confirmarLlegada/registrarInasistencia/marcarAtendida({ id, original, declaracion, idActor }, signal); idActor solo para verificar respuesta, nunca payload |
+| Button/Alert/FormField/ActionGroup/PageHeading/QueryMessage, formatos agenda, describirError | Existentes | Controles/presentación/fechas/mensajes seguros; proyecciones de campos explícitas |
+| AsistenciaController/Request/Service y colaboradores P45–P48 | Backend existentes/cerrados | Única autoridad de autorización/reglas/transacción; ninguna ampliación PHP necesaria por este diseño |
+
+Las firmas JavaScript son **propuestas**, no afirmación de exportaciones existentes; se concretarán contra el flujo real al implementar, sin añadir interfaces vacías. Servicios solo HTTP/proyección/validación de contrato; hooks coordinan estado, componentes presentan; no JSX/hooks en Service ni Axios directo repetido en Page.
+
+### 6. Plan de entrega y pruebas previstas
+
+| Fase frontend | Entrega autorizable y verificación |
+| --- | --- |
+| 1 (actual) | Diseño/contratos/navegación/máquina de estado/matriz; solo documentación, sin UI registrada |
+| 2 | Rutas/entrada compartida/GET asistencia/contexto y llegada con declaración/revisión/CSRF; pruebas de consulta/roles/origen/contrato/llegada/errores básicos |
+| 3 | Inasistencia en mismo flujo, declaración/revisión/fin según servidor, no desde Confirmada/finales; pruebas de avisos solo como efecto informado, no CRUD de recordatorios |
+| 4 | Atendida por Administrador/Médico propio, con/sin Confirmada, separación ejecutor/responsable y sin consulta ficticia; pruebas de negativas y respuesta de guardado |
+| 5 | Matriz ampliada de sesión/época/StrictMode/respuestas tardías/abandono/doble acción/CSRF/Retry-After/red/estado incierto/snapshots viejos |
+| 6 | Integración React→Laravel→PostgreSQL aislada, cuatro roles, API obsoleta/resultado incierto/recuperación y auditoría real; responsive 1440/768/390/320/texto200, teclado/foco/axe según herramientas, suite global nueva/build/documentación/cierre |
+
+Tests futuros bajo citas/tests/services, hooks, pages y components, además de las pruebas existentes de router/navegación/layout afectadas. Matriz mínima: roles normales/restringidos/anonimato, ID BIGINT/timestamp seis decimales/versión máxima, respuesta inválida/extra/rol contradictorio/impedimento desconocido, CSRF previo/POST no usado/PATCH cerrado, declaración true estricta sin preselección, originales tras reprogramar/trasladar/otra asistencia, 401/403/404/409/419/422/429 y fallos después de enviar, tres acciones sin paralelismo, no replay, recuperación sin causalidad inequívoca, resultados coherentes con agenda/detalle/historial, Médico ajeno y Paciente sin lectura, no datos sensibles/Web Storage. Pruebas simuladas no se presentarán como integración real/concurrencia SQL.
+
+**Cierre de Fase 1:** no se modifican React/CSS/rutas/servicios/paquetes/backend/SQL ni se crean archivos funcionales vacíos. Comprobaciones solo documentales/estáticas; no ejecutar ni atribuir tests/build/navegador nuevos. Se actualizan frontend/README/contexto/CU y este análisis; reglas/RF/RN/DER/UML global intactos, todos los diagramas anteriores conservados. Recursos de verificación temporales fuera de Git, sin secretos. **Fase 1 cerrada documentalmente; detenerse antes de Fase 2.**
+
+<a id="cu17-cu19-backend-fase6"></a>
+## CU-17–CU-19 — Backend Fase 6: integración y cierre (2026-10-28)
+
+**P45–P48 revisados conjuntamente; sin sustituir diagramas anteriores.** Las clases productivas no cambian respecto a Fases 2–5: AsistenciaController/Request adaptan HTTP/entrada cerrada, AsistenciaService coordina autorización/tiempo/transacción, CitaRepository/MedicoRepository mantienen alcance SQL/relectura/locks, RecordatorioService/Repository invalidan solo en finales, BitacoraRepository registra ejecutor real/referencias seguras. Ninguna dependencia clínica nueva ni salto de capas. Se conservan las 65 vistas/48 procedimientos/17 antecedentes; no se crea un procedimiento por una batería de integración ni se duplican las clases por rol.
+
+### Colaboración comprobada de extremo a extremo backend
+
+AsistenciaIntegracionTest prepara por API especialidad, profesional, consultorio, impacto/asignación y horario; habilita la ficha existente, invita y activa al Médico, realiza login real con cookies/CSRF y reserva mediante disponibilidad/propuesta/confirmación. Solo identidades verificadas/ficha vinculada y avisos son fixtures; la invitación usa Mail::fake/array y commit real para ejecutar afterCommit. Esquema propio aleatorio de PostgreSQL por caso, sin transacción exterior que sustituya commits; cleanup elimina solo el esquema de este caso y restaura search_path.
+
+Doce secuencias combinan reserva de Administrador/Recepcionista/Paciente con atención de Administrador/Médico y con/sin llegada previa. GET asistencia es una frontera autorizada orientativa, no prueba de hechos físicos. Llegada cambia solo estado/timestamp y conserva avisos; desde el inicio exacto, atención cambia estado/timestamp/historial/avisos/auditoría sin crear ConsultaMedica/VersionConsulta. Reserva/agenda/historial/detalle comparten Cita y conservan responsables/programación/versiones/ubicación. Bitácora consultada por API prueba ejecutor real distinto del profesional cuando administra, sin motivo/declaraciones/contenido clínico. Logout/nuevo login/GET permiten reconciliación sin replay ni causalidad inequívoca de respuesta incierta.
+
+Dos secuencias adicionales integran llegada de Administrador/Recepcionista con GestionCitaService.reprogramar: Confirmada vuelve Programada, avanza version_programacion, invalida avisos anteriores y obliga a originales nuevos. El fin anterior no autoriza ausencia en la nueva programación: rechaza temprano y admite exactamente en el nuevo fin, conservando la misma cita y el historial de tres operaciones. No hay confirmación ni inasistencia automáticas. No implementación CU-23/CU-28 completa ni frontend.
+
+**Evidencia dirigida:** 14 pruebas/2410 aserciones correctas, 11,087 s/60 MB; ajustes previos exclusivamente de fixtures (catálogo de roles, afterCommit, ficha inactiva y ruta anidada del Médico en el detalle). Sin modificación productiva. Comando/resultado global e inventario PostgreSQL pre/post en README/contexto §17.152; no sumar ejecuciones ni usar la regresión de Fase 5 como suite global nueva.
+
+**Cobertura transversal y regresión final:** el primer intento global se interrumpió por la lista esperada desactualizada de MatrizPermisosBackendTest, que omitía las cuatro rutas nuevas. Se agregaron exclusivamente rutas/roles aprobados al proveedor, generando 31 casos adicionales de gates/anonimato/estados inválidos; dirigida de la matriz 539/2418 correcta (6,205 s/58 MB). No nuevas clases productivas, actores, procedimientos ni permisos por esta corrección de pruebas. **Suite global final nueva 3260 pruebas/40375 aserciones correctas**, 20 min 39,374 s/334 MB; inventario PostgreSQL pre/post conservado (dos esquemas/doce tablas/public vacío). Evidencia/comando/límites en contexto §17.152, sin presentar como correcta la ejecución interrumpida ni sumar resultados.
+
+**UML integrado vigente:** §14 de diagrama-clases añade índice global actualizado y vista operativa efectiva enlazada a módulos anteriores, conservando las 19 vistas históricas (21 actuales). Censo 102 E/21 P+Sesion R sin nuevas clases seleccionadas; reflexión de 433 firmas/75 clases operativas, 218 participaciones de inyección (166 dependencias distintas entre clases) y cero ciclos Service→Service correcta. 21 PlantUML comprobados/renderizados localmente a SVG; dos PNG nuevos inspeccionados (global 2915×1582, asistencia 2276×2008), sin render remoto. P45–P48 cotejados con 17/20/21/20 participaciones transitivas; 65 diagramas del análisis conservados. Atributos/relaciones de entidades sin cambios; DER no requiere actualización. Pint/sintaxis/UTF-8/PSR-4 de 18 PHP acumulados, Composer/diff-check/documentos/rutas correctos. **Fase 6 y módulo backend cerrados localmente**, producción y frontend pendientes.
+
+<a id="cu17-cu19-backend-fase5"></a>
+## CU-17–CU-19 — Backend Fase 5: seguridad y concurrencia (2026-10-28)
+
+**Verificación ampliada de P45–P48, no cierre integral del módulo.** Mantiene las clases/colaboraciones productivas de las Fases 2–4 y las 65 vistas/48 procedimientos/17 antecedentes; no consolida ni reemplaza diagramas previos ni inventa clases productivas para representar pruebas. RF10/RN12/RN14 y VS-EST-01–09 no cambian. Revisión UML global/integración/regresión global/cierre corresponde a Fase 6, no iniciada.
+
+| Clase exclusiva de pruebas | Responsabilidad y relación con las clases efectivas |
+| --- | --- |
+| AsistenciaConcurrenteTest | Esquema propio con migraciones vigentes, navegadores de sesión real, procesos PHP/PID distintos y barreras; observa pg_stat_activity/pg_blocking_pids y valida resultado confirmado/revertido, historial/avisos/auditoría/privacidad y conservación de programación/identidades |
+| PausarEscrituraPlanificacionRepository | Overrides de citaLlegadaConfirmada/citaInasistenciaRegistrada/citaAtendida llaman primero a BitacoraRepository real y después esperan CONFIRMAR/REVERTIR, todavía en la transacción; conserva overrides anteriores |
+| RelojTrasPlanificacionRepository | Sustitución de tests de PlanificacionRepository: adquiere el advisory lock real mediante parent::coordinar y solo después avanza Carbon/CarbonImmutable; prueba cortes temporales tras espera sin instrumentar AsistenciaService |
+| autenticacion-worker.php | Reutiliza gestion-http, HTTP kernel/Sanctum/sesión database/CSRF/origen reales y controles de base/rol/esquema. Opción de reloj posterior al lock exclusiva del worker; otros modos conservados |
+
+**Matriz:** 42 carreras entre llegada/inasistencia/atención y contra cancelación/reprogramación en ambos órdenes, commit/rollback; 80 revocaciones tras middleware para los cuatro endpoints y todos los roles válidos, estado/rol/sesión/hash y además vínculo/identidad dual del Médico; 16 consultas simuladas (NULL/iniciada, commit/rollback) antes de adquirir planificación; seis cortes temporales avanzando reloj tras espera; ocho cruces gestión/atención al inicio con relojes monotónicos; doce comprobaciones de alcance de Médico (ajena/inexistente/reasignada, lectura/atención, commit/rollback). Total diseñado actual: 164 casos. La primera ejecución previa a las últimas ampliaciones pasó 144 pruebas/4452 aserciones (1 min 46,753 s/96 MB); no es el resultado final ampliado ni se suma a la regresión.
+
+**Límites de evidencia:** la matriz de serialización usa relojes independientes para activar precondiciones incompatibles; no representa toda una cronología monotónica. Los casos dedicados de cruce/corte sí avanzan el tiempo y rechazan gestión que ya alcanzó inicio aunque el primer escritor revierta. La consulta/reasignación concurrente son escritores simulados bajo protocolo compartido, no CU-23 ni una nueva API para reasignar atenciones. No garantía frente a SQL arbitrario que omita locks/validaciones. Las declaraciones no prueban hechos físicos; GET de reconciliación no atribuye causalidad inequívoca ni reenvía PATCH. Revocación se modela con cambios transaccionales y locks reales, no nuevos endpoints administrativos. El esquema se elimina exclusivamente si fue creado por este caso en la base de pruebas.
+
+**Regresión ampliada final: 1396 pruebas/22337 aserciones correctas**, 12 min 48,945 s/274 MB, incluidos los 164 casos finales, consumidores del worker compartido y flujos relacionados; comando/límites en contexto §17.151 y backend/README. No sumar la ejecución inicial ni atribuir suite global/Fase 6. Sin fallos productivos detectados ni cambios productivos necesarios. Pint/sintaxis/UTF-8/PSR-4/Composer/diff-check/documentos/rutas correctos; P45–P48 cotejados de nuevo con 17/20/21/20 participaciones transitivas. No hay cambio de persistencia que requiera modificar DER, ni clases productivas nuevas que incorporar al UML. **Fase 5 cerrada localmente**, sin iniciar Fase 6/frontend/despliegue.
+
+<a id="cu19-backend-fase4"></a>
+## CU-19 — Backend Fase 4: marcar atención realizada (2026-10-28)
+
+**Implementado localmente; módulo aún no cerrado.** RF10/RN10/RN12/RN14 según ficha; Administrador o Médico responsable, no Recepción/Paciente. P48 documenta esta escritura, distinta de llegada/inasistencia; las 64 vistas anteriores permanecen íntegras, total 65 vistas/48 procedimientos/17 antecedentes. P45 consulta agrega elegibilidad de atención en texto sin nuevos repositorios (17), P46/P47 conservan 20/21. No diagrama obligatorio por CU ni consolidación de anteriores. Frontend/Fases 5–6/producción pendientes.
+
+### Responsabilidades y colaboración real
+
+AsistenciaRequest selecciona atencion_realizada para marcarAtendida, valida originales/ID y true estricto/entrada cerrada, rechazando campos de llegada/ausencia/clínica/actor. AsistenciaController.marcarAtendida delega array validado/contexto seguro en AsistenciaService.marcarAtendida. Actor admite Administrador/Médico; medicoDelActor exige vínculo legítimo/sin doble identidad; CitaRepository.porIdParaAsistencia filtra al Médico propio antes de materializar en ambas lecturas. MedicoRepository bloquea responsable antes de cita; revalidar renueva cuenta/sesión/rol/vínculo. No consulta Eloquent en Controller/Service ni método por rol.
+
+impedimentosAtencion privado exige estado Programada/Confirmada y ahora >= inicio_at, no fin ni mismo día; se usa en escritura y GET orientativo autorizado. No llama CitaRepository.tieneConsulta en P48: no exige ni altera clínica y no confunde su existencia con atención efectiva. Médico inactivo profesionalmente/cuenta activa conserva sus atenciones asignadas; Administrador actúa sin apropiarse de identidad/Médico responsable. GET de Recepción no ofrece esa acción, Paciente no accede. Declaración no acredita físicamente el hecho ni concede por sí sola permiso sobre el recurso.
+
+Transacción: continuidad administrativa → actor → planificación → primera lectura acotada → Médico responsable → cita bloqueada/releída/acotada → revalidación/originales/declaración → última revalidación/reloj fresco → impedimentos → UPDATE estado/timestamp → CambioCita ATENCION/declaración true → RecordatorioService.invalidarPorCita → CITA_ATENDIDA → ultimoCambio → commit. Preserva programación/versiones/identidades/ubicación/creación, timestamp monotónico. Invalida solo avisos existentes propios no invalidados sin crear otros; rollback después de cualquier paso requerido. Sin ConsultaMedica/VersionConsulta escrita ni lectura de clínica para autorizar P48; las fixtures clínicas de pruebas no son entidades de este flujo operativo. CambioCita contiene el booleano dentro de datos_nuevos JSONB, no columna nueva.
+
+| Método/contexto del diagrama | Clase efectiva |
+| --- | --- |
+| marcarAtendida [controller]; validationData/rules/withValidator [validator] | AsistenciaController / AsistenciaRequest, módulo citas de presentación |
+| marcarAtendida, actor, medicoDelActor, citaBloqueada, revalidar, detalle, ultimoCambio, impedimentosAtencion [service] | AsistenciaService; solo entrada pública de escritura marcarAtendida en P48 |
+| invalidarPorCita [service] | RecordatorioService, recordatorios/; invalidación interna sin generador CU-28 |
+| coordinarAdministracion/porId [repository] | UsuarioRepository, usuarios/ |
+| usuarioId/guard/store/contexto/coincide/vigente/credencialTemporalId/actualizarActor/cerrar [repository] | SesionRepository; ramas de rechazo y privados técnicos incluidos por llamada transitiva, no operaciones públicas HTTP |
+| temporalPorId [repository] | TokenAccesoRepository; comprobación/rechazo de sesión restringida, no habilita acceso normal |
+| coordinar [repository]; porIdBloqueado [repository] | PlanificacionRepository y MedicoRepository |
+| porIdParaAsistencia/guardar/agregarCambio/ultimoCambio [repository] | CitaRepository; tieneConsulta no participa en esta escritura |
+| invalidarPorCita [repository]; citaAtendida [repository] | RecordatorioRepository y BitacoraRepository |
+
+**20 participaciones transitivas de repositorio**, por clase+método, no número de consultas SQL. Auditoría mediante whitelists: antes Programada/Confirmada, después Atendida, ejecutor real/rol y referencias/versiones, sin declaración del formulario/clínica/snapshots. No altera el contrato previo GET gestión de Administrador/Recepcionista. Recuperación por GET asistencia sin replay/causalidad inequívoca; originales viejos y actuales de un final rechazan sin otro historial/evento. Las cuatro operaciones del módulo ya tienen rutas; eso no acredita seguridad ampliada/integración/cierre Fases 5–6.
+
+<a id="analisis-cu19-marcar-atendida"></a>
+### P48 — Marcar Atendida la misma cita
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresAtencion["Administrador · Médico responsable"] {
+        <<actor>>
+    }
+    class InterfazAtencion["Frontera HTTP — marcar Atendida"] {
+        <<boundary>>
+        String id
+        Integer version_programacion_original
+        String actualizada_en_original
+        Boolean atencion_realizada
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlAtencion["CONTROL — Marcar atención realizada"] {
+        <<control>>
+        +marcarAtendida() [controller]
+        +rules() [validator]
+        +marcarAtendida() [service]
+        -actor() [service]
+        -medicoDelActor() [service]
+        -citaBloqueada() [service]
+        -revalidar() [service]
+        -impedimentosAtencion() [service]
+        -detalle() [service]
+        -ultimoCambio() [service]
+        +invalidarPorCita() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porIdParaAsistencia() [repository]
+        +porIdBloqueado() [repository]
+        +guardar() [repository]
+        +agregarCambio() [repository]
+        +invalidarPorCita() [repository]
+        +citaAtendida() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+        String estado_anterior
+        String estado_nuevo
+        JSONB datos_anteriores
+        JSONB datos_nuevos
+        String? motivo
+    }
+    class Recordatorio {
+        <<entity>>
+        BigInt id_cita
+        TimestampTZ? invalidado_en
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String tipo_actor
+        BigInt id_usuario_responsable
+        String rol_responsable
+        String modulo
+        String operacion
+        String resultado
+        String entidad_referida
+        String registro_referido
+        TimestampTZ ocurrido_en
+        Inet direccion_ip
+        String procedencia_ip
+        UUID correlacion
+        JSONB referencias
+        JSONB cambios_seguros
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresAtencion --> InterfazAtencion
+    InterfazAtencion ..> ControlAtencion
+    ControlAtencion ..> Cita : UPDATE estado y timestamp
+    Cita --> Medico : responsable conservado y alcance propio
+    Cita --> CambioCita : ATENCION y declaracion true
+    Cita --> Recordatorio : invalida existentes propios
+    ControlAtencion ..> Bitacora : ejecutor real y referencias seguras
+    ControlAtencion ..> Usuario
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente : identidad incompatible se rechaza
+    Usuario --> Sesiones
+    Usuario --> TokenAcceso : rama restringida se rechaza
+```
+
+**Verificación y límites:** AtencionCitaTest inicial 69/852 correcto al primer intento; negativas GET de Paciente/acción Recepción reforzadas después y cubiertas en **regresión dirigida final nueva 777 pruebas/9079 aserciones correctas**, 3 min 54,944 s/104 MB, contexto §17.150/README. Incluye los 69 casos, no sumar ejecuciones ni presentar como suite global. PostgreSQL aislado/sesiones/cookies/CSRF reales, fixtures de cita/clínica/versiones/avisos y esperas/cambios por callbacks/mocks; no nuevo CU-23/CU-28 ni multiproceso. Cobertura de actor/estado, cortes temporales, consulta no requerida/no alterada/no transición automática, original/declaración/entrada/ID, profesional inactivo, identidad/alcance/rol/sesión, rollback tras escrituras reales y lectura final, reloj fresco y privacidad. P48 cotejado por llamadas efectivas (20 participaciones de repositorio), render Mermaid 10.9.5/Chrome local SVG/PNG 2198×1847 e imagen inspeccionada en %LOCALAPPDATA%/Temp/opencode/cu19-f4-review/. P45/P46/P47 mantienen 17/20/21; las 64 vistas anteriores intactas, 65 actuales. Pint/sintaxis/UTF-8/PSR-4/Composer/rutas/documentos correctos. UML incremental sin nueva entidad/esquema, **Fase 4 cerrada localmente**; cierre global pendiente Fases 5–6, sin frontend/despliegue.
+
+<a id="cu18-backend-fase3"></a>
+## CU-18 — Backend Fase 3: registrar inasistencia comprobada (2026-10-28)
+
+**Implementado localmente, módulo aún no cerrado.** RF10/RN12/RN14 según ficha CU-18; Administrador/Recepcionista, no Médico/Paciente. Solo Programada con intervalo finalizado y ausencia declarada, no desde Confirmada. Reutiliza fronteras/control/persistencia del módulo y añade P47 para esta escritura distinta de llegada. Las 63 vistas anteriores permanecen íntegras; total 64 vistas/47 procedimientos/17 antecedentes. P45 consulta sigue con 17 participaciones de repositorio y añade en texto la elegibilidad de inasistencia; P46 llegada mantiene 20 y conserva todos los avisos. No se consolidan ni borran diagramas anteriores.
+
+### Responsabilidades y colaboraciones efectivas
+
+AsistenciaRequest selecciona ausencia_verificada por registrarInasistencia, conservando presencia_verificada solo para llegada. Originales/ID/entrada cerrada/declaración true estricta validados antes del Controller; campos de la otra operación se rechazan, no coerción de string/número. AsistenciaController.registrarInasistencia adapta datos/contexto HTTP; AsistenciaService.registrarInasistencia decide reglas y transacción. impedimentosInasistencia privado verifica Programada, consulta inexistente y ahora >= fin_at, reutilizado por consultar. GET no acredita ausencia ni ejecuta cambio al finalizar el turno; marcar_atendida sigue no disponible.
+
+Dentro de transacción se mantiene orden continuidad administrativa/actor/planificación → lectura inicial → Médico → cita bloqueada/releída → revalidación/originales/declaración → consulta → revalidación/reloj fresco → estado/timestamp → CambioCita → RecordatorioService.invalidarPorCita → evento → metadata → commit. El Service no consulta Eloquent directamente. Preserva programación/versiones/identidad/ubicación/creación; timestamp monotónico. CambioCita INASISTENCIA conserva ejecutor y declaración true en JSONB datos_nuevos, motivo null; no nuevos atributos/entidades/DER. Inasistencia final rechaza repeticiones con originales viejos o actuales, sin otro cambio/evento.
+
+RecordatorioRepository invalida solo filas no invalidadas de esa cita; conserva lectura e invalidaciones previas/avisos ajenos y no crea nuevos. Evento CITA_INASISTENCIA_REGISTRADA conserva actor real/rol y referencias/estados/versiones, no declaración del formulario ni contenido clínico. ReferenciasBitacora/BitacoraDetalleResource amplían whitelists, antes Programada/después Inasistencia; no permisos de edición de bitácora. Fallo requerido después de cualquiera de las escrituras reales o lectura final revierte todo. Recuperación explícita por GET asistencia sin replay ni causalidad inequívoca.
+
+| Método/contexto del diagrama | Clase efectiva |
+| --- | --- |
+| registrarInasistencia [controller], rules/validationData/withValidator [validator] | AsistenciaController / AsistenciaRequest, módulo citas de presentación |
+| registrarInasistencia, actor, medicoDelActor, citaBloqueada, revalidar, detalle, ultimoCambio, impedimentosInasistencia [service] | AsistenciaService, business/services/citas/; solo entrada pública registrarInasistencia en este contexto |
+| invalidarPorCita [service] | RecordatorioService, business/services/recordatorios/; ahora colaborador real de esta escritura, no de llegada |
+| coordinarAdministracion/porId [repository] | UsuarioRepository, usuarios/ |
+| usuarioId/guard/store/contexto/coincide/vigente/credencialTemporalId/actualizarActor/cerrar [repository] | SesionRepository, usuarios/; privados técnicos y ramas de rechazo de sesión incluidos por llamada transitiva |
+| temporalPorId [repository] | TokenAccesoRepository, usuarios/; no habilita sesión restringida |
+| coordinar [repository], porIdBloqueado [repository] | PlanificacionRepository, horarios/; MedicoRepository, medicos/ |
+| porIdParaAsistencia/tieneConsulta/guardar/agregarCambio/ultimoCambio [repository] | CitaRepository, citas/ |
+| invalidarPorCita [repository], citaInasistenciaRegistrada [repository] | RecordatorioRepository, recordatorios/; BitacoraRepository, bitacora/ |
+
+Las **21 participaciones transitivas de repositorio** se cuentan por clase+método, no por número de llamadas o consultas SQL. No se incluyen escritores de CU-19/CU-23 ni generador CU-28 inexistentes. AsistenciaService.consultar agrega impedimentosInasistencia sin nuevos repositorios de lectura, por lo que P45 conserva sus 17; P46 permanece igual y no llama invalidación. Entidades con solo campos usados; Sesiones es tabla técnica, no nuevo Model. Ausencia_verificada es campo del Boundary y del JSONB del cambio, no columna nueva en Cita/Recordatorio.
+
+<a id="analisis-cu18-registrar-inasistencia"></a>
+### P47 — Registrar inasistencia de la misma cita
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresInasistencia["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazInasistencia["Frontera HTTP — registrar inasistencia"] {
+        <<boundary>>
+        String id
+        Integer version_programacion_original
+        String actualizada_en_original
+        Boolean ausencia_verificada
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlInasistencia["CONTROL — Registrar inasistencia"] {
+        <<control>>
+        +registrarInasistencia() [controller]
+        +rules() [validator]
+        +registrarInasistencia() [service]
+        -actor() [service]
+        -medicoDelActor() [service]
+        -citaBloqueada() [service]
+        -revalidar() [service]
+        -impedimentosInasistencia() [service]
+        -detalle() [service]
+        -ultimoCambio() [service]
+        +invalidarPorCita() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porIdParaAsistencia() [repository]
+        +porIdBloqueado() [repository]
+        +tieneConsulta() [repository]
+        +guardar() [repository]
+        +agregarCambio() [repository]
+        +invalidarPorCita() [repository]
+        +citaInasistenciaRegistrada() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+        String estado_anterior
+        String estado_nuevo
+        JSONB datos_anteriores
+        JSONB datos_nuevos
+        String? motivo
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class Recordatorio {
+        <<entity>>
+        BigInt id_cita
+        TimestampTZ? invalidado_en
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String tipo_actor
+        BigInt id_usuario_responsable
+        String rol_responsable
+        String modulo
+        String operacion
+        String resultado
+        String entidad_referida
+        String registro_referido
+        TimestampTZ ocurrido_en
+        Inet direccion_ip
+        String procedencia_ip
+        UUID correlacion
+        JSONB referencias
+        JSONB cambios_seguros
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresInasistencia --> InterfazInasistencia
+    InterfazInasistencia ..> ControlInasistencia
+    ControlInasistencia ..> Cita : UPDATE estado y timestamp
+    Cita --> ConsultaMedica : cualquier existencia impide
+    Cita --> Medico : responsable conservado
+    Cita --> CambioCita : INASISTENCIA y declaracion true
+    Cita --> Recordatorio : invalida existentes propios
+    ControlInasistencia ..> Bitacora : ejecutor estados referencias seguras
+    ControlInasistencia ..> Usuario
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente
+    Usuario --> Sesiones
+    Usuario --> TokenAcceso : rama restringida se rechaza
+```
+
+**Verificación:** nueva batería InasistenciaCitaTest 63/643 correcta al primer intento; PostgreSQL aislado y autenticación/cookies/CSRF reales, datos clínicos/avisos/citas como fixtures, no integración completa Fase 6. Pruebas de fin±1µs/igualdad/otro día, estados/consulta NULL, originales/entrada/declaración estricta, avisos propios/ajenos e historia, cuatro roles/Service/seguridad, rollback después de escrituras reales y cambios tras espera por callbacks/mocks. **Regresión dirigida final 708 pruebas/8223 aserciones correctas**, 4 min 29,619 s/102 MB, incluye los 63 casos y GET/HEAD con aviso existente preservado; no sumar ejecuciones ni llamarla suite global. Primera regresión 708/8223 (3 min 29,531 s) previa a reforzar esa fixture también correcta, no evidencia final sustitutiva. P47 cotejado con 21 participaciones de repositorio y renderizado con Mermaid 10.9.5/Chrome local (SVG/PNG 2139×1743), captura inspeccionada en %LOCALAPPDATA%/Temp/opencode/cu18-f3-review/. P45/P46 conservan 17/20 y sus vistas, 63 diagramas previos intactos, total 64/47 procedimientos/17 antecedentes. Sintaxis/Pint/PSR-4/UTF-8/Composer/rutas/documentos correctos, contexto §17.149/README. No render remoto ni atribución de pruebas multiproceso aún no realizadas. **Fase 3 cerrada localmente**; DER sin cambios, Fases 4–6/frontend/producción pendientes.
+
+<a id="cu17-backend-fase2"></a>
+## CU-17 — Backend Fase 2: asistencia consultable y llegada presencial (2026-10-28)
+
+**Implementado localmente, no cierre del módulo.** RF10/RN12/RN14, CU-17 Administrador/Recepcionista; lectura compartida con Médico solo para sus citas. CU-18/CU-19 todavía no operativos. Dos procedimientos distintos, P45 consulta/recuperación y P46 escritura, no un diagrama obligatorio por CU. P01–P44 y los 17 antecedentes se conservan íntegros: ahora 63 vistas/46 procedimientos/17 antecedentes. Boundary es AsistenciaRequest HTTP real, no formulario React futuro; no campos de estado/actor/fecha/médico manipulables.
+
+### Participantes, métodos y colaboraciones efectivas
+
+AsistenciaController adapta consultar/confirmarLlegada; AsistenciaRequest valida ID/entrada cerrada y originales/declaración estricta. AsistenciaService coordina actor, cita bloqueada, revalidación, originales, estado, consulta y reloj; recibe arrays y contexto seguro, no objetos HTTP. CitaRepository.porIdParaAsistencia filtra Médico en SQL y aplica lock cuando se pide; MedicoRepository.porIdBloqueado precede al lock de cita. AutenticacionService/ContinuidadAdministrativaService y sus repositorios revalidan sesión/rol/vínculo; PlanificacionRepository usa coordinación transaccional ya existente. Eloquent/PostgreSQL son persistencia, no decisiones en Controller. No RecordatorioService en estos dos procedimientos: Confirmada conserva avisos.
+
+| Método del diagrama | Clase/ubicación efectiva y contexto |
+| --- | --- |
+| consultar / confirmarLlegada [controller] | AsistenciaController, presentation/controllers/citas/ |
+| validationData / rules / withValidator [validator] | AsistenciaRequest, presentation/dtos/citas/; authorize() devuelve true, roles por middleware y Service |
+| consultar / confirmarLlegada / actor / medicoDelActor / citaBloqueada / revalidar / impedimentosLlegada / detalle / ultimoCambio [service] | AsistenciaService, business/services/citas/; auxiliares privados salvo las dos entradas |
+| coordinarAdministracion / porId [repository] | UsuarioRepository, data/repositories/usuarios/; continuidad y usuario autenticado, no Cita |
+| usuarioId / guard / store / contexto / coincide / vigente / credencialTemporalId / actualizarActor / cerrar [repository] | SesionRepository, usuarios/; contexto real/huella/cookie y revocación. Métodos privados técnicos incluidos por llamada transitiva, no endpoints |
+| temporalPorId [repository] | TokenAccesoRepository, usuarios/; rama de comprobación/rechazo de credencial temporal, no permiso para sesión restringida |
+| coordinar [repository] | PlanificacionRepository, horarios/ |
+| porIdBloqueado [repository] | MedicoRepository, medicos/; responsable de la cita, no Médico escogido por el cliente |
+| porIdParaAsistencia / tieneConsulta / ultimoCambio [repository] | CitaRepository, citas/; P45/P46. guardar/agregarCambio solo P46 |
+| citaLlegadaConfirmada [repository] | BitacoraRepository, bitacora/, solo P46. Proyección de consulta CU-30 añade whitelist en ReferenciasBitacora/BitacoraDetalleResource, no otro escritor de llegada |
+
+Análisis estático transitivo de las llamadas propias de AsistenciaService confirma **17 participaciones de repositorio en P45 y 20 en P46** (método+clase, no número de consultas SQL); includes ramas de rechazo de sesión. Los métodos de SesionRepository guard/store/contexto son privados y no aparecen como operaciones de negocio. En las entidades de los diagramas se muestran solo campos leídos/escritos en esos contextos, no se expone su contenido en la API. La tabla técnica Sesiones no es un Model propio; TokenAcceso y relaciones de identidad participan en autorización, sin credenciales devueltas. `presencia_verificada` se almacena dentro de datos_nuevos JSONB, no como columna de Cita.
+
+<a id="analisis-cu17-consulta-asistencia"></a>
+### P45 — Consultar asistencia y recuperar estado persistido
+
+GET/HEAD no muta negocio. Administrador/Recepcionista consultan cita seleccionada; Médico solo propia, profesionalmente inactivo permitido con cuenta válida. Vínculo incompatible → 403; ajena/inexistente → 404 neutro. Después de coordinación/lectura inicial/Médico/cita bloqueada, revalida sesión/vínculo y obtiene consulta existente solo para evaluar llegada administrativa; reloj fresco fija día local/fin y consultado_en. UltimoCambio retorna solo ID/actor/operación/momento, nunca snapshots ni motivos. No infiere causalidad ni reenvía escritura. Inasistencia/Atendida quedan false por disponibilidad futura o permiso, sin anticipar sus flujos.
+
+```mermaid
+classDiagram
+    direction LR
+    class ActoresAsistencia["Administrador · Recepcionista · Médico propio"] {
+        <<actor>>
+    }
+    class InterfazAsistencia["Frontera HTTP — consultar asistencia"] {
+        <<boundary>>
+        String id
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlAsistencia["CONTROL — Consultar asistencia"] {
+        <<control>>
+        +consultar() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        -actor() [service]
+        -medicoDelActor() [service]
+        -citaBloqueada() [service]
+        -revalidar() [service]
+        -impedimentosLlegada() [service]
+        -detalle() [service]
+        -ultimoCambio() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porIdParaAsistencia() [repository]
+        +porIdBloqueado() [repository]
+        +tieneConsulta() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    ActoresAsistencia --> InterfazAsistencia
+    InterfazAsistencia ..> ControlAsistencia
+    ControlAsistencia ..> Cita : lectura acotada y bloqueo
+    Cita --> ConsultaMedica : existencia impide llegada
+    Cita --> CambioCita : solo metadata ultima
+    Cita --> Medico : responsable bloqueado
+    ControlAsistencia ..> Usuario : sesion y vinculo vigentes
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente : rechaza doble vinculo del Medico
+    Usuario --> Sesiones
+    Usuario --> TokenAcceso : rama restringida se rechaza
+```
+
+<a id="analisis-cu17-confirmar-llegada"></a>
+### P46 — Confirmar llegada de la misma cita
+
+PATCH cerrado con originales y presencia_verificada=true estricto. Tras los mismos locks/alcance y revalidación, compara versión/timestamp completos, comprueba declaración también en Service y ausencia de cualquier consulta; obtiene reloj después de volver a revalidar. Solo Programada/mismo día America/La_Paz/ahora < fin. Actualiza estado/timestamp monotónico, conserva programación/versiones/identidades, añade CambioCita LLEGADA y evento seguro, devuelve metadata tras escrituras reales. Repetición con originales viejos → edición obsoleta; actuales de Confirmada → transición no permitida. No avisos, consulta ni atención automática. Fallo requerido revierte todo, sin afirmar éxito previo a commit.
+
+```mermaid
+classDiagram
+    direction LR
+    class OperadoresLlegada["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazLlegada["Frontera HTTP — confirmar llegada"] {
+        <<boundary>>
+        String id
+        Integer version_programacion_original
+        String actualizada_en_original
+        Boolean presencia_verificada
+        +validationData()
+        +rules()
+        +withValidator()
+    }
+    class ControlLlegada["CONTROL — Confirmar llegada"] {
+        <<control>>
+        +confirmarLlegada() [controller]
+        +rules() [validator]
+        +confirmarLlegada() [service]
+        -actor() [service]
+        -medicoDelActor() [service]
+        -citaBloqueada() [service]
+        -revalidar() [service]
+        -impedimentosLlegada() [service]
+        -detalle() [service]
+        -ultimoCambio() [service]
+        +coordinarAdministracion() [repository]
+        +usuarioId() [repository]
+        -guard() [repository]
+        -store() [repository]
+        -contexto() [repository]
+        +porId() [repository]
+        +coincide() [repository]
+        +vigente() [repository]
+        +credencialTemporalId() [repository]
+        +temporalPorId() [repository]
+        +actualizarActor() [repository]
+        +cerrar() [repository]
+        +coordinar() [repository]
+        +porIdParaAsistencia() [repository]
+        +porIdBloqueado() [repository]
+        +tieneConsulta() [repository]
+        +guardar() [repository]
+        +agregarCambio() [repository]
+        +citaLlegadaConfirmada() [repository]
+        +ultimoCambio() [repository]
+    }
+    class Cita {
+        <<entity>>
+        BigInt id_cita
+        String codigo_cita
+        BigInt id_paciente
+        BigInt id_medico
+        BigInt id_especialidad
+        BigInt id_consultorio
+        TimestampTZ inicio_at
+        TimestampTZ fin_at
+        Integer duracion_minutos
+        String estado
+        String modalidad
+        String sede_atencion
+        String consultorio_atencion
+        Integer version_programacion
+        TimestampTZ actualizada_en
+    }
+    class CambioCita {
+        <<entity>>
+        BigInt id_cambio_cita
+        BigInt id_cita
+        BigInt id_actor
+        String operacion
+        TimestampTZ realizado_en
+        String estado_anterior
+        String estado_nuevo
+        JSONB datos_anteriores
+        JSONB datos_nuevos
+        String? motivo
+    }
+    class ConsultaMedica {
+        <<entity>>
+        BigInt id_cita
+    }
+    class Bitacora {
+        <<entity>>
+        String tipo_evento
+        String tipo_actor
+        BigInt id_usuario_responsable
+        String rol_responsable
+        String modulo
+        String operacion
+        String resultado
+        String entidad_referida
+        String registro_referido
+        TimestampTZ ocurrido_en
+        Inet direccion_ip
+        String procedencia_ip
+        UUID correlacion
+        JSONB referencias
+        JSONB cambios_seguros
+    }
+    class Usuario {
+        <<entity>>
+        BigInt id_usuario
+        BigInt id_rol
+        String estado_cuenta
+        TimestampTZ? correo_verificado_en
+        String? password_hash
+        String? nombres_personal
+        String? apellidos_personal
+        Boolean cambio_clave_obligatorio
+    }
+    class Rol {
+        <<entity>>
+        String nombre
+    }
+    class Medico {
+        <<entity>>
+        BigInt id_medico
+        BigInt? id_usuario
+    }
+    class Paciente {
+        <<entity>>
+        BigInt id_paciente
+        BigInt? id_usuario
+    }
+    class TokenAcceso {
+        <<entity>>
+        BigInt id_token
+        BigInt id_usuario
+        String proposito
+        TimestampTZ emitido_en
+        TimestampTZ expira_en
+        TimestampTZ? consumido_en
+        TimestampTZ? invalidado_en
+    }
+    class Sesiones {
+        <<table>>
+        String id
+        BigInt? user_id
+        Integer last_activity
+    }
+    OperadoresLlegada --> InterfazLlegada
+    InterfazLlegada ..> ControlLlegada
+    ControlLlegada ..> Cita : UPDATE estado y timestamp
+    Cita --> ConsultaMedica : cualquier existencia impide
+    Cita --> Medico : responsable bloqueado no sustituido
+    Cita --> CambioCita : LLEGADA y declaracion true
+    ControlLlegada ..> Bitacora : ejecutor estados referencias seguras
+    ControlLlegada ..> Usuario
+    Usuario --> Rol
+    Usuario --> Medico
+    Usuario --> Paciente
+    Usuario --> Sesiones
+    Usuario --> TokenAcceso : rama restringida se rechaza
+```
+
+**Pruebas y límites:** LlegadaCitaTest 74/739 dirigido correcto antes de precisar el 401 exacto de vínculo; regresión final nueva **643 pruebas/7565 aserciones correctas**, 3 min 35,996 s/102 MB, incluye esa precisión y los 74 casos, no sumar ejecuciones. SQL/cookies/sesión/CSRF reales aislados; fixtures de consulta/avisos y cambios tras callbacks declarados, no nuevos flujos CU-23/CU-28 ni carreras multiproceso. Rollback después de cada escritura real/lectura final, metadatos seguros y cuatro roles verificados. Diagramas nuevos cotejados por llamadas efectivas (17/20 participaciones de repositorio), Mermaid 10.9.5 local en Chrome renderiza SVG/PNG P45 (2157×1371) y P46 (2120×1641), ambas capturas inspeccionadas; no remoto ni imágenes/scripts versionados, recursos en %LOCALAPPDATA%/Temp/opencode/cu17-f2-review/. Las evidencias de P01–P44 no se atribuyen a estas vistas. 61 diagramas anteriores idénticos, 63 actuales; sintaxis/Pint/PSR-4/UTF-8/rutas/documentos correctos en contexto §17.148. **Fase 2 cerrada localmente**, sin DER nuevo ni cierre integral del módulo; Fases 3–6 pendientes.
+
+<a id="cu17-cu19-backend-fase1"></a>
+## CU-17–CU-19 — Backend Fase 1: análisis y contratos previstos (2026-10-28)
+
+**Estado:** diseño documental completado; ningún CU operativo nuevo. RF10 y RN10/RN12/RN14 según trazabilidad de sus fichas; CU-17/CU-18 Administrador/Recepcionista, CU-19 Administrador/Médico responsable. Las tres decisiones explícitas del usuario se registran como VS-EST-07–09: declaración del hecho true, Atendida desde inicio_at y bloqueo de llegada/inasistencia por cualquier ConsultaMedica (también iniciada_en NULL). No son exigencias literales nuevas del examen. Plan de seis fases y contratos completos/matriz de aceptación en backend/README; contexto §17.147. Fases 2–6/frontend/producción pendientes.
+
+### Fronteras y controles previstos, no clases existentes
+
+AsistenciaController y AsistenciaService ya están P en el UML global, no implementados. Se prevé AsistenciaRequest único por responsabilidad de entrada, en dtos/citas/, sin duplicar clases por rol. GET /citas/{id}/asistencia permite consulta/recuperación Administrador/Recepcionista y Médico solo propio; tres PATCH específicos llegada/inasistencia/atencion, no setter genérico de estado. Guardas transversales existentes más validación estructural de ID/originales/declaración true estricta/entrada cerrada; JsonResource de array explícito, sin nuevo Resource nominal obligatorio.
+
+Controller recibe datos validados y contexto seguro HTTP; AsistenciaService decide permisos sobre la cita, estado/plazos, controla transacción e integra efectos. Firmas previstas: consultar(string $id): array y confirmarLlegada/registrarInasistencia/marcarAtendida(string $id, array $datos, array $contexto): array; array contiene originales y declaración específica, nunca Request/Response. Concretan las firmas preliminares P de booleano en el UML, no se presentan como firmas PHP existentes. No nuevo diagrama operativo ni método público de transición arbitraria, interfaces vacías o repositorio genérico.
+
+### Colaboradores existentes y responsabilidades
+
+| Participante real | Reutilización prevista |
+| --- | --- |
+| AutenticacionService / ContinuidadAdministrativaService | Sesión/cuenta/rol actual y coordinación previa a locks de actores; revalidación al escribir. |
+| PlanificacionRepository | Advisory lock transaccional actual común a planificación/reserva/gestión; no una capa de permisos. |
+| MedicoRepository | Lectura bloqueada del responsable para conservar vínculo/obligaciones y orden de recursos, sin exigir profesional activo. |
+| CitaRepository | Lectura acotada/bloqueada, guardar, comprobar consulta y agregarCambio/ultimoCambio. Añadir lectura acotada si procede durante implementación, sin consultar Eloquent desde Service. |
+| RecordatorioService / RecordatorioRepository | Invalidación interna solo para Atendida/Inasistencia, no para Confirmada; no genera avisos ni completa CU-28. |
+| BitacoraRepository / ReferenciasBitacora / BitacoraDetalleResource | Nuevos eventos/metadatos seguros en futuras fases, mediante listas permitidas; no contenido clínico ni formulario completo. |
+| Cita / CambioCita / Usuario / Medico / ConsultaMedica / Recordatorio / Bitacora | Entidades existentes; consulta solo como comprobación de existencia que impide CU-17/CU-18, sin prueba automática de atención ni documentación clínica nueva. |
+
+### Flujo diseñado y persistencia
+
+Route/middleware → Controller/Request → AsistenciaService → Repositories → Models/PostgreSQL. Dentro de transacción: coordinación administrativa → actor → planificación → lectura inicial acotada para identificar Médico → Médico bloqueado → cita releída/bloqueada/acotada → originales/rol/vínculo/estado/consulta → reloj fresco → UPDATE estado y timestamp → CambioCita → invalidación si final → evento → proyección → commit. Revalidar luego de esperas; nunca bloquear cita y después recursos en orden inverso a planificación. Futuro CU-23 debe compartir protocolo de coordinación/relectura; sus fixtures concurrentes no acreditarán CU-23 implementado ni protección contra SQL que ignore protocolo.
+
+Llegada: Programada, misma fecha local, ahora < fin y sin consulta; conserva avisos. Inasistencia: Programada, ahora >= fin y sin consulta; invalida avisos. Atendida: Programada/Confirmada, ahora >= inicio, Médico propio o Administrador real, sin consulta obligatoria. Declaraciones presencia_verificada/ausencia_verificada/atencion_realizada son JSON true estricto y no demuestran físicamente el hecho. Exactamente inicio admite atención; exactamente fin rechaza llegada y admite ausencia declarada. Fichas inactivas/catálogos inactivos no borran elegibilidad de citas previas por sí solos; cuenta desactivada sí impide acceso.
+
+CambioCita soporta LLEGADA/INASISTENCIA/ATENCION sin ampliar esquema: actor, instante, antes/después y declaración correspondiente en datos_nuevos, motivo null. Snapshot administrativo sin clínica/contactos; conservar programación/identidad/version_programacion incluso máxima; actualizada_en monotónica detecta obsolescencia. Eventos previstos CITA_LLEGADA_CONFIRMADA/CITA_INASISTENCIA_REGISTRADA/CITA_ATENDIDA con ejecutor real, no atribuidos al Médico si ejecuta Administrador. Cualquier fallo requerido revierte estado/cambio/avisos/evento. No columnas duplicadas de confirmado_por/atendido_en ni nueva tabla; DER sin cambios.
+
+GET devuelve programación mínima/metadata de último cambio y acciones/impedimentos orientativos, nunca autorización definitiva. 200 no-store/private, IDs como texto/timestamps UTC de seis decimales; sin motivo/CI/contacto/clínica/snapshots. Médico ajeno → 404 neutro, vínculo incoherente/rol no permitido → 403. Originales y conflictos → 409; declaración/formato/extra → 422. Tras resultado incierto reconsultar explícitamente sin repetir PATCH ni atribuir causalidad inequívoca. GET gestión anterior no se abre al Médico; el nuevo GET asistencia evita un bypass de aquel contrato.
+
+### Verificación y límites de esta fase
+
+Inspeccionados código/rutas, bootstrap, composer.json/paquetes instalados, modelos/migraciones/repositorios y baterías de gestión como referencia; versiones y matriz prevista en backend/README. Artisan confirma ausencia de endpoints nuevos; no pruebas funcionales nuevas, SQL/migraciones o concurrencia ejecutados para este módulo. Se definirán pruebas por CU durante Fases 2–4, multiproceso en Fase 5 e integración/global nueva en Fase 6, sin reutilizar números históricos como evidencia nueva.
+
+Se conservan todos los diagramas anteriores y la revisión UML global del módulo anterior. AsistenciaController/Service siguen P; UML operativo se concretará contra clases reales y revisión acumulativa al cierre. No diagrama obligatorio por CU ni recuentos transitivos inventados de repositorios antes de escribir código. Sin cambios frontend, Word/PDF/draw.io, dependencias, commit/push/despliegue. **Fase 1 documental cerrada; detenerse antes de Fase 2.**
+
+<a id="cu15-cu16-frontend-fase6"></a>
+## CU-15/CU-16 — Frontend Fase 6: integración real y revisión de cierre (2026-10-27)
+
+**Unidad cerrada localmente:** Reprogramación y cancelación, seis fases frontend completas, mismos actores/requisitos/reglas de sus fichas y análisis anteriores. Las fronteras React reales añadidas progresivamente en Fases 2–5 se integran con P41/P42/P43/P44; no se fusionan ni eliminan vistas previas. Backend permanece en su cierre §17.140. Esta fase verifica integración local, no producción ni módulos ajenos; evidencia final de suite/limpieza/cierre en contexto §17.146.
+
+### Procedimientos y colaboraciones integrados
+
+- **Selección y lectura:** sidebar/Inicio Gestionar citas → SeleccionarPacienteHistorialPage/PatientsPage → ficha administrativa → HistorialCitas/CitaDetallePage → GestionCitaPage, dentro de guardas normales compartidas y AgendaWorkspace. Contexto de nombres procede del detalle autorizado por IDs coincidentes, programación/acciones/versiones del GET de gestión; no copia clínica/contactos/motivos a estado global. Médico/Paciente no obtienen gestión aun manipulando URL/API. Retorno reconsulta detalle/historial; recarga consulta estado final persistido sin restaurar una reserva.
+- **P41 → P43:** ReprogramacionCita/Alternativas consultan fecha/paginación del mismo recurso, muestran programación anterior/nueva y revisión explícita; useGestionCita → reprogramarCita → CSRF/PATCH con originales/HMAC → capas Laravel/transacción existente. Prueba real con ficha inactiva y Confirmada (fixture controlada), nueva duración vigente, misma identidad, Programada y versión siguiente. Cortar respuesta HTTP 200 después de commit produce incertidumbre, no otro PATCH; P42 recupera estado y exige revisión nueva, sin demostrar causalidad inequívoca.
+- **P44:** CancelacionCita revisa código/identidades/intervalo/duración/ubicación/motivo opcional y confirmación destructiva; mismo coordinador/transportes/capas backend. Respuesta cortada tras guardar se consulta, no reenvía; estado Cancelada, intervalo/versión conservados, aviso retirado y motivos privados fuera de resultados/auditoría/historial. Otra petición real de reprogramación después de revisar cancelación invalida los originales; UI recibe 409, vuelve a consultar y solo otra confirmación explícita cancela. Nueva reserva UI sobre intervalo liberado tiene otro ID y no restaura la cancelada.
+- **Consulta administrativa/auditoría:** detalle e historial mantienen citas canceladas y ubicación histórica; doce eventos programada/reprogramada/cancelada tienen ejecutor real y Médico responsable separado. Bitácora conserva proyección segura/solo lectura; no se añade editor clínico ni permisos. Revocación de sesión real retira gestión y exige login.
+
+### Clases y funciones revisadas, sin cambios estructurales ficticios
+
+GestionCitaPage/GestionCitaResumen/ReprogramacionCita/Alternativas/CancelacionCita/useGestionCita/gestionCita.service mantienen responsabilidades de presentación/consulta/confirmación/coordinación HTTP, frente a Requests/Controllers/Services/Repositories/Eloquent/PostgreSQL existentes. No nuevos endpoints, clases PHP, modelos, migraciones ni relaciones; CU-28 conserva exclusivamente invalidación interna. Fixtures de Confirmada/avisos/configuración no acreditan CU-17/generador/scheduler CU-28.
+
+P41–P44 conservan 23/16/28/20 participaciones transitivas de repositorio, contrastadas de nuevo contra código efectivo; frontera HTTP y atributos de entidades previos intactos. El verificador histórico se adaptó en temporal al HEAD actual de 61 diagramas y nulabilidad del motivo, sin editar diagramas para satisfacer un contador antiguo. Se mantienen 61 vistas/44 procedimientos/17 antecedentes y todos los 64 bloques cercados previos. UML global acumulativo revisado al cierre del módulo conforme a su alcance aprobado **solo backend**: 100 E en cuatro familias, 23 P y Sesion R, 124 participantes; 411 firmas propias de 73 clases operativas/207 dependencias de inyección y cero ciclos comprobados nuevamente. No cajas PHP de componentes React ni nuevo render de las 19 vistas cuyo origen no cambió. DER/requisitos/reglas sin modificaciones.
+
+### Evidencia real y ajuste visual mínimo
+
+Chrome headless/CDP → frontend Vite/Axios → Laravel/Sanctum/PostgreSQL reales, localhost:5174/8001, esquema aleatorio propio en base/rol de tests sin privilegios elevados. Correo simulado/HTTP externo prohibido, datos ficticios y credenciales aleatorias solo en temporal. PostgreSQL detenido al comenzar fue iniciado por el usuario; el primer intento no creó esquema. Se reutilizó arnés previo sin modificarlo, con comprobaciones de identidad/ámbito propio y baseline de esquemas/public. Preparación de identidades/profesional/horarios/fichas se hace por fixture; las cuatro reservas son UI real. Confirmada y cuatro avisos de invalidación son fixtures explícitas, no endpoints pendientes ni generación funcional.
+
+El recorrido completo por ambos operadores verificó 18 comprobaciones, cuatro cortes de respuesta tras commit, 65 disposiciones sin overflow y 26 axe sin infracciones automáticas, ocho estados HTTP observados 200/201/204/401/403/409/419/422 y ninguna excepción JS. Incluye ficha inactiva/Confirmada/duración, privacidad/motivos, 409 real entre revisión/escritura, reutilización de intervalo, límites Médico/Paciente, cookies HttpOnly/SameSite=Lax/CORS con credenciales, Web Storage vacío, recarga y revocación, teclado/foco/salto de contenido/Escape móvil. Se reejecutó en fixture nueva tras ambos ajustes para dejar recorrido final completo independiente de pausa inicial; evidencia definitiva en contexto.
+
+Revisión visual detectó un desbordamiento real de palabra larga en encabezado Reprogramar cita a 320px/texto200. Primera corrección productiva: clase gestion-cita-page en página y overflow-wrap:anywhere en CSS existente; no cambio de paleta/tokens/dependencias/reglas. Nueva expectativa de clase en prueba de gestión. Revisión diagnóstica posterior y todas las disposiciones del recorrido corregido pasaron; capturas de revisión de reprogramación/cancelación y gestión inspeccionadas. No certificación exhaustiva de accesibilidad, compatibilidad de todos los navegadores o producción HTTPS. Fallos auxiliares del arnés (extracción por espacios y contadores/nulabilidad históricos del verificador) se corrigieron en temporal, no cambiando código de negocio ni ampliando timeouts.
+
+La inspección posterior de capturas detectó además una ambigüedad: tras 409/incertidumbre, el resumen consultado antes del PATCH conservaba el título Programación actual. **GestionCitaPage** ahora lo oculta mientras hay guardado/error/incertidumbre/recuperación pendiente; tras resultado confirmado/recuperado solo presenta GET con timestamp al menos igual al del resultado validado. Se conserva el resultado separado y se pide reconsulta explícita, sin introducir un GET automático que reenvíe escrituras. Nuevas aserciones de ambas operaciones y gestión: **108 pruebas/3 archivos correctos**, 18,05 s; nuevas capturas reales sin resumen antiguo en incertidumbre/409. No nuevas reglas/versiones, solo no presentar un snapshot anterior como vigente. El recorrido final completo en fixture nueva pasó con ambos ajustes.
+
+Verificación SQL final de solo lectura: cuatro citas Canceladas/version2, ocho cambios, doce eventos de negocio, cuatro avisos invalidados; ejecutor y Médico preservados, sin secretos/motivos en bitácora ni consultas clínicas creadas, public/otros esquemas conservados. Tras ese recorrido se retiraron esquema/fixture/credenciales y procesos propios PHP/Vite, preservando el servicio PostgreSQL que inició el usuario. No auditoría del contenido de todas las filas ajenas por el mero inventario. Una pausa auxiliar de teclado al redimensionar se resolvió esperando dos frames de resize antes de accionar menú; no cambio de layout global ni aumento de timeouts.
+
+Build final reejecutado correctamente: 731,77 kB JS/gzip 203,15 kB y 66,49 kB CSS/gzip 11,23 kB; aviso conocido >500 kB, sin script lint. **Regresión global final nueva tras ambos ajustes y sincronizaciones de tests: 2015 pruebas/78 archivos correctos, 234,12 s**, `pnpm test --maxWorkers=2`; no sumar ejecuciones. No nueva suite backend ni afirmar su resultado histórico como prueba de esta fase. Sin Word/PDF/draw.io/commit/push/despliegue. Frontend del módulo cerrado localmente; producción pendiente y otros módulos no iniciados. Entradas anteriores conservadas como historial.
+
+**Incidencias de sincronización en regresión:** se conservan la primera global correcta (2015/78, 236,12 s), una intermedia 2014/2015 por foco en DoctorManagement y su dirigida posterior 21/21. La global posterior a ambos ajustes terminó 2014/2015 (229,89 s) por PasswordPages.test.jsx:177, no por gestión de citas. La batería aislada pasó 23/23 (20,96 s). ResetPasswordPage limpia la entrega en useEffect: encontrar el encabezado no garantiza finalizar ese efecto. Se cambia solo la aserción por await waitFor conservando token nulo y flujo completo StrictMode/restablecimiento/nuevo login, conforme al patrón de invitaciones. La siguiente global pasó autenticación pero repitió el fallo de foco (2014/2015, 233,20 s): useDoctorSubmission usa requestAnimationFrame tras mostrar error; se sincroniza únicamente esa expectativa con waitFor conservando foco y ausencia de escritura. No cambian clases/funciones productivas de esos módulos ni timeouts. La siguiente global final pasó completa; no se ocultan los fallos anteriores ni se atribuye a una dirigida el cierre global.
+
+<a id="cu15-cu16-frontend-fase5"></a>
+## CU-15/CU-16 — Frontend Fase 5: sesiones, ciclo de vida y recuperación (2026-10-27)
+
+**Alcance:** robustez de los flujos implementados, no integración real ni cierre del módulo frontend. Mismos CU/actores/reglas/contratos del backend; no permisos por ocultación, nuevos endpoints o estados de cita. Los estados internos de UI no son estados del dominio. Se reutilizan los participantes y vistas de Fases 2–4; tres archivos nuevos de pruebas, ninguna clase productiva nueva.
+
+### Hallazgos y cambios efectivos
+
+1. **Intención pendiente de CSRF:** el transporte anterior no recibía señal de cancelación. Un cambio de ruta/identidad/pagehide mientras esperaba CSRF podía dejar pendiente la continuación del PATCH aunque ya no existiera la revisión de pantalla. **useGestionCita** ahora crea AbortController por ejecución y entrega señal tanto a reprogramarCita/cancelarCita como a consultarGestionCita de recuperación. pagehide/desmontaje abortan señal e invalidan secuencia. **escribirGestion** comprueba señal antes y después del GET CSRF, y la pasa a ambos requests. Error previo al PATCH se marca no enviado; abortar tras iniciar PATCH se marca enviado y nunca acredita rollback. La lectura explícita posterior sigue siendo necesaria si falta resultado verificado. No se cancela una transacción PostgreSQL desde React.
+2. **Espera de alternativas:** useAgendaQuery antes residía en Alternativas, que se desmontaba al editar fecha. Su límite local desaparecía con esa edición. Ahora la consulta pertenece a **ReprogramacionCita** durante todo el formulario, usa enabled solo con criterios válidos y conserva el mismo límite/secuencia/sesión entre cambios de fecha. **Alternativas** recibe query/onPage como props y conserva solo selección/revisión. Fecha/página/revisión invalidan selección; cambiar fecha aborta request previo. El submit comprueba remaining y está deshabilitado durante Retry-After, sin solicitud automática al vencer. No compartir esta espera con una cancelación legítima de otro endpoint ni atribuirle protección global entre pestañas/recargas: servidor sigue limitando.
+3. **Época descartada y logout fallido:** Axios central conserva su rechazo SESSION_SUPERSEDED de respuestas HTTP exitosas de una época previa. Si logout falla, AuthContext puede conservar la misma identidad montada. useAgendaQuery antes ignoraba ese error dejando gestión/alternativas cargando sin salida. Ahora esos dos tipos específicos producen fallo seguro con reconsulta explícita; ningún dato de aquella respuesta se publica. Otros consumidores/tipos conservan tratamiento anterior, sin refactor global de Axios/AuthContext.
+4. **HTTP no contractual tras PATCH:** useGestionCita antes consideraba inciertos red/5xx, pero un timeout HTTP 408 u otro estado ajeno al contrato tampoco demuestra ausencia de commit. Solo rechazos conocidos 400/401/403/404/405/409/419/422/429 permiten salir a error con nueva revisión explícita; los demás, si hubo envío, requieren recuperación GET. Lectura de recuperación fallida conserva incertidumbre incluso si su status es un rechazo conocido. No reenviar PATCH por estado HTTP, abort, fallo de CSRF, timeout o consulta de resultado.
+5. **Espera de escritura tras restauración:** pagehide limpia errores/borradores, pero no borra el vencimiento del límite del hook. GestionCitaPage ahora hace visible esa espera cuando el estado vuelve a inicial y oculta el formulario de reprogramación hasta vencer; Preparar cancelación/Actualizar gestión siguen deshabilitados. Impide botones activos que antes terminaban en un no-op silencioso del lock temporal. No guardar datos privados o plazos en Web Storage.
+
+### Colaboraciones/firmas y procedimientos
+
+- **reprogramarCita()/cancelarCita()** incorporan segundo argumento AbortSignal opcional, compatible con consumidores previos; escribirGestion interno también. GET/PATCH/payloads/proyecciones/versiones/actor auténtico siguen idénticos. No nuevas firmas PHP.
+- **useGestionCita** mantiene un lock de ambas escrituras, secuencia, resultado seguro por operación y una referencia temporal al AbortController; no guarda motivo/entrada/vista en estado/contexto. La señal es control de espera HTTP, no una garantía de rollback. Callback de página solo refresca si ejecución vigente confirmó/recuperó resultado.
+- **GestionCitaPage** conserva guardas, claves usuario/rol/ID, revisión, resultado separado del refresco y retorno; **ReprogramacionCita/Alternativas** redistribuyen consulta/selección dentro de la misma feature sin nuevas capas.
+- **P41/P42/P43/P44** conservan sus fronteras efectivas descritas en las fases anteriores, métodos y 23/16/28/20 participaciones transitivas de repositorio. Este cambio de manejo HTTP no añade un caso de uso, repositorio ni transacción. Las 61 vistas/44 procedimientos/17 antecedentes y 64 bloques cercados previos permanecen intactos; actualización textual sin diagrama obligatorio por CU. UML global filtrado backend/DER sin cambios de persistencia/clases/relaciones; revisión integral al cerrar Fase 6 aún pendiente.
+
+### Evidencia y límites
+
+**208 pruebas dirigidas/5 archivos correctos**, 29,11 s: tres baterías nuevas de robustez y regresión de ReprogramacionCita/CancelacionCita; 143 casos netos nuevos de servicio/hook/página. No sumar ejecuciones previas como casos distintos. Servicio verifica señal ya abortada/abandono durante CSRF/cambio de época antes y después de PATCH/abort tras envío/status HTTP sin replay/enlaces externos ignorados. Hook verifica matriz de estados conocidos/desconocidos, lock cruzado, recuperación con señal/doble consulta/fallo de lectura, desmontaje/pagehide/privacidad, Retry-After inválido y campos de error permitidos. Página recorre ambos operadores/operaciones con pagehide/identidad/restricción durante CSRF, respuesta tardía de PATCH, 408/estado sin cambio, logout fallido durante escritura/GET/alternativas, espera conservada al editar fecha o restaurar y descarte de fecha anterior. Barreras de promesas y señales demuestran secuencias, no esperas arbitrarias para inferir ejecución concurrente.
+
+Primer dirigido de 133 casos detectó dos expectativas usando toHaveValue con radio, no soportado por jest-dom; 131 correctos y dos fallos de matcher. Se sustituyó por atributo value, sin cambiar lógica productiva ni aumentar timeouts; ampliación final correcta. **Suite global final nueva: 2015 pruebas/78 archivos correctos**, `pnpm test --maxWorkers=2`, 232,54 s; 143 casos netos adicionales, incluye las dirigidas sin sumar ejecuciones. Build JS 731,46 kB/gzip 203,08 kB, aviso conocido >500 kB; sin script lint. UTF-8 de 30 archivos acumulados, cercas/anclas y 64 bloques cercados previos de análisis verificados; diff-check sin errores. **Fase 5 cerrada localmente con API simulada**, evidencia y límites en contexto §17.145/README.
+
+React/Router/layout/guardas/AuthProvider/hooks/services/Axios reales con sesión/adapter HTTP simulados; no nueva integración Laravel/PostgreSQL, auditoría/CSRF/cookies o carreras reales entre procesos ni certificación nueva de navegador/axe/responsive. Los tiempos locales no sustituyen límites/revocaciones de servidor ni persisten entre flujos desmontados/pestañas/recargas. Backend/Axios global/AuthContext/CSS/dependencias/requisitos/reglas/DER/UML intactos; sin SQL/migraciones/Word/PDF/draw.io/commit/push/despliegue. Fase 6 de integración/regresión/cierre no iniciada.
+
+<a id="cu16-frontend-fase4"></a>
+## CU-16 — Frontend Fase 4: cancelación y resultado compartido (2026-10-27)
+
+**Estado:** cancelación React implementada y verificada con API simulada, sin integración real ni cierre integral de CU-15/CU-16. Se conserva trazabilidad RF09/RN09/RN10/RN12/RN14, actores Administrador/Recepcionista, corte temporal/ausencia de cualquier ConsultaMedica y reglas ya vigentes. No cancelación para Médico/Paciente ni nuevos estados. La actividad actual de ficha/profesional/especialidad/consultorio no es condición de esta escritura y no se consulta disponibilidad para cancelarla.
+
+### Participantes y procedimiento efectivo
+
+1. **GestionCitaPage (E ampliado)** conserva consulta/autorización visual/retorno de fases anteriores; alterna reprogramación y cancelación sin formularios concurrentes. Preparar cancelación desmonta el formulario de alternativas; volver restaura reprogramación sin conservar borrador privado. Solo GET gestión con acciones.cancelar habilita el formulario; ninguna confirmación aparece automáticamente. Durante guardado/resultado incierto/recuperación no se habilita la otra escritura. Después de cancelar, nueva revisión reconsulta estado final y no lo reabre.
+2. **CancelacionCita (E nuevo)** recibe contexto verificado, formulario de motivo y callbacks explícitos. Normaliza/valida al revisar; cualquier edición invalida revisión anterior. Muestra código/identidades, Programada o Confirmada, intervalo, duración y ubicación que se conservarán, motivo a enviar o Sin motivo, advertencia de Cancelada/liberación solo tras confirmación. Botón destructivo independiente de submit de revisión, Volver sin cancelar/Abandonar cancelación no envían PATCH y limpian el borrador por desmontaje. Foco en revisión; Enter desde motivo solo prepara, confirmación posterior por teclado.
+3. **normalizarMotivoCancelacion() (E)** aplica trim, vacío/ausente/null a null, máximo 500 puntos de código Unicode y rechazo de caracteres de control, conforme al Request real. No truncamiento ni conteo UTF-16 que impediría 500 caracteres astrales válidos. El motivo no se convierte en dato clínico/motivo_breve ni se pone en URL/Web Storage/logs/contexto global.
+4. **cancelarCita() (E)** valida ID textual/programación original/estado elegible, crea payload cerrado version_programacion_original/actualizada_en_original/motivo. No recalcula microsegundos ni envía ID de recurso/actor/rol/estado/propuesta/HMAC de alternativa. Comparte **escribirGestion() (E interno)** con reprogramarCita para CSRF/sessionBound/PATCH único y marca de envío previo/posterior; no nueva instancia Axios ni mecanismo global de reintentos. Esta extracción conserva contrato/resultados de reprogramación, cubiertos por regresión.
+5. **Proyección de cancelación:** HTTP 200, misma identidad/código/Paciente/Médico/especialidad/consultorio/intervalo/duración/sede/ubicación/version_programacion; solo estado Cancelada y actualizada_en creciente difieren. Último cambio debe ser CANCELACION con ID/actor/timestamp válidos. Versión máxima INTEGER sigue cancelable, no se exige incrementarla. Motivo/extras de respuesta y cambio nunca se retienen; no exigir acciones/zona/consultado_en de GET para validar PATCH. Un 200 incongruente pasa a resultado incierto, no éxito visual.
+6. **useGestionCita (E ampliado)** expone cancelar además de guardar (reprogramación) y consultar; operación real determina Service/textos/campos de error y se conserva en recuperación. Un único lock ref/secuencia bloquea ambas escrituras, incluso llamadas antes de render. No guarda motivo/vista/entrada en su estado ni Context; el estado final solo contiene resultado mínimo seguro. pagehide de acción en vuelo limpia contenido y conserva necesidad de consulta, no rollback; respuesta tardía/desmontaje descartados. La recuperación es el mismo GET de estado, nunca un replay de cancelación.
+7. **Resultado:** éxito confirmado informa Cancelada e historial conservado, refresca GET gestión y permite retornar a detalle/historial que reconsultan. Fallo de refresco conserva guardado confirmado. 409 exige nueva consulta/revisión sin adoptar originales; 419/422/429 y rechazos conocidos no reenvían; campos de error permitidos en cancelación solo motivo/originales. Red/5xx/200 inválido después de enviar exige GET explícito, bloquea ambas acciones y no confirma que la petición concreta causó el estado leído. El motivo deja de mostrarse al enviar y no aparece en resultado/último cambio/historial. No se intenta reconstruirlo con GET.
+
+### Fronteras y capas, sin diagramas ficticios
+
+**P44** ahora tiene frontera de presentación real: GestionCitaPage → CancelacionCita/revisión explícita → useGestionCita.cancelar → cancelarCita → escribirGestion/Axios/CSRF → GestionCitaRequest → GestionCitaController.cancelar → GestionCitaService.cancelar y repositorios/modelos/transacción efectivos de su vista existente. Conserva las **20 participaciones transitivas de repositorio**, roles/recurso, UPDATE/CambioCita/invalidación de Recordatorio/Bitácora y separación de ejecutor/Médico responsable. No se transforma React en clase de dominio PHP ni se crea otro método de repositorio por botón.
+
+**P42** sigue resolviendo GET gestión/resultado persistido; contexto de nombres procede del detalle con comprobación de IDs. **P41/P43** mantienen alternativas/escritura de reprogramación y el mismo transporte/coordinador, sin alterar sus métodos/colaboraciones backend. Las 61 vistas/44 procedimientos/17 antecedentes y 64 bloques cercados previos se conservan; esta fase amplía análisis textual de fronteras implementadas, no obliga a un diagrama por CU. UML global filtrado backend y DER sin cambios de firmas/relaciones/modelos; revisión final frontend del módulo sigue Fase 6.
+
+### Verificación actual y límites
+
+CancelacionCita.test/revisión de servicio/useGestionCita.test: **107 pruebas/3 archivos correctos**, 13,83 s, incluidos casos previos del hook. Recorridos de ambos operadores con motivo opcional/vacío/privado, Confirmada y Programada, conservación de versión/ubicación/intervalo, confirmación/deshacer/editar/borrador/actualización, retorno a detalle/historial Cancelada con registro visible, teclado/foco. Servicio comprueba Unicode/control/500 caracteres, IDs/originales/estados finales, versión máxima, rechazo 200 con cambios improcedentes/último cambio inválido, extras privados, CSRF previo y HTTP/red sin reenvío. Página/hook cubren doble clic y exclusión cruzada con reprogramación, fallo de alternativas sin impedir cancelación, conflictos/errores/Retry-After/401, respuestas inciertas/GET, guardado confirmado/GET fallido, roles, pagehide/desmontaje/logout y limpieza. Primera regresión conjunta con ReprogramacionCita pasó 132 pruebas antes de añadir tres recorridos; no sumarla a ejecuciones finales.
+
+Son pruebas con kernel de UI Router/guardas/AuthProvider/hooks/servicios/Axios reales y sesión/adapter HTTP simulados: no motor PostgreSQL/cookies/CSRF/auditoría real ni nueva certificación visual/navegador/axe/responsive. **Suite global final nueva: 1872 pruebas/75 archivos correctos**, `pnpm test --maxWorkers=2`, 225,10 s; 94 casos netos adicionales, incluye las dirigidas y regresión de reprogramación/transporte compartido. Build correcto JS 730,78 kB/gzip 202,92 kB, aviso conocido >500 kB; sin script lint. UTF-8 de 27 archivos acumulados, cercas/anclas y 64 bloques cercados anteriores verificados; diff-check sin errores. **Fase 4 cerrada localmente con API simulada**, evidencia/límites en contexto §17.144/README. Backend/Axios/CSS/dependencias/requisitos/reglas/DER/UML sin cambios. Robustez ampliada Fase 5 e integración real/regresión/cierre Fase 6 siguen pendientes; no SQL/migraciones/Word/PDF/draw.io/commit/push/despliegue.
+
+<a id="cu15-frontend-fase3"></a>
+## CU-15 — Frontend Fase 3: alternativas, revisión y guardado (2026-10-27)
+
+**Estado:** flujo React de reprogramación implementado/verificado con API simulada, no integración real ni cierre integral del módulo. Mantiene actores/requisitos de la ficha CU-15 y VS-CIT-14–16; no nuevas reglas. CU-16 conserva consulta/impedimentos pero no formulario/PATCH. Las entradas Fases 1/2 debajo reflejan su momento histórico, no el estado actual de escritura CU-15.
+
+### Participantes y colaboración reales
+
+1. **GestionCitaPage** reutiliza el resumen vigente y monta ReprogramacionCita solo cuando GET gestión concede elegibilidad básica y no hay escritura/recuperación pendiente. La clave usuario/rol/ID sigue separando identidades; nueva revisión reconsulta gestión. El resultado está fuera del bloque de consulta para no perder una escritura confirmada si falla refrescar. useBlocker y beforeunload advierten en guardado/incertidumbre/consulta de recuperación; salir no promete rollback ni reenvía.
+2. **ReprogramacionCita** recibe programación original, gestiona fecha civil y criterios de consulta. **Alternativas** separa selección/página/revisión, llama al Service mediante useAgendaQuery y presenta resultados/errores/vacíos/paginación. No calcula disponibilidad clínica: solo representa turnos entregados. Al cambiar fecha/página/refrescar/volver retira revisión; no permite confirmar hasta seleccionar y revisar. No usa DisponibilidadTurnos/useReservaRegistro ni aplica el flag de ficha activa de CU-14.
+3. **consultarDisponibilidadReprogramacion()**, en gestionCita.service, GET con solo fecha/page/per_page bajo ID canónico, señal/sessionBound. Proyecta originales/contexto/turnos/meta sin secretos ajenos ni paciente_reservable; contrasta programación original revisada completa con cita_original y no adopta otra versión. Comprueba IDs, fecha/zona, orden/no duplicados, HMAC opaco 64 hex, hora local del inicio, duración/fin y paginación; un 200 incongruente falla de forma segura. No usa reloj cliente para autorizar futuro ni crea reservas. Original distinto requiere actualizar gestión, no reenvío silencioso.
+4. **Revisión** muestra identidad de la misma cita y anterior/nueva fecha/intervalo/duración/sede/consultorio, con dirección vigente cuando existe. Advierte pérdida de llegada Confirmada al volver a Programada. No campos para cambiar Paciente/Médico/especialidad/motivo_breve ni confirmación automática; foco explícito en encabezado de revisión.
+5. **useGestionCita** es coordinador local de escritura. Guarda con lock ref inmediato, secuencia/montaje, estados inicial/guardando/guardada/error/incierto/consultando/recuperada y Retry-After. Solo inicial admite PATCH; doble clic/nueva llamada en vuelo no se envían. Solo incierto admite lectura de recuperación; no reset/reenvío mientras falte comprobar estado. pagehide invalida secuencia, limpia resultado/failure y conserva necesidad de consulta si había escritura incierta/en vuelo; desmontaje ignora resultado tardío sin atribuir rollback.
+6. **reprogramarCita()**, mismo Service, valida pertenencia del turno a vista revisada y payload cerrado: fecha/hora_inicio/revision_turno/version_programacion_original/actualizada_en_original. CSRF con sesión antes de PATCH; fallo previo marca no enviado, fallo posterior marca enviado. Proyecta resultado propio sin exigir acciones/zona/consultado_en de GET y compara identidad/código/originales de versión, inicio/fin/duración/ubicación revisados, estado Programada, timestamp creciente y cambio REPROGRAMACION con actor real. No fabrica actor ni lo envía, no reserva de nuevo ni usa UUID/replay.
+7. **Resultado y recuperación:** 200 válido confirma guardado y vuelve a consultar gestión; si esa consulta falla, se conserva éxito con «actualización pendiente». Red/5xx/respuesta de PATCH no verificable exige GET explícito de estado y bloquea nuevo PATCH. Una lectura exitosa (aunque programación igual) solo informa estado, no causalidad ni fracaso de la solicitud original; requiere nueva consulta/revisión antes de otra escritura. 409/419/422/429 y otros rechazos conocidos retiran revisión sin repetición, con mensajes seguros y espera cuando proceda. No cambiar originales o destino sin nueva revisión. Encabezado de resultado recibe foco al cambiar de estado.
+
+### Correspondencia con procedimientos existentes
+
+- **P41:** frontera React efectiva de consulta ahora ReprogramacionCita/Alternativas → useAgendaQuery → consultarDisponibilidadReprogramacion → Axios → DisponibilidadReprogramacionRequest/DisponibilidadController/DisponibilidadService y colaboradores reales ya dibujados. Se conservan todas sus 23 participaciones de repositorio, sin simular nuevo método por componente.
+- **P43:** frontera de confirmación React ahora ReprogramacionCita/Alternativas → GestionCitaPage → useGestionCita → reprogramarCita → Axios/CSRF/PATCH → GestionCitaRequest/Controller/Service y repositorios efectivos. Conserva sus 28 participaciones de repositorio, invalidación/auditoría/transacción y ejecutor separado del Médico.
+- **P42:** reconsulta/recuperación usa consultarGestionCita (solo estado) o consultarContextoGestion (gestión+nombres verificados), mismas 16 participaciones de repositorio de la rama de gestión; contexto de detalle conserva su CU autorizado. No endpoint nuevo de resultado ni replay de gestión.
+- **P44** conserva su Boundary HTTP: no formulario React de cancelación todavía. Las 61 vistas de diagramas/44 procedimientos/17 antecedentes y todos los 64 bloques cercados previos se preservan. Se amplía análisis textual de fronteras reales, no un diagrama obligatorio por CU ni clases ficticias. UML global backend/DER sin nuevas firmas/modelos/relaciones; cierre frontend y revisión final de módulo siguen Fase 6.
+
+### Verificación de esta entrega y límites
+
+Batería dirigida nueva de citas: **428 pruebas/10 archivos correctos**, 100,36 s; 88 casos netos nuevos respecto de Fase 2. Servicio: payloads/precisión/BIGINT/proyecciones, sin dependencia de paciente_reservable, página vacía/final/fuera de rango, originales cambiados, respuesta inválida, mismo inicio, CSRF previo, PATCH rechazado/incierto/200 inválido. Página parametriza recorrido exitoso por ambos operadores y verifica revisión Confirmada→Programada, distinta duración/sala, actualización de gestión, vacíos/selección/cambios de criterios, ficha inactiva/ausencia de reserva adicional, doble clic, conflictos/códigos HTTP, incertidumbre/lectura sin replay, CSRF fallido, refresco posterior fallido y advertencia de navegación. Hook verifica bloqueo ref/lectura de resultado igual/recuperación fallida/rechazos conocidos/error local/pagehide/desmontaje/beforeunload/Retry-After sin reintento. Se mantiene cobertura previa de roles/sesiones/retornos de la página de gestión; solo cambia expectativa de ausencia de formulario por ausencia de confirmación prematura.
+
+Router/guardas/AuthProvider/layout/hooks/services/Axios reales con sesión y adapter HTTP simulados; no certifica motor PostgreSQL/sesión/auditoría concurrente reales ni todos los escenarios Fase 5. **Suite global final nueva: 1778 pruebas/73 archivos correctos**, `pnpm test --maxWorkers=2`, 221,22 s; incluye las dirigidas, no sumar ejecuciones. Build correcto JS 725,45 kB/gzip 201,88 kB, aviso conocido >500 kB; sin lint instalado. UTF-8 de 24 archivos acumulados, cercas/anclas y 64 bloques cercados anteriores verificados; diff-check sin errores. Backend/Axios/CSS/dependencias/requerimientos/reglas/DER/UML sin cambios. **Fase 3 cerrada localmente con API simulada**, contexto §17.143/README. Sin Word/PDF/draw.io, SQL/migraciones, commit/push/despliegue. Cancelación Fase 4/robustez Fase 5/integración real y cierre Fase 6 pendientes, no iniciarlos automáticamente.
+
+<a id="cu15-cu16-frontend-fase2"></a>
+## CU-15/CU-16 — Frontend Fase 2: consulta de gestión y accesos (2026-10-27)
+
+**Implementación parcial de presentación, no escrituras de CU-15/CU-16.** Backend continúa cerrado en su alcance previo; esta entrega incorpora solo lectura de gestión con API simulada en pruebas, sin modificar endpoints/reglas. Participación compartida Administrador/Recepcionista; Médico/Paciente no reciben enlaces ni llamadas de gestión. El diseño de Fase 1 siguiente se conserva como antecedente y lo no realizado sigue P.
+
+### Participantes y responsabilidades efectivos
+
+- **GestionCitaPage (E)** coordina ID canónico, identidad/rol, consulta, carga/errores, refresco y retorno; instancia Gestión reiniciada por usuario/rol/ID. No contiene Axios ni reglas temporales. Route/ProtectedRoute/RoleRoute son guardas visuales, no sustituyen Laravel.
+- **gestionCita.service.js (E parcial)** exporta `consultarGestionCita()` y `consultarContextoGestion()`. La primera usa GET `/citas/{id}/gestion`, señal de cancelación y sessionBound, valida respuesta 200 y proyecta claves mínimas: identidades textuales/versiones/timestamps exactos/programación/acciones/impedimentos/último cambio. Rechaza esquema malformado, zona incorrecta, impedimentos desconocidos y acciones inconsistentes, sin recalcular autorización mediante reloj del cliente. Las funciones de disponibilidad/PATCH previstas no existen aún.
+- **consultarContextoGestion() (E)** consulta en paralelo gestión y `consultarCita()` de agenda; solo combina nombres de Paciente/Médico/especialidad si coinciden sus IDs y código de cita. Programación y originales siempre proceden de gestión. No conserva CI/teléfono/motivo breve/clínica del detalle ni extras arbitrarios. Si cualquiera de las lecturas falla o sus identidades difieren, no publica contexto parcial ni nombres de otra ficha.
+- **GestionCitaResumen (E)** presenta programación actual, identidad mínima, condiciones básicas/impedimentos seguros y último cambio. Operación desconocida se representa con etiqueta neutra, sin volcar contenido bruto; usuario ejecutor se muestra separado del Médico responsable. Se explica que consultar no reserva turno ni acredita causalidad de petición perdida. No formularios ni botones de reprogramación/cancelación simulados: se indica expresamente que aún no están disponibles.
+- **useAgendaQuery (E reutilizado)** coordina AbortController/secuencia, sesión/identidad, carga/reconsulta, Retry-After y pagehide/pageshow. Solo se añade mensaje seguro para fallos de consulta de gestión; los tipos previos conservan su comportamiento. `api.js`/AuthContext/useAuth permanecen intactos; SESSION_SUPERSEDED y 401 siguen la invalidación central existente.
+- **CitaDetallePage (E adaptado)** incorpora enlace a gestión solo tras detalle válido para Administrador/Recepcionista, con origen interno limitado a historial/directo. El retorno se construye por ID, nunca desde una URL arbitraria de state. Los detalles siguen sin escribir ni cambiar estados.
+- **SeleccionarPacienteHistorialPage/PatientsPage (E adaptados mínimamente)** reutilizan búsqueda administrativa/ficha/historial para la entrada del módulo, con prop de contexto y títulos/instrucciones de gestión. No nuevos servicios/buscadores/listados ni pantallas duplicadas. Fichas inactivas, sin CI y sin cuenta siguen consultables. Clave por identidad/rol/restauración/contexto y limpieza existente de selección conservadas.
+- **Router/navigation/roles (E adaptados)** registran `/recepcion/citas/gestion` y `/citas/:id/gestion` bajo AgendaWorkspace/guardas de ambos operadores; sidebar/Inicio derivan una sola entrada «Gestionar citas», título/módulo profundo y restauración de destino seguro sin query/hash ajenos. Sustituir los dos pendientes por lectura parcial no convierte CU-15/CU-16 en terminados. Once CU siguen sin enlace operativo; las escrituras de gestión siguen pendientes aunque exista el acceso de consulta.
+
+### Procedimiento efectivo de consulta y límites de las vistas
+
+Agenda/historial → detalle verificado → GestionCitaPage → useAgendaQuery → consultarContextoGestion → consultarGestionCita + consultarCita → Axios central → endpoints HTTP existentes. La rama de gestión continúa **P42**, sin alterar su Request/Controller/Service/repositorios ni sus 16 participaciones transitivas de repositorio. El GET de detalle mantiene su propio flujo autorizado de CU-20/CU-21; no se usa para versiones/acciones ni se transforma en un nuevo repositorio de gestión. Con retorno se vuelve a montar/reconsultar el detalle y después agenda/historial con los criterios de AgendaWorkspace aún en memoria, sin copias globales de citas.
+
+P41 (alternativas), P43 (reprogramación) y P44 (cancelación) conservan frontera HTTP efectiva y siguen sin frontera React de escritura implementada. Se documenta esta ampliación de frontera de lectura en texto, sin inventar métodos PHP para componentes/funciones React ni exigir otro diagrama por CU. Las 61 vistas/bloques de diagramas anteriores y los 64 bloques cercados completos de HEAD se preservan literalmente. UML global filtrado por clases backend y DER no requieren cambios: mismas firmas/modelos/relaciones/persistencia, sin cerrar el módulo frontend.
+
+### Comportamientos verificados y pendientes
+
+**85 pruebas nuevas de servicios/página** con Router/layout/guardas/AuthProvider/hooks/servicios/Axios reales, sesión y adapter de transporte simulados: GET exacto sin cuerpo/query; BIGINT/timestamp precisos; validación/proyección/fallo seguro; identidades dispares; ambos operadores y negativas de otros roles; estados de sesión anónima/restringida/401; 403/404/419/422/429/500/red/200 inválido; impedimentos/último cambio; recarga explícita; retorno/origen no confiable; cambio de ID/identidad, logout y respuestas tardías; pagehide/pageshow; espera sin auto-reintento y ausencia de escrituras/Web Storage. Recorrido sidebar → ficha inactiva sin CI/cuenta → historial → detalle → gestión → retornos ejercita los servicios existentes con el mismo adapter, **no integración Laravel/PostgreSQL real**. Navigation.test/ModuleNavigation amplían cobertura de título/área/módulo/foco sin nuevos privilegios.
+
+Un primer recorrido ampliado detectó selector de test ambiguo entre enlace de Inicio y sidebar; se acotó a «Navegación principal», sin corregir lógica productiva ni aumentar timeouts. Las 85 nuevas pasan. **Suite global nueva correcta: 1690 pruebas/70 archivos**, `pnpm test --maxWorkers=2`, 206,25 s; incluye esas 85 y cuatro casos adicionales de navegación/orientación, no sumar ejecuciones aparte. Build correcto (709,26 kB JS/gzip 197,87 kB), con aviso conocido >500 kB y sin script lint. 19 archivos afectados UTF-8 válidos, cercas/anclas verificadas y los 64 bloques cercados anteriores idénticos a HEAD. **Fase 2 cerrada localmente en alcance de consulta**, evidencia/límites en contexto §17.142/README.
+
+**Pendientes:** Fases 3/4 (alternativas/revisión/PATCH), coordinador de escrituras/recuperación de resultado incierto, robustez ampliada Fase 5 e integración real/navegador/accesibilidad/responsive/cierre Fase 6. No nuevas pruebas backend/SQL/migraciones/render de diagramas; sin CSS/dependencias/Word/PDF/draw.io/commit/push/despliegue. Esta entrega no acredita reprogramar ni cancelar desde React. Detenerse antes de Fase 3.
+
+<a id="cu15-cu16-frontend-fase1"></a>
+## CU-15/CU-16 — Frontend Fase 1: contratos y diseño del flujo (2026-10-26)
+
+**Estado: análisis/diseño, no React implementado.** Se inicia únicamente la primera de seis fases frontend después del cierre backend en contexto §17.140. CU-15 corresponde a RF05/RF07/RF08 y RN04–RN08/RN10/RN12–RN14; CU-16 a RF09 y RN09/RN10/RN12/RN14, según sus fichas. Administrador/Recepcionista comparten interfaz y endpoints; Médico/Paciente no gestionan. Las menciones antiguas de exclusividad de Recepción están superadas por la matriz administrativa vigente. No se modifican RF/RN ni VS-CIT-14–16. No se declara terminado un CU frontend por documentar su diseño.
+
+### 1. Flujo y navegación previstos
+
+- Entrada principal desde agenda o historial administrativo → detalle existente → enlace «Gestionar cita» para ambos operadores → ruta UI prevista `/citas/:id/gestion`. No iniciar una escritura al seguir un enlace, montar una página o seleccionar un turno. Detalles del Médico/Paciente conservan solo consulta.
+- Una sola página de gestión para consultar, elegir reprogramación/cancelación y revisar resultado. No páginas/endpoints por rol ni copia del flujo de reserva. El identificador debe ser canónico y permanecer como texto, sin conversión BIGINT a Number.
+- Acceso del módulo desde el sidebar: sustituir los dos pendientes por una entrada «Gestionar citas», ruta UI prevista `/recepcion/citas/gestion`, que reutilizará SeleccionarPacienteHistorialPage y su búsqueda existente → historial → detalle → gestión. No inventar búsqueda global de citas, endpoint por código o segundo selector de Pacientes. La ruta de entrada es distinta del historial para no duplicar el mismo destino activo del sidebar. Al pasar al historial se identifica su módulo real; no simular que sigue activa otra pantalla.
+- Ambas rutas nuevas estarán bajo ProtectedRoute normal y RoleRoute de Administrador/Recepcionista. La gestión quedará dentro de AgendaWorkspace para conservar solo criterios/origen de consulta en memoria. Revisar navigationAtPath/navigationTitle y destinoSeguro al registrarlas; no aceptar URL de retorno arbitraria ni query con datos privados. Mantener identidad administrativa aunque la entrada compartida empiece por `/recepcion`.
+- Retorno de gestión al detalle autorizado que la abrió: variantes directas `/citas/:id` o `/recepcion/historial-citas/:id`, con origen interno validado. En acceso directo/recarga sin origen usar `/citas/:id`; el GET de gestión se ejecuta de nuevo. No guardar fichas, cambios, originales, motivo o HMAC en URL/Web Storage. Agenda/historial/detalle se reconsultan al volver; no conservar programación antigua como vigente.
+- Fase 1 no activa estas rutas/enlaces ni cambia etiquetas de pantallas existentes. La consulta se implementa en Fase 2; confirmaciones de escritura en Fases 3/4. Asistencia, clínica, avisos CU-28 y reportes quedan fuera.
+
+### 2. Contratos comprobados en el backend existente
+
+Los cuatro endpoints requieren sesión normal de Administrador/Recepcionista; escrituras con cookies/CSRF reales, a través del Axios central. Respuestas de éxito con `data`, privadas/no-store. Campos adicionales se rechazan: construir payload por lista permitida, no propagar formularios/modelos completos.
+
+| HTTP y ruta bajo `/api` | Entrada permitida | Respuesta efectiva |
+| --- | --- | --- |
+| GET `/citas/{id}/gestion` | Solo ID de ruta; sin query/cuerpo | Programación mínima + zona_horaria/consultado_en/acciones/impedimentos/ultimo_cambio |
+| GET `/citas/{id}/disponibilidad-reprogramacion` | Query fecha Y-m-d, page 1–1000000 y per_page 1–100 opcionales; sin cuerpo | Contexto mínimo Paciente/Médico/especialidad/consultorio/sede/dirección/duración vigente, cita_original y turnos; meta/links de paginación |
+| PATCH `/citas/{id}/reprogramacion` | fecha, hora_inicio H:i:s, revision_turno y ambos originales obligatorios; sin query | Programación mínima resultante + ultimo_cambio; HTTP 200 |
+| PATCH `/citas/{id}/cancelacion` | Ambos originales y motivo opcional nullable; sin query | Programación mínima resultante + ultimo_cambio; HTTP 200 |
+
+**Programación mínima de gestión/PATCH:** id_cita/id_paciente/id_medico/id_especialidad/id_consultorio (texto), codigo_cita, estado, modalidad Presencial, duracion_minutos, sede_atencion, consultorio_atencion, version_programacion (entero positivo hasta 2147483647), inicio_at/fin_at/actualizada_en (UTC canónico con seis decimales y Z). Originales: `version_programacion_original` y `actualizada_en_original`, copiados literalmente de la vista revisada; no regenerar el timestamp con Date/toISOString, que perdería precisión. Fechas/horas de atención se muestran en America/La_Paz mediante utilidades existentes.
+
+**GET gestión no devuelve nombres/CI/teléfono/motivo breve/motivo de cancelación.** `ultimo_cambio` es null o {id_cambio_cita, id_actor, operacion, realizado_en}, no la lista histórica completa ni identidad nominal del ejecutor. No atribuir ese actor al Médico. Para nombres se puede consultar el detalle existente, comparando IDs antes de combinar etiquetas; la programación/acciones/originales de gestión nunca se toman del detalle. Si falla o difiere la consulta de detalle, no presentar etiquetas antiguas como verificadas ni habilitar una confirmación con identidad dudosa.
+
+**GET gestión expresa elegibilidad básica**, no disponibilidad ni actividad del destino: sus dos acciones pueden ser true aunque Médico/especialidad/sala no admitan reprogramación. Los impedimentos actuales son CITA_GESTION_NO_PERMITIDA, CITA_PLAZO_GESTION_FINALIZADO y CITA_CON_ATENCION_DOCUMENTADA. Explicar por códigos conocidos sin contenido clínico. El reloj del navegador no autoriza ni modifica estados; el backend vuelve a comprobar plazo y consulta al escribir. Cancelación sigue disponible cuando proceda, aunque falle disponibilidad por recursos inactivos.
+
+**Alternativas:** `cita_original` contiene programación/identidades/versiones, pero no modalidad; no aplicar ciegamente el validador de GET gestión. No hay `paciente_reservable` en esta respuesta: no deshabilitar por faltar ese campo ni exigir ficha activa para gestionar el mismo registro. El servidor fija Paciente/Médico/especialidad; no selectores de sustitución ni esos IDs en payload. Turnos contienen inicio_at/fin_at/hora_inicio/revision_turno (64 hex minúsculas); la revisión es opaca, solo en memoria. No reutilizar el POST de propuesta ni UUID de reserva para gestionar.
+
+**PATCH no devuelve zona_horaria/consultado_en/acciones/impedimentos**: validar su proyección propia y después reconsultar GET gestión. La respuesta 200 válida confirma la escritura; si falla la reconsulta, distinguir «guardado confirmado; actualización pendiente» de una escritura incierta. No inventar acciones a partir del estado retornado. `motivo` de cancelación: trim, vacío a null, hasta 500 caracteres Unicode y sin caracteres de control; no confundir con motivo_breve original ni mostrarlo luego como obtenido del servidor.
+
+### 3. Participantes existentes y previstos, sin clases ficticias
+
+| Participante | Estado y responsabilidad |
+| --- | --- |
+| CitaDetallePage, CitaDetalle, AgendaWorkspace, SeleccionarPacienteHistorialPage, PatientsPage | E: consulta/origen/criterios y selección administrativa. Adaptación de acceso/contexto prevista; no duplicar componentes por rol |
+| ProtectedRoute, RoleRoute, useAuth, Axios api/sessionBound y csrfURL | E: guardas visuales, identidad de sesión, cookies/CSRF y descarte de respuestas de sesión anterior; autorización definitiva en Laravel |
+| Alert, Button, ActionGroup, PageHeading, QueryMessage, CatalogResults; agendaFormat | E: mensajes, controles, carga/paginación y formato local; reutilización según contrato, no copiar estilos globales |
+| GestionCitaPage, en features/citas/pages/ | P: coordinar consulta/acciones, nombres verificados, retorno, resultado y estados privados por usuario/rol/ID |
+| gestionCita.service.js, en features/citas/services/ | P: consultarGestionCita, consultarDisponibilidadReprogramacion, reprogramarCita, cancelarCita; Axios central, payload cerrado y validadores/proyecciones diferenciados |
+| GestionCitaResumen, ReprogramacionCita, CancelacionCita, en features/citas/components/ | P: programación/impedimentos/último cambio; selección y revisión anterior/nueva; motivo opcional y confirmación destructiva. Separar componentes al existir necesidad real, sin archivos vacíos |
+| useGestionCita, en features/citas/hooks/ | P para escrituras: transiciones, exclusión de doble envío, limpieza, incertidumbre y reconsulta. No moverlo al contexto global ni crear un framework de formularios |
+| DisponibilidadTurnos y useReservaRegistro | E, no reutilizables directamente: el primero está acoplado a nueva reserva/paciente_reservable/motivo_breve; el segundo a propuesta/UUID/replay. Reutilizar controles/estilos, no invocar reserva para reprogramar/cancelar |
+| useAgendaQuery y describirError | E: patrones de consulta/errores a reutilizar cuando encajen. Los textos genéricos de detalle/419 no bastan para gestión; adaptación específica sin alterar semántica de otros módulos |
+
+Estos nombres P son diseño propuesto, no exports existentes ni clases PHP. No nuevas firmas en el UML backend ni diagramas por CU. P41–P44 conservan fronteras HTTP reales, métodos y todos los repositorios participantes; al implementar se revisará cada procedimiento afectado con la frontera React efectiva, sin borrar antecedentes ni fusionar diagramas. El UML global filtrado conserva su alcance actual; DER sin modificaciones.
+
+### 4. Estados y confirmaciones previstos
+
+1. Consulta inicial: carga → datos/vacío legítimo de turnos/error; cancelar GET obsoletos o ignorar respuestas por secuencia/identidad/ID/fecha/página. Cambio de usuario/rol, logout, pagehide o desmontaje limpia datos y selecciones; al restaurar reconsultar, no recuperar borradores sensibles del navegador.
+2. Reprogramación: consultar fecha/página → elegir → revisar programación anterior y nueva (fecha/intervalo/duración/sede/consultorio) → confirmar explícitamente → enviando → guardado confirmado o conflicto/error/resultado incierto. Cambiar filtros, página, originales o reconsultar invalida selección/revisión anterior. Informar que Confirmada volverá a Programada; no pedir otro motivo ni cambiar Médico/especialidad/Paciente.
+3. Cancelación: revisar cita actual → motivo opcional privado → confirmación explícita «Cancelar cita» → enviando → resultado. Ofrecer «Volver sin cancelar». No exigir disponibilidad ni recursos activos para abrir/guardar; no borrar registro ni anunciar generación de recordatorios.
+4. Mientras un PATCH está en curso, impedir ambos envíos y dobles clics. Advertir navegación/salida con patrón useBlocker existente cuando corresponda; abortar una espera o cerrar la pestaña no demuestra rollback. Nunca reintentar PATCH automáticamente, ni por CSRF ni por timeout. No adoptar originales nuevos y repetir el borrador automáticamente después de un conflicto.
+5. Error anterior a PATCH (p. ej., obtención de CSRF fallida): marcar no enviado; puede corregirse sin afirmar incertidumbre de una escritura que no se inició. PATCH enviado con red/timeout/abort, 5xx o respuesta 200 malformada: resultado no verificable; bloquear nuevo envío y ofrecer «Consultar estado actual» mediante GET gestión.
+6. La consulta de recuperación muestra programación/versión/timestamp/último cambio vigentes. No llama a resultado/replay de reserva y no asegura «tu petición se ejecutó» solo por coincidir la programación: otro operador pudo cambiarla. Incluso si permanece igual, no demostrar causalidad/rollback; abandonar revisión anterior y exigir consultar/revisar/confirmar de nuevo antes de otra escritura. Tras nueva sesión se abre GET gestión, sin conservar secretos/borrador de la sesión anterior.
+
+| Respuesta | Tratamiento previsto |
+| --- | --- |
+| 401 / SESSION_SUPERSEDED | Limpiar datos/selección; flujo de sesión existente o descartar respuesta tardía, sin PATCH posterior automático |
+| 403 / 404 | Acceso denegado/recurso no disponible; sin información privada ni formulario habilitado |
+| 409 CITA_EDICION_OBSOLETA | Retirar revisión, consultar programación actual y exigir adopción/revisión explícita; conservar criterios inocuos |
+| 409 CITA_REPROGRAMACION_OBSOLETA / CITA_TURNO_NO_DISPONIBLE / CITA_PACIENTE_SOLAPADO | Invalidar turno/HMAC y reconsultar alternativas, sin cambiar destino silenciosamente |
+| 409 por plazo/estado/consulta, o mismo inicio | Refrescar gestión y explicar impedimento seguro; misma hora exige otra elección, nunca crear una cita sustituta |
+| 419 | Explicar CSRF caducado y permitir renovación explícita; no reenviar escritura ni heredar el texto genérico «vuelve a enviar» sin revisión |
+| 422 | Errores solo de campos permitidos; preservar entradas corregibles en memoria; no exponer cuerpo técnico |
+| 429 | Respetar Retry-After válido y bloquear acción correspondiente durante espera, sin bucle automático |
+| Red/5xx/respuesta no verificable tras PATCH | Resultado incierto, lectura explícita del estado persistido, nunca anuncio de rollback ni repetición automática |
+
+### 5. Verificación y entregas por fase
+
+- **Fase 1 actual:** contraste estático de cuatro endpoints/Requests/Resources/Services, navegación/formatos/errores y reutilización real; solo documentación, sin pruebas funcionales/build nuevos ni acceso SQL.
+- **Fase 2:** servicio de GET/proyección y consulta de gestión, entrada/retornos/rutas/navegación compartidas; pruebas de ambos operadores, negativas Médico/Paciente y sesión/identidad/ID/respuestas malformadas. No exponer confirmaciones de escritura aún inexistentes como operativas.
+- **Fase 3:** alternativas/revisión/PATCH reprogramación y pruebas de programación/Confirmada, ficha inactiva, cambio de duración/ubicación, mismo inicio, paginación y cambios concurrentes; nunca manipular originales/HMAC.
+- **Fase 4:** cancelación/motivo opcional/PATCH y pruebas de confirmación/privacidad/recursos inactivos/estado final/historia conservada. Extender lectura de resultado sin duplicar coordinadores.
+- **Fase 5:** matriz de sesión/HTTP/CSRF/incertidumbre/5xx/200 inválido/doble envío/navegación/pagehide/restauración/respuestas fuera de orden; formularios y consultas de otros roles intactos. Pruebas de features bajo sus carpetas tests/pages, tests/services, tests/components o tests/hooks según responsabilidad.
+- **Fase 6:** suite frontend completa y build con pnpm confirmado (sin script lint instalado), integración real aislada React/Laravel/PostgreSQL cuando se prepare entorno seguro, agenda/historial/reserva/bitácora actuales tras ambas escrituras, teclado/foco/móvil/texto ampliado y documentación. No atribuir mocks JSDOM a integración real ni repetir pruebas históricas como evidencia nueva. Cierre frontend no equivale a producción.
+
+**Cierre de Fase 1:** contratos y diseño documentados; implementación React y toda verificación funcional permanecen P. No se inicia Fase 2 sin autorización. Evidencia/alcance en contexto §17.141 y frontend/README.
+
 ## Revisión por procedimientos — Fase 1: inventario y estructura (2026-10-26)
 
 ### Decisión vigente y alcance de esta fase
@@ -76,6 +2432,10 @@ Identificadores `P01`–`P40` solo para este inventario documental; no son nuevo
 | P42 | [CU-15 — Consultar gestión](#analisis-cu15-gestion) | Programación/versiones/impedimentos y último cambio | Administrador/Recepcionista | Fase 3 backend; sin cancelación |
 | P43 | [CU-15 — Guardar reprogramación](#analisis-cu15-reprogramar) | Cambio atómico de la misma cita | Administrador/Recepcionista | Fase 3 backend; cierre integral Fases 5/6 |
 | P44 | [CU-16 — Cancelar cita](#analisis-cu16-cancelar) | Cancelación atómica sin borrado | Administrador/Recepcionista | Fase 4 backend; cierre integral Fases 5/6 |
+| P45 | [CU-17 — Consulta de asistencia](#analisis-cu17-consulta-asistencia) | Consultar asistencia y estado persistido | Administrador/Recepcionista/Médico propio | Fase 2 backend CU-17; sin CU-18/CU-19 |
+| P46 | [CU-17 — Confirmar llegada](#analisis-cu17-confirmar-llegada) | Llegada presencial atómica | Administrador/Recepcionista | Fase 2 backend CU-17; sin avisos/consulta automáticos |
+| P47 | [CU-18 — Registrar inasistencia](#analisis-cu18-registrar-inasistencia) | Ausencia comprobada tras finalizar turno | Administrador/Recepcionista | Fase 3 backend; invalidación de avisos existentes, sin CU-19 |
+| P48 | [CU-19 — Marcar Atendida](#analisis-cu19-marcar-atendida) | Atención efectivamente realizada de la misma cita | Administrador/Médico responsable | Fase 4 backend; sin consulta clínica automática ni cierre Fases 5–6 |
 
 P11 está físicamente dentro de la sección histórica de CU-04 porque soporta su escenario B, pero **pertenece a CU-07**. No se incorpora al actor Administrador en los diagramas personales P09/P10/P12/P13 ni se mueve esa sección en esta fase.
 

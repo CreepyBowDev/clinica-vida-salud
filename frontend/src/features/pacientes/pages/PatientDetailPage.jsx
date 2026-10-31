@@ -8,6 +8,8 @@ import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { usePatientQuery } from '../hooks/usePatientQuery';
 import PatientFailure from '../components/PatientFailure';
 import PatientStateAction from '../components/PatientStateAction';
+import { useAuth } from '../../../hooks/useAuth';
+import { ROLES } from '../../../constants/roles';
 import '../styles/patients.css';
 
 export default function PatientDetailPage() {
@@ -19,6 +21,7 @@ export default function PatientDetailPage() {
 function Datum({ label, children }) { return <div><dt>{label}</dt><dd>{children || 'No registrado'}</dd></div>; }
 
 function PatientDetail({ id }) {
+  const { usuario } = useAuth();
   const { data: patient, loading, failure, reload } = usePatientQuery('detail', id);
   const location = useLocation();
   const [notice, setNotice] = useState(location.state?.patientNotice ? 'Cambios administrativos guardados. Consulta los datos actuales de la ficha.' : '');
@@ -35,6 +38,7 @@ function PatientDetail({ id }) {
         <p className="patients-note">El vínculo con una cuenta no indica si su acceso está activo ni si tiene un bloqueo temporal.</p>
         {!patient.activo && <p className="patients-note">La ficha inactiva no admite nuevas citas. Conserva su historial y las citas existentes.</p>}
         <div className="patients-actions"><Link className="button button--secondary" to={`/recepcion/pacientes/${id}/citas`}>Consultar historial de citas</Link>
+          {usuario?.rol === ROLES.ADMINISTRADOR && <Link className="button button--secondary" to={`/historia-clinica/pacientes/${id}`}>Consultar historia clínica</Link>}
           <Link className="button button--primary" to={`/recepcion/pacientes/${id}/editar`}>Editar ficha administrativa</Link>
           {patient.documento_identidad?.trim() && !patient.cuenta_vinculada && <Link className="button button--secondary" to={`/recepcion/pacientes/${id}/activacion`}>Emitir código de activación</Link>}</div>
         {!patient.documento_identidad?.trim() && <p className="patients-note">Para iniciar la vinculación web, incorpora primero el CI a esta misma ficha.</p>}

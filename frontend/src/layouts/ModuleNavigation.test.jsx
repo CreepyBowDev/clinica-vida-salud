@@ -26,6 +26,13 @@ describe('sidebar modular y orientación', () => {
     ['/recepcion/activacion-web', 'Pacientes y perfil personal', 'Activación web', 'Activación web'],
     ['/recepcion/citas/nueva', 'Búsqueda y reserva de citas', 'Programar cita', 'Programar cita'],
     ['/recepcion/pacientes/42/citas', 'Agenda e historial', 'Consultar historial de citas', 'Historial de citas'],
+    ['/recepcion/citas/gestion', 'Reprogramación y cancelación', 'Gestionar citas', 'Gestionar citas'],
+    ['/citas/42/gestion', 'Reprogramación y cancelación', 'Gestionar citas', 'Gestionar cita'],
+    ['/asistencia', 'Asistencia y estados', 'Gestionar asistencia', 'Gestionar asistencia'],
+    ['/citas/42/asistencia', 'Asistencia y estados', 'Gestionar asistencia', 'Asistencia de la cita'],
+    ['/laboratorio/solicitudes/71', 'Laboratorio digital', 'Estudios y resultados', 'Solicitud de laboratorio'],
+    ['/laboratorio/pacientes/21', 'Laboratorio digital', 'Estudios y resultados', 'Estudios del paciente'],
+    ['/citas/41/consulta/solicitar-estudio', 'Laboratorio digital', 'Solicitar estudios', 'Solicitar estudio de laboratorio'],
   ])('Administrador reconoce %s como flujo compartido manteniendo su área y foco', (path, module, link, title) => {
     mount(path);
     expect(within(nav()).getByRole('button', { name: module })).toHaveAttribute('aria-expanded', 'true');
@@ -83,11 +90,11 @@ describe('sidebar modular y orientación', () => {
     await act(async () => router.navigate(1));
     expect(within(nav()).getByRole('link', { name: 'Configurar horarios' })).toHaveAttribute('aria-current', 'page');
   });
-  it('los pendientes se pueden leer pero nunca navegar', async () => {
-    auth.usuario.rol = ROLES.PACIENTE; mount('/otra'); const user = userEvent.setup();
+  it('Administrador tiene consulta de recordatorios operativa sin acciones de gestión de citas en ese módulo', async () => {
+    auth.usuario.rol = ROLES.ADMINISTRADOR; mount('/otra'); const user = userEvent.setup();
     await user.click(within(nav()).getByRole('button', { name: /Recordatorios internos/ }));
     expect(within(nav()).getByText('Consultar recordatorios')).toBeVisible();
-    expect(within(nav()).queryByRole('link', { name: /recordatorios/i })).not.toBeInTheDocument();
+    expect(within(nav()).getByRole('link', { name: /recordatorios/i })).toHaveAttribute('href', '/recordatorios');
     expect(within(nav()).queryByText(/cancelar cita|reprogramar cita/i)).not.toBeInTheDocument();
   });
   it('reinicia expansión al cambiar identidad o rol sin persistir estado', async () => {

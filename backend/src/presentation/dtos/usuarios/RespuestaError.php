@@ -35,6 +35,18 @@ class RespuestaError
                 'CITA_REPROGRAMACION_SIN_CAMBIO', 'CITA_REPROGRAMACION_OBSOLETA',
                 'CITA_EDICION_OBSOLETA', 'CITA_GESTION_NO_PERMITIDA',
                 'CITA_PLAZO_GESTION_FINALIZADO', 'CITA_CON_ATENCION_DOCUMENTADA' => 409,
+                'CITA_TRANSICION_NO_PERMITIDA', 'CITA_LLEGADA_FUERA_DE_PLAZO' => 409,
+                'CITA_INASISTENCIA_ANTICIPADA', 'CITA_ATENCION_ANTICIPADA' => 409,
+                'CITA_PRESENCIA_NO_VERIFICADA', 'CITA_AUSENCIA_NO_VERIFICADA', 'CITA_ATENCION_NO_VERIFICADA' => 422,
+                'CLINICA_EDICION_OBSOLETA', 'CLINICA_CONSULTA_EXISTENTE', 'CLINICA_CITA_NO_PERMITIDA',
+                'CLINICA_ATENCION_ANTICIPADA', 'CLINICA_LIMITE_VERSION' => 409,
+                'CLINICA_ATENCION_NO_VERIFICADA' => 422,
+                'LAB_EDICION_OBSOLETA', 'LAB_ESTADO_NO_PERMITIDO', 'LAB_DEVOLUCION_REQUERIDA',
+                'LAB_DESTINO_NO_PERMITIDO', 'LAB_ARCHIVO_NO_DISPONIBLE', 'LAB_LIMITE_VERSION' => 409,
+                'LAB_CORRESPONDENCIA_NO_VERIFICADA' => 422,
+                'LAB_VALIDACION_NO_DISPONIBLE' => 503,
+                'PUSH_NO_CONFIGURADO' => 503,
+                'PUSH_SUSCRIPCION_OBSOLETA' => 409,
                 'CITA_PROPUESTA_OBSOLETA', 'CITA_PACIENTE_SOLAPADO', 'CITA_PACIENTE_NO_DISPONIBLE' => 409,
                 'MEDICO_VINCULO_INCOMPATIBLE' => 409,
                 'MEDICO_SIN_ESPECIALIDADES_HABILITADAS', 'MEDICO_ESPECIALIDAD_CON_CITAS_FUTURAS' => 409,
@@ -60,6 +72,7 @@ class RespuestaError
             404 => ['RECURSO_NO_ENCONTRADO', 'No se encontró el recurso solicitado.'],
             405 => ['METODO_NO_PERMITIDO', 'El método no está permitido.'],
             409 => ['AUTH_SESION_EXISTENTE', 'Cierra la sesión actual antes de iniciar otra.'],
+            413 => ['ARCHIVO_DEMASIADO_GRANDE', 'La petición excede el tamaño permitido.'],
             419 => ['CSRF_INVALIDO', 'La protección de la sesión ha caducado. Actualiza la página.'],
             422 => ['VALIDACION_ERROR', 'Revisa los datos enviados.'],
             429 => ['AUTH_LIMITE_SOLICITUDES', 'Demasiadas solicitudes. Inténtalo más tarde.'],
@@ -81,6 +94,12 @@ class RespuestaError
         $headers = ['Cache-Control' => 'no-store, private'];
         if ($error instanceof AppError && $error->esperaSegundos !== null) {
             $headers['Retry-After'] = (string) $error->esperaSegundos;
+        }
+        if ($status === 429 && $error instanceof HttpExceptionInterface) {
+            $espera = $error->getHeaders()['Retry-After'] ?? null;
+            if (is_numeric($espera) && (float) $espera >= 0 && (float) $espera <= 86400) {
+                $headers['Retry-After'] = (string) (int) ceil((float) $espera);
+            }
         }
 
         return new JsonResponse(['success' => false, 'error' => $body], $status, $headers);

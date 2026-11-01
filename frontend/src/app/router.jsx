@@ -62,6 +62,7 @@ import LaboratorioPage from '../features/laboratorio/pages/LaboratorioPage';
 import SolicitudLaboratorioPage from '../features/laboratorio/pages/SolicitudLaboratorioPage';
 import SolicitarEstudioPage from '../features/laboratorio/pages/SolicitarEstudioPage';
 import RecordatoriosPage from '../features/recordatorios/pages/RecordatoriosPage';
+import ReportesPage from '../features/reportes/pages/ReportesPage';
 
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
@@ -131,6 +132,7 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
         { path: '/recepcion/pacientes/:id', element: <PatientDetailPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
+        { path: '/reportes', element: <ReportesPage /> },
         { path: '/laboratorio/pacientes/:id', element: <LaboratorioPage contexto="paciente" /> },
         { path: '/administracion/consultorios', element: <ConsultoriosPage /> },
         { path: '/administracion/consultorios/nuevo', element: <ConsultorioEditorPage creating /> },

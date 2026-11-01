@@ -3,10 +3,139 @@
 > Documento **de una página**. Se reescribe al cerrar cada fase. No sustituye a `contexto-maestro.md` ni a `analisis-clases.md`; sirve para que una sesión nueva arranque sin releer documentos extensos.
 
 - **Actualizado:** 2026-10-31
-- **Módulo:** CU-28 — Recordatorios internos y Web Push; backend F1–F7 y frontend FE-1–FE-6 cerrados proporcionalmente en local, **no CU completo ni integración real acreditada**.
+- **Estado actual:** **primera versión funcional validada en local**; cierre y límites en [`validacion-v1.md`](validacion-v1.md). CU-01–CU-30 con implementación localizada y regresión ejecutada; CU-29 y avisos internos CU-28 ya comprobados por React→HTTP Laravel/Sanctum→PostgreSQL aislado. No certificación de producción, entrega Web Push/Brevo ni cierre documental académico completo.
 - **Rama/entorno:** trabajo local, sin commit ni despliegue. PostgreSQL local en ejecución; base habitual **no** migrada.
 
-## Fases backend (cerradas localmente)
+## Cierre de validación v1 (2026-10-31) — relevo vigente
+
+- **Regresión frontend completa:** `pnpm test --maxWorkers=4` → **3844/3844, 136 archivos**; build correcto con advertencia conocida de chunk 936,45 kB. Primer intento interrumpido por timeout; solo se acredita el posterior completo. Composer válido y requisitos PHP/extensiones correctos.
+- **Regresión backend completa:** **4522 pruebas/64296 aserciones, dos fallos de inventario** en `MatrizPermisosBackendTest` por siete rutas de CU-29 ausentes del dataset. Única corrección de código: ese dataset de prueba, sin lógica productiva. Repetición dirigida de la clase completa → **751/751, 3390 aserciones** (incluye nuevos casos). No se repitió la global ni se presenta como global verde posterior a la corrección.
+- **HTTP real:** **53 comprobaciones Chrome** con cuatro roles, cookies/CSRF/sesiones reales, siete reportes y totales SQL, avisos propios/admin, lectura de dispositivos con canal apagado y diez pruebas del examen. Operaciones administrativas del examen por API HTTP desde navegador, no todas mediante formularios React; ver alcance exacto en `validacion-v1.md`. Scripts externos propios, esquema efímero y correos/transporte push bloqueados; public/esquema ajeno conservados, fixture/credenciales/servidores propios retirados. La verificación nueva supera los pendientes históricos de integración de lectura CU-28/CU-29; no acredita alta/entrega Web Push real ni todos los flujos clínicos por navegador independiente.
+- **Archivos/documentación:** prueba de matriz backend, `validacion-v1.md`, corrección indispensable de estados obsoletos CU-22–CU-29 en `casos-de-us.md` §3.1 y este relevo. Sin código productivo, análisis/diagramas, `.env`, dependencias, migraciones habituales, commit/push/despliegue. Evidencias `Temp/opencode/cierre-v1-*` detalladas en el informe; historial y cambios locales previos conservados.
+- **Próximo paso, solo autorizado y preferentemente en sesión nueva:** preparar entorno de uso/migraciones habituales, comprobar entrega Brevo/operación scheduler y, si se incluye la ampliación, Web Push/dispositivos reales. Documentación final de análisis/diagramas sigue siendo tarea explícita. No iniciar nuevas funcionalidades ni declarar producción lista por esta validación local.
+
+## Plan frontend CU-29 — RFE-1 a RFE-5
+
+**Lectura de arranque:** esta sección y las partes necesarias de [`cu29-contratos-api.md`](cu29-contratos-api.md), especialmente §§2–6. No releer el historial inferior salvo un bloqueo concreto. Una fase por sesión y autorización; no iniciar automáticamente la siguiente. Trabajar en `frontend/` con React/Vite/JavaScript, Axios y pnpm 11.17.0/Vitest existentes. Base RFE-1 implementada en `features/reportes/`; Consultar reportes operativo en `/reportes`, exclusivo de Administrador.
+
+### RFE-1 — Base funcional y citas Programadas para una fecha
+
+- Crear `src/features/reportes/` con servicio y pantalla `/reportes`, ruta protegida y navegación exclusiva de Administrador; reutilizar estructura visual, tablas/paginación y manejo de sesión existentes.
+- Entregar el primer reporte funcional: `GET /reportes/citas/programadas`, fecha obligatoria y filtros opcionales de Médico/especialidad. Reutilizar selectores/servicios existentes cuando encajen, incluyendo entidades inactivas; no usar catálogos de reserva restringidos a activos.
+- Mostrar solo columnas administrativas del contrato, fecha/hora de sede, total del servidor, orden permitido y paginación. Carga, vacío, error y actualización explícita; al aplicar filtros volver a página 1 y evitar resultados viejos atribuidos a filtros nuevos.
+- Pruebas dirigidas: servicio, filtros, paginación, Programada distinta de Confirmada, acceso denegado de otros roles y descarte de respuestas al salir/cambiar sesión. No pedir ni implementar todavía los restantes seis reportes.
+
+### RFE-2 — Citas por Médico, especialidad y estado
+
+- Ampliar la misma pantalla para los tres reportes, sin páginas duplicadas por tipo. Médico obligatorio en por-medico; especialidad en por-especialidad; estado en por-estado. Ofrecer exactamente los cinco estados del contrato.
+- Admitir fecha única o rango desde/hasta, excluyentes, hasta 366 días inclusivos; enviar únicamente filtros aplicables al recurso, con IDs textuales, órdenes y paginación cerrados.
+- Reutilizar controles sencillos de RFE-1; no crear un motor genérico de reportes. Cambiar tipo limpia resultados/filtros incompatibles e ignora respuestas atrasadas.
+- Pruebas: tres contratos, selecciones obligatorias/inactivas, combinación de filtros, fechas/rangos inválidos, cambio de tipo y aislamiento de respuestas. Regresión de RFE-1 solo donde se modifique código compartido.
+
+### RFE-3 — Pacientes registrados
+
+- Integrar `GET /reportes/pacientes/registrados` en la pantalla compartida: fecha/rango, filtro opcional activo (0/1), órdenes de registro/nombre y paginación.
+- Mostrar únicamente ID/código, nombres/apellidos, actividad y creación de ficha permitidos por el contrato. No mostrar CI, contactos, cuentas ni datos clínicos; explicar que el período corresponde al registro de la ficha, no al alta web.
+- Usar total del servidor y conservar casos sin cuenta/CI e inactivos según filtros; no obtener listados administrativos más amplios para reconstruir este reporte.
+- Pruebas: contrato/listado, actividad, orden, vacíos/páginas fuera del final, errores y ausencia de datos privados.
+
+### RFE-4 — Cantidades por período y agenda diaria
+
+- Integrar `GET /reportes/citas/cantidades`: fecha/rango y Médico/especialidad opcionales; mostrar Atendidas, Canceladas, Inasistencias y total del backend, incluidos ceros. Sin paginación, filtro estado ni sumatorios de páginas en React.
+- Explicar que las cantidades corresponden al inicio programado vigente y estado actual, no a fechas reales de transición ni a un corte histórico inmutable.
+- Integrar `GET /reportes/agenda-diaria` con Médico/fecha obligatorios, estado opcional, orden fijo y paginación. Reutilizar presentación de agenda si encaja, pero consultar la ruta administrativa de reportes; sin copiar sus acciones operativas.
+- Diferenciar agenda por intersección del día frente a reportes por inicio de cita; no sumar agendas para calcular cantidades. Preservar ubicación/duración devueltas de Cita.
+- Pruebas: agregado sin paginación/ceros, filtros aplicables, agenda diaria, fechas de sede y retiro de datos al cambiar reporte/sesión. Con esto quedan los siete mínimos RF13 representados.
+
+### RFE-5 — Integración y cierre frontend proporcional
+
+- Verificar recorridos de los siete tipos con Router/Auth/Axios existentes, errores 401/403/404/419/422/429/red/500 pertinentes, cambios de filtro/tipo/sesión y ausencia de datos obsoletos. No duplicar todas las combinaciones ya verificadas en fases anteriores.
+- Revisar responsive, teclado/foco, etiquetas, anuncios de carga/error/vacío y fechas America/La_Paz, conservando identidad visual. Ejecutar pruebas del módulo e integraciones realmente modificadas y `pnpm build`; no suite global rutinaria.
+- Distinguir API simulada de integración HTTP real React→Laravel/Sanctum/PostgreSQL. Si no existe entorno aislado preparado, registrar ese pendiente; no migrar base habitual, cambiar .env ni declarar integración real por mocks.
+- Cierre local no acredita producción. CSV/PDF, gráficas, nuevas dependencias, dashboards, caché persistente y cambios al backend quedan fuera salvo autorización independiente. Análisis/diagramas siguen aplazados para tarea final explícita, no se actualizan en cada fase.
+
+### Estado y relevo entre sesiones
+
+| Fase | Estado |
+| --- | --- |
+| RFE-1 | Cerrada localmente; 139/139 pruebas dirigidas y build correcto, API simulada |
+| RFE-2 | Cerrada localmente; 99/99 pruebas del módulo y build correcto, API simulada |
+| RFE-3 | Cerrada localmente; 158/158 pruebas del módulo y build correcto, API simulada |
+| RFE-4 | Cerrada localmente; 232/232 pruebas del módulo y build correcto, API simulada |
+| RFE-5 | Cerrada proporcionalmente en local; evidencia dirigida original conservada y posterior HTTP real acreditado en el cierre v1 superior |
+
+- Reutilizar seis campos de pacientes y proyección administrativa de citas del contrato; totales calculados por servidor, IDs bigint como texto. Sin escrituras ni persistencia local de datos personales.
+- Backend bajo `/api/reportes/`; respetar baseURL de Axios sin duplicar `/api`. Selección histórica de Médico: `/api/agenda/medicos`; especialidades: `/api/especialidades` sin filtrar activa. Confirmar firmas de los servicios existentes solo al utilizarlos.
+- Pruebas en `src/features/reportes/tests/`, subcarpetas únicamente con archivos. Una batería dirigida por cambio; salida extensa en Temp/opencode y resumen en chat. Repetir solo por fallos/riesgos concretos; no reejecutar backend cerrado sin necesidad.
+- Al cerrar cada RFE actualizar esta tabla y un resumen corto de archivos, comando/resultado, límites y próximo paso. Otra documentación solo indispensable; sin análisis de clases/diagramas por fase, sin nuevos archivos documentales para este plan.
+- Conservar cambios locales ajenos. Sin dependencias, migraciones habituales, envíos externos, commit/push/despliegue ni reapertura automática de CU-28.
+- **Siguiente tarea:** la integración HTTP aislada de los siete reportes ya se verificó en el cierre v1 superior. No migrar base habitual ni cambiar `.env` unilateralmente. RFE-1–RFE-5 no dejan otra fase automática; análisis/diagramas y preparación del entorno de entrega requieren autorización. Recomendada sesión nueva y lectura de `validacion-v1.md`.
+
+### Resultado RFE-1 (2026-10-31)
+
+- **Archivos:** `frontend/src/features/reportes/{pages/ReportesPage.jsx,services/reporte.service.js,components/FiltroHistorico.jsx,components/CitasProgramadasTable.jsx}` y pruebas en `tests/{pages,services,utils}/`; integración mínima en `src/app/router.jsx`, `src/constants/{navigation.js,navigation.test.js,roles.js}`. Reutiliza Auth/Axios, `useAgendaQuery`, componentes/estilos, fechas de sede y catálogos históricos existentes. Fecha obligatoria, Médico/especialidad opcionales con inactivos, orden cerrado, total del servidor, tamaño/paginación, consulta/actualización explícitas, vacío/error/carga y retiro de respuestas antiguas al cambiar filtros, salir o cambiar sesión. Programada no incluye Confirmada; sin acciones operativas ni otros reportes.
+- **Verificaciones:** `pnpm test src/features/reportes src/constants/navigation.test.js src/layouts/ModuleNavigation.test.jsx src/layouts/Navigation.test.jsx` → **139/139, seis archivos**. `pnpm build` correcto; advertencia de chunk >500 kB (923,20 kB). `git diff --check` correcto (avisos LF/CRLF). Evidencia: `C:/Users/jesus/AppData/Local/Temp/opencode/reportes-rfe1-{tests,build}.log`.
+- **Límites/siguiente paso:** servicios/Axios/Router/Auth reales con adapter API simulado y pruebas DOM; no integración HTTP React→Laravel/PostgreSQL ni aceptación visual en navegador/dispositivo real. Sin backend, migraciones, dependencias, análisis/diagramas, commit/push/despliegue; cambios locales previos conservados. RFE-2 **no iniciada**, requiere autorización, preferentemente en sesión nueva. No declarar CU-29 completo.
+
+### Resultado RFE-2 (2026-10-31)
+
+- **Archivos:** ampliados `frontend/src/features/reportes/pages/ReportesPage.jsx`, `services/reporte.service.js` y `components/FiltroHistorico.jsx`; tabla compartida renombrada a `components/CitasReporteTable.jsx`; nuevo `utils/periodoReporte.js`. Pruebas/fixtures actualizados en `tests/{pages,services,utils}/`, incluido `tests/utils/periodoReporte.test.js`. Misma ruta administrativa, ahora con Programadas/por Médico/por especialidad/por estado, selecciones obligatorias y catálogos históricos, exactamente cinco estados; fecha o rango excluyentes de hasta 366 días inclusivos, filtros cerrados, total/paginación del servidor. Cambiar tipo limpia formulario/resultados y aborta consultas; sin motor genérico ni páginas por tipo.
+- **Verificaciones:** única batería `pnpm test src/features/reportes` → **99/99 pruebas, cuatro archivos**, incluida regresión RFE-1 afectada, tres contratos, selecciones inactivas/obligatorias, rangos inválidos/límites, filtros combinados, paginación y aislamiento por tipo/sesión. `pnpm build` correcto; advertencia conocida de chunk >500 kB (926,48 kB). `git diff --check` correcto (avisos LF/CRLF). Salidas en `C:/Users/jesus/AppData/Local/Temp/opencode/reportes-rfe2-{tests,build}.log`.
+- **Límites/siguiente paso:** API/adapter simulados y pruebas DOM; sin integración HTTP real React→Laravel/PostgreSQL ni nueva aceptación visual en navegador/dispositivo. Sin cambios a backend, dependencias, migraciones, análisis/diagramas, commit/push/despliegue. RFE-3 (Pacientes registrados) **no iniciada**: requiere autorización, preferentemente en sesión nueva. CU-29 aún no completo; trabajo previo conservado.
+
+### Resultado RFE-3 (2026-10-31)
+
+- **Archivos:** ampliados `frontend/src/features/reportes/{pages/ReportesPage.jsx,services/reporte.service.js}`; nueva `components/PacientesRegistradosTable.jsx`. Nuevos `tests/services/pacientesRegistrados.service.test.js`, `tests/pages/PacientesRegistradosPage.test.jsx` y `tests/utils/pacientesReporteFixtures.js`; ajustados los tests de página/rutas existentes. Cambio mínimo en `src/features/agenda/hooks/useAgendaQuery.js`: mensaje 500 de reportes ya no menciona exclusivamente citas. Misma pantalla con fecha/rango, actividad opcional 0/1, tres órdenes cerrados y total/paginación del servidor; únicamente seis campos de ficha, sin CI/contactos/cuenta/clínica. Se explica creación de ficha frente a alta web y actividad actual; no se consulta `/pacientes` ni se reconstruye el reporte en cliente.
+- **Verificaciones:** única batería `pnpm test src/features/reportes` → **158/158 pruebas, seis archivos**, incluida regresión RFE-1/RFE-2 afectada, proyección mínima, inactivos/sin CI/cuenta, filtros/orden, vacíos/páginas fuera del final, errores, 401 real del interceptor con API simulada y descarte por tipo/sesión. `pnpm build` correcto; advertencia conocida de chunk >500 kB (931,19 kB). `git diff --check` correcto (avisos LF/CRLF). Salidas: `C:/Users/jesus/AppData/Local/Temp/opencode/reportes-rfe3-{tests,build}.log`.
+- **Límites/siguiente paso:** adapter/API simulados y DOM; sin integración HTTP real React→Laravel/PostgreSQL ni aceptación visual nueva en navegador/dispositivo. Sin backend, dependencias, migraciones, análisis/diagramas, commit/push/despliegue; trabajo previo conservado. RFE-4 (cantidades por período y agenda diaria) **no iniciada**, requiere autorización; recomendada sesión nueva. CU-29 aún no completo.
+
+### Resultado RFE-4 (2026-10-31)
+
+- **Archivos:** ampliados `frontend/src/features/reportes/{pages/ReportesPage.jsx,services/reporte.service.js}`; nuevo `components/CantidadesReporte.jsx`, reutilizando tabla administrativa de citas, selectores históricos y controles existentes. Nuevos `tests/services/cantidadesAgenda.service.test.js`, `tests/pages/CantidadesAgendaPage.test.jsx`, `tests/utils/cantidadesAgendaFixtures.js`; ajustados tests de página/rutas. Cantidades consulta agregado específico sin estado/orden/paginación, muestra Atendidas/Canceladas/Inasistencias/total del servidor incluidos ceros; agenda usa `/reportes/agenda-diaria`, Médico/fecha obligatorios, estado opcional y paginación con orden fijo. Se distinguen inicio programado vigente frente a intersección diaria, sin atribuir fechas de transición, sumar agendas/páginas ni añadir acciones operativas; duración/ubicación conservadas.
+- **Verificaciones:** única batería `pnpm test src/features/reportes` → **232/232 pruebas, ocho archivos**, incluida regresión previa afectada, dos contratos, agregado/ceros, filtros aplicables, agenda por intersección con inicio el día anterior, fechas de sede, paginación/vacíos, 429/errores/401 del interceptor y descarte por tipo/filtros/sesión/salida. `pnpm build` correcto; advertencia conocida de chunk >500 kB (935,99 kB). `git diff --check` correcto (avisos LF/CRLF). Evidencias: `C:/Users/jesus/AppData/Local/Temp/opencode/reportes-rfe4-{tests,build}.log`.
+- **Límites/siguiente paso:** API/adapter simulados y pruebas DOM; sin integración HTTP real React→Laravel/PostgreSQL ni nueva aceptación visual en navegador/dispositivo. Sin backend, migraciones, dependencias, análisis/diagramas, commit/push/despliegue; trabajo previo conservado. RFE-5 (integración y cierre proporcional frontend) **no iniciada**, requiere autorización; recomendada sesión nueva. Los siete mínimos representados no acreditan CU-29 completo ni producción.
+
+### Resultado RFE-5 (2026-10-31) — cierre frontend local vigente
+
+- **Archivos:** nuevo `frontend/src/features/reportes/tests/pages/ReportesIntegracion.test.jsx`: AuthProvider, servicios de autenticación/reportes, Router y Axios reales con adapter simulado; recorrido de los siete tipos, login con retorno, logout/nuevo Administrador/401 atrasado, revalidación de rol, errores pertinentes sin reenvíos/filtraciones y teclado/foco. Correcciones acotadas en `pages/ReportesPage.jsx` (conservar foco al cambiar tipo; enfocar validación/actualización), `components/FiltroHistorico.jsx` (error de búsqueda por campo y foco al paginar), `components/CantidadesReporte.jsx` (anuncio polite). Sin refactor de Auth/Axios ni estilos/backend.
+- **Verificaciones:** única batería `pnpm test src/features/reportes src/constants/navigation.test.js src/layouts/ModuleNavigation.test.jsx src/layouts/Navigation.test.jsx src/features/auth/tests/context/AuthContext.test.jsx src/features/auth/tests/services/auth.service.test.js` → **366/366, 14 archivos**. `pnpm build` correcto; advertencia conocida de chunk >500 kB (936,45 kB). Chrome headless real sobre build servido por preview con API interceptada/simulada → **68 comprobaciones**: siete tipos a 320/390/768/1280/1440 px sin desbordes/datos ocultos, controles etiquetados, fechas America/La_Paz, teclado/foco, actualización/vacíos/ceros y denegación de los otros tres roles sin pedir reportes. Seis capturas; revisión visual de Programadas móvil y Pacientes/Cantidades escritorio. `git diff --check` correcto (avisos LF/CRLF). Evidencias fuera del repo: `C:/Users/jesus/AppData/Local/Temp/opencode/reportes-rfe5-{tests.log,build.log,browser.mjs,browser.log,browser.json}` y capturas `reportes-rfe5-{programadas,pacientes-registrados,cantidades}-{390,1280}.png`. Preview/Chrome temporales cerrados.
+- **Límites/pendientes:** no hay entorno HTTP con persistencia aislada acreditado/preparado; sin integración real React→Laravel/Sanctum/PostgreSQL, móvil/SO o lector de pantalla reales ni producción. Adapter/CDP no acredita sesiones/CSRF/SQL reales. Sin base habitual, migraciones, `.env`, servicios externos, dependencias, persistencia local de datos, CSV/PDF, gráficas/dashboards, análisis/diagramas, commit/push/despliegue. Trabajo previo conservado. CU-29 cerrado proporcionalmente en frontend local, **no completo**; siguiente trabajo solo con autorización, preferentemente en sesión nueva.
+
+## Historial de referencia — no releer rutinariamente
+
+Las indicaciones antiguas de próxima fase/no iniciar frontend siguientes describen su fecha de cierre; el plan activo superior sustituye únicamente ese próximo paso. Evidencia y pendientes de integración real se conservan sin declarar verificaciones nuevas.
+
+## Plan backend CU-29 — autorización fase por fase
+
+| Fase | Alcance | Estado |
+| --- | --- | --- |
+| REP-1 | Contratos API y criterios de cálculo de los siete reportes RF13; revisar reutilización de agenda | Cerrada documentalmente |
+| REP-2 | Reportes de citas por fecha, Médico, especialidad y estado | Cerrada localmente; 57 pruebas/831 aserciones propias |
+| REP-3 | Pacientes registrados | Cerrada localmente; 40 casos propios cubiertos con corrección de una aserción |
+| REP-4 | Cantidades por período y agenda diaria reutilizada | Cerrada localmente; batería dirigida 196/2579 |
+| REP-5 | Integración dirigida y cierre proporcional | Cerrada localmente; 4 pruebas/1536 aserciones |
+
+Sin CSV/PDF (opcional), dependencias nuevas ni migraciones. REP-1–REP-5 autorizadas y cerradas proporcionalmente en local; no iniciar frontend ni otra tarea automáticamente. El cierre y los pendientes de CU-28 siguientes permanecen vigentes.
+
+### Relevo REP-5 (2026-10-31) — cierre backend vigente
+
+Backend CU-29 cerrado localmente según [`cu29-contratos-api.md`](cu29-contratos-api.md): siete GET bajo `/api/reportes/`, solo Administrador. Citas/conteos por inicio programado vigente y estado actual, pacientes por creación de ficha, agenda por intersección diaria delegada en AgendaService. Fechas/rangos de hasta 366 días inclusivos America/La_Paz, UTC6, datos mínimos y totales coherentes; CSV/PDF opcional excluido. No fechas de evento/cortes históricos ni permisos generales para otros roles.
+
+REP-5 añade solo `tests/Feature/ReportesIntegracionTest.php` y sincroniza README/contrato/relevo, sin correcciones funcionales necesarias. Alta administrativa sin CI/cuenta, reservas, cancelación/llegada/atención/inasistencia, reprogramación a otro día, CI/inactivación posterior y consultas de los siete reportes por APIs reales; logout/401/nuevo login, denegación de los otros roles conservando consultas operativas, vacíos/errores/paginación y snapshots de solo lectura. Identidades ya activadas/catálogos/horarios/ficha antigua son fixtures explícitos, no nueva prueba CU-04/invitaciones. Análisis/diagramas y cierre CU-28 intactos.
+
+**Pruebas REP-5:** única dirigida `php -d memory_limit=384M vendor/bin/phpunit tests/Feature/ReportesIntegracionTest.php --colors=never` → **4 pruebas/1536 aserciones correctas**, 2,741 s/56 MB. Commits PostgreSQL reales sin transacción exterior, base/rol de pruebas comprobados, esquemas exclusivos eliminados sin residuos/namespaces conservados; cookies/CSRF/sesiones reales en kernel. Mail fake sin envíos/colas, push prohibido y cero peticiones externas. Autoload sin scripts/Pint/sintaxis/diff dirigidos correctos. Logs `Temp/opencode/reportes-rep5-{tests.log,autoload.log,pint.log,lint.log}`. REP-4 conserva 196/2579 propios; no repetidos ni sumados a REP-5, sin suite global por no haber cambios funcionales.
+
+**Límites/pendientes:** no servidor HTTP independiente ni integración React→Laravel/Sanctum en navegador, frontend/aceptación visual-accesible, concurrencia multiproceso nueva o producción. Sin dependencias/migraciones, base habitual sin migrar, sin commit/push/despliegue. Próxima tarea requiere autorización, preferentemente en sesión nueva; no iniciar frontend/otro módulo ni reabrir CU-28 automáticamente. Análisis/diagramas siguen aplazados hasta terminar los módulos restantes; no declarar CU-29 completo.
+
+### Relevo REP-1 (2026-10-31) — histórico, anterior a REP-2
+
+Contrato indispensable: [`cu29-contratos-api.md`](cu29-contratos-api.md), cotejado con RF13, CU-29, VS-REP-01–03 y agenda existente. Siete GET exclusivos de Administrador bajo `/api/reportes/`: `citas/programadas`, `citas/por-medico`, `citas/por-especialidad`, `citas/por-estado`, `pacientes/registrados`, `citas/cantidades`, `agenda-diaria`; **aún no existen**. Listados paginados 20/100, orden cerrado y total del conjunto; cantidades terminales agregadas sin paginación. Campos administrativos mínimos, sin clínica/CI/contactos.
+
+Decisiones REP-1 (diseño, no exigencias nuevas del examen): fecha o rango civil inclusivo de hasta 366 días en America/La_Paz, convertido a intervalo UTC semiabierto. Citas/conteos por inicio programado vigente y estado actual, **no fecha real de atención/cancelación ni corte histórico**; pacientes por creación de ficha, no cuenta web. Agenda conserva intersección diaria de CU-20 mediante `ReporteService → AgendaService → AgendaRepository`, con autorización adicional exclusiva de Administrador y Resource existente. Vacíos/cero no son error; inactivos y fichas sin cuenta conservan historia.
+
+Verificación REP-1: revisión estática de fuentes, modelos, rutas, Request/Service/Repository/Resource y referencias de pruebas de agenda; sin ejecutar pruebas ni acceder a BD. Solo cambian este relevo y el contrato; análisis/diagramas y cierre CU-28 intactos. Pendiente REP-2 previa autorización en sesión nueva: implementar cuatro reportes de citas y pruebas dirigidas; cotejar selector histórico de especialidades. REP-3–REP-5 pendientes, sin inicio automático. Sin dependencias, migraciones, commit/push/despliegue.
+
+## Fases backend CU-28 (cerradas localmente)
 
 | Fase | Alcance | Estado |
 | --- | --- | --- |

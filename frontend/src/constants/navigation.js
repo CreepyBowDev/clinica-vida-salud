@@ -5,7 +5,6 @@ const { ADMINISTRADOR: A, RECEPCIONISTA: R, MEDICO: M, PACIENTE: P } = ROLES;
 const all = [A, R, M, P];
 // Los CU son trazabilidad interna, nunca etiquetas de navegación ni permisos del servidor.
 const page = (id, label, to, roles, cases, children = []) => ({ id, label, to, roles, cases, patterns: [to, ...children], kind: 'page' });
-const pending = (id, label, roles, cases) => ({ id, label, roles, cases, kind: 'pending' });
 
 export const NAVIGATION = [
   { id: 'usuarios', label: 'Usuarios y autenticación', icon: 'lock', items: [
@@ -54,7 +53,7 @@ export const NAVIGATION = [
   { id: 'recordatorios', label: 'Recordatorios internos', icon: 'calendar', items: [
     page('avisos', 'Consultar recordatorios', '/recordatorios', [P, A], ['CU-28']),
   ] },
-  { id: 'reportes', label: 'Reportes administrativos', icon: 'grid', items: [pending('reportes', 'Consultar reportes', [A], ['CU-29'])] },
+  { id: 'reportes', label: 'Reportes administrativos', icon: 'grid', items: [page('reportes', 'Consultar reportes', '/reportes', [A], ['CU-29'])] },
 ];
 
 // Flujos públicos, acciones existentes o pendientes explícitas; no páginas del sidebar protegido.

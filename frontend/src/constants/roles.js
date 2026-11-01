@@ -13,6 +13,7 @@ export const AREAS = Object.freeze({
 });
 
 export function destinoSeguro(pathname, rol) {
+  if (pathname === '/reportes') return rol === ROLES.ADMINISTRADOR ? pathname : '/inicio';
   if (pathname === '/recordatorios') return [ROLES.PACIENTE, ROLES.ADMINISTRADOR].includes(rol) ? pathname : '/inicio';
   if (typeof pathname === 'string' && pathname.startsWith('/laboratorio')) {
     if (![ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE].includes(rol)) return '/inicio';

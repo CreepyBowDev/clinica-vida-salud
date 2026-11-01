@@ -15,3 +15,4 @@ require base_path('src/presentation/routes/bitacora.php');
 require base_path('src/presentation/routes/historia_clinica.php');
 require base_path('src/presentation/routes/laboratorio.php');
 require base_path('src/presentation/routes/recordatorios.php');
+require base_path('src/presentation/routes/reportes.php');

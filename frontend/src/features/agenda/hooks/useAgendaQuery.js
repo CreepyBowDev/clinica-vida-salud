@@ -7,7 +7,7 @@ function errorConsulta(error, kind, allowedFields) {
   failure.message = ({ 404: kind === 'detail' ? 'La cita no está disponible o no tienes acceso a ella.' : 'El recurso de la consulta no está disponible.',
     419: 'La protección de la sesión ha caducado. Comprueba tu sesión y vuelve a consultar.',
     422: kind === 'detail' ? 'La consulta no es válida. Comprueba el identificador de la cita.' : 'Revisa los filtros indicados antes de volver a consultar.',
-    500: 'No pudimos consultar las citas. Vuelve a intentarlo más tarde.' })[failure.status] ?? failure.message;
+    500: kind === 'reportes' ? 'No pudimos consultar el reporte. Vuelve a intentarlo más tarde.' : 'No pudimos consultar las citas. Vuelve a intentarlo más tarde.' })[failure.status] ?? failure.message;
   if (!error.response) failure.message = kind === 'detail' ? 'No pudimos consultar la cita. Comprueba tu conexión y vuelve a intentarlo.' : 'No pudimos obtener la consulta. Comprueba tu conexión y vuelve a intentarlo.';
   if (kind === 'gestion' && (failure.status === undefined || failure.status >= 500)) {
     failure.message = 'No pudimos verificar la gestión de la cita. Vuelve a consultar antes de continuar.';

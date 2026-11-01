@@ -10,7 +10,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     const patterns = NAVIGATION.flatMap(module => module.items.flatMap(item => item.patterns ?? []));
     expect(patterns.every(pattern => actual.includes(pattern))).toBe(true);
     const roots = ['/inicio', ...Object.values(AREAS).map(area => area.path)];
-    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|asistencia|citas|mis-citas|historia-clinica|registrar-consulta|laboratorio|recordatorios)(\/|$)/.test(path));
+    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|asistencia|citas|mis-citas|historia-clinica|registrar-consulta|laboratorio|recordatorios|reportes)(\/|$)/.test(path));
     expect([...patterns].sort()).toEqual(protectedPaths.sort());
   });
   it('conserva los treinta CU sin convertir acciones o flujos públicos en páginas protegidas', () => {
@@ -27,7 +27,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(modules.flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.to)).not.toContain('/login');
   });
   it.each([
-    [ROLES.ADMINISTRADOR, ['cuentas', 'contrasena', 'pacientes', 'activacion', 'especialidades', 'medicos', 'consultorios', 'horarios', 'programar', 'eventos', 'gestion-citas', 'asistencia-citas', 'agenda', 'historial', 'historia', 'consulta', 'resultados', 'solicitar', 'avisos']],
+    [ROLES.ADMINISTRADOR, ['cuentas', 'contrasena', 'pacientes', 'activacion', 'especialidades', 'medicos', 'consultorios', 'horarios', 'programar', 'eventos', 'gestion-citas', 'asistencia-citas', 'agenda', 'historial', 'historia', 'consulta', 'resultados', 'solicitar', 'avisos', 'reportes']],
     [ROLES.RECEPCIONISTA, ['contrasena', 'pacientes', 'activacion', 'programar', 'gestion-citas', 'asistencia-citas', 'agenda', 'historial']],
     [ROLES.MEDICO, ['contrasena', 'asistencia-citas', 'agenda', 'historia', 'consulta', 'resultados', 'solicitar']],
     [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas', 'historia', 'resultados', 'avisos']],
@@ -35,6 +35,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id)).toEqual(ids);
   });
   it.each([
+    [ROLES.ADMINISTRADOR, '/reportes', 'reportes', 'reportes', 'Consultar reportes'],
     [ROLES.PACIENTE, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
     [ROLES.ADMINISTRADOR, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
     [ROLES.ADMINISTRADOR, '/laboratorio/solicitar', 'laboratorio', 'solicitar', 'Solicitar estudios'],
@@ -96,12 +97,12 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(items.find(item => item.cases.includes('CU-18'))).toMatchObject({ id: 'asistencia-citas', kind: 'page', cases: ['CU-17', 'CU-18', 'CU-19'] });
     expect(items.find(item => item.cases.includes('CU-19')).id).toBe('asistencia-citas');
   });
-  it('representa 28 CU administrativos y un CU aún sin flujo operativo', () => {
+  it('representa 28 CU administrativos con acceso operativo, sin implicar cierre completo de cada CU', () => {
     const items = navigationForRole(ROLES.ADMINISTRADOR).flatMap(module => module.items);
     const actions = ACCESS_FLOWS.filter(flow => ['action', 'pending-action'].includes(flow.kind) && flow.roles?.includes(ROLES.ADMINISTRADOR));
     const cases = [...items.flatMap(item => item.cases), ...actions.flatMap(item => item.cases), 'CU-01', 'CU-02', 'CU-06'];
     expect([...new Set(cases)].sort()).toEqual(Array.from({ length: 30 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`).filter(id => !['CU-04', 'CU-08'].includes(id)));
-    expect([...new Set([...items.filter(item => item.kind === 'pending'), ...actions.filter(a => a.kind === 'pending-action')].flatMap(item => item.cases))]).toHaveLength(1);
+    expect([...new Set([...items.filter(item => item.kind === 'pending'), ...actions.filter(a => a.kind === 'pending-action')].flatMap(item => item.cases))]).toHaveLength(0);
     expect(items.find(item => item.id === 'gestion-citas').cases).toEqual(['CU-15', 'CU-16']);
     expect(items.filter(item => item.kind === 'pending').every(item => !item.to && !item.patterns)).toBe(true);
   });

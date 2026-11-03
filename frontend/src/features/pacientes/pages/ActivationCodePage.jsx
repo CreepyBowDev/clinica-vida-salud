@@ -22,12 +22,13 @@ export default function ActivationCodePage({ patient }) {
   const heading = useRef(null);
   const { busy, failure, remaining, execute, report } = useRegistrationSubmission(form);
   useEffect(() => { if (receipt) heading.current?.focus(); }, [receipt]);
+  useEffect(() => { if (confirm) form.current?.querySelector('button[type="submit"]')?.focus(); }, [confirm]);
   useEffect(() => { const clear = () => setReceipt(null); window.addEventListener('pagehide', clear); return () => window.removeEventListener('pagehide', clear); }, []);
   return <section className="workspace-page accounts-page activation-page">
     {patient && <Link className="accounts-back" to={`/recepcion/pacientes/${patient.id_paciente}`}>Volver a la ficha</Link>}
     {!patient && <Link className="accounts-back" to="/recepcion/pacientes">Buscar ficha de paciente</Link>}
     <header className="page-heading"><h1 ref={heading} tabIndex="-1">{receipt ? 'Código de activación emitido' : 'Activación web de Paciente'}</h1><p>Autorización presencial para vincular la ficha existente al portal.</p></header>
-    {receipt ? <div className="accounts-panel"><h2>Entrega presencial única</h2><p>Ficha {receipt.id_paciente}. Comunica el código a la persona cuya identidad verificaste. Al ocultarlo no podrá volver a consultarse.</p>
+    {receipt ? <div className="accounts-panel activation-receipt"><h2>Entrega presencial única</h2><p>Ficha {receipt.id_paciente}. Comunica el código a la persona cuya identidad verificaste. Al ocultarlo no podrá volver a consultarse.</p>
       <Alert variant="warning">Este código autoriza la vinculación de la ficha. No es el código de seis dígitos del correo.</Alert>
       <output className="credential-secret" aria-label="Código de activación para entrega presencial">{receipt.codigo_activacion}</output>
       <p>Vence el <time dateTime={receipt.expira_en}>{new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(receipt.expira_en))} UTC</time>. Un solo uso, cinco intentos.</p>
@@ -45,14 +46,14 @@ export default function ActivationCodePage({ patient }) {
       });
     }}>
       <PasswordFailure failure={failure} remaining={remaining} />
-      {patient && <p><strong>{patient.nombres} {patient.apellidos}</strong> · {patient.codigo_paciente} · CI {patient.documento_identidad}</p>}
+      {patient && <section className="activation-patient-context" aria-labelledby="activation-patient-title"><h2 id="activation-patient-title">Ficha seleccionada</h2><p><strong>{patient.nombres} {patient.apellidos}</strong><br />{patient.codigo_paciente} · CI {patient.documento_identidad}</p></section>}
       <p>Busca la ficha en la sección Pacientes y comprueba presencialmente su identidad y CI. Utiliza el identificador interno que figura en su detalle administrativo.</p>
       <FormSection title="Ficha e identidad comprobadas">
       <FormField name="id_paciente" label="Identificador de la ficha" type="text" inputMode="numeric" required maxLength={19} value={id} readOnly={Boolean(patient) || busy || confirm} error={failure?.fields.id_paciente} onChange={event => { if (!patient) { setId(event.target.value); setIdentity(false); } }} hint="Identificador interno de la ficha comprobada; no es el CI." />
       <div className="identity-confirmation"><label><input type="checkbox" required checked={identity} disabled={busy || confirm} onChange={event => setIdentity(event.target.checked)} />He comprobado presencialmente la identidad, la correspondencia del CI con esta ficha y que el Paciente no tiene cuenta web vinculada.</label></div>
       </FormSection>
       {confirm && <ConfirmationPanel title="Revisa la emisión presencial"><p role="status">¿Emitir un código para la ficha {id}? Se invalidarán el código anterior y los procesos de vinculación asociados. Se mostrará una vez para entrega presencial.</p></ConfirmationPanel>}
-      <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={remaining > 0}>{busy ? 'Emitiendo código…' : remaining > 0 ? `Espera ${remaining} s` : confirm ? 'Confirmar emisión presencial' : 'Revisar emisión'}</Button>{confirm && <Button variant="quiet" disabled={busy} onClick={() => setConfirm(false)}>Volver a revisar ficha</Button>}</ActionGroup>
+      <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={remaining > 0}>{busy ? 'Emitiendo código…' : remaining > 0 ? `Espera ${remaining} s` : confirm ? 'Confirmar emisión presencial' : 'Revisar emisión'}</Button>{confirm && <Button variant="quiet" disabled={busy} onClick={() => { setConfirm(false); requestAnimationFrame(() => form.current?.querySelector('input[name="id_paciente"]')?.focus()); }}>Volver a revisar ficha</Button>}</ActionGroup>
       <p className="accounts-footnote">Una ficha sin CI necesita incorporación del documento a la misma ficha por el procedimiento administrativo. Un fallo de red deja el resultado incierto: no se repite la emisión automáticamente.</p>
     </form>}
   </section>;

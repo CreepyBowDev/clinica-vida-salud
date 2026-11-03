@@ -19,12 +19,17 @@ export default function MainLayout() {
   const main = useRef(null);
   const menuButton = useRef(null);
   const menuFocused = useRef(false);
+  const navigationFocused = useRef(false);
   useEffect(() => {
     const desktop = window.matchMedia?.('(min-width: 961px)');
     if (!desktop) return;
     const closeMenu = () => {
       setMenu(false);
-      if (!desktop.matches && document.activeElement?.closest('#workspace-navigation')) menuButton.current?.focus();
+      if (desktop.matches) navigationFocused.current = Boolean(document.activeElement?.closest('#workspace-navigation'));
+      if (!desktop.matches && (document.activeElement?.closest('#workspace-navigation') || navigationFocused.current)) {
+        menuButton.current?.focus();
+        navigationFocused.current = false;
+      }
       if (desktop.matches && (document.activeElement === menuButton.current || menuFocused.current)) {
         const navigation = document.getElementById('workspace-navigation');
         const currentLink = navigation?.querySelector('[aria-current="page"]');
@@ -55,6 +60,11 @@ export default function MainLayout() {
         aria-expanded={menu} aria-controls="workspace-navigation" aria-label={menu ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMenu(!menu)}>
         <Icon name={menu ? 'close' : 'menu'} /></button></div>
       <nav id="workspace-navigation" aria-label="Navegación principal" className={`workspace-nav ${menu ? 'is-open' : ''}`}
+        onFocusCapture={() => { navigationFocused.current = true; }}
+        onBlurCapture={event => {
+          // Chromium puede retirar el foco al ocultar el nav antes del evento de media query.
+          if (!event.currentTarget.contains(event.relatedTarget) && window.getComputedStyle(event.currentTarget).display !== 'none') navigationFocused.current = false;
+        }}
         onKeyDown={(event) => { if (event.key === 'Escape') { setMenu(false); menuButton.current?.focus(); } }}>
         <NavLink to="/inicio" onClick={closeNavigation}><Icon name="home" />Inicio</NavLink>
         <NavLink to={current.path} end onClick={closeNavigation}><Icon name="grid" />{current.label}</NavLink>

@@ -94,6 +94,13 @@ describe('consulta administrativa', () => {
     expect(screen.queryByText('Registro médico vinculado')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reenviar invitación' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /contraseña|rol|activar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Identidad y acceso' })).not.toBeInTheDocument();
+    expect(document.querySelector('.staff-detail-sheet')).not.toBeInTheDocument();
+    const access = screen.getByRole('region', { name: 'Datos de acceso del Paciente' });
+    expect(access.parentElement).toHaveClass('patient-account-sheet');
+    expect(within(access).getAllByRole('term')).toHaveLength(5);
+    expect(access).toHaveTextContent(staff.correo_acceso);
+    expect(screen.getByText(/La cuenta, la ficha del paciente y los bloqueos temporales son independientes/)).toBeInTheDocument();
   });
   it('ruta de identificador inválido no consulta la API', async () => {
     mount('/administracion/cuentas/9223372036854775808');
@@ -108,6 +115,14 @@ describe('consulta administrativa', () => {
 });
 
 describe('alta de personal', () => {
+  it('prioriza el formulario antes de la orientación en el orden de lectura', async () => {
+    mount('/administracion/cuentas/nueva');
+    const form = await screen.findByRole('form', { name: 'Crear cuenta del personal' });
+    const guidance = screen.getByRole('region', { name: 'Acceso para el equipo' });
+    expect(form.compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(form).getByRole('group', { name: 'Cuenta de acceso' })).toBeInTheDocument();
+    expect(within(form).getByRole('group', { name: 'Identidad del trabajador' })).toBeInTheDocument();
+  });
   it.each(['simulado', 'aceptado', 'fallido', 'pendiente'])('crea una sola cuenta y representa envío %s sin afirmar entrega', async envio => {
     crearPersonal.mockResolvedValue({ data: staff, meta: { invitacion: { envio } } });
     const user = userEvent.setup();
@@ -185,9 +200,17 @@ describe('reemisión de invitación', () => {
     const user = userEvent.setup();
     mount('/administracion/cuentas/17');
     await screen.findByText(staff.correo_acceso);
+    const identity = screen.getByRole('region', { name: 'Identidad y acceso' });
+    expect(identity.parentElement).toHaveClass('staff-detail-sheet');
+    expect(within(identity).getByText('Pendiente', { selector: '[data-estado]' })).toHaveAttribute('data-estado', 'Pendiente');
     await user.click(screen.getByRole('button', { name: 'Reenviar invitación' }));
     expect(reenviarInvitacion).not.toHaveBeenCalled();
     expect(screen.getByText(/¿Emitir una nueva invitación/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar nuevo envío' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Volver', exact: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reenviar invitación' })).toHaveFocus());
+    expect(reenviarInvitacion).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Reenviar invitación' }));
     await user.click(screen.getByRole('button', { name: 'Confirmar nuevo envío' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No se confirmó el envío'));
     expect(reenviarInvitacion).toHaveBeenCalledWith('17');

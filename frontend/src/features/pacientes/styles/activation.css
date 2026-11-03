@@ -1,6 +1,24 @@
-.activation-page { max-width: 900px; }
+.activation-page { max-width: 900px; overflow-wrap: anywhere; --radius-control: 6px; --radius-panel: 10px; }
 .activation-page .accounts-panel > p { margin-block: 20px; max-width: 75ch; }
 .activation-page .accounts-panel > h2 { margin-bottom: 16px; }
 .activation-page .accounts-panel > .field { max-width: 520px; }
 .activation-page .credential-secret { text-align: center; }
 @media (max-width: 700px) { .activation-page .accounts-panel > .button { width: 100%; } }
+.activation-page .page-heading p { font-size: 1rem; }
+.activation-page .accounts-panel { padding: 24px; }
+.activation-page .button { white-space: normal; }
+.activation-page .accounts-panel :is(h2, legend) { font-size: 1.375rem; max-width: 100%; }
+.activation-page .activation-patient-context { padding: 20px; margin-bottom: 24px; background: var(--color-story); border-left: 3px solid var(--color-primary); border-radius: 6px; }
+.activation-page .activation-patient-context h2 { font-size: 1.125rem; margin-bottom: 12px; }
+.activation-page .activation-patient-context p { color: var(--color-muted); line-height: 1.6; }
+.activation-page .activation-patient-context strong { color: var(--color-text); }
+.activation-page .form-section { margin-bottom: 0; }
+.activation-page .identity-confirmation { padding: 16px; margin-bottom: 0; background: var(--color-story); border-radius: 6px; }
+.activation-page .identity-confirmation label { line-height: 1.6; }
+.activation-page .accounts-footnote { margin-bottom: 0; font-size: .9375rem; }
+.activation-page .activation-receipt .credential-secret { text-align: left; }
+.activation-page .activation-receipt .credential-instructions { margin-bottom: 24px; }
+@media (max-width: 700px) {
+  .activation-page .accounts-panel { padding: 20px 16px; }
+  .activation-page .activation-patient-context { padding: 16px; }
+}

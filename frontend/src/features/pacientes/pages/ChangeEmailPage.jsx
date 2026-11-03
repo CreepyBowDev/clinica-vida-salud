@@ -13,6 +13,7 @@ import { useEmailChangeSubmission } from '../hooks/useEmailChangeSubmission';
 import { solicitarCambioCorreo, reenviarCambioCorreo, verificarCambioCorreo } from '../services/cambioCorreo.service';
 import { consultarMiPerfil } from '../services/perfil.service';
 import '../styles/patients.css';
+import '../../../styles/authenticated-credentials.css';
 
 const deliveryMessages = {
   aceptado: 'El proveedor aceptó el correo de verificación. Esto no confirma su entrega al buzón.',
@@ -33,6 +34,7 @@ export default function ChangeEmailPage() {
   const root = useRef(null);
   const heading = useRef(null);
   const { busy, failure, remaining, sendRemaining, report, run } = useEmailChangeSubmission(root);
+  useEffect(() => { if (confirm) root.current?.querySelector('form[aria-label="Solicitar cambio de correo"] button[type="submit"]')?.focus(); }, [confirm]);
   useEffect(() => {
     const clear = () => { setPassword(''); setCode(''); setConfirm(false); setDelivery(null); };
     window.addEventListener('pagehide', clear);
@@ -58,10 +60,10 @@ export default function ChangeEmailPage() {
     if (result?.data) { setDelivery(result.data); requestAnimationFrame(() => heading.current?.focus()); }
     if (result?.failure?.uncertain) setUncertain(true);
   }
-  return <section ref={root} className="workspace-page patients-page email-change-page">
+  return <section ref={root} className="workspace-page patients-page email-change-page credentials-workspace email-change-workspace">
     <Link className="patients-back" to="/mi-perfil">Volver a mi perfil</Link>
     <PageHeading title="Cambiar correo de acceso" description="Verifica tu nuevo correo antes de utilizarlo para iniciar sesión." />
-    <div className="patients-panel"><dl className="patients-data"><div><dt>Correo de acceso vigente</dt><dd>{usuario.correo_acceso}</dd></div></dl>
+    <div className="credentials-sheet"><section className="patients-panel email-current-access" aria-labelledby="email-current-access"><h2 id="email-current-access">Tu acceso actual</h2><dl className="patients-data"><div><dt>Correo de acceso vigente</dt><dd>{usuario.correo_acceso}</dd></div></dl>
       <p className="patients-note">Tu correo anterior se conserva hasta confirmar el código. El cambio no modifica tu correo de contacto, contraseña, ficha ni historial. Al completarlo se cerrarán todas tus sesiones y tendrás que volver a iniciar sesión.</p>
       <PatientFailure failure={failure} remaining={remaining} />
       {checked && <Alert variant="info">Se pudo consultar tu perfil con esta sesión. Revisa la solicitud vigente y el código más reciente antes de decidir otro envío. Esta consulta no confirma un cambio de correo ni una entrega.</Alert>}
@@ -69,7 +71,7 @@ export default function ChangeEmailPage() {
         const result = await run('check', () => consultarMiPerfil());
         if (result?.data) { setUncertain(false); setDelivery(null); setChecked(true); setCode(''); }
       }}>Comprobar mi sesión y perfil</Button></div>}
-    </div>
+    </section>
     <div className="email-change-grid"><form className="patients-panel patient-form" aria-label="Solicitar cambio de correo" aria-busy={busy === 'request'} onSubmit={submitRequest}>
       <h2>Nueva solicitud</h2><p className="patients-note">Iniciar otra solicitud sustituye la anterior y su código, respetando los límites de envío.</p>
       <FormSection title="Nuevo correo y comprobación de identidad">
@@ -78,7 +80,7 @@ export default function ChangeEmailPage() {
       </FormSection>
       {confirm && <ConfirmationPanel title="Revisa el nuevo correo"><p role="status" className="patients-note">¿Solicitar el cambio a {email.trim().toLowerCase()}? Se sustituirá cualquier solicitud pendiente. El correo vigente no cambia hasta verificar el nuevo código.</p></ConfirmationPanel>}
       <ActionGroup className="form-actions"><Button type="submit" loading={busy === 'request'} disabled={disabled || sendRemaining > 0}>{busy === 'request' ? 'Solicitando cambio…' : sendRemaining ? `Espera ${sendRemaining} s para solicitar` : confirm ? 'Confirmar solicitud de cambio' : 'Revisar cambio'}</Button>
-        {confirm && <Button variant="quiet" disabled={Boolean(busy)} onClick={() => { setConfirm(false); setPassword(''); }}>Volver a revisar solicitud</Button>}</ActionGroup>
+        {confirm && <Button variant="quiet" disabled={Boolean(busy)} onClick={() => { setConfirm(false); setPassword(''); requestAnimationFrame(() => root.current?.querySelector('input[name="correo_acceso"]')?.focus()); }}>Volver a revisar solicitud</Button>}</ActionGroup>
     </form>
     <section className="patients-panel" aria-labelledby="email-verification"><h2 id="email-verification" ref={heading} tabIndex="-1">Verificar solicitud vigente</h2>
       {delivery && <Alert variant={delivery.envio === 'fallido' ? 'error' : 'info'}><p>{deliveryMessages[delivery.envio]}</p><p>Vencimiento del código emitido: <time dateTime={delivery.expira_en}>{new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(delivery.expira_en))} UTC</time>.</p></Alert>}
@@ -98,6 +100,6 @@ export default function ChangeEmailPage() {
             handleResult(await run('resend', () => reenviarCambioCorreo()));
           }}>{busy === 'resend' ? 'Solicitando otro código…' : sendRemaining ? `Reenvío en ${sendRemaining} s` : 'Solicitar otro código de cambio'}</Button></ActionGroup>
       </form>
-    </section></div>
+    </section></div></div>
   </section>;
 }

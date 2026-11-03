@@ -36,6 +36,10 @@ describe('cambio ordinario', () => {
     await screen.findByLabelText('Contraseña actual');
     expect(screen.getByRole('group', { name: 'Confirma tu identidad' })).toContainElement(screen.getByLabelText('Contraseña actual'));
     expect(screen.getByRole('group', { name: 'Tu nueva contraseña' })).toContainElement(screen.getByLabelText('Confirmar nueva contraseña'));
+    const form = screen.getByRole('form', { name: 'Cambiar contraseña' });
+    const guidance = screen.getByRole('region', { name: 'Una contraseña solo tuya' });
+    expect(form.compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(guidance).toHaveTextContent('Esta sesión se renovará');
     expect(cambiarClave).not.toHaveBeenCalled();
   });
   it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('cambia como %s y revalida conservando sesión normal', async rol => {

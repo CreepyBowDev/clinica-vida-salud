@@ -11,6 +11,7 @@ import PatientStateAction from '../components/PatientStateAction';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROLES } from '../../../constants/roles';
 import '../styles/patients.css';
+import '../styles/patient-detail.css';
 
 export default function PatientDetailPage() {
   const { id } = useParams();
@@ -25,22 +26,18 @@ function PatientDetail({ id }) {
   const { data: patient, loading, failure, reload } = usePatientQuery('detail', id);
   const location = useLocation();
   const [notice, setNotice] = useState(location.state?.patientNotice ? 'Cambios administrativos guardados. Consulta los datos actuales de la ficha.' : '');
-  return <section className="workspace-page patients-page query-detail">
+  return <section className="workspace-page patients-page query-detail patient-detail-page">
     <Link className="back-link" to="/recepcion/pacientes">Volver a pacientes</Link>
     <PageHeading title="Ficha administrativa" description="Identidad y datos de contacto del paciente." />
     {notice && <Alert variant="success"><p>{notice}</p></Alert>}
     <div className={!loading && !failure ? 'patient-detail-sections' : undefined} aria-busy={loading}>{loading ? <QueryMessage loading title="Consultando ficha…" /> : failure ? <div className="query-failure"><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div> : <>
       <section className="patients-panel" aria-labelledby="patient-identity"><h2 id="patient-identity">{patient.nombres} {patient.apellidos}</h2>
         <dl className="patients-data"><Datum label="Código de ficha">{patient.codigo_paciente}</Datum><Datum label="Identificador interno">{patient.id_paciente}</Datum>
-          <Datum label="CI">{patient.documento_identidad || 'Sin CI registrado'}</Datum><Datum label="Estado de ficha">{patient.activo ? 'Activa' : 'Inactiva'}</Datum>
+           <Datum label="CI">{patient.documento_identidad || 'Sin CI registrado'}</Datum><Datum label="Estado de ficha"><span className="patient-detail-state" data-estado={patient.activo ? 'Activa' : 'Inactiva'}>{patient.activo ? 'Activa' : 'Inactiva'}</span></Datum>
           <Datum label="Fecha de nacimiento"><time dateTime={patient.fecha_nacimiento}>{patient.fecha_nacimiento.split('-').reverse().join('/')}</time></Datum><Datum label="Sexo">{patient.sexo}</Datum>
           <Datum label="Cuenta web">{patient.cuenta_vinculada ? 'Vinculada' : 'Sin cuenta vinculada'}</Datum></dl>
         <p className="patients-note">El vínculo con una cuenta no indica si su acceso está activo ni si tiene un bloqueo temporal.</p>
         {!patient.activo && <p className="patients-note">La ficha inactiva no admite nuevas citas. Conserva su historial y las citas existentes.</p>}
-        <div className="patients-actions"><Link className="button button--secondary" to={`/recepcion/pacientes/${id}/citas`}>Consultar historial de citas</Link>
-          {usuario?.rol === ROLES.ADMINISTRADOR && <Link className="button button--secondary" to={`/historia-clinica/pacientes/${id}`}>Consultar historia clínica</Link>}
-          <Link className="button button--primary" to={`/recepcion/pacientes/${id}/editar`}>Editar ficha administrativa</Link>
-          {patient.documento_identidad?.trim() && !patient.cuenta_vinculada && <Link className="button button--secondary" to={`/recepcion/pacientes/${id}/activacion`}>Emitir código de activación</Link>}</div>
         {!patient.documento_identidad?.trim() && <p className="patients-note">Para iniciar la vinculación web, incorpora primero el CI a esta misma ficha.</p>}
         {patient.cuenta_vinculada && <p className="patients-note">La ficha ya tiene una cuenta vinculada; no admite un nuevo código de activación.</p>}
       </section>
@@ -50,6 +47,12 @@ function PatientDetail({ id }) {
       <section className="patients-panel" aria-labelledby="patient-emergency"><h2 id="patient-emergency">Contacto de emergencia</h2>{patient.contacto_emergencia ? <dl className="patients-data">
         <Datum label="Nombre">{patient.contacto_emergencia.nombre}</Datum><Datum label="Parentesco">{patient.contacto_emergencia.parentesco}</Datum><Datum label="Teléfono de emergencia">{patient.contacto_emergencia.telefono}</Datum>
       </dl> : <p className="patients-note">Sin contacto de emergencia registrado.</p>}</section>
+      <section className="patients-panel patient-detail-operations" aria-labelledby="patient-operations"><h2 id="patient-operations">Operaciones de la ficha</h2>
+        <div className="patients-actions"><Link className="button button--primary" to={`/recepcion/pacientes/${id}/editar`}>Editar ficha administrativa</Link>
+          {patient.documento_identidad?.trim() && !patient.cuenta_vinculada && <Link className="button button--secondary" to={`/recepcion/pacientes/${id}/activacion`}>Emitir código de activación</Link>}
+          <Link className="button button--secondary" to={`/recepcion/pacientes/${id}/citas`}>Consultar historial de citas</Link>
+          {usuario?.rol === ROLES.ADMINISTRADOR && <Link className="button button--secondary" to={`/historia-clinica/pacientes/${id}`}>Consultar historia clínica</Link>}</div>
+      </section>
       <PatientStateAction key={patient.actualizado_en} patient={patient} onSaved={message => { setNotice(message); reload(); }} />
     </>}</div>
   </section>;

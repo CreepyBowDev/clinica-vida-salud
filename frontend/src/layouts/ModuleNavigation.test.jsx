@@ -151,6 +151,23 @@ describe('sidebar modular y orientación', () => {
     screen.getByRole('button', { name: 'Abrir menú' }).focus(); screen.getByLabelText('Campo de trabajo').focus();
     media.matches = true; act(() => onChange()); expect(screen.getByLabelText('Campo de trabajo')).toHaveFocus();
   });
+  it('al pasar a móvil recupera foco del nav que Chromium ya ocultó', () => {
+    let onChange; const media = { matches: true, addEventListener: (_name, handler) => { onChange = handler; }, removeEventListener: vi.fn() };
+    vi.stubGlobal('matchMedia', vi.fn(() => media)); mount('/mi-cuenta/contrasena');
+    const navigation = nav();
+    within(navigation).getByRole('link', { name: 'Cambiar contraseña' }).focus();
+    // Simula CSS aplicado antes de que llegue el evento de media query.
+    media.matches = false; navigation.style.display = 'none'; document.activeElement.blur();
+    act(() => onChange()); expect(screen.getByRole('button', { name: 'Abrir menú' })).toHaveFocus();
+    expect(navigation).not.toHaveClass('is-open');
+  });
+  it('al pasar a móvil no roba foco si se salió del nav hacia el formulario', () => {
+    let onChange; const media = { matches: true, addEventListener: (_name, handler) => { onChange = handler; }, removeEventListener: vi.fn() };
+    vi.stubGlobal('matchMedia', vi.fn(() => media)); mount('/otra', <input aria-label="Campo de trabajo" />);
+    within(nav()).getByRole('link', { name: 'Inicio' }).focus(); screen.getByLabelText('Campo de trabajo').focus();
+    media.matches = false; nav().style.display = 'none'; act(() => onChange());
+    expect(screen.getByLabelText('Campo de trabajo')).toHaveFocus();
+  });
   it('al pasar a escritorio omite el enlace actual si su módulo está contraído', async () => {
     let onChange; const media = { matches: false, addEventListener: (_name, handler) => { onChange = handler; }, removeEventListener: vi.fn() };
     vi.stubGlobal('matchMedia', vi.fn(() => media)); mount('/mi-cuenta/contrasena'); const user = userEvent.setup();

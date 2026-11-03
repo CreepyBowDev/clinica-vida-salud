@@ -11,6 +11,7 @@ import PageHeading from '../../../components/PageHeading';
 import FormSection from '../../../components/FormSection';
 import ActionGroup from '../../../components/ActionGroup';
 import '../styles/access.css';
+import '../../../styles/authenticated-credentials.css';
 
 export default function ChangePasswordPage() {
   const { updatePassword } = useAuth();
@@ -34,12 +35,9 @@ export default function ChangePasswordPage() {
     });
   }
 
-  return <section className="workspace-page security-page">
+  return <section className="workspace-page security-page credentials-workspace password-change-workspace">
     <PageHeading title="Cambiar contraseña" description="Actualiza la contraseña de tu cuenta." />
-    <div className="security-panel"><div className="security-description"><h2>Una contraseña solo tuya</h2>
-      <p>Usa al menos 12 caracteres e incluye una mayúscula, una minúscula, un número y un carácter especial.</p>
-      <p>Al guardar, se cerrarán tus sesiones anteriores. Esta sesión se renovará para que puedas continuar.</p></div>
-      <form ref={form} className="security-form" aria-label="Cambiar contraseña" aria-busy={busy} onSubmit={submit}>
+    <div className="security-panel"><form ref={form} className="security-form" aria-label="Cambiar contraseña" aria-busy={busy} onSubmit={submit}>
         {success && <Alert variant="success">Contraseña actualizada. Puedes continuar con tu sesión actual.</Alert>}
         <PasswordFailure failure={failure} remaining={remaining} />
         <FormSection title="Confirma tu identidad"><PasswordField label="Contraseña actual" name="current_password" autoComplete="current-password" value={current}
@@ -49,6 +47,9 @@ export default function ChangePasswordPage() {
           onPasswordChange={e => setPassword(e.target.value)} onConfirmationChange={e => setConfirmation(e.target.value)} /></FormSection>
         <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={remaining > 0}>{busy ? 'Guardando contraseña…' : remaining > 0 ? `Espera ${remaining} s` : 'Guardar contraseña'}</Button></ActionGroup>
       </form>
+      <section className="security-description" aria-labelledby="password-change-guidance"><h2 id="password-change-guidance">Una contraseña solo tuya</h2>
+        <p>Usa al menos 12 caracteres e incluye una mayúscula, una minúscula, un número y un carácter especial.</p>
+        <p>Al guardar, se cerrarán tus sesiones anteriores. Esta sesión se renovará para que puedas continuar.</p></section>
     </div>
   </section>;
 }

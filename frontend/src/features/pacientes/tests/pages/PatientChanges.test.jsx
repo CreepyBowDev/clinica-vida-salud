@@ -174,6 +174,20 @@ describe.each(['Administrador', 'Recepcionista'])('estado de ficha independiente
 
 describe.each(['Administrador', 'Recepcionista'])('activación desde ficha seleccionada — %s', operador => {
   beforeEach(() => { consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona Ficticia', correo_acceso: 'personal@example.test', rol: operador }); });
+  it('mantiene contexto, confirmación y retorno de foco sin emitir al volver', async () => {
+    const user = userEvent.setup(); mount('/activacion');
+    const checkbox = await screen.findByRole('checkbox');
+    const context = screen.getByRole('region', { name: 'Ficha seleccionada' });
+    expect(context).toHaveTextContent('Persona Ficticia'); expect(context).toHaveTextContent('PAC-001'); expect(context).toHaveTextContent('CI 1234');
+    await user.click(checkbox); await user.click(screen.getByRole('button', { name: 'Revisar emisión' }));
+    expect(screen.getByRole('button', { name: 'Confirmar emisión presencial' })).toHaveFocus();
+    expect(screen.getByRole('region', { name: 'Revisa la emisión presencial' })).toHaveTextContent('Se invalidarán el código anterior');
+    await user.click(screen.getByRole('button', { name: 'Volver a revisar ficha' }));
+    await waitFor(() => expect(screen.getByLabelText('Identificador de la ficha')).toHaveFocus());
+    expect(checkbox).toBeChecked(); expect(checkbox).toBeEnabled();
+    expect(screen.queryByRole('region', { name: 'Revisa la emisión presencial' })).not.toBeInTheDocument();
+    expect(emitirCodigoActivacion).not.toHaveBeenCalled();
+  });
   it('emite mediante servicio/Axios reales sin enviar identidad del operador, credenciales ni estado', async () => {
     const actual = await vi.importActual('../../services/activation.service');
     emitirCodigoActivacion.mockImplementation(actual.emitirCodigoActivacion);

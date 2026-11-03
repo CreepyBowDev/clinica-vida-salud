@@ -39,6 +39,11 @@ describe('cambio verificado de correo CU-08', () => {
     expect(screen.getByRole('group', { name: 'Nuevo correo y comprobación de identidad' })).toContainElement(screen.getByLabelText('Contraseña actual'));
     expect(screen.getByRole('button', { name: 'Verificar y cambiar mi correo' })).toBeDisabled();
     expect(solicitarCambioCorreo).not.toHaveBeenCalled(); expect(verificarCambioCorreo).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Confirmar solicitud de cambio' })).toHaveFocus();
+    const current = screen.getByRole('region', { name: 'Tu acceso actual' });
+    expect(current.parentElement).toHaveClass('credentials-sheet');
+    expect(current).toHaveTextContent(person.correo_acceso);
+    expect(current).toHaveTextContent('se cerrarán todas tus sesiones');
   });
   it.each(['Administrador', 'Recepcionista', 'Médico'])('deniega %s sin llamadas al cambio', async rol => {
     consultarSesion.mockResolvedValue({ ...person, rol }); mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
@@ -55,6 +60,9 @@ describe('cambio verificado de correo CU-08', () => {
     field('Nuevo correo de acceso', 'nuevo@example.test'); field('Contraseña actual', 'Clave ficticia 123'); request();
     expect(screen.getByRole('status')).toHaveTextContent('Se sustituirá cualquier solicitud'); expect(solicitarCambioCorreo).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Volver a revisar solicitud' })); expect(screen.getByLabelText('Contraseña actual')).toHaveValue('');
+    await waitFor(() => expect(screen.getByLabelText('Nuevo correo de acceso')).toHaveFocus());
+    expect(screen.getByLabelText('Nuevo correo de acceso')).toHaveValue('nuevo@example.test');
+    expect(screen.getByRole('button', { name: 'Verificar y cambiar mi correo' })).toBeEnabled();
   });
   it.each(['aceptado', 'simulado', 'fallido', 'pendiente'])('muestra envío %s sin inferir entrega, conserva correo y limpia secretos', async envio => {
     solicitarCambioCorreo.mockResolvedValue({ ...receipt, envio }); mount(); await prepareRequest(); request();

@@ -15,6 +15,7 @@ import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { consultarMedico } from '../../medicos/services/medico.service';
 import DoctorFailure from '../../medicos/components/DoctorFailure';
 import '../styles/accounts.css';
+import '../styles/staff-workspace.css';
 
 const queryFields = [];
 export default function NewStaffPage() {
@@ -46,12 +47,9 @@ function StaffForm({ doctor }) {
     <div className="accounts-backlinks"><Link className="accounts-back" to="/administracion/cuentas">Volver a cuentas</Link>
       {doctor && <Link className="accounts-back" to={`/administracion/medicos/${doctor.id_medico}`}>Volver al médico</Link>}</div>
     <PageHeading titleRef={heading} title={result ? 'Cuenta del personal creada' : 'Crear cuenta del personal'} description={result ? 'La cuenta permanece pendiente hasta que el trabajador acepte su invitación.' : 'El trabajador verificará su correo y elegirá su propia contraseña.'} />
-    {result ? <div className="accounts-panel"><p className="accounts-created-email">{result.data.correo_acceso}</p><InvitationResult result={result} />
+    {result ? <div className="accounts-panel staff-create-result"><p className="accounts-created-email">{result.data.correo_acceso}</p><InvitationResult result={result} />
       <Link className="button button--primary" to={`/administracion/cuentas/${result.data.id_usuario}`}>Ver cuenta creada</Link></div>
-      : <div className="staff-form-layout"><section className="form-guidance" aria-labelledby="staff-guidance-title"><h2 id="staff-guidance-title">Acceso para el equipo</h2><p>Asigna uno de los tres roles del personal. La invitación permite establecer la primera contraseña y verificar el correo.</p>
-        <p>Para un Médico necesitas el identificador de su registro profesional existente. El sistema comprueba que esté disponible y conserva sus nombres y datos profesionales.</p>
-        {doctor && <p><strong>{doctor.nombres} {doctor.apellidos}</strong> · {doctor.codigo_medico}. Registro seleccionado; el rol y el vínculo están fijados para esta alta. Crear la cuenta no cambia su actividad profesional.</p>}</section>
-        <form ref={form} className="accounts-panel admin-form" aria-label="Crear cuenta del personal" aria-busy={busy} onSubmit={async event => {
+      : <div className="staff-form-layout"><form ref={form} className="accounts-panel admin-form" aria-label="Crear cuenta del personal" aria-busy={busy} onSubmit={async event => {
           event.preventDefault();
           if (busy || uncertain || remaining > 0) return;
           if (medical && !esIdentificador(draft.id_medico)) { report({ message: 'Revisa el identificador profesional.', fields: { id_medico: 'Introduce un identificador entero positivo válido.' } }); return; }
@@ -70,6 +68,8 @@ function StaffForm({ doctor }) {
             : <div className="staff-name-fields"><FormField label="Nombres" autoComplete="off" required maxLength={120} {...field('nombres_personal')} /><FormField label="Apellidos" autoComplete="off" required maxLength={120} {...field('apellidos_personal')} /></div>}
           </FormSection>
           <ActionGroup className="form-actions"><Button type="submit" loading={busy} disabled={uncertain || remaining > 0}>{busy ? 'Creando cuenta…' : remaining > 0 ? `Espera ${remaining} s` : 'Crear cuenta e invitar'}</Button></ActionGroup>
-        </form></div>}
+        </form><section className="form-guidance" aria-labelledby="staff-guidance-title"><h2 id="staff-guidance-title">Acceso para el equipo</h2><p>Asigna uno de los tres roles del personal. La invitación permite establecer la primera contraseña y verificar el correo.</p>
+          <p>Para un Médico necesitas el identificador de su registro profesional existente. El sistema comprueba que esté disponible y conserva sus nombres y datos profesionales.</p>
+          {doctor && <p className="staff-selected-doctor"><strong>{doctor.nombres} {doctor.apellidos}</strong><br />{doctor.codigo_medico}. Registro seleccionado; el rol y el vínculo están fijados para esta alta. Crear la cuenta no cambia su actividad profesional.</p>}</section></div>}
   </section>;
 }

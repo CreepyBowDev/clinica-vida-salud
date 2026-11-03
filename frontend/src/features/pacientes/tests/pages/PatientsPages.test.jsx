@@ -114,6 +114,13 @@ describe.each(['Administrador', 'Recepcionista'])('consulta administrativa de pa
     expect(screen.getByText(patient.id_paciente)).toBeInTheDocument();
     expect(screen.getByText('Sin CI registrado')).toBeInTheDocument();
     expect(screen.getByText('Inactiva')).toBeInTheDocument();
+    expect(screen.getByText('Inactiva')).toHaveAttribute('data-estado', 'Inactiva');
+    const operations = screen.getByRole('region', { name: 'Operaciones de la ficha' });
+    expect(operations.parentElement).toHaveClass('patient-detail-sections');
+    expect(within(operations).getByRole('link', { name: 'Editar ficha administrativa' })).toHaveAttribute('href', `/recepcion/pacientes/${patient.id_paciente}/editar`);
+    expect(within(operations).queryByRole('link', { name: 'Emitir código de activación' })).not.toBeInTheDocument();
+    if (operador === 'Administrador') expect(within(operations).getByRole('link', { name: 'Consultar historia clínica' })).toHaveAttribute('href', `/historia-clinica/pacientes/${patient.id_paciente}`);
+    else expect(within(operations).queryByRole('link', { name: 'Consultar historia clínica' })).not.toBeInTheDocument();
     expect(screen.getByText('Vinculada')).toBeInTheDocument();
     expect(screen.getByText('02/01/1990')).toHaveAttribute('dateTime', '1990-01-02');
     expect(screen.getByText(/Sin contacto de emergencia/)).toBeInTheDocument();

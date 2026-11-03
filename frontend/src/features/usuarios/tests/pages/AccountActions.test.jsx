@@ -36,9 +36,12 @@ describe('estado de acceso', () => {
     const user = userEvent.setup();
     mount();
     await user.click(await screen.findByRole('button', { name }));
+    expect(screen.getByRole('region', { name: 'Datos de acceso del Paciente' }).parentElement).toHaveClass('patient-account-sheet');
     expect(cambiarEstadoCuenta).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Cambiar rol' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Emitir credencial temporal' })).not.toBeInTheDocument();
+    const review = screen.getByRole('region', { name: 'Revisar estado de acceso' });
+    expect(review).toHaveTextContent(from === 'Activa' ? 'Se cerrarán todas sus sesiones' : 'No se activa su ficha ni se eliminan bloqueos temporales');
     await user.click(screen.getByRole('button', { name: `Confirmar: ${name.toLowerCase()}` }));
     expect(await screen.findByRole('status')).toHaveTextContent('Estado de acceso actualizado');
     expect(cambiarEstadoCuenta).toHaveBeenCalledWith('17', to);
@@ -49,6 +52,36 @@ describe('estado de acceso', () => {
     mount();
     await screen.findByText(staff.correo_acceso);
     expect(screen.queryByRole('button', { name: /Desactivar acceso|Reactivar acceso|Emitir credencial temporal/ })).not.toBeInTheDocument();
+  });
+  it.each([
+    ['Pendiente', null], ['Activa', null], ['Desactivada', null], ['Pendiente', '2026-10-20T00:00:00Z'],
+  ])('Paciente %s con verificación %s no permite administración si no es elegible', async (estado_cuenta, correo_verificado_en) => {
+    consultarCuenta.mockResolvedValue({ ...staff, rol: 'Paciente', estado_cuenta, correo_verificado_en });
+    mount(); await screen.findByRole('region', { name: 'Datos de acceso del Paciente' });
+    expect(screen.queryByRole('heading', { name: 'Administrar acceso' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Desactivar acceso|Reactivar acceso|Cambiar rol|Emitir credencial temporal|Reenviar invitación/ })).not.toBeInTheDocument();
+    expect(cambiarEstadoCuenta).not.toHaveBeenCalled(); expect(cambiarRolCuenta).not.toHaveBeenCalled(); expect(emitirCredencialTemporal).not.toHaveBeenCalled();
+  });
+  it('cancelar la desactivación de un Paciente conserva el estado y restaura el foco sin escribir', async () => {
+    consultarCuenta.mockResolvedValue({ ...staff, rol: 'Paciente' });
+    const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'Desactivar acceso' }));
+    expect(screen.getByRole('heading', { name: 'Desactivar acceso' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Volver', exact: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Desactivar acceso' })).toHaveFocus());
+    expect(screen.getByText('Activa', { selector: '[data-estado]' })).toBeInTheDocument();
+    expect(cambiarEstadoCuenta).not.toHaveBeenCalled();
+  });
+  it.each([403, 409, 419, 422, 429, 500, undefined])('error %s en acceso de Paciente no anuncia éxito ni reenvía', async status => {
+    consultarCuenta.mockResolvedValue({ ...staff, rol: 'Paciente' });
+    cambiarEstadoCuenta.mockRejectedValue(status ? error(status, null, null, status === 429 ? { 'retry-after': '60' } : {}) : new Error('red'));
+    const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'Desactivar acceso' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar: desactivar acceso' }));
+    expect(await screen.findByRole('alert')).not.toHaveTextContent('SQL secreto');
+    expect(screen.queryByText('Estado de acceso actualizado.')).not.toBeInTheDocument();
+    expect(screen.getByText('Activa', { selector: '[data-estado]' })).toBeInTheDocument();
+    expect(cambiarEstadoCuenta).toHaveBeenCalledTimes(1);
+    expect(cambiarRolCuenta).not.toHaveBeenCalled(); expect(emitirCredencialTemporal).not.toHaveBeenCalled();
+    if (status === 429) expect(screen.getByRole('button', { name: 'Espera 60 s' })).toBeDisabled();
   });
   it('último Administrador rechazado conserva sesión y no anuncia éxito', async () => {
     consultarCuenta.mockResolvedValue({ ...staff, id_usuario: '1', rol: 'Administrador' });

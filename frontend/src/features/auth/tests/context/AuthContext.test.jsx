@@ -42,6 +42,7 @@ describe('sesión y rutas', () => {
     consultarSesion.mockReturnValue(pending.promise);
     const router = mount('/paciente', { strict: true });
     expect(screen.getByRole('status')).toHaveTextContent('Comprobando');
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { name: 'Comprobando tu sesión…' }));
     expect(router.state.location.pathname).toBe('/paciente');
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     await act(async () => pending.resolve(userData()));
@@ -95,6 +96,8 @@ describe('sesión y rutas', () => {
     const user = userEvent.setup();
     const router = mount('/inicio');
     await screen.findByRole('heading', { name: 'No podemos comprobar tu acceso' });
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('button', { name: 'Volver a comprobar' }));
     expect(screen.queryByText('Persona Ficticia')).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/inicio');
     await user.click(screen.getByRole('button', { name: 'Volver a comprobar' }));
@@ -106,6 +109,12 @@ describe('sesión y rutas', () => {
     mount('/inicio');
     await screen.findByRole('heading', { name: 'No podemos comprobar tu acceso' });
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
+  it('el fallo de sesión público conserva un solo main, sin anidar landmarks', async () => {
+    consultarSesion.mockRejectedValue(rejected(500)); mount('/registro');
+    await screen.findByRole('heading', { name: 'No podemos comprobar tu acceso' });
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('button', { name: 'Volver a comprobar' }));
   });
 
   it('una nueva carga restaura desde el servidor y no desde almacenamiento web', async () => {

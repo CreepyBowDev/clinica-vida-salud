@@ -13,6 +13,8 @@ import PageHeading from '../../../components/PageHeading';
 import QueryMessage from '../../../components/QueryMessage';
 import ConfirmationPanel from '../../../components/ConfirmationPanel';
 import '../styles/accounts.css';
+import '../styles/staff-workspace.css';
+import '../styles/patient-account.css';
 
 export default function AccountDetailPage() {
   const { id } = useParams();
@@ -34,19 +36,24 @@ function AccountDetail({ id }) {
   }, [confirm]);
   useEffect(() => { if (result && !loading) resultNotice.current?.focus(); }, [result, loading]);
   const eligible = account && account.rol !== ROLES.PACIENTE && account.estado_cuenta === 'Pendiente' && !account.correo_verificado_en;
-  return <section className="workspace-page accounts-page account-detail-page query-detail">
+  const staff = account && account.rol !== ROLES.PACIENTE;
+  const patient = account?.rol === ROLES.PACIENTE;
+  return <section className={`workspace-page accounts-page account-detail-page query-detail${staff ? ' staff-detail-page' : patient ? ' patient-account-page' : ''}`}>
     <Link className="back-link" to="/administracion/cuentas">Volver a cuentas</Link>
     <PageHeading title="Detalle de cuenta" description="Información administrativa del acceso al portal." />
     {notice && <Alert variant="success">{notice}</Alert>}
     {loading ? <QueryMessage loading title="Consultando cuenta…" /> : failure ? <div className="query-failure"><AccountFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div>
-      : <><dl className="account-summary accounts-panel">
+      : <><div className={staff ? 'staff-detail-sheet' : 'patient-account-sheet'}><section aria-labelledby={staff ? 'staff-account-title' : 'patient-account-title'}>
+        {staff && <h2 id="staff-account-title" className="staff-account-title">Identidad y acceso</h2>}
+        {patient && <h2 id="patient-account-title" className="patient-account-title">Datos de acceso del Paciente</h2>}
+        <dl className="account-summary accounts-panel">
         <div><dt>Identificador de cuenta</dt><dd>{account.id_usuario}</dd></div>
         {account.rol !== ROLES.PACIENTE && <div><dt>Nombre</dt><dd>{account.nombre_visible}</dd></div>}
         <div><dt>Correo de acceso</dt><dd>{account.correo_acceso}</dd></div><div><dt>Rol</dt><dd>{account.rol}</dd></div>
-        <div><dt>Estado de cuenta</dt><dd>{account.estado_cuenta}</dd></div>
+        <div><dt>Estado de cuenta</dt><dd><span className={staff ? 'staff-account-state' : 'patient-account-state'} data-estado={account.estado_cuenta}>{account.estado_cuenta}</span></dd></div>
         <div><dt>Verificación de correo</dt><dd>{account.correo_verificado_en ? 'Verificado' : 'Pendiente de verificación'}</dd></div>
         {account.rol !== ROLES.PACIENTE && account.id_medico && <div><dt>Registro médico vinculado</dt><dd>{account.id_medico}</dd></div>}
-      </dl>
+      </dl></section>
         {account.rol === ROLES.PACIENTE ? <p className="accounts-footnote">Esta consulta muestra solo datos mínimos de acceso. La cuenta, la ficha del paciente y los bloqueos temporales son independientes.</p>
           : eligible && <section className="accounts-panel invitation-panel"><h2>Invitación inicial</h2><p>La cuenta está pendiente de establecer su primera contraseña. Un nuevo envío invalida el enlace anterior.</p>
             <div ref={resultNotice} tabIndex={result ? -1 : undefined}><InvitationResult result={result} /></div>
@@ -63,6 +70,7 @@ function AccountDetail({ id }) {
             </form>
           </section>}
         <AccountActions account={account} disabled={submission.busy} onBusyChange={setActionBusy} onChanged={message => { setNotice(message); setResult(null); reload(); }} />
+        </div>
         <div className="accounts-actions"><Button variant="secondary" disabled={submission.busy || actionBusy} onClick={() => { setNotice(''); reload(); }}>Actualizar detalle</Button></div>
       </>}
   </section>;

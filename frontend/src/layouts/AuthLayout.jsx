@@ -29,7 +29,7 @@ export default function AuthLayout() {
     previousPath.current = pathname;
   }, [pathname]);
   return <div className={`auth-shell public-access${pathname === '/login' ? '' : ' auth-shell--flow'}`}>
-    <a className="skip-link" href="#contenido">Saltar al contenido</a>
+    <a className="skip-link" href="#contenido" onClick={event => { event.preventDefault(); main.current?.focus(); }}>Saltar al contenido</a>
     <header className="auth-header"><Brand /><Button variant="quiet" onClick={() => setHelp(true)}>
       <Icon name="help" /><span>Ayuda para ingresar</span>
     </Button></header>

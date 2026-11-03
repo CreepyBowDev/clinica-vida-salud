@@ -15,6 +15,7 @@ import { useGestionCita } from '../hooks/useGestionCita';
 import { formatearInstanteCita } from '../../agenda/utils/agendaFormat';
 import '../../../styles/catalogs.css';
 import '../../agenda/styles/agenda.css';
+import '../styles/appointment-management.css';
 
 export default function GestionCitaPage() {
   const { id } = useParams();
@@ -44,13 +45,13 @@ function Gestion({ id, rol, historial }) {
   const tituloResultado = cancelando ? 'Resultado de cancelación' : 'Resultado de reprogramación';
   const vistaVigente = escritura.status === 'inicial' || (['guardada', 'recuperada'].includes(escritura.status)
     && query.data?.gestion.actualizada_en >= escritura.resultado?.actualizada_en);
-  return <section className="workspace-page catalog-page query-detail gestion-cita-page">
+  return <section className="workspace-page catalog-page query-detail gestion-cita-page appointment-management">
     <Link className="back-link" to={historial ? `/recepcion/historial-citas/${id}` : `/citas/${id}`}>Volver al detalle de la cita</Link>
     <PageHeading title="Gestionar cita" description="Consulta la programación y las condiciones de gestión. Fechas y horarios en America/La_Paz." />
     {blocker.state === 'blocked' && <Alert variant="warning"><p>La {cancelando ? 'cancelación' : 'reprogramación'} podría haberse guardado. Salir no revierte la operación.</p>
       <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer y consultar</Button>
       <Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar la comprobación</Button></Alert>}
-    {escritura.status !== 'inicial' && <section aria-label={tituloResultado} aria-busy={busy}>
+    {escritura.status !== 'inicial' && <section className="management-outcome" aria-label={tituloResultado} aria-busy={busy}>
       <h2 tabIndex="-1" ref={resultadoHeading}>{tituloResultado}</h2>
       {busy && <QueryMessage loading title={escritura.status === 'guardando' ? (cancelando ? 'Guardando cancelación…' : 'Guardando reprogramación…') : 'Consultando estado persistido…'} />}
       {escritura.failure && <Alert><p>{escritura.failure.message}</p>{Object.values(escritura.failure.fields).map((message, index) => <p key={index}>{message}</p>)}</Alert>}
@@ -76,7 +77,7 @@ function Gestion({ id, rol, historial }) {
         {escritura.status === 'inicial' && query.data.gestion.acciones.cancelar && (modo === 'cancelacion'
           ? <CancelacionCita key={`${query.data.gestion.version_programacion}:${query.data.gestion.actualizada_en}`} contexto={query.data}
             onVolver={() => setModo('reprogramacion')} onGuardar={async entrada => { if (await escritura.cancelar(entrada)) query.reload(); }} />
-          : <Button variant="secondary" disabled={escritura.remaining > 0} onClick={() => setModo('cancelacion')}>Preparar cancelación</Button>)}
+           : <div className="management-cancel-choice"><Button variant="secondary" disabled={escritura.remaining > 0} onClick={() => setModo('cancelacion')}>Preparar cancelación</Button></div>)}
         {!escritura.peligro && <Button variant="secondary" disabled={escritura.remaining > 0} onClick={refrescar}>Actualizar gestión</Button>}
       </>}
     </div>

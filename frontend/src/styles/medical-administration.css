@@ -1,0 +1,49 @@
+/* Catálogos administrativos clínicos: no modifica selectores en agenda/reserva. */
+.medical-admin { --radius-control: 6px; --radius-panel: 10px; --control-height: 46px; --button-height: 44px; }
+.medical-admin .page-heading p { font-size: 1rem; }
+.medical-admin .button { white-space: normal; }
+.medical-admin :is(h2, h3, legend) { overflow-wrap: anywhere; }
+.medical-admin legend { max-width: 100%; }
+.medical-admin > .catalog-panel { max-width: none; padding: 24px; }
+.medical-admin .catalog-note { font-size: .9375rem; }
+.medical-admin .record-data > div { min-width: 0; }
+.medical-admin .record-data dd { line-height: 1.6; }
+.medical-admin .form-section > legend { font-size: 1.375rem; }
+.medical-admin .catalog-editor textarea { line-height: 1.6; min-height: 8rem; }
+.medical-admin .catalog-editor .form-section > .field { max-width: 74ch; }
+.medical-admin .doctor-specialties { border-top: 1px solid var(--color-border); padding-top: 24px; }
+.medical-admin .doctor-specialties h2 { font-size: 1.375rem; }
+.medical-admin .doctor-specialties ul { list-style: none; padding: 0; }
+.medical-admin .doctor-specialties li { margin: 0; padding-block: 12px; border-bottom: 1px solid var(--color-border); }
+.medical-admin .doctor-specialties li:last-child { border-bottom: 0; }
+.medical-admin .catalog-specialty-filter { border: 0; border-top: 1px solid var(--color-border); border-radius: 0; padding: 20px 0 0; }
+.medical-admin .catalog-specialty-filter legend { font-size: 1.125rem; padding-left: 0; padding-right: 12px; }
+.medical-admin .catalog-specialty-filter > p { font-size: .9375rem; }
+.medical-admin .doctor-initial-specialties { margin-top: 0; padding-top: 0; border-top: 0; }
+.medical-admin.query-detail .catalog-panel > form { padding-top: 0; border-top: 0; }
+.medical-admin .catalog-editor > .catalog-note + .form-section { margin-top: 24px; }
+.medical-admin .doctor-specialty-options { gap: 0; }
+.medical-admin .doctor-specialty-options label { padding-block: 12px; border-bottom: 1px solid var(--color-border); }
+.medical-admin .doctor-selected { background: var(--color-story); padding: 20px; border-left: 3px solid var(--color-primary); }
+.medical-admin .doctor-selected h2 { font-size: 1.125rem; }
+.medical-directory > .catalog-filters { margin-bottom: 0; padding: 20px 24px; gap: 20px 24px; border-radius: 10px 10px 0 0; }
+.medical-directory .medical-results { padding: 24px; border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 10px 10px; background: var(--color-surface); }
+.medical-directory .medical-results:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.medical-directory .medical-results > h2 { font-size: 1.375rem; margin-bottom: 20px; }
+.medical-directory .medical-catalog-table { border: 0; border-radius: 0; overflow: visible; }
+.medical-directory .medical-catalog-table caption { border: 0; padding: 0 0 16px; font-size: .875rem; }
+.medical-directory .medical-catalog-table :is(th, td) { padding: 16px 12px; }
+.medical-directory .medical-catalog-table th:first-child { width: 30%; }
+.medical-directory .medical-catalog-table tbody tr:is(:hover, :focus-within) { background: var(--color-story); }
+.medical-directory .medical-catalog-table .catalog-status { padding: 4px 8px; border-radius: 4px; }
+.medical-directory .medical-results > :is(.query-message, .catalog-failure) { padding: 24px 0; border: 0; border-radius: 0; }
+.medical-directory .pagination { margin-top: 0; padding-top: 20px; }
+@container records (max-width: 56rem) {
+  .medical-directory .medical-catalog-table tbody tr { padding: 20px 12px; border-top: 1px solid var(--color-border); border-bottom: 0; }
+  .medical-directory .medical-catalog-table tbody td { padding: 0; }
+  .medical-directory .medical-catalog-table caption { padding: 0 0 16px; }
+}
+@media (max-width: 700px) {
+  .medical-admin > .catalog-panel, .medical-directory > .catalog-filters, .medical-directory .medical-results { padding: 20px 16px; }
+  .medical-admin .doctor-selected { padding: 16px; }
+}

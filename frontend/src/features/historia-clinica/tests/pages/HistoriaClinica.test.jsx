@@ -54,6 +54,18 @@ it('Médico entra desde su agenda sin hacer búsqueda general de pacientes', asy
   expect(within(screen.getByRole('main')).getByRole('link', { name: 'Consultar agenda médica' })).toHaveAttribute('href', '/agenda');
   expect(calls).toHaveLength(0); expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 });
+it('la hoja de lectura conserva todo el texto y los saltos de línea sin controles que plieguen contenido clínico', async () => {
+  const d = detalle(); d.data.consulta.version_vigente.observaciones = 'Primera línea ficticia\nSegunda línea ficticia';
+  respond = config => response(config, d); mount('/citas/41/consulta');
+  const consultation = await screen.findByRole('region', { name: 'Consulta registrada' });
+  expect(consultation.closest('.clinical-sheet')).toBeInTheDocument();
+  expect(consultation.querySelector('[data-content="consulta"]')).toHaveTextContent('Primera línea ficticia');
+  expect(within(consultation).getByText(/Primera línea ficticia/).textContent).toBe('Primera línea ficticia\nSegunda línea ficticia');
+  expect(within(consultation).getByText('Diagnóstico')).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Antecedentes vigentes' })).toBeInTheDocument();
+  expect(consultation.querySelector('details')).toBeNull();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
 it('Administrador reutiliza selección administrativa con enlace clínico y sin crear fichas', async () => {
   rol = 'Administrador'; respond = config => response(config, { data: [{ ...paciente, documento_identidad: null, activo: false }], meta: meta() });
   mount('/historia-clinica'); await screen.findByRole('link', { name: 'Ver historia clínica de Paciente Clínico ficticio' });
@@ -64,6 +76,10 @@ it.each(['consulta', 'antecedentes'])('histórico de %s muestra versiones proteg
   mount(path); await screen.findByRole('heading', { name: 'Versión 1' });
   expect(screen.getByRole('main')).toHaveTextContent('MOTIVO-INTERNO'); expect(screen.getByRole('main')).toHaveTextContent('Identificador de usuario ejecutor: 50');
   expect(screen.queryByRole('button', { name: /Restaurar|Guardar/ })).not.toBeInTheDocument();
+  const region = screen.getByRole('region', { name: 'Versiones clínicas' });
+  expect(within(region).getByRole('heading', { name: 'Versión 1' })).toBeInTheDocument();
+  expect(region.querySelector('details')).toBeNull();
+  expect(within(region).queryByRole('textbox')).not.toBeInTheDocument();
 });
 it.each([
   ['Recepcionista', '/historia-clinica'], ['Recepcionista', '/citas/41/consulta'],

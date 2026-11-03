@@ -1,0 +1,40 @@
+/* Operaciones documentales del Administrador; revisión/publicación no recibe estos estilos. */
+.lab-document-workspace { --radius-control: 6px; --radius-panel: 10px; --control-height: 46px; --button-height: 44px; padding: 24px; margin-top: 24px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); min-width: 0; }
+.lab-document-workspace h2 { font-size: 1.375rem; margin-bottom: 16px; }
+.lab-document-workspace h3 { font-size: 1.125rem; }
+.lab-document-workspace > p { max-width: 75ch; color: var(--color-muted); font-size: .9375rem; }
+.lab-document-workspace > .action-group { margin-top: 20px; }
+.lab-document-workspace .button { white-space: normal; }
+.lab-document-workspace a:not(.button) { color: var(--color-primary-hover); text-underline-offset: 4px; }
+.lab-document-workspace .lab-document-form { margin-top: 0; }
+.lab-document-workspace .lab-form-fields { max-width: none; margin-bottom: 24px; }
+.lab-document-workspace .lab-form-fields > legend { margin-bottom: 24px; font-size: 1.375rem; }
+.lab-document-workspace .lab-form-fields > .field { max-width: 74ch; margin-top: 0; margin-bottom: 24px; }
+.lab-document-workspace .lab-form-fields textarea { width: 100%; min-height: 8rem; resize: vertical; line-height: 1.6; }
+.lab-document-workspace .lab-form-fields input[type="file"] { min-width: 0; max-width: 100%; padding: 12px; font-size: 1rem; background: var(--color-background); }
+.lab-document-workspace input[type="file"]::file-selector-button { padding: 10px 12px; margin-right: 12px; border: 1px solid var(--color-control-border); border-radius: 6px; color: var(--color-primary-hover); background: var(--color-surface); font: inherit; cursor: pointer; }
+.lab-document-workspace .lab-form-fields .lab-declaration { padding: 16px 20px; margin-block: 20px; border-left: 3px solid var(--color-primary); background: var(--color-story); }
+.lab-document-workspace .lab-declaration input { width: 22px; height: 22px; }
+.lab-document-workspace .lab-associations { gap: 24px; margin-top: 20px; }
+.lab-document-workspace .lab-association { padding: 20px; border-left: 3px solid var(--color-border); background: var(--color-background); }
+.lab-document-workspace .lab-association + .lab-association { border-left-color: var(--color-primary); background: var(--color-story); }
+.lab-document-workspace .lab-association h3 { margin-bottom: 12px; }
+.lab-document-workspace .lab-association p + p { margin-top: 8px; }
+.lab-document-workspace .lab-association p { font-size: .9375rem; }
+.lab-document-workspace .lab-text { line-height: 1.65; margin-top: 16px; }
+.lab-document-workspace section[aria-labelledby="lab-document-review"] > p { margin-top: 16px; }
+.lab-document-workspace section[aria-label="Resultado de la operación documental"] > :is(p, .button) { margin-top: 16px; }
+.lab-document-workspace .lab-destination > :is(p, .button) { margin-bottom: 20px; }
+.lab-document-workspace .lab-destination .workspace-page { padding: 0; }
+.lab-document-workspace .lab-destination .patients-filters { padding: 20px; }
+.lab-document-workspace .lab-destination .lab-versions { margin-block: 20px; }
+.lab-document-workspace .lab-destination .lab-versions h3 { margin-bottom: 8px; }
+.lab-document-workspace .lab-destination .lab-versions .button { margin-top: 16px; }
+.lab-document-workspace .lab-destination .pagination { padding-top: 20px; }
+@media (max-width: 900px) {
+  .lab-document-workspace .lab-associations { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .lab-document-workspace { padding: 20px 16px; }
+  .lab-document-workspace .lab-association, .lab-document-workspace .lab-form-fields .lab-declaration { padding: 16px; }
+}

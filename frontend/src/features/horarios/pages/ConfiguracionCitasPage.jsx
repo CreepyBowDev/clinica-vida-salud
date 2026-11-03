@@ -15,13 +15,15 @@ import { consultarConfiguracionCitas, consultarImpactoDuracion, actualizarDuraci
 import HorarioImpacto from '../components/HorarioImpacto';
 import '../../../styles/catalogs.css';
 import '../styles/horarios.css';
+import '../../../styles/medical-administration.css';
+import '../styles/schedule-planning.css';
 
 const fields = [];
 const load = (_params, signal) => consultarConfiguracionCitas(signal);
 export default function ConfiguracionCitasPage() {
   const query = useCatalogQuery(load, null, fields);
   const [notice, setNotice] = useState('');
-  return <section className="workspace-page catalog-page"><Link className="back-link" to="/administracion/horarios">Volver a horarios</Link>
+  return <section className="workspace-page catalog-page medical-admin schedule-planning"><Link className="back-link" to="/administracion/horarios">Volver a horarios</Link>
     <PageHeading title="Duración global de citas" description="Configura la duración para toda la sede. El cambio no modifica las citas existentes." />
     {notice && <Alert variant="success">{notice}</Alert>}
     {query.loading ? <p role="status">Consultando configuración de citas…</p> : query.failure ? <><Alert>{query.failure.status === 404 ? 'No se encontró la configuración de citas.' : query.failure.message}</Alert><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar configuración</Button></>
@@ -72,7 +74,7 @@ function DurationEditor({ initial, onReload, onSaved }) {
     <ActionGroup className="form-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto de duración</Button>
       <Button variant="quiet" disabled={Boolean(busy) || remaining > 0} onClick={onReload}>Descartar propuesta y consultar configuración actual</Button></ActionGroup>
     {busy && <p role="status">{busy === 'write' ? 'Guardando duración global…' : 'Consultando impacto de duración…'}</p>}
-    <div ref={review} tabIndex="-1">{impacto && <HorarioImpacto impacto={impacto} configuracion onPage={preview} disabled={Boolean(busy) || remaining > 0} />}</div>
+    <div className="schedule-impact-results" ref={review} tabIndex="-1" role="region" aria-label="Resultados del impacto de duración">{impacto && <HorarioImpacto impacto={impacto} configuracion onPage={preview} disabled={Boolean(busy) || remaining > 0} />}</div>
     {impacto?.data.puede_confirmar && <ConfirmationPanel label="Confirmación de duración global" title="Confirmar cambio global">
       <p>La duración pasará de <strong>{initial.duracion_turno_minutos} a {Number(draft)} minutos</strong> para toda la sede. Las citas ya registradas conservarán su duración almacenada.</p>
       <p>El diagnóstico abarca todos los intervalos activos, no solo esta página. El servidor revalidará la configuración y la compatibilidad antes de guardar.</p>

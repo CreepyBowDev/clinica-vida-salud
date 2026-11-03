@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { AxiosError } from 'axios';
@@ -38,6 +38,7 @@ it.each(['Administrador', 'Recepcionista'])('%s lee identidades mínimas, zona, 
   rol = role; body = asistencia(rol); mount();
   const region = await screen.findByRole('region', { name: `Programación actual: ${cita.codigo_cita}` });
   expect(region).toHaveTextContent('Paciente De prueba'); expect(region).toHaveTextContent('Profesional Ficticio');
+  expect(region.closest('.agenda-detail-sections')).toContainElement(screen.getByRole('region', { name: 'Condiciones de asistencia' }));
   expect(region).toHaveTextContent('31/10/2026'); expect(region).toHaveTextContent('22:30');
   expect(screen.getByRole('checkbox', { name: declaracion })).not.toBeChecked();
   expect(screen.queryByRole('button', { name: 'Confirmar llegada' })).not.toBeInTheDocument();
@@ -45,7 +46,7 @@ it.each(['Administrador', 'Recepcionista'])('%s lee identidades mínimas, zona, 
   expect(screen.getByRole('main')).not.toHaveTextContent(/70000000|MOTIVO-FICTICIO|fecha_nacimiento/);
   expect(calls).toHaveLength(2); expect(calls.every(c => c.method === 'get' && c.sessionBound)).toBe(true);
   expect(document.title).toBe('Asistencia de la cita | Clínica Vida Salud');
-  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Asistencia y estados');
+  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Agenda y citas');
 });
 it('Médico lee propia asistencia sin llegada y prepara atención solo mediante elección explícita', async () => {
   rol = 'Médico'; body = asistencia(rol); body.acciones.marcar_atendida = true; body.impedimentos.marcar_atendida = [];
@@ -75,6 +76,7 @@ it.each(['Administrador', 'Recepcionista'])('%s exige declaración, revisión y 
   await revisar(user); expect(screen.getByRole('heading', { name: `Revisar llegada de ${cita.codigo_cita}` })).toHaveFocus();
   expect(calls).toHaveLength(2); await user.click(screen.getByRole('button', { name: 'Volver sin confirmar' }));
   expect(screen.getByRole('checkbox')).not.toBeChecked(); expect(screen.queryByRole('button', { name: 'Confirmar llegada' })).not.toBeInTheDocument();
+  expect(screen.getByRole('checkbox')).toHaveFocus();
   await revisar(user); await user.click(screen.getByRole('button', { name: 'Confirmar llegada' }));
   await screen.findByText(/Llegada guardada/);
   await waitFor(() => expect(screen.getByRole('region', { name: `Programación actual: ${cita.codigo_cita}` })).toHaveTextContent('Confirmada'));
@@ -96,14 +98,14 @@ it.each(['CITA_CON_ATENCION_DOCUMENTADA', 'CITA_LLEGADA_FUERA_DE_PLAZO'])('imped
 });
 it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('%s recibe enlace del detalle únicamente si corresponde', async role => {
   rol = role; body = asistencia(rol); mount(`/citas/${cita.id_cita}`); await screen.findByRole('region', { name: 'Paciente' });
-  const link = screen.queryByRole('link', { name: 'Gestionar asistencia' });
+  const link = within(screen.getByRole('main')).queryByRole('link', { name: 'Gestionar asistencia' });
   if (rol === 'Paciente') expect(link).not.toBeInTheDocument();
   else { await userEvent.click(link); await screen.findByRole('region', { name: 'Condiciones de asistencia' });
     expect(screen.getByRole('link', { name: 'Volver al detalle de la cita' })).toHaveAttribute('href', `/citas/${cita.id_cita}`); }
 });
 it.each(['Administrador', 'Recepcionista'])('%s conserva retorno al detalle de historial', async role => {
   rol = role; body = asistencia(rol); mount(`/recepcion/historial-citas/${cita.id_cita}`);
-  await userEvent.click(await screen.findByRole('link', { name: 'Gestionar asistencia' })); await screen.findByRole('region', { name: 'Condiciones de asistencia' });
+  await userEvent.click(await within(await screen.findByRole('main')).findByRole('link', { name: 'Gestionar asistencia' })); await screen.findByRole('region', { name: 'Condiciones de asistencia' });
   expect(screen.getByRole('link', { name: 'Volver al detalle de la cita' })).toHaveAttribute('href', `/recepcion/historial-citas/${cita.id_cita}`);
 });
 it('state arbitrario no genera retorno externo', async () => {

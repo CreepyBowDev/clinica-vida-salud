@@ -7,12 +7,13 @@ import { consultarMedico } from '../services/medico.service';
 import DoctorEditor from '../components/DoctorEditor';
 import DoctorFailure from '../components/DoctorFailure';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function DoctorEditorPage({ creating = false }) {
   const { id } = useParams();
   if (!creating && !esIdentificador(id)) return <section className="page-message"><h1>Médico no disponible</h1><Link to="/administracion/medicos">Volver a médicos</Link></section>;
-  return <section className="workspace-page catalog-page admin-form-page"><PageHeading title={creating ? 'Registrar médico' : 'Editar médico'} description="Conserva la identidad profesional y su historial." />
+  return <section className="workspace-page catalog-page admin-form-page medical-admin"><PageHeading title={creating ? 'Registrar médico' : 'Editar médico'} description="Conserva la identidad profesional y su historial." />
     {creating ? <DoctorEditor /> : <LoadEditor key={id} id={id} />}
   </section>;
 }

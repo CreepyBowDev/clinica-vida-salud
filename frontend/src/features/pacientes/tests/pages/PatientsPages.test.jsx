@@ -28,7 +28,7 @@ describe.each(['Administrador', 'Recepcionista'])('consulta administrativa de pa
   beforeEach(() => { consultarSesion.mockResolvedValue(person(operador)); });
   it('tabla adaptable conserva CI ausente, código, estado y destino de ficha', async () => {
     mount(); const table = await screen.findByRole('table');
-    expect(table.parentElement).toHaveClass('query-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
+    expect(table.parentElement).toHaveClass('directory-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
     expect(table).toHaveTextContent('Sin CI registrado'); expect(table).toHaveTextContent('PAC-001'); expect(table).toHaveTextContent('Inactiva');
     expect(within(table).getByRole('link', { name: 'Ver ficha de Persona Ficticia' })).toHaveAttribute('href', `/recepcion/pacientes/${patient.id_paciente}`);
     expect(screen.getByRole('navigation', { name: 'Paginación de pacientes' })).toHaveClass('pagination'); expect(listarPacientes).toHaveBeenCalledTimes(1);
@@ -79,6 +79,18 @@ describe.each(['Administrador', 'Recepcionista'])('consulta administrativa de pa
     await waitFor(() => expect(listarPacientes).toHaveBeenCalledTimes(5));
     expect(listarPacientes.mock.calls[4][0]).toEqual({ documento_identidad: '', nombres: '', apellidos: '', activo: '', page: 1 });
     expect(screen.getByLabelText('CI')).toHaveValue('');
+  });
+  it('el resumen usa el total del servidor y no atribuye resultados a los filtros aún sin aplicar', async () => {
+    listarPacientes.mockResolvedValue({ ...listing([patient]), meta: { total: 57, current_page: 1, last_page: 3 } });
+    mount(); await screen.findByRole('table');
+    const summary = screen.getByRole('heading', { name: 'Resultados' }).parentElement;
+    expect(summary).toHaveTextContent('57 fichas encontradas');
+    await userEvent.type(screen.getByLabelText('Nombres'), 'Borrador');
+    expect(listarPacientes).toHaveBeenCalledTimes(1); expect(summary).toHaveTextContent('57 fichas encontradas');
+    listarPacientes.mockResolvedValue(listing([]));
+    await userEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    await screen.findByRole('heading', { name: 'No hay pacientes para estos filtros' });
+    expect(screen.getByRole('heading', { name: 'Resultados' }).parentElement).toHaveTextContent('0 fichas encontradas');
   });
   it('cancela e ignora una respuesta tardía al cambiar filtros', async () => {
     let resolveOld;

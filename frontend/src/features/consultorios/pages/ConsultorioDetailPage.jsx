@@ -14,6 +14,7 @@ import ConsultorioData from '../components/ConsultorioData';
 import ConsultorioFailure from '../components/ConsultorioFailure';
 import ConsultorioVersionReview from '../components/ConsultorioVersionReview';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function ConsultorioDetailPage() {
@@ -25,7 +26,7 @@ function Detail({ id }) {
   const query = useCatalogQuery(consultarConsultorio, id, fields);
   const location = useLocation();
   const [notice, setNotice] = useState(location.state?.consultorioNotice || '');
-  return <section className="workspace-page catalog-page query-detail"><Link className="back-link" to="/administracion/consultorios">Volver al catálogo</Link>
+  return <section className="workspace-page catalog-page query-detail medical-admin"><Link className="back-link" to="/administracion/consultorios">Volver al catálogo</Link>
     <PageHeading title="Detalle de consultorio" description="Consulta sus datos y las cantidades administrativas vigentes." />
     {notice && <Alert variant="success">{notice}</Alert>}
     {query.loading ? <QueryMessage loading title="Consultando consultorio…" /> : query.failure ? <div className="query-failure"><ConsultorioFailure failure={query.failure} remaining={query.remaining} /><Button variant="secondary" disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></div>

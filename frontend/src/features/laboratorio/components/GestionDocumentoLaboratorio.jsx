@@ -7,6 +7,7 @@ import { ROLES } from '../../../constants/roles';
 import { useDocumentoLaboratorio } from '../hooks/useDocumentoLaboratorio';
 import { ACCIONES_DOCUMENTO } from '../services/documentoLaboratorio.service';
 import DocumentoLaboratorioForm from './DocumentoLaboratorioForm';
+import '../styles/lab-document-editor.css';
 
 export default function GestionDocumentoLaboratorio({ id, query, ejecutor, onRetirarDetalle, onBloquearCambio }) {
   const escritura = useDocumentoLaboratorio(id), [tipo, setTipo] = useState(null), [dirty, setDirty] = useState(false), heading = useRef(null);
@@ -27,7 +28,7 @@ export default function GestionDocumentoLaboratorio({ id, query, ejecutor, onRet
   const refrescar = () => { setDirty(false); setTipo(null); escritura.reset(); query.reload(); };
   async function guardar(entrada) { if (await escritura.guardar({ ...entrada, rol: ROLES.ADMINISTRADOR })) query.reload(); }
   async function recuperar() { if (await escritura.consultar()) query.reload(); }
-  return <section className="lab-section" aria-label="Gestión documental administrativa">
+  return <section className="lab-section lab-document-workspace" aria-label="Gestión documental administrativa">
     {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'El documento o la asociación podrían haberse guardado. Salir no revierte la operación.' : 'Si sales, se perderá el formulario y el archivo seleccionado.'}</p><Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar el formulario</Button></Alert>}
     {escritura.status !== 'inicial' && <section aria-live="polite" aria-label="Resultado de la operación documental"><h2 ref={heading} tabIndex={-1}>Resultado de la operación documental</h2>
       {busy && <QueryMessage loading title={escritura.status === 'enviando' ? 'Guardando documento…' : 'Consultando estado actual…'} />}

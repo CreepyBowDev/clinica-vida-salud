@@ -57,7 +57,7 @@ export default function DocumentoLaboratorioForm({ contexto, tipo, busy, failure
         <div className="lab-associations"><Identidad solicitud={contexto} label="Origen del documento" />{destino && <Identidad solicitud={destino} label="Destino del documento" />}</div>
         {archivo && <p className="lab-text">Archivo seleccionado: {archivo.name} ({Math.ceil(archivo.size / 1024)} KB)</p>}{requiereMotivo && <p className="lab-text">Motivo: {revision.motivo}</p>}
         <p>Usuario ejecutor: {ejecutor}.</p><ConfirmationPanel title="Antes de guardar"><p>{tipo === 'reasociar' ? 'El origen conservará su historial y quedará sin documento vigente. El destino recibirá el documento y requerirá una nueva revisión.' : 'Se conservarán las versiones anteriores. El documento quedará En revisión.'}</p><p>Esta operación no publica resultados ni cambia el estado de la cita.</p></ConfirmationPanel>
-        <ActionGroup><Button disabled={busy} onClick={() => onGuardar(revision)}>{busy ? 'Guardando documento…' : ACCIONES_DOCUMENTO[tipo]}</Button><Button variant="secondary" disabled={busy} onClick={() => { setRevision(null); setAsociacion(false); setAsociacionDestino(false); setArchivo(null); setFileKey(v => v + 1); }}>Volver a editar y verificar</Button></ActionGroup>
+        <ActionGroup><Button disabled={busy} onClick={() => onGuardar(revision)}>{busy ? 'Guardando documento…' : ACCIONES_DOCUMENTO[tipo]}</Button><Button variant="secondary" disabled={busy} onClick={() => { setRevision(null); setAsociacion(false); setAsociacionDestino(false); setArchivo(null); setFileKey(v => v + 1); requestAnimationFrame(() => formHeading.current?.focus()); }}>Volver a editar y verificar</Button></ActionGroup>
       </section>}
   </section>;
 }

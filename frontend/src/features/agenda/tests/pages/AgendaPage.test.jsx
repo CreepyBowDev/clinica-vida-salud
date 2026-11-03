@@ -191,3 +191,22 @@ it('pagehide retira filas y selección, pageshow exige seleccionar de nuevo para
   await act(async () => window.dispatchEvent(new Event('pageshow')));
   await screen.findByRole('heading', { name: 'Selecciona un médico para consultar su agenda' }); expect(agendaCalls()).toHaveLength(1);
 });
+
+it('el total del piloto corresponde a filtros aplicados y no cambia mientras se edita un borrador', async () => {
+  rol = 'Médico'; rows = 21; mount(); await screen.findByRole('link', { name: 'Ver cita CIT-1' });
+  const context = screen.getByRole('region', { name: 'Contexto de la agenda' });
+  expect(context).toHaveTextContent('21 citas en esta consulta');
+  await userEvent.clear(screen.getByLabelText('Fecha de atención'));
+  await userEvent.type(screen.getByLabelText('Fecha de atención'), '2026-12-01');
+  expect(context).toHaveTextContent('31/10/2026'); expect(context).not.toHaveTextContent('01/12/2026');
+  expect(agendaCalls()).toHaveLength(1);
+});
+
+it('el enlace horario abre el detalle con teclado y mantiene la semántica de Confirmada', async () => {
+  rol = 'Médico'; mount(); const link = await screen.findByRole('link', { name: 'Ver cita CIT-1' });
+  expect(link).toHaveTextContent('22:30');
+  expect(screen.getByText(/Confirmada significa llegada presencial verificada/)).toBeInTheDocument();
+  link.focus(); await userEvent.keyboard('{Enter}');
+  await screen.findByRole('region', { name: `Cita ${cita.codigo_cita}` });
+  expect(screen.getByRole('main')).toHaveFocus();
+});

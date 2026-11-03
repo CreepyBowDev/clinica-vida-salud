@@ -52,6 +52,7 @@ it('volver al formulario retira revisión y desmarca declaración', async () => 
   mount(); await preparar(); await userEvent.click(screen.getByRole('button', { name: 'Volver al formulario' }));
   expect(screen.getByRole('checkbox')).not.toBeChecked(); expect(screen.getByLabelText('Motivo de consulta')).toHaveValue('Motivo ficticio');
   expect(screen.queryByRole('button', { name: 'Guardar consulta' })).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole('checkbox')).toHaveFocus());
 });
 it('antecedentes conservan por defecto y requieren acciones explícitas para cambiar o quitar', async () => {
   mount(); await screen.findByRole('checkbox');

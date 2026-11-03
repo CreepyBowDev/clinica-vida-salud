@@ -7,12 +7,13 @@ import { consultarEspecialidad } from '../services/especialidad.service';
 import SpecialtyEditor from '../components/SpecialtyEditor';
 import SpecialtyFailure from '../components/SpecialtyFailure';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function SpecialtyEditorPage({ creating = false }) {
   const { id } = useParams();
   if (!creating && !esIdentificador(id)) return <section className="page-message"><h1>Especialidad no disponible</h1><Link to="/administracion/especialidades">Volver al catálogo</Link></section>;
-  return <section className="workspace-page catalog-page admin-form-page">
+  return <section className="workspace-page catalog-page admin-form-page medical-admin">
     <PageHeading title={creating ? 'Registrar especialidad' : 'Editar especialidad'} description="Administra el catálogo conservando sus asociaciones e historial." />
     {creating ? <SpecialtyEditor /> : <LoadEditor key={id} id={id} />}
   </section>;

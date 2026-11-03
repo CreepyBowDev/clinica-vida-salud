@@ -13,6 +13,7 @@ import DoctorFailure from '../components/DoctorFailure';
 import DoctorVersionReview from '../components/DoctorVersionReview';
 import InitialSpecialties from '../components/InitialSpecialties';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function DoctorSpecialtiesPage() {
@@ -22,7 +23,7 @@ export default function DoctorSpecialtiesPage() {
 }
 function LoadSpecialties({ id }) {
   const query = useCatalogQuery(consultarMedico, id, fields);
-  return <section className="workspace-page catalog-page admin-form-page"><Link className="back-link" to={`/administracion/medicos/${id}`}>Volver al detalle de médico</Link>
+  return <section className="workspace-page catalog-page admin-form-page medical-admin"><Link className="back-link" to={`/administracion/medicos/${id}`}>Volver al detalle de médico</Link>
     <PageHeading title="Gestionar habilitaciones" description="Conserva al menos una especialidad habilitada y todas las asociaciones históricas." />
     {query.loading ? <p role="status">Consultando médico…</p> : query.failure ? <><DoctorFailure failure={query.failure} remaining={query.remaining} /><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></> : <SpecialtyEditor initial={query.data} />}
   </section>;

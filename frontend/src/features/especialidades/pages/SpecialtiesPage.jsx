@@ -9,6 +9,7 @@ import ActionGroup from '../../../components/ActionGroup';
 import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { listarEspecialidades } from '../services/especialidad.service';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const empty = { nombre: '', activa: '' };
 const fields = ['nombre', 'activa', 'page', 'per_page'];
@@ -18,7 +19,7 @@ export default function SpecialtiesPage() {
   const query = useCatalogQuery(listarEspecialidades, filters, fields);
   const results = useRef(null);
   const field = name => ({ value: draft[name], onChange: event => setDraft({ ...draft, [name]: event.target.value }), error: query.failure?.fields[name] });
-  return <section className="workspace-page catalog-page">
+  return <section className="workspace-page catalog-page medical-admin medical-directory">
     <PageHeading title="Especialidades" description="Consulta el catálogo de especialidades médicas de la clínica." actions={<Link className="button button--primary" to="/administracion/especialidades/nueva">Registrar especialidad</Link>} />
     <form className="catalog-filters" aria-label="Buscar especialidades" onSubmit={event => {
       event.preventDefault(); setFilters({ nombre: draft.nombre.trim(), activa: draft.activa, page: 1 }); query.reload();
@@ -27,10 +28,11 @@ export default function SpecialtiesPage() {
       <SelectField label="Estado de especialidad" {...field('activa')}><option value="">Todos los estados</option><option value="1">Activa</option><option value="0">Inactiva</option></SelectField>
       <ActionGroup><Button type="submit" disabled={query.remaining > 0}>Buscar</Button><Button variant="quiet" disabled={query.remaining > 0} onClick={() => { setDraft(empty); setFilters({ ...empty, page: 1 }); query.reload(); }}>Limpiar filtros</Button></ActionGroup>
     </form>
-    <div ref={results} tabIndex="-1" aria-busy={query.loading}>
+    <div className="medical-results" ref={results} tabIndex="-1" role="region" aria-label="Resultados de especialidades" aria-busy={query.loading}>
+      <h2>Catálogo de especialidades</h2>
       <CatalogResults query={query} label="especialidades" loadingLabel="Consultando especialidades…" emptyTitle="No hay especialidades para estos filtros" emptyHint="Prueba otro nombre o selecciona todos los estados."
         onPage={page => { setFilters({ ...filters, page }); results.current?.focus(); }}>
-        <div className="catalog-table-wrap query-table"><table className="catalog-table" role="table"><caption>Catálogo de especialidades · más recientes primero</caption>
+        <div className="catalog-table-wrap query-table medical-catalog-table"><table className="catalog-table" role="table"><caption>Catálogo de especialidades · más recientes primero</caption>
           <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Especialidad</th><th scope="col" role="columnheader">Descripción</th><th scope="col" role="columnheader">Estado</th></tr></thead>
           <tbody role="rowgroup">{query.data?.data.map(item => <tr key={item.id_especialidad} role="row">
             <td role="cell"><Link to={`/administracion/especialidades/${item.id_especialidad}`} aria-label={`Ver especialidad ${item.nombre}`}><strong>{item.nombre}</strong></Link></td><td role="cell"><span className="catalog-cell-label" aria-hidden="true">Descripción</span>{item.descripcion || 'Sin descripción'}</td>

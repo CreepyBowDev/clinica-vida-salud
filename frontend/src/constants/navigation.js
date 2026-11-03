@@ -7,53 +7,43 @@ const all = [A, R, M, P];
 const page = (id, label, to, roles, cases, children = []) => ({ id, label, to, roles, cases, patterns: [to, ...children], kind: 'page' });
 
 export const NAVIGATION = [
-  { id: 'usuarios', label: 'Usuarios y autenticación', icon: 'lock', items: [
-    page('cuentas', 'Administrar cuentas', '/administracion/cuentas', [A], ['CU-03'], ['/administracion/cuentas/nueva', '/administracion/cuentas/:id']),
-    page('contrasena', 'Cambiar contraseña', '/mi-cuenta/contrasena', all, ['CU-05']),
-  ] },
-  { id: 'pacientes', label: 'Pacientes y perfil personal', icon: 'user', items: [
-    page('pacientes', 'Gestionar pacientes', '/recepcion/pacientes', [A, R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
-    page('activacion', 'Activación web', '/recepcion/activacion-web', [A, R], ['CU-07']),
-    page('perfil', 'Mi perfil', '/mi-perfil', [P], ['CU-08'], ['/mi-perfil/correo']),
-  ] },
-  { id: 'medicos', label: 'Médicos y especialidades', icon: 'people', items: [
-    page('especialidades', 'Gestionar especialidades', '/administracion/especialidades', [A], ['CU-09'], ['/administracion/especialidades/nueva', '/administracion/especialidades/:id', '/administracion/especialidades/:id/editar']),
-    page('medicos', 'Gestionar médicos', '/administracion/medicos', [A], ['CU-10'], ['/administracion/medicos/nuevo', '/administracion/medicos/:id', '/administracion/medicos/:id/editar', '/administracion/medicos/:id/especialidades']),
-  ] },
-  { id: 'consultorios', label: 'Consultorios y horarios', icon: 'grid', items: [
-    page('consultorios', 'Gestionar consultorios', '/administracion/consultorios', [A], ['CU-11'], ['/administracion/consultorios/nuevo', '/administracion/consultorios/:id', '/administracion/consultorios/:id/editar', '/administracion/medicos/:id/consultorio']),
-    page('horarios', 'Configurar horarios', '/administracion/horarios', [A], ['CU-12'], ['/administracion/horarios/configuracion', '/administracion/horarios/medicos/:id']),
-  ] },
-  { id: 'reserva', label: 'Búsqueda y reserva de citas', icon: 'calendar', items: [
+  { id: 'agenda', label: 'Agenda y citas', labels: { [M]: 'Mi agenda', [P]: 'Mis citas' }, icon: 'calendar', items: [
+    page('agenda', 'Consultar agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
+    page('mis-citas', 'Mis citas', '/mis-citas', [P], ['CU-21'], ['/mis-citas/:id']),
     page('programar', 'Programar cita', '/recepcion/citas/nueva', [A, R], ['CU-13', 'CU-14']),
     page('reservar', 'Reservar cita', '/reservar-cita', [P], ['CU-13', 'CU-14']),
-  ] },
-  { id: 'bitacora', label: 'Bitácora del Sistema', icon: 'info', items: [
-    page('eventos', 'Bitácora del Sistema', '/administracion/bitacora', [A], ['CU-30'], ['/administracion/bitacora/:id']),
-  ] },
-  { id: 'reprogramacion', label: 'Reprogramación y cancelación', icon: 'calendar', items: [
     page('gestion-citas', 'Gestionar citas', '/recepcion/citas/gestion', [A, R], ['CU-15', 'CU-16'], ['/citas/:id/gestion']),
-  ] },
-  { id: 'asistencia', label: 'Asistencia y estados', icon: 'check', items: [
     page('asistencia-citas', 'Gestionar asistencia', '/asistencia', [A, R, M], ['CU-17', 'CU-18', 'CU-19'], ['/citas/:id/asistencia']),
-  ] },
-  { id: 'agenda', label: 'Agenda e historial', icon: 'calendar', items: [
-    page('agenda', 'Consultar agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
     page('historial', 'Consultar historial de citas', '/recepcion/historial-citas', [A, R], ['CU-21'], ['/recepcion/pacientes/:id/citas', '/recepcion/historial-citas/:id']),
-    page('mis-citas', 'Mis citas', '/mis-citas', [P], ['CU-21'], ['/mis-citas/:id']),
   ] },
-  { id: 'historia', label: 'Historia clínica y consultas', icon: 'people', items: [
+  { id: 'pacientes', label: 'Pacientes', icon: 'user', items: [
+    page('pacientes', 'Gestionar pacientes', '/recepcion/pacientes', [A, R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
+    page('activacion', 'Activación web', '/recepcion/activacion-web', [A, R], ['CU-07']),
+  ] },
+  { id: 'historia', label: 'Atención clínica', labels: { [P]: 'Mi salud' }, icon: 'people', items: [
     page('historia', 'Consultar historia clínica', '/historia-clinica', [A, M, P], ['CU-22'], ['/historia-clinica/pacientes/:id', '/citas/:id/consulta', '/citas/:id/consulta/versiones', '/historia-clinica/pacientes/:id/antecedentes/versiones']),
     page('consulta', 'Registrar o corregir consulta', '/registrar-consulta', [A, M], ['CU-23'], ['/citas/:id/consulta/editar']),
-  ] },
-  { id: 'laboratorio', label: 'Laboratorio digital', icon: 'grid', items: [
     page('resultados', 'Estudios y resultados', '/laboratorio', [A, M, P], ['CU-27'], ['/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id']),
     page('solicitar', 'Solicitar estudios', '/laboratorio/solicitar', [A, M], ['CU-24'], ['/citas/:id/consulta/solicitar-estudio']),
   ] },
-  { id: 'recordatorios', label: 'Recordatorios internos', icon: 'calendar', items: [
+  { id: 'recordatorios', label: 'Recordatorios', icon: 'calendar', items: [
     page('avisos', 'Consultar recordatorios', '/recordatorios', [P, A], ['CU-28']),
   ] },
-  { id: 'reportes', label: 'Reportes administrativos', icon: 'grid', items: [page('reportes', 'Consultar reportes', '/reportes', [A], ['CU-29'])] },
+  { id: 'organizacion', label: 'Organización', icon: 'grid', items: [
+    page('cuentas', 'Administrar cuentas', '/administracion/cuentas', [A], ['CU-03'], ['/administracion/cuentas/nueva', '/administracion/cuentas/:id']),
+    page('especialidades', 'Gestionar especialidades', '/administracion/especialidades', [A], ['CU-09'], ['/administracion/especialidades/nueva', '/administracion/especialidades/:id', '/administracion/especialidades/:id/editar']),
+    page('medicos', 'Gestionar médicos', '/administracion/medicos', [A], ['CU-10'], ['/administracion/medicos/nuevo', '/administracion/medicos/:id', '/administracion/medicos/:id/editar', '/administracion/medicos/:id/especialidades']),
+    page('consultorios', 'Gestionar consultorios', '/administracion/consultorios', [A], ['CU-11'], ['/administracion/consultorios/nuevo', '/administracion/consultorios/:id', '/administracion/consultorios/:id/editar', '/administracion/medicos/:id/consultorio']),
+    page('horarios', 'Configurar horarios', '/administracion/horarios', [A], ['CU-12'], ['/administracion/horarios/configuracion', '/administracion/horarios/medicos/:id']),
+  ] },
+  { id: 'reportes', label: 'Reportes y bitácora', icon: 'info', items: [
+    page('reportes', 'Consultar reportes', '/reportes', [A], ['CU-29']),
+    page('eventos', 'Bitácora del Sistema', '/administracion/bitacora', [A], ['CU-30'], ['/administracion/bitacora/:id']),
+  ] },
+  { id: 'usuarios', label: 'Mi cuenta', icon: 'lock', items: [
+    page('perfil', 'Mi perfil', '/mi-perfil', [P], ['CU-08'], ['/mi-perfil/correo']),
+    page('contrasena', 'Cambiar contraseña', '/mi-cuenta/contrasena', all, ['CU-05']),
+  ] },
 ];
 
 // Flujos públicos, acciones existentes o pendientes explícitas; no páginas del sidebar protegido.
@@ -68,7 +58,7 @@ export const ACCESS_FLOWS = [
 ];
 
 export function navigationForRole(role) {
-  return NAVIGATION.map(module => ({ ...module, items: module.items.filter(item => item.roles.includes(role)).map(item =>
+  return NAVIGATION.map(module => ({ ...module, label: module.labels?.[role] ?? module.label, items: module.items.filter(item => item.roles.includes(role)).map(item =>
     item.id === 'historia' && role === P ? { ...item, patterns: ['/historia-clinica', '/citas/:id/consulta'] }
       : item.id === 'resultados' && role !== A ? { ...item, patterns: item.patterns.filter(p => p !== '/laboratorio/pacientes/:id') } : item) }))
     .filter(module => module.items.length);

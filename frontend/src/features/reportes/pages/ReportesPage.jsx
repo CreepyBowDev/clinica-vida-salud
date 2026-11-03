@@ -17,6 +17,8 @@ import CitasReporteTable from '../components/CitasReporteTable';
 import PacientesRegistradosTable from '../components/PacientesRegistradosTable';
 import CantidadesReporte from '../components/CantidadesReporte';
 import '../../agenda/styles/agenda.css';
+import '../../../styles/administrative-query.css';
+import '../styles/reportes.css';
 
 const REPORTES = {
   programadas: { label: 'Citas Programadas para una fecha', load: consultarCitasProgramadas },
@@ -79,11 +81,12 @@ function ConsultaReporte({ tipo, onTipo, focusType }) {
     setLabels({ medico: medico ? `${medico.nombres} ${medico.apellidos}` : 'Todos', especialidad: especialidad?.nombre ?? 'Todas' });
     query.reload(); results.current?.focus();
   }
-  return <section className="workspace-page">
+  return <section className="workspace-page administrative-query reports-page">
     <PageHeading title="Reportes administrativos" description={pacientes
       ? 'El período corresponde a la creación de la ficha del paciente, no al registro o activación de su cuenta web.'
       : agenda ? 'Agenda por intersección con el día de la sede: incluye citas que empiezan antes del día y terminan dentro de él. No sumes agendas diarias para calcular cantidades.'
         : 'Consulta administrativa de citas. Los resultados reflejan el inicio programado vigente y el estado actual, no un corte histórico inmutable.'} />
+    <div className="report-setup">
     <SelectField ref={typeSelect} label="Reporte" value={tipo} onChange={event => onTipo(event.target.value)}>
       {Object.entries(REPORTES).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
     </SelectField>
@@ -92,8 +95,8 @@ function ConsultaReporte({ tipo, onTipo, focusType }) {
     {cantidades && <p>Se cuentan citas cuyo inicio programado vigente cae en el período y cuyo estado actual es Atendida, Cancelada o Inasistencia.
       No son fechas reales de atención, cancelación o inasistencia ni un corte histórico inmutable. Programada y Confirmada no se incluyen.</p>}
     {agenda && <p>Orden fijo: inicio de cita ascendente y, en caso de empate, identificador ascendente. La ubicación y duración son las conservadas en la cita.</p>}
-    {!pacientes && <><FiltroHistorico tipo="medico" selected={medico} onSelect={setMedico} required={tipo === 'por-medico' || agenda} />
-      {!agenda && <FiltroHistorico tipo="especialidad" selected={especialidad} onSelect={setEspecialidad} required={tipo === 'por-especialidad'} />}</>}
+    {!pacientes && <div className="report-selectors"><FiltroHistorico tipo="medico" selected={medico} onSelect={setMedico} required={tipo === 'por-medico' || agenda} />
+      {!agenda && <FiltroHistorico tipo="especialidad" selected={especialidad} onSelect={setEspecialidad} required={tipo === 'por-especialidad'} />}</div>}
     <form className="catalog-filters" aria-label={pacientes ? 'Filtros de pacientes registrados' : 'Filtros del reporte de citas'} onSubmit={submit}>
       {!programadas && !agenda && <SelectField label="Período" value={modo} onChange={event => { setModo(event.target.value); setFecha(''); setDesde(''); setHasta(''); setError(''); }}>
         <option value="fecha">Una fecha</option><option value="rango">Rango de fechas</option>
@@ -121,14 +124,16 @@ function ConsultaReporte({ tipo, onTipo, focusType }) {
         <Button variant="quiet" onClick={() => { setFecha(''); setDesde(''); setHasta(''); setModo('fecha'); setEstado(''); setActivo(''); setOrden(ordenInicial); setPerPage('20'); setMedico(null); setEspecialidad(null); setFilters(null); setError(''); }}>Limpiar filtros</Button></ActionGroup>
       {error && <p ref={validation} role="alert" tabIndex={-1}>{error}</p>}
     </form>
-    <p>Los cambios en los filtros se aplican al pulsar «Consultar reporte».</p>
-    <div ref={results} tabIndex={-1} role="region" aria-label="Resultados del reporte" aria-busy={query.loading}>
+    <p className="report-apply-hint">Los cambios en los filtros se aplican al pulsar «Consultar reporte».</p>
+    </div>
+    <div className="query-results" ref={results} tabIndex={-1} role="region" aria-label="Resultados del reporte" aria-busy={query.loading}>
+      <h2 className="query-results-title">Resultados del reporte</h2>
       {!filters ? <p>Selecciona el período y los filtros obligatorios y consulta el reporte.</p> : <>
-        <p>{filters.fecha ? `Fecha consultada: ${formatearFechaCivil(filters.fecha)}` : `Período consultado: ${formatearFechaCivil(filters.desde)} al ${formatearFechaCivil(filters.hasta)}`}. {pacientes
+        <p className="report-applied">{filters.fecha ? `Fecha consultada: ${formatearFechaCivil(filters.fecha)}` : `Período consultado: ${formatearFechaCivil(filters.desde)} al ${formatearFechaCivil(filters.hasta)}`}. {pacientes
           ? `Actividad: ${filters.activo === undefined ? 'Todas las fichas' : filters.activo === '1' ? 'Activos' : 'Inactivos'}.`
           : `Médico: ${labels.medico}.${agenda ? '' : ` Especialidad: ${labels.especialidad}.`} ${cantidades ? 'Estados: Atendida, Cancelada e Inasistencia.' : `Estado: ${programadas ? 'Programada' : (filters.estado || 'Todos')}.`}`}</p>
         <ActionGroup><Button variant="secondary" disabled={query.loading || query.remaining > 0} onClick={() => { query.reload(); results.current?.focus(); }}>Actualizar reporte</Button></ActionGroup>
-        {query.data && <p role="status">{!cantidades && <>Total del servidor: {query.data.meta.total} {pacientes ? 'pacientes registrados' : programadas ? 'citas Programadas' : 'citas'}. </>}Consulta: {formatearInstanteCita(query.data.meta.consultado_en)}.</p>}
+        {query.data && <p className="query-server-summary" role="status">{!cantidades && <>Total del servidor: {query.data.meta.total} {pacientes ? 'pacientes registrados' : programadas ? 'citas Programadas' : 'citas'}. </>}Consulta: {formatearInstanteCita(query.data.meta.consultado_en)}.</p>}
         {cantidades ? <CantidadesReporte query={query} /> : <CatalogResults query={query} label={pacientes ? 'pacientes' : 'citas'} loadingLabel="Consultando reporte…" emptyTitle={pacientes
           ? 'No hay pacientes registrados para estos filtros' : programadas ? 'No hay citas Programadas para estos filtros' : 'No hay citas para estos filtros'}
           emptyHint={pacientes ? 'Prueba otro período o actividad.' : 'Prueba otra fecha, médico o especialidad.'} onPage={page => { setFilters(v => ({ ...v, page })); results.current?.focus(); }}>

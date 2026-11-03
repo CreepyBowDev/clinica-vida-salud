@@ -1,0 +1,25 @@
+.reminders-page { --radius-control: 6px; --radius-panel: 10px; --control-height: 46px; --button-height: 44px; }
+.reminders-page .page-heading-copy p { font-size: 1rem; max-width: 65ch; }
+.reminders-page .reminders-guidance { max-width: 80ch; color: var(--color-muted); font-size: .9375rem; margin-bottom: 24px; }
+.reminders-page .reminders-patient { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; padding: 20px 24px; margin-bottom: 20px; background: var(--color-story); border-left: 3px solid var(--color-primary); }
+.reminders-page > .catalog-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; padding: 20px 24px; margin-bottom: 0; border-radius: 10px 10px 0 0; }
+.reminders-page .reminders-results { min-width: 0; padding: 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 10px 10px; }
+.reminders-page .reminders-results:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.reminders-page .reminders-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; margin-bottom: 20px; }
+.reminders-page h2 { font-size: 1.375rem; overflow-wrap: anywhere; }
+.reminders-page .reminders-updated { color: var(--color-muted); font-size: .875rem; margin-bottom: 20px; }
+.reminders-page .reminders-results > :is(.catalog-empty, .catalog-failure, .query-message) { border: 0; padding-inline: 0; }
+.reminders-page .reminders-devices { margin-top: 32px; padding: 24px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.reminders-page .reminders-devices > section + section { border-top: 1px solid var(--color-border); margin-top: 24px; padding-top: 24px; }
+.reminders-page .reminders-devices p { max-width: 80ch; margin-block: 12px; color: var(--color-muted); font-size: .9375rem; }
+.reminders-page .reminders-devices ul { padding: 0; list-style: none; }
+.reminders-page .reminders-devices li { padding-block: 20px; border-bottom: 1px solid var(--color-border); }
+.reminders-page .reminders-devices li:last-child { border-bottom: 0; }
+.reminders-page .reminders-devices h3 { font-size: 1.125rem; overflow-wrap: anywhere; }
+.reminders-page .reminders-devices [role="alert"] { color: var(--color-error); }
+.reminders-page .button { white-space: normal; }
+@media (max-width: 700px) {
+  .reminders-page > .catalog-filters { grid-template-columns: minmax(0, 1fr); padding: 20px 16px; }
+  .reminders-page :is(.reminders-results, .reminders-devices, .reminders-patient) { padding: 20px 16px; }
+  .reminders-page .reminders-results-heading { align-items: stretch; flex-direction: column; }
+}

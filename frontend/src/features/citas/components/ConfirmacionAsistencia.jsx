@@ -19,7 +19,7 @@ export default function ConfirmacionAsistencia({ contexto, onGuardar, operacion 
     return () => window.removeEventListener('pagehide', clear);
   }, []);
   const volver = () => { setDeclaracion(false); setRevision(false); setError(''); checkbox.current?.focus(); };
-  return <section className="catalog-panel" aria-labelledby={`${nombre}-titulo`}><h2 id={`${nombre}-titulo`}>{atencion ? 'Registrar atención realizada' : ausencia ? 'Registrar ausencia comprobada' : 'Confirmar llegada presencial'}</h2>
+  return <section className="catalog-panel attendance-operation" aria-labelledby={`${nombre}-titulo`}><h2 id={`${nombre}-titulo`}>{atencion ? 'Registrar atención realizada' : ausencia ? 'Registrar ausencia comprobada' : 'Confirmar llegada presencial'}</h2>
     <form aria-label={`Revisar ${nombre}`} noValidate onSubmit={event => {
       event.preventDefault();
       if (!declaracion) { setError(atencion ? 'Comprueba que la atención fue efectivamente realizada antes de continuar.' : ausencia ? 'Comprueba que el paciente no se presentó antes de continuar.' : 'Comprueba presencialmente la presencia y la identidad antes de continuar.'); checkbox.current?.focus(); return; }

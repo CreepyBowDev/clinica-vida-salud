@@ -1,0 +1,25 @@
+/* Asignación fija: la ocupación, los totales y los traslados proceden del servidor. */
+.room-assignment .assignment-form .guided-context { border: 0; border-left: 3px solid var(--color-primary); border-radius: 0; padding: 20px 24px; }
+.room-assignment .guided-context h2 { font-size: 1.375rem; }
+.room-assignment .guided-context .catalog-data > div { padding-bottom: 0; border-bottom: 0; }
+.room-assignment .workflow-number { border-radius: 6px; }
+.room-assignment .assignment-review-results:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.room-assignment .assignment-form .catalog-review { padding: 24px 0 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; }
+.room-assignment .catalog-review > h2 { font-size: 1.375rem; }
+.room-assignment .impact-outcome { padding: 16px 20px; }
+.room-assignment .impact-outcome p + p { margin-top: 8px; }
+.room-assignment .assignment-impact-list > li { padding-block: 20px; }
+.room-assignment .assignment-impact-list > li > strong { font-size: 1.125rem; display: block; margin-bottom: 8px; }
+.room-assignment .assignment-form .assignment-impact-list .catalog-data { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 24px; }
+.room-assignment .assignment-impact-list .catalog-data > div { padding-block: 12px; border-bottom: 0; }
+.room-assignment .assignment-impact-list .catalog-data dd { line-height: 1.6; }
+.room-assignment .assignment-impact-list > li:last-child { border-bottom: 0; }
+.room-assignment .assignment-consent { line-height: 1.6; }
+@media (max-width: 900px) {
+  .room-assignment .assignment-form .assignment-impact-list .catalog-data { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .room-assignment .assignment-form .guided-context { padding: 16px; }
+  .room-assignment .assignment-form .assignment-impact-list .catalog-data { grid-template-columns: minmax(0, 1fr); }
+  .room-assignment .impact-outcome { padding: 16px; }
+}

@@ -41,7 +41,7 @@ it.each(['Administrador', 'Recepcionista'])('%s consulta programación y accione
   expect(screen.queryByRole('button', { name: 'Cancelar cita' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Actualizar gestión' })).toBeEnabled();
   expect(document.title).toBe('Gestionar cita | Clínica Vida Salud'); expect(main).toHaveFocus();
-  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Reprogramación y cancelación');
+  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Agenda y citas');
   expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent(role === 'Administrador' ? 'Administración' : 'Recepción');
   expect(calls).toHaveLength(2); expect(calls.every(c => c.method === 'get' && c.sessionBound)).toBe(true);
   expect(localStorage.length).toBe(0); expect(sessionStorage.length).toBe(0);
@@ -68,7 +68,7 @@ it.each(['Administrador', 'Recepcionista'])('%s: sidebar → ficha inactiva sin 
     return response(config);
   };
   const router = mount('/inicio'); const user = userEvent.setup();
-  await user.click(await screen.findByRole('button', { name: 'Reprogramación y cancelación' }));
+  await user.click(await screen.findByRole('button', { name: 'Agenda y citas' }));
   await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Gestionar citas' }));
   await screen.findByRole('heading', { name: 'Seleccionar paciente para gestionar una cita' });
   expect(screen.queryByRole('link', { name: 'Registrar paciente' })).not.toBeInTheDocument();

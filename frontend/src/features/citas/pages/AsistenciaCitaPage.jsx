@@ -16,6 +16,7 @@ import ConfirmacionAsistencia from '../components/ConfirmacionAsistencia';
 import '../../../styles/catalogs.css';
 import '../../agenda/styles/agenda.css';
 import '../styles/reserva.css';
+import '../styles/attendance.css';
 
 export default function AsistenciaCitaPage() {
   const { id } = useParams(), { usuario } = useAuth(), { state } = useLocation();
@@ -52,13 +53,13 @@ function Asistencia({ id, rol, idActor, origen }) {
   const vigente = escritura.status === 'inicial' || (['guardada', 'recuperada'].includes(escritura.status)
     && query.data?.asistencia.actualizada_en >= escritura.resultado?.actualizada_en);
   const back = origen === 'asistencia' ? '/asistencia' : origen === 'historial' && rol !== ROLES.MEDICO ? `/recepcion/historial-citas/${id}` : `/citas/${id}`;
-  return <section className="workspace-page catalog-page query-detail gestion-cita-page">
+  return <section className="workspace-page catalog-page query-detail gestion-cita-page attendance-page">
     <Link className="back-link" to={back}>{origen === 'asistencia' ? 'Volver a seleccionar una cita' : 'Volver al detalle de la cita'}</Link>
     <PageHeading title="Asistencia de la cita" description="Revisa la cita antes de declarar un hecho presencial. Fechas y horarios en America/La_Paz." />
     {blocker.state === 'blocked' && <Alert variant="warning"><p>La {nombre} podría haberse guardado. Salir no revierte la operación.</p>
       <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer y consultar</Button>
       <Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar la comprobación</Button></Alert>}
-    {escritura.status !== 'inicial' && <section aria-label={`Resultado de ${nombre}`} aria-busy={busy} aria-live="polite">
+    {escritura.status !== 'inicial' && <section className="attendance-outcome" aria-label={`Resultado de ${nombre}`} aria-busy={busy} aria-live="polite">
       <h2 ref={resultadoHeading} tabIndex="-1">Resultado de {nombre}</h2>
       {busy && <QueryMessage loading title={escritura.status === 'guardando' ? `Guardando ${nombre}…` : 'Consultando estado persistido…'} />}
       {escritura.failure && <Alert><p>{escritura.failure.message}</p>{Object.values(escritura.failure.fields).map((message, i) => <p key={i}>{message}</p>)}</Alert>}
@@ -78,8 +79,10 @@ function Asistencia({ id, rol, idActor, origen }) {
       </div> : <>{vigente ? <AsistenciaResumen contexto={query.data} rol={rol} />
         : <p>La programación consultada antes del envío ya no se presenta como vigente. Consulta el estado actual antes de continuar.</p>}
         {escritura.status === 'inicial' && escritura.remaining === 0 && <>
-          {query.data.asistencia.acciones.registrar_inasistencia && modo !== 'INASISTENCIA' && <Button ref={prepararAusencia} variant="secondary" onClick={() => setModo('INASISTENCIA')}>Preparar inasistencia</Button>}
-          {query.data.asistencia.acciones.marcar_atendida && modo !== 'ATENCION' && <Button ref={prepararAtencion} variant="secondary" onClick={() => setModo('ATENCION')}>Preparar atención</Button>}
+           <div className="attendance-choices">
+           {query.data.asistencia.acciones.registrar_inasistencia && modo !== 'INASISTENCIA' && <Button ref={prepararAusencia} variant="secondary" onClick={() => setModo('INASISTENCIA')}>Preparar inasistencia</Button>}
+           {query.data.asistencia.acciones.marcar_atendida && modo !== 'ATENCION' && <Button ref={prepararAtencion} variant="secondary" onClick={() => setModo('ATENCION')}>Preparar atención</Button>}
+           </div>
           {modo === 'ATENCION' && <><h2 tabIndex="-1" ref={formularioHeading}>Preparación de atención</h2>
             <Button variant="quiet" onClick={() => setModo('LLEGADA')}>Abandonar atención</Button></>}
           {modo === 'INASISTENCIA' && <><h2 tabIndex="-1" ref={formularioHeading}>Preparación de inasistencia</h2>

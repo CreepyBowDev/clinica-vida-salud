@@ -1,0 +1,30 @@
+.reports-page .report-setup { padding: 24px; border: 1px solid var(--color-border); border-radius: 10px 10px 0 0; background: var(--color-surface); }
+.reports-page .report-setup > .field { max-width: 44rem; }
+.reports-page .report-setup > p { max-width: 80ch; color: var(--color-muted); font-size: .9375rem; margin-block: 16px; }
+.reports-page .report-selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin-block: 24px; align-items: start; }
+.reports-page .agenda-selector { margin: 0; padding: 16px 20px; border-radius: 6px; background: var(--color-background); }
+.reports-page .agenda-selector summary { font-size: 1.125rem; color: var(--color-primary-hover); }
+.reports-page .agenda-selector .catalog-note { font-size: .875rem; }
+.reports-page .agenda-search { gap: 12px; }
+.reports-page .agenda-doctors .button { text-align: left; }
+.reports-page .report-setup > .catalog-filters { padding: 24px 0 0; margin: 24px 0 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 20px 24px; }
+.reports-page .report-setup > .report-apply-hint { margin-bottom: 0; font-size: .875rem; }
+.reports-page .report-applied { max-width: 80ch; margin-bottom: 16px; overflow-wrap: anywhere; }
+.reports-page .report-appointments th:first-child { width: 22%; }
+.reports-page .report-appointments th:nth-child(6) { width: 10%; }
+.reports-page .report-appointments th:nth-child(7) { width: 12%; }
+.reports-page .report-patients th:first-child { width: 24%; }
+.reports-page .agenda-state { padding: 4px 8px; border-radius: 4px; font-size: .875rem; }
+.reports-page .report-counts { margin-top: 24px; }
+.reports-page .report-counts h2 { font-size: 1.125rem; }
+.reports-page .report-counts dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin-top: 20px; }
+.reports-page .report-counts dl > div { padding: 16px 0; border-bottom: 0; border-top: 1px solid var(--color-border); min-width: 0; }
+.reports-page .report-counts dd { font-size: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.reports-page .report-counts dl > div:last-child { color: var(--color-primary-hover); }
+@media (max-width: 1100px) {
+  .reports-page .report-selectors { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .reports-page .report-setup { padding: 20px 16px; }
+  .reports-page .report-counts dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

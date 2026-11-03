@@ -54,6 +54,16 @@ describe.each(['Administrador', 'Recepcionista'])('edición administrativa CU-07
     await waitFor(() => expect(consultarPaciente).toHaveBeenCalledTimes(2)); expect(router.state.location.pathname).toBe(`/recepcion/pacientes/${id}`);
     expect(await screen.findByText('Cambios administrativos guardados. Consulta los datos actuales de la ficha.')).toBeInTheDocument();
   });
+  it('mantiene visible la ficha original al corregir datos y describe el formulario sin ampliar permisos', async () => {
+    mount(); const form = await screen.findByRole('form', { name: 'Editar ficha administrativa' });
+    expect(form).toHaveAccessibleDescription('Los campos sin «opcional» son obligatorios.');
+    const context = screen.getByRole('region', { name: 'Ficha que estás editando' });
+    expect(context).toHaveTextContent('PAC-001'); expect(context).toHaveTextContent('Persona Ficticia');
+    field('Nombres', 'Nombre corregido');
+    expect(context).toHaveTextContent('Persona Ficticia'); expect(context).not.toHaveTextContent('Nombre corregido');
+    expect(screen.getByRole('group', { name: 'Corrección de identidad' })).toBeInTheDocument();
+    expect(actualizarPaciente).not.toHaveBeenCalled();
+  });
   it('incorporar CI exige identidad/motivo y confirmación, conserva ID y muestra invalidaciones', async () => {
     const user = userEvent.setup(); consultarPaciente.mockResolvedValue({ ...patient, documento_identidad: null, cuenta_vinculada: true }); mount();
     await screen.findByLabelText('CI (opcional)'); field('CI (opcional)', '5678'); submitEdit();

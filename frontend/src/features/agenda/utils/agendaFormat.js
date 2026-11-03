@@ -23,3 +23,13 @@ export function formatearInstanteCita(value) {
 export function formatearFechaCivil(value) {
   return esFechaCivil(value) ? value.split('-').reverse().join('/') : 'No registrado';
 }
+
+export function formatearHoraCita(value) {
+  if (!esInstanteCita(value)) return 'No disponible';
+  return new Intl.DateTimeFormat('es-BO', { timeZone: ZONA_CLINICA, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
+}
+
+export function formatearDiaCita(value) {
+  if (!esInstanteCita(value)) return 'No disponible';
+  return new Intl.DateTimeFormat('es-BO', { timeZone: ZONA_CLINICA, day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value));
+}

@@ -32,47 +32,47 @@ describe('catálogo de navegación por responsabilidad', () => {
     [ROLES.MEDICO, ['contrasena', 'asistencia-citas', 'agenda', 'historia', 'consulta', 'resultados', 'solicitar']],
     [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas', 'historia', 'resultados', 'avisos']],
   ])('%s tiene exactamente sus páginas operativas sin nuevos privilegios para otros roles', (role, ids) => {
-    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id)).toEqual(ids);
+    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id).sort()).toEqual([...ids].sort());
   });
   it.each([
     [ROLES.ADMINISTRADOR, '/reportes', 'reportes', 'reportes', 'Consultar reportes'],
     [ROLES.PACIENTE, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
     [ROLES.ADMINISTRADOR, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
-    [ROLES.ADMINISTRADOR, '/laboratorio/solicitar', 'laboratorio', 'solicitar', 'Solicitar estudios'],
-    [ROLES.MEDICO, '/citas/41/consulta/solicitar-estudio', 'laboratorio', 'solicitar', 'Solicitar estudio de laboratorio'],
-    [ROLES.ADMINISTRADOR, '/laboratorio/pacientes/21', 'laboratorio', 'resultados', 'Estudios del paciente'],
-    [ROLES.MEDICO, '/laboratorio/consultas/44', 'laboratorio', 'resultados', 'Estudios de la consulta'],
-    [ROLES.PACIENTE, '/laboratorio/solicitudes/71', 'laboratorio', 'resultados', 'Solicitud de laboratorio'],
+    [ROLES.ADMINISTRADOR, '/laboratorio/solicitar', 'historia', 'solicitar', 'Solicitar estudios'],
+    [ROLES.MEDICO, '/citas/41/consulta/solicitar-estudio', 'historia', 'solicitar', 'Solicitar estudio de laboratorio'],
+    [ROLES.ADMINISTRADOR, '/laboratorio/pacientes/21', 'historia', 'resultados', 'Estudios del paciente'],
+    [ROLES.MEDICO, '/laboratorio/consultas/44', 'historia', 'resultados', 'Estudios de la consulta'],
+    [ROLES.PACIENTE, '/laboratorio/solicitudes/71', 'historia', 'resultados', 'Solicitud de laboratorio'],
     [ROLES.ADMINISTRADOR, '/historia-clinica/pacientes/42', 'historia', 'historia', 'Historia clínica'],
     [ROLES.MEDICO, '/citas/42/consulta', 'historia', 'historia', 'Consulta médica'],
     [ROLES.MEDICO, '/citas/42/consulta/versiones', 'historia', 'historia', 'Versiones de consulta'],
     [ROLES.ADMINISTRADOR, '/historia-clinica/pacientes/42/antecedentes/versiones', 'historia', 'historia', 'Versiones de antecedentes'],
     [ROLES.PACIENTE, '/historia-clinica', 'historia', 'historia', 'Consultar historia clínica'],
-    [ROLES.ADMINISTRADOR, '/administracion/medicos/42/consultorio', 'consultorios', 'consultorios', 'Asignar consultorio'],
-    [ROLES.ADMINISTRADOR, '/administracion/medicos/42/especialidades', 'medicos', 'medicos', 'Especialidades del médico'],
-    [ROLES.ADMINISTRADOR, '/administracion/horarios/configuracion', 'consultorios', 'horarios', 'Duración de citas'],
-    [ROLES.ADMINISTRADOR, '/administracion/horarios/medicos/42', 'consultorios', 'horarios', 'Horarios del médico'],
-    [ROLES.ADMINISTRADOR, '/administracion/cuentas/nueva', 'usuarios', 'cuentas', 'Crear cuenta del personal'],
-    [ROLES.ADMINISTRADOR, '/administracion/bitacora/42', 'bitacora', 'eventos', 'Detalle del evento'],
+    [ROLES.ADMINISTRADOR, '/administracion/medicos/42/consultorio', 'organizacion', 'consultorios', 'Asignar consultorio'],
+    [ROLES.ADMINISTRADOR, '/administracion/medicos/42/especialidades', 'organizacion', 'medicos', 'Especialidades del médico'],
+    [ROLES.ADMINISTRADOR, '/administracion/horarios/configuracion', 'organizacion', 'horarios', 'Duración de citas'],
+    [ROLES.ADMINISTRADOR, '/administracion/horarios/medicos/42', 'organizacion', 'horarios', 'Horarios del médico'],
+    [ROLES.ADMINISTRADOR, '/administracion/cuentas/nueva', 'organizacion', 'cuentas', 'Crear cuenta del personal'],
+    [ROLES.ADMINISTRADOR, '/administracion/bitacora/42', 'reportes', 'eventos', 'Detalle del evento'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes', 'pacientes', 'pacientes', 'Gestionar pacientes'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/nuevo', 'pacientes', 'pacientes', 'Registrar paciente'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42', 'pacientes', 'pacientes', 'Detalle del paciente'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/editar', 'pacientes', 'pacientes', 'Editar paciente'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/activacion', 'pacientes', 'pacientes', 'Activación web del paciente'],
     [ROLES.ADMINISTRADOR, '/recepcion/activacion-web', 'pacientes', 'activacion', 'Activación web'],
-    [ROLES.ADMINISTRADOR, '/recepcion/citas/nueva', 'reserva', 'programar', 'Programar cita'],
-    [ROLES.ADMINISTRADOR, '/recepcion/citas/gestion', 'reprogramacion', 'gestion-citas', 'Gestionar citas'],
-    [ROLES.RECEPCIONISTA, '/citas/42/gestion', 'reprogramacion', 'gestion-citas', 'Gestionar cita'],
-    [ROLES.ADMINISTRADOR, '/asistencia', 'asistencia', 'asistencia-citas', 'Gestionar asistencia'],
-    [ROLES.RECEPCIONISTA, '/citas/42/asistencia', 'asistencia', 'asistencia-citas', 'Asistencia de la cita'],
-    [ROLES.MEDICO, '/citas/42/asistencia', 'asistencia', 'asistencia-citas', 'Asistencia de la cita'],
+    [ROLES.ADMINISTRADOR, '/recepcion/citas/nueva', 'agenda', 'programar', 'Programar cita'],
+    [ROLES.ADMINISTRADOR, '/recepcion/citas/gestion', 'agenda', 'gestion-citas', 'Gestionar citas'],
+    [ROLES.RECEPCIONISTA, '/citas/42/gestion', 'agenda', 'gestion-citas', 'Gestionar cita'],
+    [ROLES.ADMINISTRADOR, '/asistencia', 'agenda', 'asistencia-citas', 'Gestionar asistencia'],
+    [ROLES.RECEPCIONISTA, '/citas/42/asistencia', 'agenda', 'asistencia-citas', 'Asistencia de la cita'],
+    [ROLES.MEDICO, '/citas/42/asistencia', 'agenda', 'asistencia-citas', 'Asistencia de la cita'],
     [ROLES.ADMINISTRADOR, '/recepcion/historial-citas', 'agenda', 'historial', 'Consultar historial de citas'],
     [ROLES.ADMINISTRADOR, '/recepcion/pacientes/42/citas', 'agenda', 'historial', 'Historial de citas'],
     [ROLES.ADMINISTRADOR, '/recepcion/historial-citas/42', 'agenda', 'historial', 'Detalle de cita'],
     [ROLES.RECEPCIONISTA, '/recepcion/pacientes/42/activacion', 'pacientes', 'pacientes', 'Activación web del paciente'],
-    [ROLES.RECEPCIONISTA, '/recepcion/citas/nueva', 'reserva', 'programar', 'Programar cita'],
-    [ROLES.PACIENTE, '/mi-perfil/correo', 'pacientes', 'perfil', 'Cambiar correo de acceso'],
-    [ROLES.PACIENTE, '/reservar-cita', 'reserva', 'reservar', 'Reservar cita'],
+    [ROLES.RECEPCIONISTA, '/recepcion/citas/nueva', 'agenda', 'programar', 'Programar cita'],
+    [ROLES.PACIENTE, '/mi-perfil/correo', 'usuarios', 'perfil', 'Cambiar correo de acceso'],
+    [ROLES.PACIENTE, '/reservar-cita', 'agenda', 'reservar', 'Reservar cita'],
     [ROLES.MEDICO, '/agenda', 'agenda', 'agenda', 'Consultar agenda médica'],
     [ROLES.RECEPCIONISTA, '/recepcion/historial-citas', 'agenda', 'historial', 'Consultar historial de citas'],
     [ROLES.RECEPCIONISTA, '/recepcion/pacientes/42/citas', 'agenda', 'historial', 'Historial de citas'],
@@ -83,6 +83,17 @@ describe('catálogo de navegación por responsabilidad', () => {
     const active = navigationAtPath(navigationForRole(role), path);
     expect(active.module.id).toBe(moduleId); expect(active.item.id).toBe(itemId);
     expect(navigationTitle(path, active, AREAS[role])).toBe(title);
+  });
+  it.each([
+    [ROLES.ADMINISTRADOR, ['Agenda y citas', 'Pacientes', 'Atención clínica', 'Recordatorios', 'Organización', 'Reportes y bitácora', 'Mi cuenta']],
+    [ROLES.RECEPCIONISTA, ['Agenda y citas', 'Pacientes', 'Mi cuenta']],
+    [ROLES.MEDICO, ['Mi agenda', 'Atención clínica', 'Mi cuenta']],
+    [ROLES.PACIENTE, ['Mis citas', 'Mi salud', 'Recordatorios', 'Mi cuenta']],
+  ])('%s recibe grupos de tareas ordenados sin duplicar destinos', (role, labels) => {
+    const modules = navigationForRole(role), paths = modules.flatMap(module => module.items.map(item => item.to));
+    expect(modules.map(module => module.label)).toEqual(labels);
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(modules.at(-1).id).toBe('usuarios');
   });
   it('no reconoce una ruta ajena al rol, pública o inexistente como función propia', () => {
     const modules = navigationForRole(ROLES.PACIENTE);

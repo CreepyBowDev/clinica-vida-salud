@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import Button from '../../../components/Button';
 
-export default function PatientsTable({ patients, historia = false, laboratorio = false, onSeleccionar }) {
-   return <div className="patients-table-scroll query-table">
+export default function PatientsTable({ patients, historia = false, laboratorio = false, onSeleccionar, directorio = false }) {
+   return <div className={`patients-table-scroll ${directorio ? 'directory-table' : 'query-table'}`}>
       <table className="patients-table" role="table"><caption>Fichas administrativas · más recientes primero</caption>
         <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Paciente</th><th scope="col" role="columnheader">Código de ficha</th><th scope="col" role="columnheader">CI</th><th scope="col" role="columnheader">Estado de ficha</th><th scope="col" role="columnheader">Consulta</th></tr></thead>
         <tbody role="rowgroup">{patients.map(patient => <tr key={patient.id_paciente} role="row">

@@ -45,7 +45,9 @@ async function save(user) { await user.click(screen.getByRole('button', { name: 
 it('etapas del editor no guardan ni eliminan el intervalo al volver a revisar', async () => {
   const user = userEvent.setup(); mount(); await open(user);
   const stages = screen.getByRole('list', { name: 'Etapas del horario' }); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Preparar propuesta');
-  await preview(user); await user.click(screen.getByRole('button', { name: 'Revisar cambio de horario' }));
+  await preview(user);
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Resultados del impacto del horario' })).toHaveFocus());
+  await user.click(screen.getByRole('button', { name: 'Revisar cambio de horario' }));
   expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Confirmar guardado'); expect(writes()).toHaveLength(0);
   await user.click(screen.getByRole('button', { name: 'Volver a revisar' })); expect(screen.getByLabelText('Hora final')).toHaveValue('13:00:01');
   expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');

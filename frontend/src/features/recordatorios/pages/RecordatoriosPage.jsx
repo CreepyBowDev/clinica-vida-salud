@@ -13,6 +13,8 @@ import RecordatoriosTable from '../components/RecordatoriosTable';
 import DispositivosPush from '../components/DispositivosPush';
 import PatientsPage from '../../pacientes/pages/PatientsPage';
 import '../../agenda/styles/agenda.css';
+import '../../agenda/styles/agenda-day.css';
+import '../styles/recordatorios.css';
 
 const empty = { fecha_desde: '', fecha_hasta: '' };
 export default function RecordatoriosPage() {
@@ -45,28 +47,28 @@ function Listado({ paciente, onCambiar }) {
     }
     setError(''); setFilters({ ...draft, page: 1 }); query.reload(); results.current?.focus();
   }
-  return <section className="workspace-page">
+  return <section className="workspace-page reminders-page">
     <PageHeading title={paciente ? 'Recordatorios del paciente' : 'Mis recordatorios'} description={paciente
       ? 'Consulta administrativa de avisos vigentes. Fechas y horarios de la sede: America/La_Paz.'
       : 'Consulta los avisos vigentes de tus citas. Fechas y horarios de la sede: America/La_Paz.'} />
-    {paciente && <><p>Paciente seleccionado: <strong>{paciente.nombres} {paciente.apellidos}</strong> · {paciente.codigo_paciente}</p>
-      <ActionGroup><Button variant="secondary" onClick={onCambiar}>Cambiar paciente</Button></ActionGroup></>}
-    <p>Los avisos se generan automáticamente. Consultar o actualizar esta lista no genera avisos ni los marca como leídos.</p>
-    {!paciente && <DispositivosPush />}
+    {paciente && <div className="reminders-patient"><p>Paciente seleccionado: <strong>{paciente.nombres} {paciente.apellidos}</strong> · {paciente.codigo_paciente}</p>
+      <ActionGroup><Button variant="secondary" onClick={onCambiar}>Cambiar paciente</Button></ActionGroup></div>}
+    <p className="reminders-guidance">Los avisos se generan automáticamente. Consultar o actualizar esta lista no genera avisos ni los marca como leídos.</p>
     <form className="catalog-filters" aria-label="Filtrar recordatorios" onSubmit={submit}>
       <FormField label="Desde" type="date" {...field('fecha_desde')} /><FormField label="Hasta" type="date" {...field('fecha_hasta')} />
       <ActionGroup><Button type="submit" disabled={query.remaining > 0}>Consultar</Button>
         <Button variant="quiet" disabled={query.remaining > 0} onClick={() => { setDraft(empty); setError(''); setFilters({ ...empty, page: 1 }); query.reload(); }}>Limpiar filtros</Button></ActionGroup>
       {error && <p role="alert">{error}</p>}
     </form>
-    <ActionGroup><Button variant="secondary" disabled={query.loading || query.remaining > 0} onClick={query.reload}>Actualizar recordatorios</Button></ActionGroup>
-    <div ref={results} tabIndex={-1} role="region" aria-label="Resultados de recordatorios" aria-busy={query.loading}>
+    <div className="reminders-results" ref={results} tabIndex={-1} role="region" aria-label="Resultados de recordatorios" aria-busy={query.loading}>
+      <div className="reminders-results-heading"><h2>Avisos vigentes</h2><Button variant="secondary" disabled={query.loading || query.remaining > 0} onClick={query.reload}>Actualizar recordatorios</Button></div>
       <CatalogResults query={query} label="recordatorios" loadingLabel="Consultando recordatorios" emptyTitle="No hay recordatorios para estos filtros"
         emptyHint={paciente ? 'Prueba otras fechas o vuelve a consultar más tarde. Esta lista no sustituye el historial de citas del paciente.' : 'Prueba otras fechas o vuelve a consultar más tarde. Esta lista no sustituye tu historial de citas.'}
         onPage={page => { setFilters(v => ({ ...v, page })); results.current?.focus(); }}>
-        {query.data && <><p>Consulta realizada: <time dateTime={query.data.meta.consultado_en}>{formatearInstanteCita(query.data.meta.consultado_en)}</time>. Actualiza para comprobar cambios.</p>
+        {query.data && <><p className="reminders-updated">Consulta realizada: <time dateTime={query.data.meta.consultado_en}>{formatearInstanteCita(query.data.meta.consultado_en)}</time>. Actualiza para comprobar cambios.</p>
           <RecordatoriosTable avisos={query.data.data} administrativo={Boolean(paciente)} /></>}
       </CatalogResults>
     </div>
+    {!paciente && <div className="reminders-devices"><DispositivosPush /></div>}
   </section>;
 }

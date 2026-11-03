@@ -14,6 +14,7 @@ import ClinicaQuery from '../components/ClinicaQuery';
 import RegistroConsultaForm from '../components/RegistroConsultaForm';
 import { FechaClinica, IdentidadClinica } from '../components/ContenidoClinico';
 import '../styles/clinica.css';
+import '../styles/clinical-editor.css';
 
 export default function ConsultaEditorPage({ seleccionar = false }) {
   const { id } = useParams(), { usuario } = useAuth();
@@ -51,12 +52,12 @@ function Editor({ id, usuario }) {
     window.addEventListener('pagehide', hide); return () => window.removeEventListener('pagehide', hide);
   }, []);
   const refrescar = () => { setDirty(false); escritura.reset(); query.reload(); };
-  return <section className="workspace-page clinical-page">
+  return <section className="workspace-page clinical-page clinical-editor-page">
     <Link className="back-link" to={`/citas/${id}/consulta`}>Volver a consulta</Link>
     <PageHeading title={actualizar ? 'Corregir consulta médica' : 'Registrar consulta médica'} description="Documenta una atención real de esta cita. Horarios en America/La_Paz." />
     {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'La consulta podría haberse guardado. Salir no revierte la operación.' : 'Si sales, se perderán los datos del formulario que no guardaste.'}</p>
       <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar el formulario</Button></Alert>}
-    {escritura.status !== 'inicial' && <section aria-label="Resultado del registro" aria-live="polite" aria-busy={busy}>
+    {escritura.status !== 'inicial' && <section className="clinical-editor-outcome" aria-label="Resultado del registro" aria-live="polite" aria-busy={busy}>
       <h2 tabIndex={-1} ref={heading}>Resultado del registro</h2>
       {busy && <QueryMessage loading title={escritura.status === 'guardando' ? 'Guardando consulta…' : 'Consultando estado actual…'} />}
       {escritura.failure && <Alert><p>{escritura.failure.message}</p></Alert>}
@@ -71,9 +72,9 @@ function Editor({ id, usuario }) {
       {escritura.remaining > 0 && <p>Espera {escritura.remaining} segundos antes de continuar.</p>}
     </section>}
     {['inicial', 'guardando', 'validacion'].includes(escritura.status) && <ClinicaQuery query={query}>{data => <>
-      <IdentidadClinica paciente={data.paciente} />
+      <div className="clinical-editor-context"><IdentidadClinica paciente={data.paciente} />
       <p>Cita: {data.cita.codigo_cita}. Médico responsable: {data.cita.medico.nombres} {data.cita.medico.apellidos}.</p>
-      <p>Inicio programado: <FechaClinica value={data.cita.inicio_at} />. Estado consultado: {data.cita.estado}.</p>
+      <p>Inicio programado: <FechaClinica value={data.cita.inicio_at} />. Estado consultado: {data.cita.estado}.</p></div>
       {!data.edicion ? <Alert><p>No tienes contexto autorizado para registrar una consulta en esta cita. Puedes consultar su información clínica permitida.</p></Alert>
         : !data.edicion.acciones[data.consulta ? 'actualizar' : 'registrar'] ? <><Alert><ul>{data.edicion.impedimentos[data.consulta ? 'actualizar' : 'registrar'].map(code => <li key={code}>{impedimentos[code]}</li>)}</ul></Alert>
           <Button variant="secondary" onClick={query.reload}>Volver a consultar contexto</Button></>

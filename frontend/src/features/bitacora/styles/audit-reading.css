@@ -1,0 +1,24 @@
+.audit-page > .bitacora-filters { padding: 20px 24px; gap: 20px 24px; margin-bottom: 0; border-radius: 10px 10px 0 0; }
+.audit-page .bitacora-filter-hint { font-size: .875rem; }
+.audit-page .bitacora-advanced { padding-block: 12px; }
+.audit-page .bitacora-advanced summary { min-height: 44px; }
+.audit-page .audit-results-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin-bottom: 20px; }
+.audit-page .audit-results-heading > :is(h2, p) { margin: 0; }
+.audit-page .bitacora-table th:nth-child(2) { width: 19%; }
+.audit-page .bitacora-table th:nth-child(3), .audit-page .bitacora-table th:nth-child(4) { width: 17%; }
+.audit-page .bitacora-table td:last-child a { padding: 8px 0; border: 0; text-decoration: underline; text-underline-offset: 4px; }
+.audit-page > .catalog-note { font-size: .875rem; margin-top: 16px; }
+.audit-page .bitacora-detail { padding: 24px; }
+.audit-page .bitacora-detail h2 { font-size: 1.375rem; }
+.audit-page .bitacora-detail h3 { font-size: 1.125rem; }
+.audit-page .bitacora-data-grid { gap: 0 32px; }
+.audit-page .bitacora-data-grid > div { min-width: 0; }
+.audit-page .bitacora-data-grid dd { font-weight: 600; }
+.audit-page .bitacora-original { font-weight: 400; font-size: .875rem; }
+.audit-page .bitacora-state-grid { gap: 24px; margin-top: 20px; }
+.audit-page .bitacora-state-grid > section { min-width: 0; padding: 20px; background: var(--color-background); border-left: 3px solid var(--color-border); }
+.audit-page .bitacora-state-grid > section:last-child { background: var(--color-story); border-left-color: var(--color-primary); }
+.audit-page .bitacora-state-grid h3 { margin-top: 0; }
+@media (max-width: 700px) {
+  .audit-page > .bitacora-filters, .audit-page .bitacora-detail { padding: 20px 16px; }
+}

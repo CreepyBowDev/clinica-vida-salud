@@ -66,7 +66,7 @@ it.each([['Paciente', '/recepcion/citas/nueva'], ['Recepcionista', '/reservar-ci
 it('solo ofrece Reservar cita al Paciente y consulta disponibilidad propia con segundos', async () => {
   const user = userEvent.setup(); mount(); await search(user);
   const radio = await screen.findByRole('radio', { name: '08:00:01' }); await user.click(radio);
-  expect(radio).toBeChecked(); expect(screen.getByText(/Turno seleccionado: 2026-11-01, 08:00:01/)).toBeInTheDocument();
+  expect(radio).toBeChecked(); expect(screen.getByText(/Turno seleccionado: 01\/11\/2026, 08:00:01/)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Reservar cita' })).toBeInTheDocument(); expect(screen.queryByRole('link', { name: 'Programar cita' })).not.toBeInTheDocument();
   expect(screen.queryByLabelText('CI (si existe)')).not.toBeInTheDocument(); expect(screen.getByText(/Hora de la sede: America\/La_Paz/)).toBeInTheDocument();
   expect(calls.find(c => c.url.endsWith('/disponibilidad')).params).toEqual({ id_especialidad: '1', id_medico: doctor.id_medico, fecha: '2026-11-01', page: 1, per_page: 12 });
@@ -102,16 +102,19 @@ it('cambiar fecha retira resultados y turno elegido sin reconsultar automáticam
 });
 it('editar filtro de Médicos invalida Médico/fecha consultada inmediatamente', async () => {
   const user = userEvent.setup(); mount(); await search(user); await screen.findByRole('radio');
+  await user.click(screen.getByRole('button', { name: 'Cambiar médico' }));
   fireEvent.change(screen.getByLabelText('Nombre del Médico'), { target: { value: 'Otro' } });
   expect(screen.queryByRole('radio')).not.toBeInTheDocument(); expect(screen.queryByLabelText('Fecha de atención')).not.toBeInTheDocument();
 });
 it('editar especialidad invalida los catálogos dependientes', async () => {
   const user = userEvent.setup(); mount(); await search(user); await screen.findByRole('radio');
+  await user.click(screen.getByRole('button', { name: 'Cambiar especialidad' }));
   fireEvent.change(screen.getByLabelText('Nombre de especialidad'), { target: { value: 'Otra' } });
   expect(screen.queryByLabelText('Nombre del Médico')).not.toBeInTheDocument(); expect(screen.queryByRole('radio')).not.toBeInTheDocument();
 });
 it.each(['Administrador', 'Recepcionista'])('%s: editar ficha invalida especialidad y Médico sin persistir selección', async operador => {
   role = operador; const user = userEvent.setup(); mount('/recepcion/citas/nueva'); await search(user); await screen.findByRole('radio');
+  await user.click(screen.getByRole('button', { name: 'Cambiar paciente' }));
   fireEvent.change(screen.getByLabelText('Nombres del Paciente'), { target: { value: 'Otra ficha' } });
   expect(screen.queryByText(/Paciente seleccionado:/)).not.toBeInTheDocument(); expect(screen.queryByLabelText('Nombre de especialidad')).not.toBeInTheDocument();
 });
@@ -190,9 +193,37 @@ it('consulta filtrada de Médicos usa nombre/consultorio y no endpoints administ
 });
 it('página de especialidades invalida Médico seleccionado y reinicia dependencias', async () => {
   selectedPage = true; const user = userEvent.setup(); mount(); await search(user); await screen.findByRole('radio');
+  await user.click(screen.getByRole('button', { name: 'Cambiar especialidad' }));
   await user.click(within(screen.getByRole('navigation', { name: 'Paginación de especialidades' })).getByRole('button', { name: 'Siguiente' }));
   await waitFor(() => expect(calls.filter(c => c.url === '/reservas/especialidades').at(-1).params.page).toBe(2));
   expect(screen.queryByLabelText('Nombre del Médico')).not.toBeInTheDocument(); expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+});
+it('resume selecciones y permite reabrir por teclado sin perder el turno ni volver a consultar', async () => {
+  const user = userEvent.setup(); mount(); await search(user);
+  await user.click(await screen.findByRole('radio', { name: '08:00:01' }));
+  const change = screen.getByRole('button', { name: 'Cambiar médico' });
+  expect(change).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('form', { name: 'Buscar médicos' })).not.toBeInTheDocument();
+  const count = calls.length; change.focus(); await user.keyboard('{Enter}');
+  expect(screen.getByRole('button', { name: 'Cerrar búsqueda' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('form', { name: 'Buscar médicos' })).toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: '08:00:01' })).toBeChecked(); expect(calls).toHaveLength(count);
+  await user.click(screen.getByRole('button', { name: 'Cerrar búsqueda' }));
+  expect(screen.getByRole('radio', { name: '08:00:01' })).toBeChecked(); expect(calls).toHaveLength(count);
+});
+it('seleccionar un catálogo devuelve foco al título visible, no deja foco en la opción oculta', async () => {
+  const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'General ficticia' }));
+  expect(screen.getByRole('heading', { name: 'Especialidad', exact: true })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Cambiar especialidad' })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'General ficticia' })).not.toBeInTheDocument();
+  await user.click(await screen.findByRole('button', { name: /Médico Ficticio · MED-1/ }));
+  expect(screen.getByRole('heading', { name: 'Médico', exact: true })).toHaveFocus();
+});
+it('los turnos conservan segundos y explican su carácter orientativo al grupo accesible', async () => {
+  const user = userEvent.setup(); mount(); await search(user); await screen.findByRole('radio');
+  const group = screen.getByRole('group', { name: 'Selecciona un turno del 01/11/2026' });
+  expect(group).toHaveAccessibleDescription('La disponibilidad es orientativa. Seleccionar un turno no registra ni garantiza una cita.');
+  expect(within(group).getByRole('radio', { name: '08:00:01' })).toHaveAttribute('value', slot.inicio_at);
 });
 it('422 muestra solo campo de fecha permitido y permite corregir selección', async () => {
   request = c => { if (c.url.endsWith('/disponibilidad')) throw error(c, 422, 'VALIDACION', { fecha: ['Selecciona una fecha no pasada.'], password: ['NO-MOSTRAR'] }); return response(c); };

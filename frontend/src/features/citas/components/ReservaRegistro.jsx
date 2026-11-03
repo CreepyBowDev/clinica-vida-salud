@@ -11,7 +11,7 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
   const { status, propuesta: p, cita, failure, remaining } = registro;
   useEffect(() => { heading.current?.focus(); }, [status, failure]);
   const busy = ['preparando', 'guardando', 'consultando'].includes(status);
-  return <section className="reserva-section reserva-review" aria-busy={busy}>
+  return <section className="reserva-section reserva-review" data-status={status} aria-busy={busy}>
     <h2 ref={heading} tabIndex="-1">{status === 'preparando' ? 'Preparando revisión' : status === 'registrada' ? 'Cita registrada'
       : status === 'incierto' || status === 'consultando' ? 'Consultar resultado de la reserva' : status === 'error' ? 'Revisa la selección' : 'Revisar cita'}</h2>
     {failure && <Alert><p>{failure.message}</p>{Object.entries(failure.fields).filter(([key]) => key === 'fecha' || key === 'motivo_breve').map(([key, text]) => <p key={key}>{key === 'fecha' ? 'Fecha' : 'Motivo'}: {text}</p>)}</Alert>}
@@ -22,8 +22,8 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
         <div><dt>Paciente</dt><dd>{p.paciente.nombres} {p.paciente.apellidos} · {p.paciente.codigo_paciente}</dd></div>
         <div><dt>Especialidad</dt><dd>{p.especialidad.nombre}</dd></div>
         <div><dt>Médico</dt><dd>{p.medico.nombres} {p.medico.apellidos}</dd></div>
-        <div><dt>Inicio de atención</dt><dd><time dateTime={p.inicio_at}>{hora(p.inicio_at)}</time></dd></div>
-        <div><dt>Fin de atención</dt><dd><time dateTime={p.fin_at}>{hora(p.fin_at)}</time></dd></div>
+        <div className="booking-when"><dt>Inicio de atención</dt><dd><time dateTime={p.inicio_at}>{hora(p.inicio_at)}</time></dd></div>
+        <div className="booking-when"><dt>Fin de atención</dt><dd><time dateTime={p.fin_at}>{hora(p.fin_at)}</time></dd></div>
         <div><dt>Duración</dt><dd>{p.duracion_minutos} minutos</dd></div>
         <div><dt>Consultorio</dt><dd>{p.consultorio.codigo_consultorio} — {p.consultorio.nombre}</dd></div>
         <div><dt>Sede</dt><dd>{p.sede_atencion}</dd></div>
@@ -42,8 +42,8 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
       <Alert variant="success"><p>{registro.repetida ? 'Se recuperó la cita registrada, sin crear otra.' : 'La cita se registró correctamente.'}</p></Alert>
       <dl className="reserva-context"><div><dt>Código de cita</dt><dd>{cita.codigo_cita}</dd></div>
         <div><dt>Estado vigente</dt><dd>{cita.estado}</dd></div>
-        <div><dt>Inicio de atención</dt><dd><time dateTime={cita.inicio_at}>{hora(cita.inicio_at)}</time></dd></div>
-        <div><dt>Fin de atención</dt><dd><time dateTime={cita.fin_at}>{hora(cita.fin_at)}</time></dd></div>
+        <div className="booking-when"><dt>Inicio de atención</dt><dd><time dateTime={cita.inicio_at}>{hora(cita.inicio_at)}</time></dd></div>
+        <div className="booking-when"><dt>Fin de atención</dt><dd><time dateTime={cita.fin_at}>{hora(cita.fin_at)}</time></dd></div>
         <div><dt>Duración registrada</dt><dd>{cita.duracion_minutos} minutos</dd></div>
         <div><dt>Consultorio registrado</dt><dd>{cita.consultorio_atencion}</dd></div>
         <div><dt>Sede registrada</dt><dd>{cita.sede_atencion}</dd></div>

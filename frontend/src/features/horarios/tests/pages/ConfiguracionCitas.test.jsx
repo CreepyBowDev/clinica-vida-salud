@@ -41,6 +41,7 @@ async function confirm(user) { await user.click(screen.getByRole('button', { nam
 it('la guía de duración no sustituye impacto y retira confirmación al editar propuesta', async () => {
   const user = userEvent.setup(); mount(); await change(user);
   const stages = screen.getByRole('list', { name: 'Etapas de duración global' }); await preview(user);
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Resultados del impacto de duración' })).toHaveFocus());
   expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');
   await user.click(screen.getByRole('button', { name: 'Revisar cambio global' })); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Confirmar guardado');
   await change(user, '25'); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Preparar propuesta');

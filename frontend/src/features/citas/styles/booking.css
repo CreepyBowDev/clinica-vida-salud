@@ -1,0 +1,57 @@
+/* Reserva propia/administrativa: presentación, no disponibilidad ni transiciones. */
+.booking-page { container: booking / inline-size; max-width: 1000px; overflow-wrap: anywhere; --radius-control: 6px; --radius-panel: 10px; --control-height: 46px; --button-height: 44px; }
+.booking-page .page-heading { margin-bottom: 24px; }
+.booking-page .page-heading-copy p { font-size: 1rem; }
+.booking-page .workflow-progress { margin-bottom: 24px; gap: 16px 24px; padding-block: 16px; }
+.booking-page .workflow-progress li { flex-basis: 12rem; }
+.booking-page .workflow-number { border-radius: 6px; }
+.booking-search { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.booking-page .booking-search > .reserva-guidance { margin: 0; border-left: 0; border-radius: 10px 10px 0 0; padding: 20px 24px; }
+.booking-page .booking-search > .reserva-section { margin: 0; padding: 24px; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; }
+.booking-page .reserva-section h2 { font-size: 1.25rem; margin-bottom: 16px; }
+.reserva-catalog-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
+.booking-page .reserva-catalog-heading h2 { margin: 0; flex: 1 1 18rem; }
+.booking-page .reserva-catalog[data-selected="true"] .reserva-catalog-heading h2 { flex: 1 1 8rem; }
+.reserva-catalog-heading > .button { flex-shrink: 0; }
+.booking-page .reserva-catalog-selection { margin-top: 12px; font-weight: 600; max-width: 70ch; }
+.booking-page .reserva-catalog [hidden] { display: none; }
+.booking-page .reserva-catalog .reserva-filters { margin-block: 20px; }
+.booking-page .reserva-filters .field { flex-basis: 14rem; }
+.booking-page .reserva-filters .field :is(input, select) { padding-block: 10px; }
+.booking-page .reserva-catalog .reserva-filters > .button { background: var(--color-surface); border-color: var(--color-control-border); color: var(--color-primary-hover); }
+.booking-page .reserva-catalog .reserva-filters > .button:hover:not(:disabled) { background: var(--color-story); }
+.booking-page .reserva-options { gap: 0; margin-bottom: 0; }
+.booking-page .reserva-options > li + li { border-top: 1px solid var(--color-border); }
+.booking-page .reserva-options .button { border: 0; border-radius: 0; padding: 16px 12px; min-height: 52px; line-height: 1.5; }
+.booking-page .reserva-options [aria-pressed="true"] { border-left: 3px solid var(--color-primary); }
+.booking-page .reserva-catalog .pagination { margin-top: 8px; padding-top: 16px; }
+.booking-page .reserva-catalog :is(.catalog-empty, .catalog-failure) { border: 0; border-radius: 0; padding: 16px 0; }
+.booking-page .booking-patient-warning { padding: 0 24px 20px; }
+.booking-page .booking-patient-warning .alert { margin: 0; }
+.booking-page .booking-search > .reserva-filters { display: grid; grid-template-columns: minmax(0, 24rem) auto; justify-content: start; gap: 16px 24px; align-items: end; }
+.booking-page .booking-search > .reserva-filters > :is(h2, p) { grid-column: 1 / -1; margin: 0; }
+.booking-page .reserva-context { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; margin-block: 24px; }
+.booking-page .reserva-context dt { font-size: .875rem; margin-bottom: 4px; }
+.booking-page .reserva-context dd { font-weight: 600; }
+.booking-page .reserva-slot-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: 12px; }
+.booking-page .reserva-slot-grid label { min-height: 52px; font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.booking-page .reserva-slot-grid label:has(:checked) { border: 2px solid var(--color-primary); padding: 11px; }
+.booking-page .reserva-slot-grid label:focus-within { outline: 3px solid var(--color-primary); outline-offset: 3px; }
+.booking-page .booking-slots .reserva-reason { margin-top: 24px; padding-top: 24px; }
+.booking-page .booking-slots > .reserva-selection { font-size: .9375rem; }
+.booking-page .reserva-reason > .form-actions { margin-top: 0; }
+.booking-page .reserva-review { padding: 32px; }
+.booking-page .booking-when dd { font-size: 1.125rem; }
+.booking-page .reserva-review .form-actions { margin-top: 24px; padding-top: 24px; }
+.booking-page .reserva-review[data-status="registrada"] { border-top: 3px solid var(--color-primary); }
+@container booking (max-width: 40rem) {
+  .booking-page .booking-search > :is(.reserva-guidance, .reserva-section), .booking-page .reserva-review { padding: 20px 16px; }
+  .booking-page .reserva-context, .booking-page .booking-search > .reserva-filters { grid-template-columns: minmax(0, 1fr); }
+  .booking-page .booking-search > .reserva-filters > .button { width: 100%; }
+  .booking-page .reserva-catalog .reserva-filters > .button { flex: 1 1 100%; }
+  .booking-page .reserva-catalog-heading { gap: 4px 12px; }
+  .booking-page .reserva-catalog-heading h2 { flex-basis: 100%; }
+  .booking-page .reserva-catalog-heading > .button { padding-left: 0; justify-content: flex-start; }
+  .booking-page .booking-patient-warning { padding-inline: 16px; }
+  .booking-page .form-actions > .button { flex: 1 1 100%; }
+}

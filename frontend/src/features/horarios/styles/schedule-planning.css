@@ -1,0 +1,45 @@
+/* Planificación semanal y duración global; no cambia agenda ni disponibilidad. */
+.schedule-planning .guided-context { padding: 20px 24px; border: 0; border-left: 3px solid var(--color-primary); border-radius: 0; }
+.schedule-planning .guided-context > h2 { font-size: 1.375rem; }
+.schedule-planning .guided-context > p { max-width: 75ch; }
+.schedule-planning .guided-context .catalog-data > div { border-bottom: 0; padding-bottom: 0; }
+.schedule-planning .guided-context > .form-actions { margin-top: 20px; padding-top: 16px; }
+.schedule-planning .horario-filters { margin-bottom: 0; border-radius: 10px 10px 0 0; padding: 20px 24px; }
+.schedule-planning .schedule-results { padding: 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 10px 10px; min-width: 0; }
+.schedule-planning .schedule-results > .schedule-capacity-note { margin-block: 0 24px; }
+.schedule-planning .schedule-table { border: 0; border-radius: 0; overflow: visible; }
+.schedule-planning .schedule-table caption { padding: 0 0 16px; border: 0; font-size: .875rem; }
+.schedule-planning .schedule-table :is(th, td) { padding: 16px 12px; }
+.schedule-planning .schedule-table th:first-child { width: 26%; }
+.schedule-planning .schedule-table th:last-child { width: 30%; }
+.schedule-planning .schedule-table td:first-child p { margin-top: 4px; font-variant-numeric: tabular-nums; }
+.schedule-planning .schedule-table tbody tr:is(:hover, :focus-within) { background: var(--color-story); }
+.schedule-planning .schedule-results > :is(.query-message, .catalog-failure) { border: 0; border-radius: 0; padding: 24px 0; }
+.schedule-planning .schedule-results > .horario-editor { max-width: none; padding: 0; border: 0; border-radius: 0; }
+.schedule-planning .horario-editor > h2 { font-size: 1.375rem; }
+.schedule-planning .horario-editor .form-section > .field, .schedule-planning .horario-hours { max-width: 46rem; }
+.schedule-planning .workflow-number { border-radius: 6px; }
+.schedule-planning .schedule-impact-results:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.schedule-planning .horario-editor .catalog-review { padding: 24px 0 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; }
+.schedule-planning .catalog-review > h2 { font-size: 1.375rem; }
+.schedule-planning .impact-outcome { padding: 16px 20px; }
+.schedule-planning .impact-outcome p + p { margin-top: 8px; }
+.schedule-planning .horario-impact-list > li > strong { display: block; font-size: 1.125rem; margin-bottom: 8px; }
+.schedule-planning .horario-impact-list > li:last-child { border-bottom: 0; }
+.schedule-planning .horario-editor .horario-impact-list .catalog-data { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 24px; }
+.schedule-planning .horario-impact-list .catalog-data > div { padding-block: 12px; border-bottom: 0; }
+.schedule-planning .horario-impact-list .catalog-data dd { line-height: 1.6; }
+.schedule-planning .pagination { margin-top: 0; padding-top: 20px; }
+@container records (max-width: 56rem) {
+  .schedule-planning .schedule-table tbody tr { padding: 20px 12px; border-top: 1px solid var(--color-border); border-bottom: 0; }
+  .schedule-planning .schedule-table tbody td { padding: 0; }
+  .schedule-planning .schedule-table caption { padding: 0 0 16px; }
+}
+@media (max-width: 900px) {
+  .schedule-planning .horario-editor .horario-impact-list .catalog-data { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .schedule-planning :is(.guided-context, .horario-filters, .schedule-results) { padding: 20px 16px; }
+  .schedule-planning .horario-editor .horario-impact-list .catalog-data { grid-template-columns: minmax(0, 1fr); }
+  .schedule-planning .impact-outcome { padding: 16px; }
+}

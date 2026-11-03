@@ -69,6 +69,18 @@ it('Mis citas inicia Próximas por contrato, sin consultar perfil/actividad ni e
   expect(table).toHaveTextContent('Profesional Ficticio'); expect(table).toHaveTextContent('Registro:');
   expect(table).not.toHaveTextContent('NO-LISTAR'); expect(table).not.toHaveTextContent('70000000');
   expect(screen.getByRole('link', { name: 'Mis citas' })).toHaveAttribute('aria-current', 'page');
+  expect(within(screen.getByRole('navigation', { name: 'Ubicación actual' })).getAllByText('Mis citas')).toHaveLength(1);
+});
+it('Mis citas conserva el total y período aplicados al editar el borrador, sin acciones de cancelación/reprogramación', async () => {
+  mount(); const table = await screen.findByRole('table');
+  expect(table).toHaveClass('agenda-day-records');
+  const context = screen.getByRole('region', { name: 'Paciente del historial' });
+  expect(context).toHaveTextContent('2 citas en esta consulta');
+  await userEvent.selectOptions(screen.getByLabelText('Período de citas'), 'todas');
+  expect(context).toHaveTextContent('2 citas en esta consulta'); expect(historyCalls()).toHaveLength(1);
+  expect(screen.getByRole('table')).toHaveAccessibleName('Próximas citas por hora de inicio ascendente');
+  expect(within(screen.getByRole('main')).queryByRole('button', { name: /cancelar|reprogramar/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/Confirmada significa llegada presencial verificada/)).toBeInTheDocument();
 });
 it.each(['Administrador', 'Recepcionista'])('%s inicia Todas descendente, con contexto mínimo aunque la ficha esté inactiva/sin CI/cuenta', async operador => {
   role = operador; mount('/recepcion/pacientes/31/citas'); const table = await screen.findByRole('table');
@@ -76,6 +88,9 @@ it.each(['Administrador', 'Recepcionista'])('%s inicia Todas descendente, con co
   expect(screen.getByLabelText('Período de citas')).toHaveValue('todas');
   expect(within(table).getAllByRole('link').map(link => link.textContent)).toEqual(orden.todas.map(id => `CIT-${id}`));
   expect(screen.getByRole('region', { name: 'Paciente del historial' })).toHaveTextContent('PAC-FICTICIO');
+  expect(screen.getByRole('region', { name: 'Paciente del historial' })).toHaveTextContent('8 citas en esta consulta');
+  expect(screen.getByRole('region', { name: 'Resultados del historial del paciente' })).toContainElement(table);
+  expect(table).toHaveClass('agenda-day-records');
   expect(screen.getByRole('link', { name: 'Volver a la ficha del paciente' })).toHaveAttribute('href', '/recepcion/pacientes/31');
 });
 it.each(['Administrador', 'Recepcionista'])('%s: entrada de sidebar reutiliza búsqueda → ficha → historial sin crear historial global', async operador => {

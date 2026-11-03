@@ -15,7 +15,7 @@ export default function ModuleNavigation({ modules, active, pathname, onNavigate
     const open = expanded.includes(module.id);
     const selected = activeId === module.id;
     const waiting = module.items.every(item => item.kind === 'pending');
-    return <div key={module.id} className={`nav-module${open ? ' is-expanded' : ''}${selected ? ' is-current' : ''}`}>
+    return <div key={module.id} data-module={module.id} className={`nav-module${open ? ' is-expanded' : ''}${selected ? ' is-current' : ''}`}>
       <button type="button" className="nav-module-toggle" aria-expanded={open} aria-controls={`module-${module.id}`}
         onClick={() => setExpanded(previous => open ? previous.filter(id => id !== module.id) : [...previous, module.id])}>
         <Icon name={module.icon} /><span>{module.label}{waiting && <> <small>Pendiente</small></>}</span><Icon name="chevron" className="nav-chevron" />

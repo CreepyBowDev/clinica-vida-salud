@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +30,17 @@ const field = (label, value) => fireEvent.change(screen.getByLabelText(label), {
 const submit = () => fireEvent.submit(screen.getByRole('form', { name: 'Actualizar mi perfil' }));
 
 describe('Mi perfil CU-08', () => {
+  it('separa la identidad, el formulario y las credenciales en el orden de lectura', async () => {
+    mount(); await screen.findByLabelText('Teléfono');
+    const identity = screen.getByRole('region', { name: 'Datos personales' });
+    const form = screen.getByRole('form', { name: 'Actualizar mi perfil' });
+    const account = screen.getByRole('region', { name: 'Acceso a tu cuenta' });
+    expect(identity.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(form.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(account).getByRole('link', { name: 'Cambiar correo de acceso' })).toHaveAttribute('href', '/mi-perfil/correo');
+    expect(within(account).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(within(form).queryByText(patient.correo_acceso)).not.toBeInTheDocument();
+  });
   it.each(['Administrador', 'Recepcionista', 'Médico'])('deniega a %s sin consultar fichas', async rol => {
     consultarSesion.mockResolvedValue({ id_usuario: '1', nombre_visible: 'Persona', correo_acceso: 'persona@example.test', rol }); mount();
     await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(consultarMiPerfil).not.toHaveBeenCalled(); expect(consultarPaciente).not.toHaveBeenCalled();

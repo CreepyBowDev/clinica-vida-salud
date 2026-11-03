@@ -9,6 +9,7 @@ import { useClinicaQuery } from '../hooks/useClinicaQuery';
 import ClinicaQuery from '../components/ClinicaQuery';
 import { ContenidoClinico, FechaClinica } from '../components/ContenidoClinico';
 import '../styles/clinica.css';
+import '../../../styles/version-history.css';
 
 export default function VersionesClinicasPage({ tipo }) {
   const { id } = useParams(), { usuario } = useAuth();
@@ -19,14 +20,15 @@ function Versiones({ id, rol, tipo }) {
   const [page, setPage] = useState(1), results = useRef(null);
   const query = useClinicaQuery(consultarVersiones, { id, rol, tipo, page });
   const consulta = tipo === 'consulta';
-  return <section className="workspace-page clinical-page">
+  return <section className="workspace-page clinical-page version-history">
     <Link className="back-link" to={consulta ? `/citas/${id}/consulta` : `/historia-clinica/pacientes/${id}`}>{consulta ? 'Volver a consulta' : 'Volver a historia clínica'}</Link>
     <PageHeading title={`Versiones de ${consulta ? 'consulta' : 'antecedentes'}`} description="Histórico clínico protegido de solo lectura. Fechas en America/La_Paz." />
-    <div ref={results} tabIndex={-1}><ClinicaQuery query={query}>{data => <>
-      {data.versiones.length ? <ol className="clinical-versions">{data.versiones.map(v => <li key={consulta ? v.id_version_consulta : v.id_version_antecedente}>
-        <article className="clinical-section"><h2>Versión {v.numero_version}</h2><p>Registrada: <FechaClinica value={v.registrada_en} /></p>
+    <div className="version-results version-sheet" ref={results} tabIndex={-1} role="region" aria-label="Versiones clínicas"><ClinicaQuery query={query}>{data => <>
+      {data.versiones.length ? <ol className="clinical-versions version-list">{data.versiones.map(v => <li key={consulta ? v.id_version_consulta : v.id_version_antecedente}>
+        <article className="clinical-section"><header className="version-heading"><h2>Versión {v.numero_version}</h2><p>Registrada: <FechaClinica value={v.registrada_en} /></p></header>
+          <div className="version-meta">
           <p>Identificador de usuario ejecutor: {v.id_autor}</p><p>Motivo de corrección: {v.motivo_cambio ?? 'No registrado'}</p>
-          {!consulta && <p>Identificador de consulta de origen: {v.id_consulta_origen}</p>}
+          {!consulta && <p>Identificador de consulta de origen: {v.id_consulta_origen}</p>}</div>
           <ContenidoClinico version={v} tipo={tipo} />
         </article>
       </li>)}</ol> : <p>No hay versiones clínicas registradas.</p>}

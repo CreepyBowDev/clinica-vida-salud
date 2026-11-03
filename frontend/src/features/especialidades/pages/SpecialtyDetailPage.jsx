@@ -14,6 +14,7 @@ import SpecialtyData from '../components/SpecialtyData';
 import SpecialtyFailure from '../components/SpecialtyFailure';
 import SpecialtyVersionReview from '../components/SpecialtyVersionReview';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function SpecialtyDetailPage() {
@@ -25,7 +26,7 @@ function Detail({ id }) {
   const query = useCatalogQuery(consultarEspecialidad, id, fields);
   const location = useLocation();
   const [notice, setNotice] = useState(location.state?.specialtyNotice || '');
-  return <section className="workspace-page catalog-page query-detail"><Link className="back-link" to="/administracion/especialidades">Volver al catálogo</Link>
+  return <section className="workspace-page catalog-page query-detail medical-admin"><Link className="back-link" to="/administracion/especialidades">Volver al catálogo</Link>
     <PageHeading title="Detalle de especialidad" description="El estado del catálogo es independiente de la actividad profesional y de las cuentas de acceso." />
     {notice && <Alert variant="success">{notice}</Alert>}
     {query.loading ? <QueryMessage loading title="Consultando especialidad…" /> : query.failure ? <div className="query-failure"><SpecialtyFailure failure={query.failure} remaining={query.remaining} /><Button variant="secondary" disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></div> : <SpecialtyState initial={query.data} onSaved={() => { setNotice('Estado actualizado. Se consultó nuevamente la especialidad.'); query.reload(); }} />}

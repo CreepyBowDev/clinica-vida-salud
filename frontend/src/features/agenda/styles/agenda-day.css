@@ -1,0 +1,72 @@
+/* Agenda, selección para asistencia y Mis citas; historial administrativo/reportes mantienen su ámbito. */
+.agenda-day { container: agenda-workspace / inline-size; --radius-control: 6px; --radius-panel: 10px; --control-height: 46px; --button-height: 44px; }
+.agenda-day .page-heading { margin-bottom: 24px; }
+.agenda-day .page-heading-copy p { font-size: 1rem; max-width: 65ch; }
+.agenda-day > .catalog-filters { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, .7fr); align-items: start; gap: 16px 24px; padding: 20px 24px; margin-bottom: 0; border-radius: 10px 10px 0 0; }
+.agenda-day > .catalog-filters > .action-group { padding-top: 0; border-top: 0; }
+.agenda-day .field :is(input, select) { padding-block: 10px; }
+.agenda-day .agenda-results { background: var(--color-surface); border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 10px 10px; padding: 24px; }
+.agenda-day .agenda-results:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.agenda-day .agenda-context { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 24px; margin-bottom: 24px; }
+.agenda-day .agenda-context h2 { font-size: 1.375rem; grid-column: 1; }
+.agenda-day .agenda-context p { font-size: .875rem; margin: 0; grid-column: 1; }
+.agenda-day .agenda-context .agenda-result-total { grid-column: 2; grid-row: 1 / 3; align-self: center; text-align: right; }
+.agenda-day .agenda-result-total strong { color: var(--color-text); font-size: 1.375rem; font-weight: 600; }
+.agenda-day .agenda-selector { padding: 20px 24px; border-radius: 10px; }
+.agenda-day .agenda-selector summary { font-size: 1.125rem; color: var(--color-primary-hover); }
+.agenda-day .agenda-selector[open] summary { color: var(--color-text); }
+.agenda-day .agenda-selector .catalog-note { margin-top: 12px; font-size: .875rem; }
+.agenda-day .agenda-doctors li:last-child { border-bottom: 0; }
+.agenda-day .agenda-doctors button[aria-pressed="true"] { border-color: var(--color-primary); background: var(--color-story); }
+.agenda-day .agenda-results > :is(.query-message, .catalog-empty, .catalog-failure) { border: 0; border-radius: 0; padding: 24px 0; }
+.agenda-day .pagination { margin-top: 0; padding-top: 20px; }
+.agenda-day > .catalog-note { font-size: .875rem; margin-top: 16px; }
+.agenda-day-table { container: day-records / inline-size; }
+.agenda-day-records { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.agenda-day-records caption { text-align: left; padding: 0 0 12px; font-size: .875rem; color: var(--color-muted); }
+.agenda-day-records :is(td, th) { padding: 16px 12px; border-bottom: 1px solid var(--color-border); vertical-align: top; overflow-wrap: anywhere; }
+.agenda-day-records th { background: var(--color-background); font-size: .875rem; font-weight: 600; }
+.agenda-day-records th:nth-child(1) { width: 22%; }
+.agenda-day-records th:nth-child(2) { width: 21%; }
+.agenda-day-records th:nth-child(3) { width: 16%; }
+.agenda-day-records th:nth-child(4) { width: 17%; }
+.agenda-day-records th:nth-child(5) { width: 10%; }
+.agenda-day-records th:nth-child(6) { width: 14%; }
+.agenda-day-records tbody tr:last-child td { border-bottom: 0; }
+.agenda-day-records tbody tr:is(:hover, :focus-within) { background: var(--color-story); }
+.agenda-day-records td:first-child { border-left: 3px solid var(--color-border); }
+.agenda-day-records tr:focus-within td:first-child { border-left-color: var(--color-primary); }
+.agenda-day-time { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 44px; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.agenda-day-records .agenda-cell-secondary { margin-top: 4px; }
+.agenda-day-records .agenda-state { font-size: .875rem; padding: 4px 8px; border-radius: 4px; }
+.agenda-day-records [data-estado="Programada"] { color: var(--color-info); background: var(--color-info-bg); border-color: currentColor; }
+.agenda-day-records [data-estado="Confirmada"] { color: var(--color-primary-hover); background: var(--color-story); border-color: currentColor; }
+.agenda-day-records [data-estado="Atendida"] { color: var(--color-success); background: var(--color-success-bg); border-color: currentColor; }
+.agenda-day-records :is([data-estado="Cancelada"], [data-estado="Inasistencia"]) { color: var(--color-muted); background: var(--color-background); }
+.agenda-day-records .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container day-records (max-width: 52rem) {
+  .agenda-day-records, .agenda-day-records caption, .agenda-day-records tbody { display: block; width: 100%; }
+  .agenda-day-records thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .agenda-day-records tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; padding: 20px 16px; border-top: 1px solid var(--color-border); border-left: 3px solid var(--color-border); }
+  .agenda-day-records tbody tr:focus-within { border-left-color: var(--color-primary); }
+  .agenda-day-records tbody td { padding: 0; border: 0; min-width: 0; }
+  .agenda-day-records tbody td:first-child { grid-column: 1 / -1; border: 0; }
+  .agenda-day-records tbody td:nth-child(2) { grid-column: 1 / -1; }
+  .agenda-day-records .catalog-cell-label { display: block; color: var(--color-muted); font-size: .875rem; margin-bottom: 4px; }
+}
+@container agenda-workspace (max-width: 40rem) {
+  .agenda-day > .catalog-filters { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .agenda-day > .catalog-filters { grid-template-columns: minmax(0, 1fr); padding: 20px 16px; gap: 16px; }
+  .agenda-day .agenda-results { padding: 20px 16px; }
+  .agenda-day .agenda-context { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .agenda-day .agenda-context .agenda-result-total { grid-column: 1; grid-row: auto; text-align: left; }
+  .agenda-day .agenda-selector { padding: 20px 16px; }
+  .agenda-day .agenda-search > .button, .agenda-day .agenda-doctors .button { width: 100%; }
+  .agenda-day .agenda-doctors { margin-top: 16px; }
+  .agenda-day .agenda-search { margin-bottom: 0; }
+}
+@container day-records (max-width: 16rem) {
+  .agenda-day-records tbody tr { grid-template-columns: minmax(0, 1fr); padding-inline: 12px; }
+}

@@ -18,6 +18,14 @@ it('muestra cita, horario de sede (día anterior UTC), médico, especialidad, co
   expect(screen.getAllByText(/30\/10\/2026/).some(node => node.textContent.includes('22:30'))).toBe(true);
   expect(screen.queryByRole('button', { name: /leído|generar|cancelar|reprogramar|push/i })).not.toBeInTheDocument();
 });
+it('prioriza avisos antes de los dispositivos sin retirar sus controles', async () => {
+  render(view()); await screen.findByText('CITA-FICTICIA');
+  const results = screen.getByRole('region', { name: 'Resultados de recordatorios' });
+  const devices = screen.getByRole('region', { name: 'Mis dispositivos push' });
+  expect(results.compareDocumentPosition(devices) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Avisos vigentes' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Desactivar este navegador' })).toBeInTheDocument();
+});
 it('filtra, limpia y actualiza manualmente conservando filtros aplicados', async () => {
   const user = userEvent.setup(); render(view()); await screen.findByText('CITA-FICTICIA');
   await user.type(screen.getByLabelText('Desde'), '2026-10-30'); await user.type(screen.getByLabelText('Hasta'), '2026-11-01');

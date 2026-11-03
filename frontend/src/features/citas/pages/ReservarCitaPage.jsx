@@ -16,6 +16,7 @@ import { listarEspecialidadesReserva, listarMedicosReserva } from '../services/r
 import { listarPacientes } from '../../pacientes/services/paciente.service';
 import '../../../styles/catalogs.css';
 import '../styles/reserva.css';
+import '../styles/booking.css';
 
 const especialidadCampos = [{ name: 'nombre', label: 'Nombre de especialidad' }];
 const medicoCampos = [{ name: 'nombre', label: 'Nombre del Médico' }, { name: 'consultorio', label: 'Código o nombre del consultorio' }];
@@ -56,7 +57,7 @@ function ReservaFlujo({ administrativa }) {
     window.addEventListener('pagehide', clear);
     return () => window.removeEventListener('pagehide', clear);
   }, []);
-  return <section className="workspace-page reserva-page">
+  return <section className="workspace-page reserva-page booking-page">
     <PageHeading title={administrativa ? 'Programar cita' : 'Reservar cita'} description="Busca un turno presencial en la sede de la clínica. Los horarios se consultan en America/La_Paz." />
     <WorkflowProgress label="Etapas de la reserva" steps={etapas} current={registro.status === 'busqueda' ? 'busqueda' : ['registrada', 'incierto', 'consultando', 'ausente'].includes(registro.status) ? 'resultado' : 'revision'} />
     {blocker.state === 'blocked' && <Alert variant="warning"><p>La cita podría haberse registrado. Si sales perderás esta comprobación; no se enviará otra reserva automáticamente.</p>
@@ -64,22 +65,22 @@ function ReservaFlujo({ administrativa }) {
       <Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar la comprobación</Button></ActionGroup></Alert>}
     {registro.status !== 'busqueda' ? <ReservaRegistro registro={registro} administrativa={administrativa} onVolver={() => {
       registro.reset(); setCriterios(null); setRevision(n => n + 1);
-    }} /> : <>
+    }} /> : <div className="booking-search">
     <p className="reserva-guidance">{administrativa && !paciente ? 'Comienza seleccionando la ficha del Paciente.' : !especialidad ? 'Selecciona la especialidad para consultar sus Médicos.' : !medico ? 'Selecciona un Médico para consultar una fecha de atención.' : 'Elige una fecha, consulta los turnos y revisa tu selección antes de registrar.'}{!administrativa && ' La reserva es únicamente para tu propia ficha.'}</p>
     {administrativa && <>
-      <ReservaCatalogo key={`pacientes:${epoch}`} titulo="Seleccionar Paciente" etiqueta="pacientes" load={listarPacientes}
+      <ReservaCatalogo key={`pacientes:${epoch}`} titulo="Seleccionar Paciente" tituloSeleccionado="Paciente" etiqueta="pacientes" load={listarPacientes} accionCambio="Cambiar paciente" prefijoSeleccion="Paciente seleccionado"
         campos={pacienteCampos} seleccionado={paciente} identificador="id_paciente" onInvalidate={clearPaciente}
         describir={p => `${p.nombres} ${p.apellidos} · ${p.codigo_paciente} · ${p.documento_identidad || 'Sin CI'} · Ficha ${p.activo ? 'activa' : 'inactiva'}`}
         onSelect={p => { clearEspecialidad(); setPaciente(p); }} />
-      {paciente && <div className="reserva-selection"><p>Paciente seleccionado: {paciente.nombres} {paciente.apellidos} · {paciente.codigo_paciente}</p>
-        {!paciente.activo && <Alert variant="warning"><p>La ficha seleccionada está inactiva. No permite nuevas reservas; su estado se volverá a comprobar al consultar disponibilidad.</p></Alert>}</div>}
+      {paciente && !paciente.activo && <div className="booking-patient-warning"><Alert variant="warning"><p>La ficha seleccionada está inactiva. No permite nuevas reservas; su estado se volverá a comprobar al consultar disponibilidad.</p></Alert></div>}
     </>}
     {(!administrativa || paciente) && <>
       <ReservaCatalogo key={`especialidades:${paciente?.id_paciente ?? 'propia'}:${epoch}`} titulo="Seleccionar especialidad" etiqueta="especialidades"
+        accionCambio="Cambiar especialidad" tituloSeleccionado="Especialidad"
         load={listarEspecialidadesReserva} campos={especialidadCampos} seleccionado={especialidad} identificador="id_especialidad"
         onInvalidate={clearEspecialidad} onSelect={s => { clearMedico(); setEspecialidad(s); }} describir={s => s.nombre} />
       {especialidad && <ReservaCatalogo key={`medicos:${especialidad.id_especialidad}:${paciente?.id_paciente ?? 'propia'}:${epoch}`}
-        titulo={`Seleccionar Médico de ${especialidad.nombre}`} etiqueta="médicos" load={listarMedicosReserva}
+        titulo={`Seleccionar Médico de ${especialidad.nombre}`} tituloSeleccionado="Médico" etiqueta="médicos" load={listarMedicosReserva} accionCambio="Cambiar médico"
         base={{ id_especialidad: especialidad.id_especialidad }} campos={medicoCampos} seleccionado={medico} identificador="id_medico"
         onInvalidate={clearMedico} onSelect={m => { setMedico(m); setCriterios(null); }}
         describir={m => `${m.nombres} ${m.apellidos} · ${m.codigo_medico} · ${m.consultorio.codigo_consultorio} — ${m.consultorio.nombre}`} />}
@@ -90,13 +91,14 @@ function ReservaFlujo({ administrativa }) {
         setCriterios({ id_especialidad: especialidad.id_especialidad, id_medico: medico.id_medico, fecha,
           ...(administrativa ? { id_paciente: paciente.id_paciente } : {}) });
       }}>
+        <h2>Elegir fecha</h2>
         <FormField ref={fechaRef} label="Fecha de atención" type="date" value={fecha} error={errorFecha}
           onChange={e => { setFecha(e.target.value); setCriterios(null); setErrorFecha(''); }} />
-        <p>Hora local de la sede. El servidor comprueba que el turno no haya comenzado.</p>
         <Button type="submit">Consultar turnos</Button>
+        <p>Hora local de la sede. El servidor comprueba que el turno no haya comenzado.</p>
       </form>}
       {criterios && <DisponibilidadTurnos key={`${JSON.stringify(criterios)}:${revision}`} criterios={criterios} onRevisar={registro.proponer} />}
     </>}
-    </>}
+    </div>}
   </section>;
 }

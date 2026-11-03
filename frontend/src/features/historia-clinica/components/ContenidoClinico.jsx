@@ -11,6 +11,6 @@ export function IdentidadClinica({ paciente }) {
 }
 export function ContenidoClinico({ version, tipo }) {
   if (version === null) return <p>No hay antecedentes registrados.</p>;
-  return <dl className="clinical-data">{Object.entries(tipo === 'consulta' ? etiquetasConsulta : etiquetasAntecedentes).map(([campo, label]) =>
+  return <dl className="clinical-data clinical-content" data-content={tipo}>{Object.entries(tipo === 'consulta' ? etiquetasConsulta : etiquetasAntecedentes).map(([campo, label]) =>
     <div key={campo}><dt>{label}</dt><dd>{version[campo] === null || version[campo] === '' ? 'No registrado' : version[campo]}</dd></div>)}</dl>;
 }

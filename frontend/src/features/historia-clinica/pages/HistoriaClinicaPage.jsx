@@ -14,6 +14,7 @@ import { useClinicaQuery } from '../hooks/useClinicaQuery';
 import ClinicaQuery from '../components/ClinicaQuery';
 import { ContenidoClinico, FechaClinica, IdentidadClinica } from '../components/ContenidoClinico';
 import '../styles/clinica.css';
+import '../styles/clinical-reading.css';
 
 export default function HistoriaClinicaPage() {
   const { id } = useParams(), { usuario } = useAuth();
@@ -45,10 +46,10 @@ function SeleccionAdministrativa() {
 function HistoriaPaciente({ id, rol }) {
   const [page, setPage] = useState(1), results = useRef(null);
   const query = useClinicaQuery(consultarHistoria, { ...(id ? { id } : { propia: true }), rol, page });
-  return <section className="workspace-page clinical-page">
+  return <section className="workspace-page clinical-page clinical-reading">
     <Link className="back-link" to={id ? rol === ROLES.MEDICO ? '/agenda' : '/historia-clinica' : '/inicio'}>{id ? rol === ROLES.MEDICO ? 'Volver a agenda médica' : 'Volver a seleccionar paciente' : 'Volver a Inicio'}</Link>
     <PageHeading title={rol === ROLES.PACIENTE ? 'Mi historia clínica' : 'Historia clínica'} description="Antecedentes vigentes y consultas registradas. Horarios en America/La_Paz." />
-    <div ref={results} tabIndex={-1}><ClinicaQuery query={query}>{data => <>
+    <div ref={results} tabIndex={-1} className="clinical-sheet"><ClinicaQuery query={query}>{data => <>
       <IdentidadClinica paciente={data.paciente} />
       <section className="clinical-section" aria-labelledby="clinical-background"><h2 id="clinical-background">Antecedentes vigentes</h2>
         <ContenidoClinico version={data.antecedentes} tipo="antecedentes" />

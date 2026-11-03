@@ -32,7 +32,7 @@ describe('rutas y navegación CU-30 fase 1', () => {
   it('Administrador abre Bitácora desde el menú, con título, foco y enlace activo', async () => {
     const user = userEvent.setup(); const router = mount('/inicio');
     const navigation = await screen.findByRole('navigation', { name: 'Navegación principal' });
-    await user.click(within(navigation).getByRole('button', { name: 'Bitácora del Sistema' }));
+    await user.click(within(navigation).getByRole('button', { name: 'Reportes y bitácora' }));
     await user.click(within(navigation).getByRole('link', { name: 'Bitácora del Sistema' }));
     await screen.findByRole('heading', { name: 'Bitácora del Sistema' });
     expect(router.state.location.pathname).toBe(root);

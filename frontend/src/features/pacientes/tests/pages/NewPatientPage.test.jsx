@@ -57,6 +57,20 @@ describe.each(['Administrador', 'Recepcionista'])('alta administrativa CU-07 —
     expect(crearPaciente).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
   });
+  it('presenta grupos y ayudas explícitas, y permite desplegar emergencia por teclado sin crear una ficha', async () => {
+    mount(); const form = await screen.findByRole('form', { name: 'Registrar paciente' });
+    expect(form).toHaveAccessibleDescription('Los campos sin «opcional» son obligatorios.');
+    expect(screen.getByRole('group', { name: 'Identidad del paciente' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Datos de contacto' })).toBeInTheDocument();
+    const toggle = screen.getByRole('checkbox', { name: 'Registrar contacto de emergencia' });
+    expect(toggle).toHaveAccessibleDescription(/Opcional. Activa esta sección/);
+    toggle.focus(); await userEvent.keyboard(' ');
+    expect(toggle).toHaveFocus(); expect(screen.getByLabelText('Nombre del contacto')).toBeRequired();
+    expect(screen.getByLabelText('Parentesco')).toBeRequired();
+    await userEvent.keyboard(' ');
+    expect(screen.queryByLabelText('Nombre del contacto')).not.toBeInTheDocument();
+    expect(crearPaciente).not.toHaveBeenCalled(); expect(listarPacientes).not.toHaveBeenCalled();
+  });
   it('no ofrece éxito hasta responder y bloquea doble clic/envío y edición', async () => {
     let resolve;
     crearPaciente.mockImplementation(() => new Promise(done => { resolve = done; }));

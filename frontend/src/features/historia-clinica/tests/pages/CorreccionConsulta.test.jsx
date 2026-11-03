@@ -44,6 +44,19 @@ it.each(['Administrador', 'Médico'])('%s corrige desde vigentes con motivo/revi
   const p = JSON.parse(calls.find(c => c.method === 'patch').data); expect(p.consulta).toEqual({ diagnostico: 'Diagnóstico ficticio corregido' });
   expect(p.originales.id_consulta).toBe('31'); expect(p.originales.id_version_consulta).toBe('9007199254740995');
 });
+it('presenta el dato vigente completo junto a su acción sin convertir ausencia en negación clínica', async () => {
+  raw.data.consulta.version_vigente.observaciones = 'Observación ficticia\nSegunda línea conservada';
+  mount(); await screen.findByRole('form', { name: 'Corregir consulta' });
+  const observations = screen.getByRole('region', { name: 'Observaciones' });
+  expect(observations).toHaveTextContent('Observación ficticia Segunda línea conservada');
+  expect(within(observations).getByLabelText('Acción para observaciones')).toHaveValue('conservar');
+  expect(within(observations).queryByRole('textbox')).not.toBeInTheDocument();
+  const diagnosis = screen.getByRole('region', { name: 'Diagnóstico' });
+  expect(diagnosis).toHaveTextContent('Dato vigente: No registrado');
+  await userEvent.selectOptions(within(diagnosis).getByRole('combobox'), 'establecer');
+  expect(within(diagnosis).getByLabelText('Nuevo dato: diagnóstico')).toHaveValue('');
+  expect(calls).toHaveLength(1);
+});
 it('motivo obligatorio ante cambio efectivo, declaración desmarcada inicialmente', async () => {
   mount(); await screen.findByRole('checkbox'); expect(screen.getByRole('checkbox')).not.toBeChecked();
   await userEvent.selectOptions(screen.getByLabelText('Acción para medicamentos'), 'quitar');

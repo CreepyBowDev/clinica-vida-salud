@@ -1,0 +1,38 @@
+/* Lectura de historia/consulta únicamente; editores y versiones no adoptan el piloto. */
+.clinical-reading { container: clinical-reading / inline-size; max-width: 1000px; --radius-control: 6px; --button-height: 44px; }
+.clinical-reading .page-heading-copy p { font-size: 1rem; }
+.clinical-sheet { min-width: 0; padding: 32px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; overflow-wrap: anywhere; }
+.clinical-sheet:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.clinical-reading .clinical-identity { margin: 0 0 24px; padding: 0 0 20px 16px; border-bottom: 1px solid var(--color-border); }
+.clinical-reading .clinical-identity h2 { font-size: 1.375rem; }
+.clinical-reading .clinical-identity p { font-size: .875rem; }
+.clinical-reading-actions { margin-bottom: 24px; }
+.clinical-reading-actions > a:not(.button) { display: inline-flex; align-items: center; min-height: 44px; }
+.clinical-reading .clinical-section { margin: 24px 0 0; padding: 24px 0 0; }
+.clinical-reading .clinical-identity + .clinical-section { margin-top: 0; border-top: 0; padding-top: 0; }
+.clinical-reading .clinical-section h2 { font-size: 1.25rem; margin-bottom: 16px; }
+.clinical-reading .clinical-section > p { margin-block: 8px; }
+.clinical-reading .clinical-appointment { padding: 20px 24px; border-top: 0; background: var(--color-background); }
+.clinical-reading .clinical-appointment .clinical-data { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin-bottom: 0; }
+.clinical-reading .clinical-appointment dt { font-size: .875rem; color: var(--color-muted); font-weight: 400; }
+.clinical-reading .clinical-data > div { min-width: 0; }
+.clinical-reading .clinical-content { margin-block: 24px; gap: 0; }
+.clinical-reading .clinical-content > div { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); gap: 8px 24px; padding-block: 16px; border-bottom: 1px solid var(--color-border); }
+.clinical-reading .clinical-content > div:first-child { padding-top: 0; }
+.clinical-reading .clinical-content > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.clinical-reading .clinical-content dt { font-weight: 600; }
+.clinical-reading .clinical-content dd { max-width: 70ch; line-height: 1.65; }
+.clinical-reading .clinical-section > a { display: inline-flex; align-items: center; min-height: 44px; }
+.clinical-reading .clinical-visits { margin-bottom: 0; }
+.clinical-reading .clinical-visits li { padding-block: 20px; }
+.clinical-reading .clinical-visits li:first-child { padding-top: 0; }
+.clinical-reading .clinical-visits li:last-child { border-bottom: 0; }
+.clinical-reading .clinical-visits a { display: inline-flex; align-items: center; min-height: 44px; }
+.clinical-reading .pagination { margin-top: 8px; }
+.clinical-reading .clinical-section .query-message { border: 0; padding: 16px 0; }
+@container clinical-reading (max-width: 40rem) {
+  .clinical-sheet { padding: 24px 16px; }
+  .clinical-reading .clinical-content > div, .clinical-reading .clinical-appointment .clinical-data { grid-template-columns: minmax(0, 1fr); }
+  .clinical-reading .clinical-appointment { padding: 20px 16px; }
+  .clinical-reading-actions { align-items: stretch; }
+}

@@ -5,6 +5,7 @@ import Button from '../components/Button';
 import Icon from '../components/Icon';
 import Modal from '../components/Modal';
 import '../features/auth/styles/access.css';
+import '../features/auth/styles/public-access.css';
 
 const guidance = {
   '/registro': ['Tu cuenta, desde el primer paso.', 'Este registro es para pacientes nuevos. Si ya tienes una ficha, usa la autorización presencial de Recepción.'],
@@ -27,7 +28,7 @@ export default function AuthLayout() {
     if (previousPath.current !== pathname) main.current?.focus({ preventScroll: true });
     previousPath.current = pathname;
   }, [pathname]);
-  return <div className={`auth-shell${pathname === '/login' ? '' : ' auth-shell--flow'}`}>
+  return <div className={`auth-shell public-access${pathname === '/login' ? '' : ' auth-shell--flow'}`}>
     <a className="skip-link" href="#contenido">Saltar al contenido</a>
     <header className="auth-header"><Brand /><Button variant="quiet" onClick={() => setHelp(true)}>
       <Icon name="help" /><span>Ayuda para ingresar</span>

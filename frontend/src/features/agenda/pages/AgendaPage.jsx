@@ -13,6 +13,7 @@ import { consultarAgenda } from '../services/agenda.service';
 import { esFechaCivil, formatearFechaCivil } from '../utils/agendaFormat';
 import '../../../styles/catalogs.css';
 import '../styles/agenda.css';
+import '../styles/agenda-day.css';
 
 export default function AgendaPage({ asistencia = false }) {
   const { usuario } = useAuth();
@@ -32,22 +33,23 @@ export default function AgendaPage({ asistencia = false }) {
     if (draft.fecha && !esFechaCivil(draft.fecha)) { setErrors({ fecha: 'Introduce una fecha válida.' }); return; }
     setErrors({}); change({ filters: { fecha: draft.fecha ?? effectiveDate, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); query.reload();
   }
-  return <section className="workspace-page catalog-page agenda-page">
+  return <section className="workspace-page catalog-page agenda-page agenda-day">
     <PageHeading title={asistencia ? 'Seleccionar cita para asistencia' : 'Agenda médica'} description={own ? 'Consulta tus citas asignadas por fecha y estado.' : 'Selecciona un médico y consulta sus citas por fecha y estado.'} />
     {!own && <MedicoAgendaSelector selectedId={selectedId} catalog={catalog} onChange={next => change({ catalog: next })}
       onSelect={id => { change({ selectedId: id, filters: { fecha: draft.fecha, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); setErrors({}); results.current?.focus(); }} />}
     <AgendaFilters draft={draft} effectiveDate={filters.fecha ?? effectiveDate} onChange={next => { change({ draft: next }); setErrors({}); }} onApply={apply}
       onClear={() => { change({ draft: { estado: '', per_page: '20' }, filters: { page: 1, per_page: 20 } }); setErrors({}); query.reload(); }}
       disabled={!enabled || query.remaining > 0} errors={{ ...query.failure?.fields, ...errors }} formRef={form} />
-    <div ref={results} tabIndex="-1" aria-busy={query.loading}>
+    <div ref={results} tabIndex="-1" aria-busy={query.loading} className="agenda-results">
       {!enabled ? <QueryMessage title="Selecciona un médico para consultar su agenda" description="Puedes buscar por nombre, apellidos o código. No se selecciona un profesional automáticamente." />
         : <>
           {query.data && <section className="agenda-context" aria-label="Contexto de la agenda"><h2>{query.data.meta.medico.nombres} {query.data.meta.medico.apellidos}</h2>
-            <p>{query.data.meta.medico.codigo_medico} · <time dateTime={effectiveDate}>{formatearFechaCivil(effectiveDate)}</time> · America/La_Paz</p></section>}
+            <p>{query.data.meta.medico.codigo_medico} · <time dateTime={effectiveDate}>{formatearFechaCivil(effectiveDate)}</time> · America/La_Paz</p>
+            <p className="agenda-result-total"><strong>{query.data.meta.total}</strong> {query.data.meta.total === 1 ? 'cita' : 'citas'} en esta consulta</p></section>}
           <CatalogResults query={query} label="citas" loadingLabel="Consultando agenda…" emptyTitle="No hay citas para estos filtros"
             emptyHint="Consulta otra fecha o selecciona todos los estados. Un resultado vacío no indica disponibilidad para reservar."
             onPage={page => { change({ filters: { ...filters, fecha: effectiveDate, page } }); results.current?.focus(); }}>
-            <CitasTable citas={query.data?.data ?? []} caption="Citas de la agenda por hora de inicio ascendente"
+            <CitasTable citas={query.data?.data ?? []} caption="Citas de la agenda por hora de inicio ascendente" destacarHorario
               {...(asistencia ? { detailPath: id => `/citas/${id}/asistencia`, detailState: { origen: 'asistencia' } } : {})}
               onDetail={() => change({ detailSource: asistencia ? 'asistencia' : 'agenda', filters: { ...filters, fecha: effectiveDate } })} />
           </CatalogResults>

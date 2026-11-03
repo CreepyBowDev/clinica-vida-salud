@@ -1,0 +1,31 @@
+/* Detalle de solicitud: no altera formularios de documentación o revisión. */
+.lab-reading { container: lab-reading / inline-size; max-width: 1000px; overflow-wrap: anywhere; }
+.lab-reading .page-heading-copy p { font-size: 1rem; }
+.lab-reading > .back-link, .lab-reading-sheet a:not(.button) { color: var(--color-primary-hover); text-underline-offset: 4px; }
+.lab-reading-sheet { padding: 32px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.lab-reading-sheet .lab-context { padding: 0 0 24px; border-left: 0; border-bottom: 1px solid var(--color-border); }
+.lab-reading-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; color: var(--color-muted); font-size: .875rem; }
+.lab-reading-state .role-badge { border-radius: 4px; font-weight: 600; }
+.lab-reading-state [data-estado="Pendiente"] { color: var(--color-warning); background: var(--color-warning-bg); border: 1px solid currentColor; }
+.lab-reading-state [data-estado="En revisión"] { color: var(--color-info); background: var(--color-info-bg); border: 1px solid currentColor; }
+.lab-reading-state [data-estado="Disponible"] { color: var(--color-success); background: var(--color-success-bg); border: 1px solid currentColor; }
+.lab-reading-sheet .lab-data { gap: 20px 24px; }
+.lab-reading-sheet .lab-data > div { min-width: 0; }
+.lab-reading-sheet .lab-data dt { font-size: .875rem; }
+.lab-reading-sheet .lab-data dd { line-height: 1.6; }
+.lab-reading-sheet .lab-context .lab-data > div:first-child dd { font-weight: 600; }
+.lab-reading-sheet .lab-context a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; color: var(--color-primary-hover); }
+.lab-reading-sheet .lab-document { padding: 24px; margin-top: 24px; gap: 24px; border: 1px solid var(--color-border); border-left: 3px solid var(--color-primary); border-radius: 0; background: var(--color-background); }
+.lab-reading-sheet .lab-document h2, .lab-reading-sheet .lab-section h2 { font-size: 1.25rem; margin-bottom: 12px; }
+.lab-reading-sheet .lab-document p + p { margin-top: 8px; }
+.lab-reading-sheet .lab-download .button { border-radius: 6px; }
+.lab-reading-sheet .lab-note { font-size: .875rem; }
+.lab-reading-sheet .lab-section { padding-top: 24px; }
+.lab-reading-sheet .lab-text { line-height: 1.65; }
+.lab-reading-sheet .lab-versions > li:last-child { border-bottom: 0; }
+@container lab-reading (max-width: 40rem) {
+  .lab-reading-sheet { padding: 24px 16px; }
+  .lab-reading-sheet .lab-data, .lab-reading-sheet .lab-document { grid-template-columns: minmax(0, 1fr); }
+  .lab-reading-sheet .lab-document { padding: 20px 16px; }
+  .lab-reading-sheet .lab-download .button { width: 100%; }
+}

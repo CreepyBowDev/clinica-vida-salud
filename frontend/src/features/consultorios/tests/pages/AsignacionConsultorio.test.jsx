@@ -60,6 +60,7 @@ it('la guía acompaña impacto y consentimiento sin autorizar un traslado', asyn
   const user = userEvent.setup(); mount(); await screen.findByText('Médico Ficticio');
   const stages = screen.getByRole('list', { name: 'Etapas de asignación' }); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Preparar propuesta');
   await preview(user); expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Revisar impacto');
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Resultado del impacto de asignación' })).toHaveFocus());
   expect(screen.getByRole('button', { name: 'Revisar confirmación' })).toBeDisabled();
   await user.click(screen.getByRole('checkbox')); await user.click(screen.getByRole('button', { name: 'Revisar confirmación' }));
   expect(stages.querySelector('[aria-current="step"]')).toHaveTextContent('Confirmar guardado'); expect(writes()).toHaveLength(0);

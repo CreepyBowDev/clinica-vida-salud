@@ -39,6 +39,18 @@ it('requiere fecha y no pide reporte al entrar; usa catálogos históricos sin f
   expect(listarEspecialidades.mock.calls[0][0]).toEqual({ page: 1, per_page: 5 });
   expect(listarMedicosAgenda.mock.calls[0][0]).toEqual({ page: 1, per_page: 5 });
 });
+it('mantiene resultados identificables y distingue el período aplicado del borrador', async () => {
+  mount();
+  const region = screen.getByRole('region', { name: 'Resultados del reporte' });
+  expect(within(region).getByRole('heading', { name: 'Resultados del reporte' })).toBeInTheDocument();
+  expect(within(region).queryByRole('status')).not.toBeInTheDocument();
+  await consultar(); await screen.findByText('CITA-1');
+  expect(region).toHaveFocus();
+  fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-11-02' } });
+  expect(region).toHaveTextContent('Fecha consultada: 31/10/2026');
+  expect(region).not.toHaveTextContent('02/11/2026');
+  expect(within(region).getByRole('status')).toHaveTextContent('Total del servidor: 1');
+});
 it('combina selecciones inactivas, fecha, orden y tamaño; lista ambas personas y ubicación histórica en hora de sede', async () => {
   mount(); const user = userEvent.setup();
   await user.click(screen.getByText('Médico: Todos', { selector: 'summary' }));

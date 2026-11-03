@@ -5,6 +5,7 @@ import FormField from '../../../components/FormField';
 import PageHeading from '../../../components/PageHeading';
 import ConfirmationPanel from '../../../components/ConfirmationPanel';
 import ActionGroup from '../../../components/ActionGroup';
+import QueryMessage from '../../../components/QueryMessage';
 import PatientForm from '../components/PatientForm';
 import PatientFailure from '../components/PatientFailure';
 import PatientVersionReview from '../components/PatientVersionReview';
@@ -14,6 +15,7 @@ import { actualizarPaciente } from '../services/paciente.service';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { borradorPaciente, cambiosPaciente } from '../utils/patientDraft';
 import '../styles/patients.css';
+import '../styles/patient-record.css';
 
 export default function EditPatientPage() {
   const { id } = useParams();
@@ -22,9 +24,9 @@ export default function EditPatientPage() {
 }
 function EditPatient({ id }) {
   const { data, loading, failure, reload } = usePatientQuery('detail', id);
-  return <section className="workspace-page patients-page patient-editor-page admin-form-page"><Link className="back-link" to={`/recepcion/pacientes/${id}`}>Volver a la ficha</Link>
+  return <section className="workspace-page patients-page patient-editor-page admin-form-page patient-record-page"><Link className="back-link" to={`/recepcion/pacientes/${id}`}>Volver a la ficha</Link>
     <PageHeading title="Editar ficha administrativa" description="Conserva la identidad y el historial del mismo paciente." />
-    {loading ? <p role="status">Consultando ficha…</p> : failure ? <><PatientFailure failure={failure} /><Button onClick={reload}>Volver a consultar</Button></> : <PatientEditor initial={data} />}
+    {loading ? <QueryMessage loading title="Consultando ficha…" className="patient-record-status" /> : failure ? <div className="patient-record-status"><PatientFailure failure={failure} /><Button variant="secondary" onClick={reload}>Volver a consultar</Button></div> : <PatientEditor initial={data} />}
   </section>;
 }
 function PatientEditor({ initial }) {
@@ -59,10 +61,11 @@ function PatientEditor({ initial }) {
     if (response?.data) navigate(`/recepcion/pacientes/${base.id_paciente}`, { replace: true, state: { patientNotice: 'Cambios administrativos guardados. La ficha se consultó nuevamente.' } });
     if (response?.failure) { setConfirm(false); if (response.failure.stale || response.failure.uncertain) setBlocked(true); }
   }
-  return <form ref={form} className="patients-panel patient-form admin-form" aria-label="Editar ficha administrativa" aria-busy={busy} onSubmit={submit}>
+  return <form ref={form} className="patients-panel patient-form admin-form" aria-label="Editar ficha administrativa" aria-describedby="patient-form-help" aria-busy={busy} onSubmit={submit}>
+    <section className="patient-record-context" aria-label="Ficha que estás editando"><div><span>Código de ficha</span><strong>{base.codigo_paciente}</strong></div><div><span>Paciente</span><strong>{base.nombres} {base.apellidos}</strong></div></section>
+    <p id="patient-form-help" className="patient-form-help">Los campos sin «opcional» son obligatorios.</p>
     <PatientFailure failure={failure} remaining={remaining} />
-    <p>{base.codigo_paciente} · {base.nombres} {base.apellidos}</p>
-    <PatientForm draft={draft} editing documentRequired={Boolean(base.documento_identidad)} onChange={(name, value) => { setDraft({ ...draft, [name]: value }); setIdentity(false); }} emergency={emergency} onEmergencyChange={setEmergency} busy={frozen} fields={failure?.fields} />
+    <PatientForm administrative draft={draft} editing documentRequired={Boolean(base.documento_identidad)} onChange={(name, value) => { setDraft({ ...draft, [name]: value }); setIdentity(false); }} emergency={emergency} onEmergencyChange={setEmergency} busy={frozen} fields={failure?.fields} />
     {identityChanged && <fieldset className="patient-identity-edit" disabled={frozen}><legend>Corrección de identidad</legend>
       <FormField label="Motivo de la corrección" required maxLength={500} value={reason} onChange={event => setReason(event.target.value)} error={failure?.fields.motivo} />
       <div className="patient-checkbox"><label><input type="checkbox" required checked={identity} onChange={event => setIdentity(event.target.checked)} aria-invalid={Boolean(failure?.fields.identidad_verificada)} aria-describedby="identity-edit-help" />He comprobado presencialmente la identidad y los datos corregidos.</label><p id="identity-edit-help" className="field-hint">{failure?.fields.identidad_verificada || 'Las correcciones conservan el identificador, la cuenta vinculada y el historial.'}</p></div>

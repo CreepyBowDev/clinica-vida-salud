@@ -62,12 +62,12 @@ export default function MainLayout() {
       </nav>
       <div className="sidebar-caption"><span className="small-cross" aria-hidden="true">+</span><p>Atención cercana.<br />Cuidado presente.</p></div>
     </aside>
-    <div className="workspace-body"><header className="workspace-header"><div className="workspace-context"><Icon name={active?.module.icon ?? 'grid'} /><div><span>{current.label}</span><strong>{active?.module.label ?? title}</strong></div></div>
+    <div className="workspace-body"><header className="workspace-header"><div className="workspace-context"><strong>{current.label}</strong></div>
       <div className="workspace-identity"><span className="user-avatar" aria-hidden="true">{usuario.nombre_visible.slice(0, 1).toUpperCase()}</span>
         <div><strong>{usuario.nombre_visible}</strong><span>{usuario.rol}</span></div></div></header>
       <main id="contenido" className="workspace-main" ref={main} tabIndex="-1">
         {active && <nav className="workspace-breadcrumb" aria-label="Ubicación actual"><ol><li><Link to={current.path}>{current.label}</Link></li>
-          <li>{active.module.label}</li>{location.pathname.replace(/\/$/, '') !== active.item.to && <li><Link to={active.item.to} aria-label={`Volver a ${active.item.label.toLowerCase()}`}>{active.item.label}</Link></li>}
+          {active.module.label !== title && active.module.label !== active.item.label && <li>{active.module.label}</li>}{location.pathname.replace(/\/$/, '') !== active.item.to && <li><Link to={active.item.to} aria-label={`Volver a ${active.item.label.toLowerCase()}`}>{active.item.label}</Link></li>}
           <li aria-current="page">{title}</li></ol></nav>}<Outlet /></main>
       <footer className="workspace-footer"><span>Clínica Vida Salud</span><LogoutButton /></footer>
     </div>

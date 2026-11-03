@@ -36,6 +36,7 @@ describe('consulta de Médicos y Especialidades, fase 1', () => {
     expect(within(table).getAllByRole('columnheader')).toHaveLength(path.endsWith('/medicos') ? 4 : 3);
     expect(table).toHaveTextContent('Geriatría ficticia'); expect(table).not.toHaveTextContent('NO MOSTRAR');
     expect(within(table).getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByRole('region', { name: path.endsWith('/medicos') ? 'Resultados de médicos' : 'Resultados de especialidades' })).toContainElement(table);
     expect(screen.getByRole('heading', { level: 1 }).closest('header')).toHaveClass('page-heading--actions');
   });
   it.each(['Recepcionista', 'Médico', 'Paciente'])('deniega ambas rutas a %s antes de consultar datos', async rol => {
@@ -56,7 +57,7 @@ describe('consulta de Médicos y Especialidades, fase 1', () => {
   it('navega desde menú, actualiza título, muestra estados independientes y no ofrece acciones futuras', async () => {
     const user = userEvent.setup(); mount('/administracion');
     const navigation = await screen.findByRole('navigation', { name: 'Navegación principal' });
-    await user.click(within(navigation).getByRole('button', { name: 'Médicos y especialidades' }));
+    await user.click(within(navigation).getByRole('button', { name: 'Organización' }));
     await user.click(within(navigation).getByRole('link', { name: 'Gestionar especialidades' })); await screen.findByRole('table');
     expect(document.title).toBe('Gestionar especialidades | Clínica Vida Salud');
     expect(screen.getByRole('link', { name: 'Gestionar especialidades' })).toHaveAttribute('aria-current', 'page');

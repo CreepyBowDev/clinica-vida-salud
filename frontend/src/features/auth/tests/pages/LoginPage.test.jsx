@@ -26,6 +26,30 @@ beforeEach(() => { vi.resetAllMocks(); consultarSesion.mockRejectedValue(httpErr
 afterEach(() => { vi.useRealTimers(); });
 
 describe('inicio de sesión', () => {
+  it('mantiene los dos caminos de primer acceso y la ayuda accesibles por teclado en el marco público', async () => {
+    const prototype = HTMLDialogElement.prototype;
+    const descriptors = ['showModal', 'close'].map(name => [name, Object.getOwnPropertyDescriptor(prototype, name)]);
+    // jsdom no implementa el diálogo nativo; su foco real también se revisa en Chrome.
+    Object.defineProperty(prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); this.querySelector('button')?.focus(); } });
+    Object.defineProperty(prototype, 'close', { configurable: true, value() { this.removeAttribute('open'); } });
+    try {
+    const user = userEvent.setup(); await renderLogin();
+    expect(screen.getByRole('main').closest('.public-access')).toBeInTheDocument();
+    const help = screen.getByRole('button', { name: 'Ayuda para ingresar' });
+    help.focus(); await user.keyboard('{Enter}');
+    expect(screen.getByRole('dialog', { name: 'Ayuda para ingresar' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Entendido' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(help).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'Crear cuenta de Paciente' })).toHaveAttribute('href', '/registro');
+    expect(screen.getByRole('link', { name: 'Ya tengo un código de activación' })).toHaveAttribute('href', '/vincular-ficha');
+    expect(iniciarSesion).not.toHaveBeenCalled();
+    } finally {
+      for (const [name, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(prototype, name, descriptor); else delete prototype[name];
+      }
+    }
+  });
   it('separa las dos entradas de Paciente y orienta la vinculación sin iniciar sesión', async () => {
     const user = userEvent.setup(); const router = await renderLogin();
     expect(screen.getByRole('region', { name: '¿Es tu primer acceso?' })).toHaveTextContent('sin ficha previa');

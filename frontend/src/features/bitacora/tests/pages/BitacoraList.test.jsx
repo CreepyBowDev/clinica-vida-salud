@@ -36,6 +36,15 @@ const apply = () => screen.getByRole('button', { name: 'Aplicar filtros' });
 async function advanced(user) { await user.click(screen.getByText('Filtros avanzados', { selector: 'summary' })); }
 
 describe('listado, filtros y paginación CU-30 fase 2', () => {
+  it('identifica los resultados y utiliza el total del servidor, no el número de filas visibles', async () => {
+    mount(); await screen.findByRole('table');
+    const region = screen.getByRole('region', { name: 'Resultados de bitácora' });
+    expect(within(region).getByRole('heading', { name: 'Eventos registrados' })).toBeInTheDocument();
+    expect(region).toHaveTextContent('Total del servidor: 41 eventos');
+    expect(within(region).getAllByRole('row')).toHaveLength(2);
+    expect(within(region).queryByRole('button', { name: /editar|eliminar/i })).not.toBeInTheDocument();
+    expect(calls.every(call => call.method === 'get')).toBe(true);
+  });
   it('tabla adaptable conserva las seis columnas y el acceso de solo lectura', async () => {
     mount(); const table = await screen.findByRole('table'); expect(table.parentElement).toHaveClass('query-table');
     expect(within(table).getAllByRole('columnheader')).toHaveLength(6);

@@ -8,7 +8,7 @@ export default function CantidadesReporte({ query }) {
     {query.remaining > 0 && <p>Espera {query.remaining} segundos antes de volver a consultar.</p>}</Alert>
     <Button variant="secondary" disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></div>;
   const counts = query.data.data;
-  return <section aria-label="Cantidades del período" aria-live="polite">
+  return <section className="report-counts" aria-label="Cantidades del período" aria-live="polite">
     <h2>Cantidades según el estado actual</h2>
     <dl className="catalog-data record-data">
       <div><dt>Atendidas</dt><dd>{counts.atendidas}</dd></div>

@@ -5,6 +5,7 @@ import Alert from '../../../components/Alert';
 import QueryMessage from '../../../components/QueryMessage';
 import { useRevisionResultado } from '../hooks/useRevisionResultado';
 import RevisionResultadoForm from './RevisionResultadoForm';
+import '../styles/lab-review-editor.css';
 
 export default function GestionRevisionResultado({ id, rol, idActor, query, ejecutor, onRetirarDetalle, onBloquearCambio, onCerrar }) {
   const escritura = useRevisionResultado(id, rol, idActor), [dirty, setDirty] = useState(false), heading = useRef(null);
@@ -26,7 +27,7 @@ export default function GestionRevisionResultado({ id, rol, idActor, query, ejec
   const refrescar = () => { setDirty(false); escritura.reset(); query.reload(); };
   async function guardar(entrada) { if (await escritura.guardar(entrada)) query.reload(); }
   async function recuperar() { if (await escritura.consultar()) query.reload(); }
-  return <section className="lab-section" aria-label="Revisión y publicación del resultado">
+  return <section className="lab-section lab-review-workspace" aria-label="Revisión y publicación del resultado">
     {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'La revisión podría haberse guardado. Salir no revierte una publicación o devolución.' : 'Si sales, se perderán la decisión y el motivo que no guardaste.'}</p><Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar la revisión</Button></Alert>}
     {escritura.status !== 'inicial' && <section aria-live="polite" aria-label="Resultado de la revisión"><h2 ref={heading} tabIndex={-1}>Resultado de la revisión</h2>
       {busy && <QueryMessage loading title={escritura.status === 'enviando' ? 'Guardando revisión…' : 'Consultando estado actual…'} />}

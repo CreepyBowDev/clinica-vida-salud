@@ -1,0 +1,31 @@
+/* Históricos protegidos: contenido completo y metadatos, sin controles de restauración. */
+.version-history { --radius-control: 6px; --button-height: 44px; min-width: 0; }
+.clinical-page.version-history { max-width: 1000px; }
+.version-history .page-heading p { font-size: 1rem; }
+.version-history .version-sheet { padding: 24px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.version-history .version-results { min-width: 0; }
+.version-history .version-results:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+.version-history .version-list { list-style: none; padding: 0; margin-block: 0; }
+.version-history .version-list > li { padding-block: 24px; border-bottom: 1px solid var(--color-border); }
+.version-history .version-list > li:first-child { padding-top: 0; }
+.version-history .version-list > li:last-child { padding-bottom: 0; border-bottom: 0; }
+.version-history .clinical-versions .clinical-section { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.version-history .version-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; margin-bottom: 16px; }
+.version-history .version-heading :is(h2, h3) { font-size: 1.25rem; color: var(--color-primary-hover); margin: 0; }
+.version-history .version-heading p { color: var(--color-muted); font-size: .875rem; margin: 0; }
+.version-history .version-meta { padding-left: 16px; border-left: 3px solid var(--color-border); margin-block: 16px 24px; }
+.version-history .version-meta p { max-width: 75ch; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9375rem; line-height: 1.6; }
+.version-history .version-meta p + p { margin-top: 8px; }
+.version-history .clinical-content { margin-block: 24px 0; gap: 0; }
+.version-history .clinical-content > div { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); gap: 8px 24px; padding-block: 16px; border-bottom: 1px solid var(--color-border); }
+.version-history .clinical-content > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.version-history .clinical-content :is(dt, dd) { min-width: 0; }
+.version-history .clinical-content dt { font-size: .9375rem; }
+.version-history .clinical-content dd { max-width: 70ch; line-height: 1.65; }
+.version-history .version-results > div > :is(.query-message, .query-failure) { padding-inline: 0; border: 0; border-radius: 0; }
+.version-history .pagination { margin-top: 24px; }
+@media (max-width: 700px) {
+  .version-history .version-sheet { padding: 20px 16px; }
+  .version-history .clinical-content > div { grid-template-columns: minmax(0, 1fr); }
+  .version-history .version-heading { flex-direction: column; align-items: flex-start; }
+}

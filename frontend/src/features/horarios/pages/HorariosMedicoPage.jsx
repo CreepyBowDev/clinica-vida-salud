@@ -15,6 +15,8 @@ import { diaSemana, horaLocal } from '../utils/horarioFormat';
 import HorarioEditor from '../components/HorarioEditor';
 import '../../../styles/catalogs.css';
 import '../styles/horarios.css';
+import '../../../styles/medical-administration.css';
+import '../styles/schedule-planning.css';
 
 const contextFields = [], listFields = ['activo', 'page', 'per_page'];
 async function contexto(id, signal) { const [medico, asignacion] = await Promise.all([consultarMedico(id, signal), consultarAsignacion(id, signal)]); return { medico, asignacion }; }
@@ -25,7 +27,7 @@ export default function HorariosMedicoPage() {
 }
 function Load({ id }) {
   const query = useCatalogQuery(contexto, id, contextFields);
-  return <section className="workspace-page catalog-page"><Link className="back-link" to="/administracion/horarios">Volver a horarios</Link><PageHeading title="Horarios del Médico" description="Intervalos semanales y cobertura de atención de la sede." />
+  return <section className="workspace-page catalog-page medical-admin schedule-planning"><Link className="back-link" to="/administracion/horarios">Volver a horarios</Link><PageHeading title="Horarios del Médico" description="Intervalos semanales y cobertura de atención de la sede." />
     {query.loading ? <p role="status">Consultando médico y consultorio…</p> : query.failure ? <><Alert>{query.failure.status === 404 ? 'No se encontró el médico solicitado.' : query.failure.message}</Alert><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></>
       : <Schedule id={id} context={query.data} refreshContext={query.reload} />}
   </section>;
@@ -48,15 +50,17 @@ function Schedule({ id, context, refreshContext }) {
     <div className="catalog-filters horario-filters"><SelectField label="Estado de horario" disabled={Boolean(editor)} value={filters.activo} error={query.failure?.fields.activo} onChange={event => setFilters({ ...filters, activo: event.target.value, page: 1 })}><option value="">Todos los horarios</option><option value="1">Activos</option><option value="0">Inactivos</option></SelectField>
       <SelectField label="Horarios por página" disabled={Boolean(editor)} value={filters.per_page} error={query.failure?.fields.per_page} onChange={event => setFilters({ ...filters, per_page: Number(event.target.value), page: 1 })}>{[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}</SelectField>
     </div>
-    {query.data && !query.loading && !query.failure && <p className="catalog-note">Duración vigente: {query.data.data.duracion_turno_minutos} minutos. La capacidad indicada es de turnos completos, no disponibilidad para reservar. Las citas existentes conservan su duración.</p>}
+    <div className="schedule-results" role="region" aria-label="Intervalos semanales del médico">
+    {query.data && !query.loading && !query.failure && <p className="catalog-note schedule-capacity-note">Duración vigente: {query.data.data.duracion_turno_minutos} minutos. La capacidad indicada es de turnos completos, no disponibilidad para reservar. Las citas existentes conservan su duración.</p>}
     {editor ? <HorarioEditor key={`${editor.accion}-${editor.initial?.id_horario || 'nuevo'}`} id={id} version={editor.version} initial={editor.initial} accion={editor.accion} onClose={close} onSaved={() => { setNotice('Horario guardado. Se consultó nuevamente el listado.'); close(); }} />
       : <CatalogResults query={catalog} label="horarios" loadingLabel="Consultando horarios…" emptyTitle="No hay horarios para estos filtros" emptyHint="Incluye otros estados o registra un intervalo de atención." onPage={page => setFilters({ ...filters, page })}>
-        <div className="catalog-table-wrap query-table"><table className="catalog-table" role="table"><caption>Horarios semanales, ordenados por día y hora de inicio</caption><thead role="rowgroup"><tr role="row">{['Día e intervalo', 'Estado', 'Capacidad', 'Acciones'].map(label => <th key={label} scope="col" role="columnheader">{label}</th>)}</tr></thead>
+         <div className="catalog-table-wrap query-table schedule-table"><table className="catalog-table" role="table"><caption>Horarios semanales, ordenados por día y hora de inicio</caption><thead role="rowgroup"><tr role="row">{['Día e intervalo', 'Estado', 'Capacidad', 'Acciones'].map(label => <th key={label} scope="col" role="columnheader">{label}</th>)}</tr></thead>
           <tbody role="rowgroup">{query.data?.data.elementos.map(h => <tr role="row" key={h.id_horario}><td role="cell"><strong>{diaSemana(h.dia_semana)}</strong><p>{horaLocal(h.hora_inicio)} – {horaLocal(h.hora_fin)}</p></td>
             <td role="cell"><span className="catalog-cell-label" aria-hidden="true">Estado</span>{h.activo ? 'Activo' : 'Inactivo'}</td><td role="cell"><span className="catalog-cell-label" aria-hidden="true">Capacidad</span>{h.turnos_completos} turnos completos</td>
             <td role="cell" className="query-table-action"><div className="horario-row-actions"><Button variant="secondary" onClick={() => { setNotice(''); setEditor({ accion: 'EDITAR', initial: h, version: query.data.data.actualizado_en }); }} aria-label={`Editar horario ${h.id_horario}`}>Editar</Button>
               <Button variant="quiet" onClick={() => { setNotice(''); setEditor({ accion: 'ESTADO', initial: h, version: query.data.data.actualizado_en }); }} aria-label={`${h.activo ? 'Desactivar' : 'Reactivar'} horario ${h.id_horario}`}>{h.activo ? 'Desactivar' : 'Reactivar'}</Button></div></td></tr>)}</tbody></table></div>
       </CatalogResults>}
     {!editor && <ActionGroup className="form-actions"><Button disabled={query.loading || Boolean(query.failure)} onClick={() => { setNotice(''); setEditor({ accion: 'CREAR', version: query.data.data.actualizado_en }); }}>Registrar horario</Button></ActionGroup>}
+    </div>
   </>;
 }

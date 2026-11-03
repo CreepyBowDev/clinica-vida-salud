@@ -7,12 +7,13 @@ import { consultarConsultorio } from '../services/consultorio.service';
 import ConsultorioEditor from '../components/ConsultorioEditor';
 import ConsultorioFailure from '../components/ConsultorioFailure';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function ConsultorioEditorPage({ creating = false }) {
   const { id } = useParams();
   if (!creating && !esIdentificador(id)) return <section className="page-message"><h1>Consultorio no disponible</h1><Link to="/administracion/consultorios">Volver al catálogo</Link></section>;
-  return <section className="workspace-page catalog-page admin-form-page"><PageHeading title={creating ? 'Registrar consultorio' : 'Editar consultorio'} description="Identifica el espacio de atención sin alterar la ubicación histórica de las citas." />
+  return <section className="workspace-page catalog-page admin-form-page medical-admin"><PageHeading title={creating ? 'Registrar consultorio' : 'Editar consultorio'} description="Identifica el espacio de atención sin alterar la ubicación histórica de las citas." />
     {creating ? <ConsultorioEditor /> : <LoadEditor key={id} id={id} />}
   </section>;
 }

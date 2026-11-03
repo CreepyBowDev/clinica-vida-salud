@@ -26,7 +26,7 @@ describe('consulta administrativa', () => {
     const email = 'cuenta-con-correo-extenso-de-prueba@example.test';
     listarCuentas.mockResolvedValue(listing([{ ...staff, correo_acceso: email, rol: 'Paciente', nombre_visible: 'NOMBRE_NO_AUTORIZADO' }]));
     mount(); const table = await screen.findByRole('table');
-    expect(table.parentElement).toHaveClass('query-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(4);
+    expect(table.parentElement).toHaveClass('directory-table'); expect(within(table).getAllByRole('columnheader')).toHaveLength(4);
     expect(within(table).getByRole('link', { name: `Ver cuenta ${email}` })).toHaveAttribute('href', '/administracion/cuentas/17');
     expect(table).not.toHaveTextContent('NOMBRE_NO_AUTORIZADO'); expect(table).toHaveTextContent('Paciente'); expect(table).toHaveTextContent('Pendiente');
     expect(screen.getByRole('heading', { name: 'Cuentas de usuario' }).closest('header')).toHaveClass('page-heading--actions'); expect(listarCuentas).toHaveBeenCalledTimes(1);
@@ -52,6 +52,19 @@ describe('consulta administrativa', () => {
     await user.click(screen.getByRole('button', { name: 'Siguiente' }));
     await waitFor(() => expect(listarCuentas).toHaveBeenCalledTimes(3));
     expect(listarCuentas.mock.calls[2][0].page).toBe(2);
+  });
+  it('el resumen conserva el total aplicado al editar filtros y distingue estados de acceso sin datos clínicos', async () => {
+    listarCuentas.mockResolvedValue({ ...listing([staff]), meta: { total: 42, current_page: 1, last_page: 3 } });
+    mount(); const table = await screen.findByRole('table');
+    const summary = screen.getByRole('heading', { name: 'Resultados' }).parentElement;
+    expect(summary).toHaveTextContent('42 cuentas encontradas');
+    expect(within(table).getByText('Pendiente')).toHaveAttribute('data-estado', 'Pendiente');
+    await userEvent.selectOptions(screen.getByLabelText('Estado de cuenta'), 'Desactivada');
+    expect(listarCuentas).toHaveBeenCalledTimes(1); expect(summary).toHaveTextContent('42 cuentas encontradas');
+    const link = within(table).getByRole('link', { name: `Ver cuenta ${staff.correo_acceso}` });
+    link.focus(); await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(consultarCuenta).toHaveBeenCalled());
+    expect(screen.getByRole('main')).toHaveFocus();
   });
   it('cancela e ignora respuesta tardía de filtros anteriores', async () => {
     let resolveOld;

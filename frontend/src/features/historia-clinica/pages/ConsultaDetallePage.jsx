@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import PageHeading from '../../../components/PageHeading';
+import ActionGroup from '../../../components/ActionGroup';
 import Pagination from '../../../components/Pagination';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROLES } from '../../../constants/roles';
@@ -10,6 +11,7 @@ import { useClinicaQuery } from '../hooks/useClinicaQuery';
 import ClinicaQuery from '../components/ClinicaQuery';
 import { ContenidoClinico, FechaClinica, IdentidadClinica } from '../components/ContenidoClinico';
 import '../styles/clinica.css';
+import '../styles/clinical-reading.css';
 
 export default function ConsultaDetallePage() {
   const { id } = useParams(), { usuario } = useAuth();
@@ -20,15 +22,17 @@ export default function ConsultaDetallePage() {
 function Detalle({ id, rol }) {
   const [page, setPage] = useState(1), results = useRef(null);
   const query = useClinicaQuery(consultarConsulta, { id, rol, page, paraRegistro: rol !== ROLES.PACIENTE });
-  return <section className="workspace-page clinical-page">
+  return <section className="workspace-page clinical-page clinical-reading">
     <Link className="back-link" to={rol === ROLES.PACIENTE ? `/mis-citas/${id}` : `/citas/${id}`}>Volver a la cita</Link>
     <PageHeading title="Consulta médica" description="Lectura de la información vigente. Horarios en America/La_Paz." />
-    <div ref={results} tabIndex={-1}><ClinicaQuery query={query}>{data => <>
+    <div ref={results} tabIndex={-1} className="clinical-sheet"><ClinicaQuery query={query}>{data => <>
       <IdentidadClinica paciente={data.paciente} />
-      {data.edicion?.acciones.registrar && <p><Link className="button button--primary" to={`/citas/${id}/consulta/editar`}>Registrar consulta médica</Link></p>}
-      {data.edicion?.acciones.actualizar && <p><Link className="button button--primary" to={`/citas/${id}/consulta/editar`}>Corregir consulta y antecedentes</Link></p>}
+      <ActionGroup className="clinical-reading-actions">
+      {data.edicion?.acciones.registrar && <Link className="button button--primary" to={`/citas/${id}/consulta/editar`}>Registrar consulta médica</Link>}
+      {data.edicion?.acciones.actualizar && <Link className="button button--primary" to={`/citas/${id}/consulta/editar`}>Corregir consulta y antecedentes</Link>}
       <Link to={rol === ROLES.PACIENTE ? '/historia-clinica' : `/historia-clinica/pacientes/${data.paciente.id_paciente}`}>Consultar historia clínica del paciente</Link>
-      <section className="clinical-section" aria-labelledby="clinical-appointment"><h2 id="clinical-appointment">Atención programada</h2>
+      </ActionGroup>
+      <section className="clinical-section clinical-appointment" aria-labelledby="clinical-appointment"><h2 id="clinical-appointment">Atención programada</h2>
         <dl className="clinical-data"><div><dt>Código de cita</dt><dd>{data.cita.codigo_cita}</dd></div>
           <div><dt>Médico responsable</dt><dd>{data.cita.medico.nombres} {data.cita.medico.apellidos}</dd></div>
           <div><dt>Fecha y hora programadas</dt><dd><FechaClinica value={data.cita.inicio_at} /></dd></div>

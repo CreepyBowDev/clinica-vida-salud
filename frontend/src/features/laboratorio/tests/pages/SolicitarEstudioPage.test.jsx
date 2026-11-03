@@ -71,6 +71,7 @@ it('obligatorios y longitud se validan antes de revisión/CSRF', async () => {
 it('volver a editar conserva texto pero retira declaración y revisión', async () => {
   mount(); await revisar(); await userEvent.click(screen.getByRole('button', { name: 'Volver a editar' }));
   expect(screen.getByRole('textbox', { name: 'Estudio solicitado' })).toHaveValue('Hemograma ficticio'); expect(screen.getByRole('checkbox', { name: /Declaro/ })).not.toBeChecked();
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: /Declaro/ })).toHaveFocus());
 });
 it('sin consulta registrada no existe formulario ni POST implícito', async () => {
   respond = config => { const d = detalle(); d.data.consulta = null; d.data.estudios = []; d.meta.total = 0; return response(config, d); };
@@ -110,7 +111,7 @@ it('cambio de sesión retira revisión/datos y obliga reconsulta antes de prepar
   mount(); await revisar(); act(() => avanzarSesion()); expect(screen.queryByText('Hemograma ficticio')).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Solicitar estudio' })).not.toBeInTheDocument();
 });
 it('bloqueo de navegación advierte pérdida sin borrar por desplegar sidebar', async () => {
-  mount(); await revisar(); await userEvent.click(screen.getByRole('button', { name: 'Laboratorio digital' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
+  mount(); await revisar(); await userEvent.click(screen.getByRole('button', { name: 'Atención clínica' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
   await userEvent.click(screen.getByRole('link', { name: 'Volver a consulta' })); await screen.findByRole('button', { name: 'Permanecer' });
   await userEvent.click(screen.getByRole('button', { name: 'Permanecer' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
 });

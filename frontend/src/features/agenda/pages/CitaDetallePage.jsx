@@ -12,6 +12,7 @@ import { useAgendaWorkspace } from '../components/AgendaWorkspace';
 import { ROLES } from '../../../constants/roles';
 import '../../../styles/catalogs.css';
 import '../styles/agenda.css';
+import '../styles/appointment-detail.css';
 
 export default function CitaDetallePage({ origin = 'direct' }) {
   const { id } = useParams();
@@ -29,21 +30,23 @@ function Detalle({ id, rol, origin }) {
   const back = origin === 'mis-citas' ? { to: '/mis-citas', label: 'Volver a Mis citas' }
     : origin === 'historial' ? { to: patientId ? `/recepcion/pacientes/${patientId}/citas` : '/recepcion/historial-citas', label: patientId ? 'Volver al historial del paciente' : 'Volver a seleccionar paciente' }
       : fromAgenda ? { to: '/agenda', label: 'Volver a agenda médica' } : { to: '/inicio', label: 'Volver a Inicio' };
-  return <section className="workspace-page catalog-page query-detail">
+  return <section className="workspace-page catalog-page query-detail appointment-detail">
     <Link className="back-link" to={back.to}>{back.label}</Link>
     <PageHeading title="Detalle de cita" description="Consulta en solo lectura. Fechas y horarios de atención en America/La_Paz." />
     <div aria-busy={query.loading}>{query.loading ? <QueryMessage loading title="Consultando cita…" /> : query.failure ? <div className="catalog-failure">
       <Alert><p>{query.failure.message}</p>{query.remaining > 0 && <p>Espera {query.remaining} segundos antes de volver a consultar.</p>}</Alert>
       {![401, 403, 404, 422].includes(query.failure.status) && <Button variant="secondary" disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button>}
     </div> : <><CitaDetalle cita={query.data} rol={rol} />
-      {[ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE].includes(rol) && <div className="patients-actions">
+       <div className="appointment-detail-actions" role="group" aria-label="Acciones disponibles de la cita">
+       {[ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE].includes(rol) && <>
         <Link className="button button--secondary" to={`/citas/${id}/consulta`}>Consultar consulta médica</Link>
         <Link className="button button--secondary" to={rol === ROLES.PACIENTE ? '/historia-clinica' : `/historia-clinica/pacientes/${query.data.paciente.id_paciente}`}>Consultar historia clínica del paciente</Link>
-      </div>}
+       </>}
       {[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(rol) && <Link className="button button--secondary" to={`/citas/${id}/gestion`}
         state={{ origen: origin === 'historial' ? 'historial' : 'direct' }}>Gestionar cita</Link>}
       {[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA, ROLES.MEDICO].includes(rol) && <Link className="button button--secondary" to={`/citas/${id}/asistencia`}
         state={{ origen: origin === 'historial' ? 'historial' : 'direct' }}>Gestionar asistencia</Link>}
-    </>}</div>
+       </div>
+     </>}</div>
   </section>;
 }

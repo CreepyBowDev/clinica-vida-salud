@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -46,6 +46,16 @@ it('Admin selecciona paciente sin consultar bandeja global ni registrar ficha', 
   expect(screen.queryByRole('link', { name: 'Registrar paciente' })).not.toBeInTheDocument();
   act(() => avanzarSesion()); expect(screen.queryByText('Persona Ficticia')).not.toBeInTheDocument();
 });
+it('identifica los resultados y conserva columnas propias sin recalcular el total del servidor', async () => {
+  listarSolicitudes.mockResolvedValue({ solicitudes: [solicitud()], meta: { ...meta, total: 21, last_page: 2 } });
+  mount(); await screen.findByText('Hemograma de prueba');
+  const region = screen.getByRole('region', { name: 'Resultados de estudios' });
+  expect(region).toHaveTextContent('Total del servidor: 21 estudios');
+  expect(within(region).getByRole('heading', { name: 'Estudios solicitados' })).toBeInTheDocument();
+  expect(within(region).getAllByRole('columnheader')).toHaveLength(4);
+  expect(within(region).queryByRole('columnheader', { name: 'Paciente' })).not.toBeInTheDocument();
+  expect(within(region).getByRole('link', { name: /Ver solicitud/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71');
+});
 it('Médico consulta solicitudes propias sin buscador administrativo', async () => {
   auth.value.usuario.rol = ROLES.MEDICO; mount(); await screen.findByText('Hemograma de prueba');
   expect(usePatientQuery).not.toHaveBeenCalled(); expect(screen.queryByLabelText('CI')).not.toBeInTheDocument(); expect(screen.getByRole('option', { name: 'En revisión' })).toBeInTheDocument();
@@ -80,6 +90,16 @@ it('Paciente pendiente no ve descarga ni internos', async () => {
 it('Paciente disponible muestra versión, fecha y descarga, sin revisión privada', async () => {
   consultarSolicitud.mockResolvedValue(disponible()); mount('/laboratorio/solicitudes/71');
   await screen.findByRole('button', { name: 'Descargar resultado' }); expect(screen.getByText('Versión 1')).toBeVisible(); expect(screen.queryByRole('heading', { name: /Última revisión/ })).not.toBeInTheDocument();
+});
+it('el estado y el documento vigente quedan juntos sin crear una URL pública de archivo', async () => {
+  consultarSolicitud.mockResolvedValue(disponible()); mount('/laboratorio/solicitudes/71');
+  const download = await screen.findByRole('button', { name: 'Descargar resultado' });
+  const sheet = download.closest('.lab-reading-sheet');
+  expect(sheet).toBeInTheDocument();
+  expect(sheet.querySelector('[data-estado="Disponible"]')).toHaveTextContent('Disponible');
+  expect(sheet).toHaveTextContent('Estado del estudio'); expect(sheet).toHaveTextContent('Versión 1');
+  expect(sheet.querySelector('a[href*="storage"]')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Revisar resultado' })).not.toBeInTheDocument();
 });
 it('interno muestra vigente en revisión y autoría sin adelantar formularios', async () => {
   auth.value.usuario.rol = ROLES.MEDICO;

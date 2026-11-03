@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { etiquetaActor, etiquetaResultado, formatearFechaEvento } from '../utils/bitacoraFormat';
 
 export default function BitacoraTable({ eventos }) {
-  return <div className="catalog-table-wrap query-table"><table className="catalog-table bitacora-table" role="table">
+  return <div className="catalog-table-wrap query-table query-records"><table className="catalog-table bitacora-table" role="table">
     <caption>Eventos ordenados por fecha de registro, más recientes primero. Fecha del hecho en America/La_Paz.</caption>
     <thead role="rowgroup"><tr role="row">{['Evento y fecha del hecho', 'Módulo y operación', 'Responsable', 'Cuenta objetivo', 'Resultado', 'Consulta'].map(label => <th key={label} scope="col" role="columnheader">{label}</th>)}</tr></thead>
     <tbody role="rowgroup">{eventos.map(item => <tr key={item.id_evento} role="row">

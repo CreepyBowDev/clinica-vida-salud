@@ -33,13 +33,16 @@ export default function ReprogramacionCita({ original, onGuardar }) {
       <Button type="submit" disabled={query.remaining > 0}>Consultar alternativas</Button>
       {query.remaining > 0 && <p>Espera {query.remaining} segundos antes de consultar alternativas.</p>}
     </form>
-    {criterios && <Alternativas key={`${criterios.fecha}:${revision}:${page}`} query={query} onPage={setPage} onGuardar={onGuardar} />}
+    <div className="reschedule-alternatives" role="region" aria-label="Alternativas de reprogramación">
+      {criterios && <Alternativas key={`${criterios.fecha}:${revision}:${page}`} query={query} onPage={setPage} onGuardar={onGuardar} />}
+    </div>
   </section>;
 }
 
 function Alternativas({ query, onPage, onGuardar }) {
   const [seleccion, setSeleccion] = useState(null), [revisar, setRevisar] = useState(false);
   const heading = useRef(null);
+  const reviewButton = useRef(null);
   const data = query.data?.data;
   const limpiar = () => { setSeleccion(null); setRevisar(false); };
   useEffect(() => { if (revisar) heading.current?.focus(); }, [revisar]);
@@ -59,8 +62,8 @@ function Alternativas({ query, onPage, onGuardar }) {
       </div></fieldset>}
     <Pagination meta={query.data.meta} label="alternativas" onPage={next => { limpiar(); onPage(next); }} />
     <Button variant="secondary" onClick={() => { limpiar(); query.reload(); }}>Actualizar alternativas</Button>
-    {seleccion && !revisar && <Button onClick={() => setRevisar(true)}>Revisar reprogramación</Button>}
-    {seleccion && revisar && <section className="catalog-panel" aria-labelledby="reprogramacion-revision">
+    {seleccion && !revisar && <Button ref={reviewButton} onClick={() => setRevisar(true)}>Revisar reprogramación</Button>}
+    {seleccion && revisar && <section className="catalog-panel reschedule-review" aria-labelledby="reprogramacion-revision">
       <h3 id="reprogramacion-revision" tabIndex="-1" ref={heading}>Revisar reprogramación</h3>
       <p>Paciente: {data.paciente.nombres} {data.paciente.apellidos}. Médico: {data.medico.nombres} {data.medico.apellidos}. Especialidad: {data.especialidad.nombre}.</p>
       <dl className="catalog-data record-data">
@@ -72,7 +75,7 @@ function Alternativas({ query, onPage, onGuardar }) {
       <p>{data.cita_original.estado === 'Confirmada' ? 'La cita Confirmada volverá a Programada y perderá la confirmación de llegada anterior.' : 'La cita permanecerá Programada.'}</p>
       <p>El servidor volverá a comprobar disponibilidad y condiciones al guardar. No se crea otra cita.</p>
       <ActionGroup><Button onClick={() => onGuardar({ vista: data, turno: seleccion })}>Confirmar reprogramación</Button>
-        <Button variant="quiet" onClick={() => setRevisar(false)}>Volver sin guardar</Button></ActionGroup>
+         <Button variant="quiet" onClick={() => { setRevisar(false); requestAnimationFrame(() => reviewButton.current?.focus()); }}>Volver sin guardar</Button></ActionGroup>
     </section>}
   </div>;
 }

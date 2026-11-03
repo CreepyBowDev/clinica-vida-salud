@@ -75,6 +75,15 @@ it('vacío de alternativas no borra la cita y no habilita guardado', async () =>
   await screen.findByRole('heading', { name: 'No hay alternativas para esta fecha y página' });
   expect(screen.getByRole('region', { name: `Programación actual: ${cita.codigo_cita}` })).toBeInTheDocument();
 });
+it('volver de la comparación enfoca revisar sin guardar ni descartar el turno seleccionado', async () => {
+  mount(); await revisar();
+  expect(screen.getByRole('region', { name: 'Alternativas de reprogramación' })).toContainElement(screen.getByRole('region', { name: 'Revisar reprogramación' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Volver sin guardar' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Revisar reprogramación' })).toHaveFocus());
+  expect(screen.getByRole('radio', { name: '08:00:00' })).toBeChecked();
+  expect(screen.queryByRole('button', { name: 'Confirmar reprogramación' })).not.toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
 it.each(['fecha', 'pagina', 'actualizar', 'volver'])('%s invalida revisión/selección sin enviar PATCH', async tipo => {
   total = 13; mount(); await revisar();
   if (tipo === 'fecha') fireEvent.change(screen.getByLabelText('Nueva fecha de atención'), { target: { value: '2026-11-03' } });

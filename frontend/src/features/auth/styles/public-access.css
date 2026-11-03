@@ -1,0 +1,50 @@
+/* Piloto público: no modifica cambio de contraseña ni formularios autenticados. */
+.public-access { --radius-control: 6px; --radius-panel: 10px; --control-height: 48px; --button-height: 46px; background: var(--color-background); }
+.public-access .auth-header { max-width: 1280px; padding-block: 24px; }
+.public-access .auth-main { flex: initial; width: min(1200px, calc(100% - 2 * var(--layout-gutter))); grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: start; min-height: 0; margin-block: 16px 40px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
+.public-access .auth-story { position: static; min-height: 0; align-self: stretch; padding: 40px 32px; border-radius: 10px 0 0 10px; gap: 32px; }
+.public-access .story-copy h2 { font-size: clamp(1.75rem, 2.3vw, 2.25rem); line-height: 1.15; letter-spacing: -.025em; }
+.public-access .story-copy p { font-size: 1rem; max-width: 34ch; margin-top: 20px; }
+.public-access .care-art { margin: auto -12px 0; }
+.public-access .care-art svg { max-height: 200px; }
+.public-access.auth-shell--flow .auth-main { gap: 24px; border: 0; background: transparent; }
+.public-access.auth-shell--flow .auth-story { align-self: start; border-radius: 10px; }
+.public-access.auth-shell--flow .auth-content { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.public-access.auth-shell--flow .care-art { margin-top: 24px; }
+.public-access .story-caption { font-size: .875rem; align-items: flex-start; }
+.public-access .auth-content { padding: 40px clamp(24px, 4vw, 56px); align-items: start; }
+.public-access .auth-content h1 { font-size: clamp(1.75rem, 1.4rem + .8vw, 2rem); letter-spacing: -.025em; }
+.public-access .auth-content .login-panel { max-width: 30rem; }
+.public-access .auth-content .registration-panel { max-width: 42.5rem; }
+.public-access .auth-content .login-intro { font-size: 1rem; }
+.public-access .auth-content .field { margin-bottom: 20px; }
+.public-access .auth-content .registration-grid .field { margin-bottom: 0; }
+.public-access .auth-content .first-access { margin-top: 4px; padding-top: 24px; }
+.public-access .auth-content .first-access-options { gap: 0; margin-top: 12px; }
+.public-access .first-access-options > div { padding-block: 12px; }
+.public-access .first-access-options > div + div { border-top: 1px solid var(--color-border); }
+.public-access .first-access-options a { padding: 0; min-height: 44px; border: 0; border-radius: 0; text-decoration: underline; text-underline-offset: 4px; background: transparent; }
+.public-access .first-access-options a:hover { background: transparent; color: var(--color-primary); }
+.public-access .first-access-options p { margin-top: 0; }
+.public-access .login-assistance { padding-block: 20px; justify-content: flex-start; }
+.public-access .auth-content .workflow-progress { margin-bottom: 24px; padding-block: 16px; }
+.public-access .workflow-number { border-radius: 6px; }
+.public-access .auth-content .auth-guidance { padding: 16px 20px; border-radius: 0; font-size: .9375rem; }
+.public-access .auth-content .registration-switch { border-color: var(--color-control-border); }
+.public-access .auth-content .registration-section + .registration-section { margin-top: 24px; padding-top: 24px; }
+.public-access .auth-content .recovery-form { margin-top: 24px; padding-top: 24px; }
+.public-access .auth-footer { max-width: 1200px; padding-bottom: 24px; }
+@media (max-width: 960px) {
+  .public-access .auth-main { display: block; width: min(680px, calc(100% - 2 * var(--layout-gutter))); margin-block: 16px 32px; }
+  .public-access .auth-story { display: none; }
+  .public-access .auth-content { padding: 32px; }
+  .public-access .auth-content .login-panel { max-width: none; }
+  .public-access .auth-header { border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+}
+@media (max-width: 700px) {
+  .public-access .auth-header { padding-block: 16px; }
+  .public-access .auth-content { padding: 24px 16px; }
+  .public-access .auth-content .auth-guidance { padding: 16px; }
+  .public-access .auth-footer { padding-inline: var(--layout-gutter); }
+  .public-access .auth-footer > span { overflow-wrap: anywhere; }
+}

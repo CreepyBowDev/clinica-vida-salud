@@ -9,6 +9,8 @@ import { consultarEvento } from '../services/bitacora.service';
 import BitacoraEventData from '../components/BitacoraEventData';
 import '../../../styles/catalogs.css';
 import '../styles/bitacora.css';
+import '../../../styles/administrative-query.css';
+import '../styles/audit-reading.css';
 
 const fields = [];
 
@@ -24,7 +26,7 @@ function Detail({ id }) {
   const message = failure?.status === 404 ? 'El evento no está disponible. Vuelve al listado para continuar.'
     : failure?.status === 422 ? 'El identificador del evento no es válido. Vuelve al listado para seleccionar otro evento.'
       : failure && !failure.status ? 'No pudimos consultar el evento. Comprueba tu conexión y vuelve a intentarlo.' : failure?.message;
-  return <section className="workspace-page catalog-page query-detail"><Link className="back-link" to="/administracion/bitacora">Volver a Bitácora</Link>
+  return <section className="workspace-page catalog-page query-detail administrative-query audit-page"><Link className="back-link" to="/administracion/bitacora">Volver a Bitácora</Link>
     <PageHeading title="Detalle de evento" description="Consulta en solo lectura. Fechas presentadas en America/La_Paz; se conserva también el valor UTC original." />
     {query.loading ? <QueryMessage loading title="Consultando evento…" /> : failure ? <div className="catalog-failure">
       <Alert><p>{message}</p>{query.remaining > 0 && <p>Espera {query.remaining} segundos antes de volver a consultar.</p>}</Alert>

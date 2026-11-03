@@ -63,7 +63,7 @@ export default function HorarioEditor({ id, version, initial, accion, onClose, o
     <ActionGroup className="form-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto del horario</Button>
       <Button variant="quiet" disabled={Boolean(busy)} onClick={onClose}>{blocked ? 'Descartar borrador y consultar horarios actuales' : 'Volver al listado sin guardar'}</Button></ActionGroup>
     {busy && <p role="status">{busy === 'write' ? 'Guardando horario…' : 'Consultando impacto…'}</p>}
-    <div ref={review} tabIndex="-1">{impacto && <HorarioImpacto impacto={impacto} onPage={preview} disabled={Boolean(busy) || remaining > 0} />}</div>
+    <div className="schedule-impact-results" ref={review} tabIndex="-1" role="region" aria-label="Resultados del impacto del horario">{impacto && <HorarioImpacto impacto={impacto} onPage={preview} disabled={Boolean(busy) || remaining > 0} />}</div>
     {impacto?.data.puede_confirmar && <ConfirmationPanel label="Confirmación de horario" title="Confirmar propuesta de horario">
       <p>El diagnóstico comprende la propuesta completa, no solo esta página. No reserva la franja: el servidor volverá a validar al guardar.</p>
       {confirm && <p role="status">Revisa el cambio: {title.toLowerCase()}. Las citas existentes conservarán sus datos.</p>}

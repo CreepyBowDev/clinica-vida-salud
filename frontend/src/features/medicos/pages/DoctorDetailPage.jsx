@@ -11,6 +11,7 @@ import { consultarMedico } from '../services/medico.service';
 import DoctorActivity from '../components/DoctorActivity';
 import DoctorFailure from '../components/DoctorFailure';
 import '../../../styles/catalogs.css';
+import '../../../styles/medical-administration.css';
 
 const fields = [];
 export default function DoctorDetailPage() {
@@ -22,7 +23,7 @@ function Detail({ id }) {
   const query = useCatalogQuery(consultarMedico, id, fields);
   const location = useLocation();
   const [notice, setNotice] = useState(location.state?.doctorNotice || '');
-  return <section className="workspace-page catalog-page query-detail"><Link className="back-link" to="/administracion/medicos">Volver a médicos</Link>
+  return <section className="workspace-page catalog-page query-detail medical-admin"><Link className="back-link" to="/administracion/medicos">Volver a médicos</Link>
     <PageHeading title="Detalle de médico" description="La actividad profesional, la cuenta de acceso y las habilitaciones son independientes." />
     {notice && <Alert variant="success">{notice}</Alert>}
     {query.data && !query.loading && !query.failure && <ActionGroup className="detail-links"><Link className="button button--secondary" to={`/administracion/medicos/${id}/consultorio`}>Gestionar consultorio fijo</Link><Link className="button button--secondary" to={`/administracion/horarios/medicos/${id}`}>Gestionar horarios</Link></ActionGroup>}

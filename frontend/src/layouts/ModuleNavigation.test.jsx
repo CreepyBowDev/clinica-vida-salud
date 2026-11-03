@@ -22,17 +22,17 @@ function mount(path = '/inicio', element = <h1>Contenido existente</h1>) {
 
 describe('sidebar modular y orientación', () => {
   it.each([
-    ['/recepcion/pacientes/42/editar', 'Pacientes y perfil personal', 'Gestionar pacientes', 'Editar paciente'],
-    ['/recepcion/activacion-web', 'Pacientes y perfil personal', 'Activación web', 'Activación web'],
-    ['/recepcion/citas/nueva', 'Búsqueda y reserva de citas', 'Programar cita', 'Programar cita'],
-    ['/recepcion/pacientes/42/citas', 'Agenda e historial', 'Consultar historial de citas', 'Historial de citas'],
-    ['/recepcion/citas/gestion', 'Reprogramación y cancelación', 'Gestionar citas', 'Gestionar citas'],
-    ['/citas/42/gestion', 'Reprogramación y cancelación', 'Gestionar citas', 'Gestionar cita'],
-    ['/asistencia', 'Asistencia y estados', 'Gestionar asistencia', 'Gestionar asistencia'],
-    ['/citas/42/asistencia', 'Asistencia y estados', 'Gestionar asistencia', 'Asistencia de la cita'],
-    ['/laboratorio/solicitudes/71', 'Laboratorio digital', 'Estudios y resultados', 'Solicitud de laboratorio'],
-    ['/laboratorio/pacientes/21', 'Laboratorio digital', 'Estudios y resultados', 'Estudios del paciente'],
-    ['/citas/41/consulta/solicitar-estudio', 'Laboratorio digital', 'Solicitar estudios', 'Solicitar estudio de laboratorio'],
+    ['/recepcion/pacientes/42/editar', 'Pacientes', 'Gestionar pacientes', 'Editar paciente'],
+    ['/recepcion/activacion-web', 'Pacientes', 'Activación web', 'Activación web'],
+    ['/recepcion/citas/nueva', 'Agenda y citas', 'Programar cita', 'Programar cita'],
+    ['/recepcion/pacientes/42/citas', 'Agenda y citas', 'Consultar historial de citas', 'Historial de citas'],
+    ['/recepcion/citas/gestion', 'Agenda y citas', 'Gestionar citas', 'Gestionar citas'],
+    ['/citas/42/gestion', 'Agenda y citas', 'Gestionar citas', 'Gestionar cita'],
+    ['/asistencia', 'Agenda y citas', 'Gestionar asistencia', 'Gestionar asistencia'],
+    ['/citas/42/asistencia', 'Agenda y citas', 'Gestionar asistencia', 'Asistencia de la cita'],
+    ['/laboratorio/solicitudes/71', 'Atención clínica', 'Estudios y resultados', 'Solicitud de laboratorio'],
+    ['/laboratorio/pacientes/21', 'Atención clínica', 'Estudios y resultados', 'Estudios del paciente'],
+    ['/citas/41/consulta/solicitar-estudio', 'Atención clínica', 'Solicitar estudios', 'Solicitar estudio de laboratorio'],
   ])('Administrador reconoce %s como flujo compartido manteniendo su área y foco', (path, module, link, title) => {
     mount(path);
     expect(within(nav()).getByRole('button', { name: module })).toHaveAttribute('aria-expanded', 'true');
@@ -42,10 +42,10 @@ describe('sidebar modular y orientación', () => {
     expect(screen.getByRole('main')).toHaveFocus();
   });
   it.each([
-    [ROLES.ADMINISTRADOR, 'Médicos y especialidades', 'Gestionar médicos', 'Reservar cita'],
-    [ROLES.RECEPCIONISTA, 'Pacientes y perfil personal', 'Gestionar pacientes', 'Administrar cuentas'],
-    [ROLES.PACIENTE, 'Búsqueda y reserva de citas', 'Reservar cita', 'Programar cita'],
-    [ROLES.MEDICO, 'Usuarios y autenticación', 'Cambiar contraseña', 'Gestionar pacientes'],
+    [ROLES.ADMINISTRADOR, 'Organización', 'Gestionar médicos', 'Reservar cita'],
+    [ROLES.RECEPCIONISTA, 'Pacientes', 'Gestionar pacientes', 'Administrar cuentas'],
+    [ROLES.PACIENTE, 'Mis citas', 'Reservar cita', 'Programar cita'],
+    [ROLES.MEDICO, 'Mi cuenta', 'Cambiar contraseña', 'Gestionar pacientes'],
   ])('%s puede desplegar sus módulos sin CU visibles ni funciones ajenas', async (role, module, label, forbidden) => {
     auth.usuario.rol = role; mount('/otra'); const user = userEvent.setup();
     const button = within(nav()).getByRole('button', { name: module });
@@ -59,10 +59,10 @@ describe('sidebar modular y orientación', () => {
     expect(within(nav()).queryByRole('link', { name: /iniciar sesión|registrar cuenta|cerrar sesión/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Cerrar sesión' })).toHaveLength(1);
   });
-  it('ruta profunda de asignación abre consultorios, no médicos, y orienta sin IDs', () => {
+  it('ruta profunda abre Organización y selecciona consultorios, no médicos, sin IDs visibles', () => {
     mount('/administracion/medicos/42/consultorio');
-    expect(within(nav()).getByRole('button', { name: 'Consultorios y horarios' })).toHaveAttribute('aria-expanded', 'true');
-    expect(within(nav()).getByRole('button', { name: 'Médicos y especialidades' })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(nav()).getByRole('button', { name: 'Organización' })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(nav()).getByRole('link', { name: 'Gestionar médicos' })).not.toHaveAttribute('aria-current');
     expect(within(nav()).getByRole('link', { name: 'Gestionar consultorios' })).toHaveAttribute('aria-current', 'page');
     expect(document.title).toBe('Asignar consultorio | Clínica Vida Salud');
     expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Asignar consultorio');
@@ -70,46 +70,46 @@ describe('sidebar modular y orientación', () => {
   });
   it('permite varios abiertos y contracción por Enter/Espacio sin desplazar foco al contenido', async () => {
     mount('/administracion/cuentas'); const user = userEvent.setup();
-    const button = within(nav()).getByRole('button', { name: 'Usuarios y autenticación' }); button.focus();
+    const button = within(nav()).getByRole('button', { name: 'Organización' }); button.focus();
     await user.keyboard('{Enter}'); expect(button).toHaveAttribute('aria-expanded', 'false'); expect(button).toHaveFocus();
     await user.keyboard(' '); expect(button).toHaveAttribute('aria-expanded', 'true');
-    await user.click(within(nav()).getByRole('button', { name: 'Consultorios y horarios' }));
+    await user.click(within(nav()).getByRole('button', { name: 'Mi cuenta' }));
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(within(nav()).getByRole('link', { name: 'Administrar cuentas' })).toHaveAttribute('aria-current', 'page');
   });
   it('reabre al cambiar ruta, incluso atrás/adelante, y conserva otras expansiones', async () => {
     const { router } = mount('/administracion/cuentas'); const user = userEvent.setup();
-    const button = within(nav()).getByRole('button', { name: 'Usuarios y autenticación' });
+    const button = within(nav()).getByRole('button', { name: 'Organización' });
     await user.click(button); expect(button).toHaveAttribute('aria-expanded', 'false');
     await act(async () => router.navigate('/administracion/cuentas/42'));
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    await user.click(within(nav()).getByRole('button', { name: 'Consultorios y horarios' }));
-    await act(async () => router.navigate('/administracion/horarios'));
+    await user.click(within(nav()).getByRole('button', { name: 'Agenda y citas' }));
+    await act(async () => router.navigate('/agenda'));
     await user.click(button);
     await act(async () => router.navigate(-1)); expect(button).toHaveAttribute('aria-expanded', 'true');
     await act(async () => router.navigate(1));
-    expect(within(nav()).getByRole('link', { name: 'Configurar horarios' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav()).getByRole('link', { name: 'Consultar agenda médica' })).toHaveAttribute('aria-current', 'page');
   });
   it('Administrador tiene consulta de recordatorios operativa sin acciones de gestión de citas en ese módulo', async () => {
     auth.usuario.rol = ROLES.ADMINISTRADOR; mount('/otra'); const user = userEvent.setup();
-    await user.click(within(nav()).getByRole('button', { name: /Recordatorios internos/ }));
+    await user.click(within(nav()).getByRole('button', { name: 'Recordatorios' }));
     expect(within(nav()).getByText('Consultar recordatorios')).toBeVisible();
     expect(within(nav()).getByRole('link', { name: /recordatorios/i })).toHaveAttribute('href', '/recordatorios');
     expect(within(nav()).queryByText(/cancelar cita|reprogramar cita/i)).not.toBeInTheDocument();
   });
   it('reinicia expansión al cambiar identidad o rol sin persistir estado', async () => {
     const { refresh } = mount('/otra'); const user = userEvent.setup();
-    await user.click(within(nav()).getByRole('button', { name: 'Consultorios y horarios' }));
+    await user.click(within(nav()).getByRole('button', { name: 'Organización' }));
     auth.usuario = { ...auth.usuario, id_usuario: '2' }; refresh();
-    expect(within(nav()).getByRole('button', { name: 'Consultorios y horarios' })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(nav()).getByRole('button', { name: 'Organización' })).toHaveAttribute('aria-expanded', 'false');
     auth.usuario = { ...auth.usuario, rol: ROLES.PACIENTE }; refresh();
-    expect(within(nav()).queryByRole('button', { name: 'Consultorios y horarios' })).not.toBeInTheDocument();
-    expect(within(nav()).getByRole('button', { name: 'Usuarios y autenticación' })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(nav()).queryByRole('button', { name: 'Organización' })).not.toBeInTheDocument();
+    expect(within(nav()).getByRole('button', { name: 'Mi cuenta' })).toHaveAttribute('aria-expanded', 'false');
   });
   it('Escape cierra el menú móvil y devuelve foco; navegar también lo cierra', async () => {
     const { router } = mount('/otra'); const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
-    const module = within(nav()).getByRole('button', { name: 'Usuarios y autenticación' });
+    const module = within(nav()).getByRole('button', { name: 'Mi cuenta' });
     module.focus(); await user.keyboard('{Escape}');
     expect(screen.getByRole('button', { name: 'Abrir menú' })).toHaveFocus();
     expect(nav()).not.toHaveClass('is-open');
@@ -128,8 +128,8 @@ describe('sidebar modular y orientación', () => {
     function Reserva() { useBlocker(true); useEffect(() => { mounts++; }, []); return <input aria-label="Borrador de reserva" defaultValue="" />; }
     auth.usuario.rol = ROLES.PACIENTE; const { router } = mount('/reservar-cita', <Reserva />); const user = userEvent.setup();
     await user.type(screen.getByLabelText('Borrador de reserva'), 'Texto ficticio'); const previous = mounts;
-    await user.click(within(nav()).getByRole('button', { name: 'Búsqueda y reserva de citas' }));
-    await user.click(within(nav()).getByRole('button', { name: 'Usuarios y autenticación' }));
+    await user.click(within(nav()).getByRole('button', { name: 'Mis citas' }));
+    await user.click(within(nav()).getByRole('button', { name: 'Mi cuenta' }));
     expect(screen.getByLabelText('Borrador de reserva')).toHaveValue('Texto ficticio'); expect(mounts).toBe(previous);
     expect([...router.state.blockers.values()].every(blocker => blocker.state === 'unblocked')).toBe(true);
     expect(router.state.location.pathname).toBe('/reservar-cita');
@@ -154,7 +154,7 @@ describe('sidebar modular y orientación', () => {
   it('al pasar a escritorio omite el enlace actual si su módulo está contraído', async () => {
     let onChange; const media = { matches: false, addEventListener: (_name, handler) => { onChange = handler; }, removeEventListener: vi.fn() };
     vi.stubGlobal('matchMedia', vi.fn(() => media)); mount('/mi-cuenta/contrasena'); const user = userEvent.setup();
-    await user.click(within(nav()).getByRole('button', { name: 'Usuarios y autenticación' }));
+    await user.click(within(nav()).getByRole('button', { name: 'Mi cuenta' }));
     screen.getByRole('button', { name: 'Abrir menú' }).focus(); media.matches = true; act(() => onChange());
     expect(within(nav()).getByRole('link', { name: 'Inicio' })).toHaveFocus();
   });

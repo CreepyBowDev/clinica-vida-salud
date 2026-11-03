@@ -13,11 +13,12 @@ import { usePatientSubmission } from '../hooks/usePatientSubmission';
 import { actualizarMiPerfil } from '../services/perfil.service';
 import { borradorPaciente, cambiosPaciente } from '../utils/patientDraft';
 import '../styles/patients.css';
+import '../styles/my-profile.css';
 
 export default function MyProfilePage() {
   const { data, loading, failure, reload } = usePatientQuery('profile');
   const [notice, setNotice] = useState(false);
-  return <section className="workspace-page patients-page patient-editor-page admin-form-page">
+  return <section className="workspace-page patients-page patient-editor-page admin-form-page my-profile">
     <PageHeading title="Mi perfil" description="Tus datos de contacto y preferencias en Clínica Vida Salud." />
     {notice && <Alert variant="success"><p>Tu perfil se guardó correctamente.</p></Alert>}
     <div aria-busy={loading}>{loading ? <p role="status">Consultando tu perfil…</p> : failure ? <><PatientFailure failure={failure} /><Button onClick={reload}>Volver a consultar mi perfil</Button></> : <ProfileEditor initial={data} onSubmitting={() => setNotice(false)} onSaved={() => { setNotice(true); reload(); }} />}</div>
@@ -55,7 +56,7 @@ function ProfileEditor({ initial, onSubmitting, onSaved }) {
     if (response?.data) onSaved();
     if (response?.failure) { setConfirm(false); if (response.failure.stale || response.failure.uncertain) setBlocked(true); }
   }
-  return <>
+  return <div className="profile-sections">
     <section className="patients-panel" aria-labelledby="profile-identity"><h2 id="profile-identity">Datos personales</h2>
       <dl className="patients-data"><div><dt>Nombre completo</dt><dd>{base.nombres} {base.apellidos}</dd></div><div><dt>Código de ficha</dt><dd>{base.codigo_paciente}</dd></div>
         <div><dt>CI</dt><dd>{base.documento_identidad || 'Sin CI registrado'}</dd></div><div><dt>Fecha de nacimiento</dt><dd><time dateTime={base.fecha_nacimiento}>{base.fecha_nacimiento.split('-').reverse().join('/')}</time></dd></div>
@@ -79,5 +80,5 @@ function ProfileEditor({ initial, onSubmitting, onSaved }) {
     <section className="patients-panel" aria-labelledby="profile-account"><h2 id="profile-account">Acceso a tu cuenta</h2><dl className="patients-data"><div><dt>Correo de acceso</dt><dd>{base.correo_acceso}</dd></div></dl>
       <p className="patients-note">Este es el correo con el que inicias sesión. Editar tu correo de contacto no lo modifica.</p><div className="patients-actions"><Link className="button button--secondary" to="/mi-perfil/correo">Cambiar correo de acceso</Link><Link className="button button--secondary" to="/mi-cuenta/contrasena">Cambiar contraseña</Link></div>
     </section>
-  </>;
+  </div>;
 }

@@ -14,6 +14,7 @@ import GestionDocumentoLaboratorio from '../components/GestionDocumentoLaborator
 import GestionRevisionResultado from '../components/GestionRevisionResultado';
 import Button from '../../../components/Button';
 import '../styles/laboratorio.css';
+import '../styles/lab-reading.css';
 
 const Fecha = ({ value }) => <time dateTime={value}>{formatearInstanteCita(value)}</time>;
 export default function SolicitudLaboratorioPage() {
@@ -26,13 +27,13 @@ function Detalle({ id, rol, ejecutor, idActor }) {
   const [modo, setModo] = useState(rol === ROLES.ADMINISTRADOR ? 'documentos' : null), [bloqueado, setBloqueado] = useState(false);
   const query = useLaboratorioQuery(consultarSolicitud, { id, rol, ...(rol === ROLES.ADMINISTRADOR ? { paraDocumentar: true, paraRevisar: true } : rol === ROLES.MEDICO ? { paraRevisar: true } : {}) });
   const cerrarRevision = () => { setModo(rol === ROLES.ADMINISTRADOR ? 'documentos' : null); setRetirar(false); setBloqueado(false); query.reload(); };
-  return <section className="workspace-page lab-page">
+  return <section className="workspace-page lab-page lab-reading">
     <Link className="back-link" to="/laboratorio">Volver a estudios</Link>
     <PageHeading title={query.data?.estudio_solicitado ?? 'Solicitud de laboratorio'} description="Solicitud de laboratorio. Horarios en America/La_Paz." />
     {!retirar && <LaboratorioQuery query={query}>{d => {
       const documento = rol === ROLES.PACIENTE ? d.resultado : d.documento;
-      return <>
-        <div className="lab-context"><span className="role-badge">{d.estado}</span><dl className="lab-data">
+      return <div className="lab-reading-sheet">
+        <div className="lab-context"><p className="lab-reading-state">Estado del estudio <span className="role-badge" data-estado={d.estado}>{d.estado}</span></p><dl className="lab-data">
           <div><dt>Paciente</dt><dd>{d.paciente.nombres} {d.paciente.apellidos}<span className="lab-note">{d.paciente.codigo_paciente}</span></dd></div>
           <div><dt>Médico responsable</dt><dd>{d.medico.nombres} {d.medico.apellidos}</dd></div>
           <div><dt>Solicitud</dt><dd><Fecha value={d.solicitada_en} /></dd></div>
@@ -49,7 +50,7 @@ function Detalle({ id, rol, ejecutor, idActor }) {
             {d.ultima_revision.motivo && <div className="lab-wide"><dt>Motivo</dt><dd className="lab-text">{d.ultima_revision.motivo}</dd></div>}
           </dl></section>}
         {rol !== ROLES.PACIENTE && <VersionesResultado key={`${id}:${d.documento?.id_version_resultado ?? 'sin-documento'}`} id={id} rol={rol} />}
-      </>;
+      </div>;
     }}</LaboratorioQuery>}
     {modo !== 'revision' && query.data?.revision?.acciones.revisar && <p className="lab-workflow-switch"><Button disabled={bloqueado || query.loading || Boolean(query.failure)} onClick={() => { setModo('revision'); setRetirar(false); query.reload(); }}>Revisar resultado</Button></p>}
     {modo === 'revision' && <><p className="lab-workflow-switch"><Button variant="quiet" disabled={bloqueado} onClick={cerrarRevision}>{rol === ROLES.ADMINISTRADOR ? 'Volver a documentación del estudio' : 'Volver a lectura del resultado'}</Button></p>

@@ -14,7 +14,7 @@ export default function CancelacionCita({ contexto, onGuardar, onVolver }) {
   const campo = useRef(null);
   const { gestion: cita, paciente, medico, especialidad } = contexto;
   useEffect(() => { if (revision) heading.current?.focus(); }, [revision]);
-  return <section className="catalog-panel" aria-labelledby="cancelacion-titulo"><h2 id="cancelacion-titulo">Cancelar cita</h2>
+  return <section className="catalog-panel management-cancellation" aria-labelledby="cancelacion-titulo"><h2 id="cancelacion-titulo">Cancelar cita</h2>
     <p>Cancelar conserva el registro y su programación en el historial; no permite reabrir la cita desde este flujo.</p>
     <p>No es necesario consultar otros turnos ni que la ficha, el Médico o los recursos estén activos para cancelar una cita que siga siendo elegible.</p>
     <form aria-label="Revisar cancelación" noValidate onSubmit={event => {

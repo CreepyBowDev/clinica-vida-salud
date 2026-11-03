@@ -17,6 +17,8 @@ import AsignacionImpacto from '../components/AsignacionImpacto';
 import ConsultorioFailure from '../components/ConsultorioFailure';
 import '../../../styles/catalogs.css';
 import '../styles/asignacion.css';
+import '../../../styles/medical-administration.css';
+import '../styles/room-assignment.css';
 
 const fields = [];
 async function contexto(id, signal) {
@@ -38,7 +40,7 @@ export default function AsignacionConsultorioPage() {
 }
 function Load({ id }) {
   const query = useCatalogQuery(contexto, id, fields);
-  return <section className="workspace-page catalog-page"><Link className="back-link" to={`/administracion/medicos/${id}`}>Volver al médico</Link>
+  return <section className="workspace-page catalog-page medical-admin room-assignment"><Link className="back-link" to={`/administracion/medicos/${id}`}>Volver al médico</Link>
     <PageHeading title="Asignar consultorio" description="Revisa la ocupación y los cambios de ubicación antes de confirmar la asignación fija." />
     {query.loading ? <p role="status">Consultando médico y asignación…</p> : query.failure ? <><ConsultorioFailure failure={query.failure} remaining={query.remaining} /><Button disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button></>
       : <Assignment id={id} initial={query.data} />}
@@ -145,7 +147,7 @@ function Assignment({ id, initial }) {
     <ActionGroup className="form-actions"><Button variant="secondary" disabled={Boolean(busy) || blocked || remaining > 0} onClick={() => preview()}>Consultar impacto</Button>
       <Button variant="quiet" disabled={Boolean(busy) || remaining > 0} onClick={refresh}>Consultar asignación actual</Button></ActionGroup>
     {busy && <p role="status">{busy === 'write' ? 'Guardando asignación…' : busy === 'refresh' ? 'Consultando datos actuales…' : 'Consultando impacto…'}</p>}
-    <div ref={review} tabIndex="-1">{impacto && <AsignacionImpacto impacto={impacto} disabled={Boolean(busy)} onPage={preview} />}</div>
+    <div className="assignment-review-results" ref={review} tabIndex="-1" role="region" aria-label="Resultado del impacto de asignación">{impacto && <AsignacionImpacto impacto={impacto} disabled={Boolean(busy)} onPage={preview} />}</div>
     {impacto?.data.puede_confirmar && <ConfirmationPanel label="Confirmación de asignación" title="Confirmar la propuesta revisada">
       <p>Destino: <strong>{destino.codigo_consultorio} — {destino.nombre}</strong>. La revisión comprende todas las páginas y no permite seleccionar solo algunas citas.</p>
       <p>Las citas pasadas y finales conservan su ubicación histórica. Solo se trasladan las citas futuras elegibles que el servidor haya identificado.</p>

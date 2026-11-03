@@ -15,14 +15,16 @@ import LaboratorioQuery from '../components/LaboratorioQuery';
 import SolicitudEstudioForm from '../components/SolicitudEstudioForm';
 import SolicitudesTable from '../components/SolicitudesTable';
 import '../styles/laboratorio.css';
+import '../styles/lab-workflow.css';
 
 export default function SolicitarEstudioPage({ seleccionar = false }) {
   const { id } = useParams(), { usuario } = useAuth();
-  if (seleccionar) return <section className="workspace-page lab-page"><PageHeading title="Solicitar estudios" description="Cada estudio corresponde a una consulta registrada y una atención real." />
+  if (seleccionar) return <section className="workspace-page lab-page lab-flow lab-order-guide"><PageHeading title="Solicitar estudios" description="Cada estudio corresponde a una consulta registrada y una atención real." />
+    <div className="lab-order-sheet">
     <p>Abre una cita de la agenda y consulta su información clínica. Si ya tiene una consulta registrada, selecciona Solicitar estudio y comprueba el contexto autorizado.</p>
     <p><Link className="button button--primary" to="/agenda">Consultar agenda médica</Link></p>
     {usuario.rol === ROLES.ADMINISTRADOR && <p><Link to="/historia-clinica">Seleccionar paciente y consultar su historia clínica</Link></p>}
-    <p>No se crea una consulta automáticamente ni se cambia el estado de la cita al solicitar un estudio.</p></section>;
+    <p>No se crea una consulta automáticamente ni se cambia el estado de la cita al solicitar un estudio.</p></div></section>;
   if (!esIdentificador(id)) return <section className="workspace-page"><h1>Consulta no disponible</h1><Link to="/laboratorio/solicitar">Volver a solicitar estudios</Link></section>;
   return <Solicitud key={`${usuario.id_usuario}:${usuario.rol}:${id}`} id={id} usuario={usuario} />;
 }
@@ -45,12 +47,12 @@ function Solicitud({ id, usuario }) {
     if (escritura.status !== 'inicial') heading.current?.focus();
   }, [escritura.status]);
   const refrescar = () => { setDirty(false); escritura.reset(); query.reload(); };
-  return <section className="workspace-page lab-page">
+  return <section className="workspace-page lab-page lab-flow lab-order-page">
     <Link className="back-link" to={`/citas/${id}/consulta`}>Volver a consulta</Link>
     <PageHeading title="Solicitar estudio de laboratorio" description="Comprueba paciente, consulta y Médico responsable antes de enviar." />
     {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'La solicitud podría haberse registrado. Salir no revierte la operación.' : 'Si sales, se perderá el formulario que no guardaste.'}</p>
       <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar el formulario</Button></Alert>}
-    {escritura.status !== 'inicial' && <section aria-label="Resultado de la solicitud" aria-live="polite" aria-busy={busy}>
+    {escritura.status !== 'inicial' && <section className="lab-order-outcome" aria-label="Resultado de la solicitud" aria-live="polite" aria-busy={busy}>
       <h2 ref={heading} tabIndex={-1}>Resultado de la solicitud</h2>
       {busy && <QueryMessage loading title={escritura.status === 'enviando' ? 'Registrando solicitud…' : 'Consultando solicitudes actuales…'} />}
       {escritura.failure && <Alert variant={escritura.status === 'incierto' ? 'warning' : 'error'}><p>{escritura.failure.message}</p></Alert>}

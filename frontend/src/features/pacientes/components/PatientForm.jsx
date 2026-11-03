@@ -1,10 +1,11 @@
 import FormField from '../../../components/FormField';
 import FormSection from '../../../components/FormSection';
 
-export default function PatientForm({ draft, onChange, emergency, onEmergencyChange, busy, fields = {}, editing = false, documentRequired = false, contactOnly = false }) {
+export default function PatientForm({ draft, onChange, emergency, onEmergencyChange, busy, fields = {}, editing = false, documentRequired = false, contactOnly = false, administrative = false }) {
   const field = name => ({ name, value: draft[name], onChange: event => onChange(name, event.target.value), error: fields[name], autoComplete: 'off' });
   return <fieldset className="patient-form-fields" disabled={busy}><legend>{contactOnly ? 'Contacto y emergencia' : 'Datos de la ficha'}</legend>
-    {!contactOnly && <FormSection className="patient-form-section" title="Identidad del paciente"><div className="form-field-grid">
+    {!contactOnly && <FormSection className="patient-form-section" title="Identidad del paciente">
+      {administrative && <p className="patient-section-intro">Comprueba los datos de la persona a quien pertenece la ficha.</p>}<div className="form-field-grid">
       <div className="patient-form-wide"><FormField label={documentRequired ? 'CI' : 'CI (opcional)'} required={documentRequired} maxLength={50} {...field('documento_identidad')} hint={editing ? 'Un CI informado no se puede retirar. Incorporarlo o corregirlo requiere comprobación presencial y motivo.' : 'Si no dispone de CI, revisa posibles fichas previas. No uses un documento ficticio.'} /></div>
       <FormField label="Nombres" required maxLength={120} {...field('nombres')} />
       <FormField label="Apellidos" required maxLength={120} {...field('apellidos')} />
@@ -16,7 +17,8 @@ export default function PatientForm({ draft, onChange, emergency, onEmergencyCha
       <FormField label="Correo de contacto (opcional)" type="email" maxLength={254} {...field('correo_contacto')} hint="No crea una cuenta ni cambia el correo de acceso." />
       <div className="field patient-form-wide"><label htmlFor="patient-address">Dirección (opcional)</label><textarea id="patient-address" name="direccion" value={draft.direccion} onChange={event => onChange('direccion', event.target.value)} maxLength={2000} rows={3} aria-invalid={Boolean(fields.direccion)} aria-describedby={fields.direccion ? 'patient-address-error' : undefined} />{fields.direccion && <p id="patient-address-error" className="field-error">{fields.direccion}</p>}</div>
     </div></FormSection>
-    <div className="patient-checkbox"><label><input type="checkbox" checked={emergency} onChange={event => onEmergencyChange(event.target.checked)} />Registrar contacto de emergencia</label></div>
+    <div className="patient-checkbox"><label><input type="checkbox" checked={emergency} onChange={event => onEmergencyChange(event.target.checked)} aria-describedby={administrative ? 'patient-emergency-help' : undefined} />Registrar contacto de emergencia</label>
+      {administrative && <p id="patient-emergency-help" className="field-hint">Opcional. Activa esta sección para indicar a quién contactar en una emergencia.</p>}</div>
     {emergency && <fieldset className="patient-emergency"><legend>Contacto de emergencia</legend>
       {fields.contacto_emergencia && <p className="field-error">{fields.contacto_emergencia}</p>}
       <div className="form-field-grid"><FormField label="Nombre del contacto" required maxLength={240} {...field('contacto_emergencia.nombre')} />

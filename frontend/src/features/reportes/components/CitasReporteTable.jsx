@@ -2,7 +2,7 @@ import { formatearInstanteCita } from '../../agenda/utils/agendaFormat';
 
 export default function CitasReporteTable({ citas, caption }) {
   const columns = ['Cita y horario', 'Paciente', 'Médico', 'Especialidad', 'Consultorio', 'Modalidad', 'Estado'];
-  return <div className="catalog-table-wrap query-table agenda-table"><table className="catalog-table" role="table">
+  return <div className="catalog-table-wrap query-table query-records report-appointments"><table className="catalog-table" role="table">
     <caption>{caption}</caption>
     <thead role="rowgroup"><tr role="row">{columns.map(label => <th key={label} scope="col" role="columnheader">{label}</th>)}</tr></thead>
     <tbody role="rowgroup">{citas.map(cita => <tr key={cita.id_cita} role="row">

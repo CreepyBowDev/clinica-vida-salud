@@ -22,9 +22,11 @@ class CoordinacionCobroPagoService
         if ($activo->proveedor === 'paypal') {
             $this->repo->guardar($activo, ['captura_permitida' => false, 'actualizado_en' => CarbonImmutable::now('UTC')]);
             $this->paypal->consulta($activo);
-        } elseif (! $this->repo->escritura((string) $o->getKey())) {
+        } elseif ($activo->proveedor === 'simulado') {
+            $this->repo->guardar($activo, ['estado' => 'Cerrado', 'actualizado_en' => CarbonImmutable::now('UTC')]);
+        } elseif ($activo->proveedor === 'stripe' && ! $this->repo->escritura((string) $o->getKey())) {
             $this->stripe->preparar($activo, 'Cerrar');
-        } else {
+        } elseif ($activo->proveedor === 'stripe') {
             $this->stripe->consulta($activo);
         }
     }

@@ -35,7 +35,7 @@ class ConsultaPagosRequest extends FormRequest
             $reglas['fecha_hasta'][] = 'after_or_equal:fecha_desde';
         }
         if ($this->route()->getActionMethod() === 'historial') {
-            return [...$reglas, 'proveedor' => ['sometimes', 'required', Rule::in(['stripe', 'paypal'])],
+            return [...$reglas, 'proveedor' => ['sometimes', 'required', Rule::in(['stripe', 'paypal', 'simulado'])],
                 'resultado' => ['sometimes', 'required', Rule::in(['Preparando', 'RequiereAccion', 'Procesando', 'Exitoso', 'Fallido', 'Cerrado', 'Incierto'])]];
         }
         foreach (['exigible', 'liquidada', 'vencida', 'operacion_en_verificacion'] as $campo) {

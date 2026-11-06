@@ -52,6 +52,7 @@ class CoordinacionFinancieraCitaService
         if ($cambio->operacion === 'CANCELACION') {
             $this->stripe->coordinarCancelacion($obligacion);
             $this->paypal->coordinarCancelacion($obligacion);
+            app(SimulacionPagoService::class)->coordinarCancelacion($obligacion);
         }
 
         return ['id_obligacion' => (string) $obligacion->getKey(), 'id_cambio_cita' => (string) $cambio->getKey(),

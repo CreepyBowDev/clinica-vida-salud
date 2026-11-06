@@ -1,5 +1,11 @@
 # Backend — Clínica Vida Salud
 
+## Pago académico simulado persistente (2026-11-06)
+
+Implementado para obligaciones elegibles de citas creadas por el sistema; no depende de `DEMO-CITA-001`. Contexto `simulado/local`, origen histórico explícito, referencia local SIM, mismos cobros/liquidación/consultas para titular y Administrador. Rutas académicas exclusivas del Paciente; transacción/idempotencia, aprobación PayPal sin cobro y captura humana separada, cierre sin cobro/devolución simulada al cancelar. Sin proveedores/mocks en código funcional ni éxito administrativo arbitrario.
+
+[Contrato, elegibilidad, migración000041, pruebas y publicación](../docs/ai/pagos-simulacion-persistente.md). Nuevo `PAGOS_SIMULACION_HABILITADA` defaultfalse, restringido además a local/testing/esquema instalado. **No se aplicó000041 ni se activó la simulación en la base habitual; `.env` y proveedores intactos.** No ejecutar migrate general (36–39 siguen fuera de autorización). Revisión final de afectados45 pruebas/470 aserciones correctas en PostgreSQL aislado/código0; inventario idéntico. La regresión inicial dirigida174 tuvo fallos de arnés corregidos, no se declara174 completamente verdes. Sin aceptación externa ni despliegue.
+
 ## Activación financiera local autorizada (2026-11-06)
 
 Posterior a F8, el usuario autorizó habilitar monto/obligaciones en su entorno habitual **local**, con Stripe y PayPal apagados. Aplicadas exclusivamente las migraciones existentes33/34/35/40 a `clinica_vida_salud.public`, dentro de una transacción y con comprobación previa de solapamientos; código0. Conservadas5 citas/9 cambios,0 citas antiguas incorporadas/0 obligaciones retroactivas. Migraciones36–39 (Laboratorio/Push) siguen pendientes, sin tocar. Sin seeds, borrados, nuevas migraciones ni operaciones externas.

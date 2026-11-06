@@ -13,6 +13,7 @@ class IntentoPagoResource extends JsonResource
 
         return ['id' => (string) $i->getKey(), 'obligacion_id' => (string) $i->id_obligacion,
             'proveedor' => $i->proveedor, 'estado' => $i->estado,
+            'origen' => $i->origen ?? 'Externo', 'modalidad' => $i->modalidad,
             'creado_at' => $i->creado_en->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'actualizado_at' => $i->actualizado_en->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'centavos_usd' => $i->obligacion->centavos_usd, 'moneda' => 'USD',

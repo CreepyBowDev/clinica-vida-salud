@@ -5,6 +5,7 @@ namespace Clinica\presentation\dtos\pagos;
 use Carbon\CarbonImmutable;
 use Clinica\business\services\pagos\PayPalPagoService;
 use Clinica\business\services\pagos\StripePagoService;
+use Clinica\business\services\pagos\SimulacionPagoService;
 use Clinica\shared\utils\ImportePago;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,8 +19,10 @@ class ObligacionPagoResource extends JsonResource
         $liquidada = (bool) ($o->liquidada ?? false);
         $elegibilidad = ['puede_iniciar_pago' => false, 'revision_pago' => null];
         $proveedores = [];
+        $simulacion = ['habilitada' => false, 'puede_iniciar' => false, 'revision' => null];
         if ($request->user()?->rol?->nombre === 'Paciente') {
             $actor = (string) $request->user()->getKey();
+            $simulacion = app(SimulacionPagoService::class)->elegibilidad($o, $actor);
             foreach (['stripe' => StripePagoService::class, 'paypal' => PayPalPagoService::class] as $proveedor => $service) {
                 $disponible = app($service)->elegibilidad($o, $actor);
                 if ($disponible['puede_iniciar_pago']) {
@@ -38,12 +41,17 @@ class ObligacionPagoResource extends JsonResource
             'emitida_at' => $o->emitida_en->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'vencimiento_at' => $o->vencimiento_at->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'exigible' => $o->exigible, 'liquidada' => $liquidada,
+            'origen_liquidacion' => $o->relationLoaded('liquidacion') && $o->liquidacion ? ($o->liquidacion->proveedor === 'simulado' ? 'Simulado' : 'Externo') : null,
+            'simulacion' => $simulacion,
             'vencida' => $o->exigible && ! $liquidada && $ahora->greaterThanOrEqualTo($o->vencimiento_at),
             'operacion_en_verificacion' => (bool) ($o->operacion_en_verificacion ?? false),
             ...$elegibilidad,
             'proveedores_disponibles' => $proveedores,
             'intento_actual' => ! $o->relationLoaded('intentos') || $o->intentos->isEmpty() ? null
                 : ['id' => (string) $o->intentos->first()->getKey(), 'proveedor' => $o->intentos->first()->proveedor,
-                    'estado' => $o->intentos->first()->estado]];
+                    'estado' => $o->intentos->first()->estado,
+                    'modalidad' => $o->intentos->first()->modalidad,
+                    'escenario' => $o->intentos->first()->escenario,
+                    'aprobada' => $o->intentos->first()->aprobada_en !== null]];
     }
 }

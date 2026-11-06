@@ -27,12 +27,13 @@ export function resumenFinanciero(v) {
 }
 function devolucion(v) {
   exigir(v && esUuid(v.id) && ['Pendiente', 'Procesando', 'Exitosa', 'Fallida', 'Incierta'].includes(v.estado) && Number.isSafeInteger(v.centavos_usd) && v.moneda === 'USD');
-  return { id: v.id, estado: v.estado, centavos_usd: v.centavos_usd, moneda: v.moneda };
+   return { ...(v.origen ? { origen: v.origen } : {}), id: v.id, estado: v.estado, centavos_usd: v.centavos_usd, moneda: v.moneda };
 }
 function intento(v) {
-  exigir(v && esUuid(v.id) && esUuid(v.obligacion_id) && ['stripe', 'paypal'].includes(v.proveedor) && ESTADOS_INTENTO.includes(v.estado)
+   exigir(v && esUuid(v.id) && esUuid(v.obligacion_id) && ['stripe', 'paypal', 'simulado'].includes(v.proveedor) && ESTADOS_INTENTO.includes(v.estado)
     && instante(v.creado_at) && instante(v.actualizado_at) && Array.isArray(v.cobros) && Number.isSafeInteger(v.centavos_usd) && v.moneda === 'USD');
-  return { id: v.id, obligacion_id: v.obligacion_id, proveedor: v.proveedor, estado: v.estado, creado_at: v.creado_at,
+   if (v.proveedor === 'simulado') exigir(v.origen === 'Simulado' && ['stripe', 'paypal'].includes(v.modalidad));
+   return { ...(v.origen ? { origen: v.origen, modalidad: v.modalidad } : {}), id: v.id, obligacion_id: v.obligacion_id, proveedor: v.proveedor, estado: v.estado, creado_at: v.creado_at,
     actualizado_at: v.actualizado_at, centavos_usd: v.centavos_usd, cobros: v.cobros.map(c => {
       exigir(esUuid(c.id) && typeof c.aplicado === 'boolean' && Number.isSafeInteger(c.centavos_usd) && instante(c.confirmado_at)
         && (c.incidencia === null || texto(c.incidencia)) && texto(c.referencia));
@@ -46,13 +47,20 @@ function obligacion(v, rol) {
     && ['exigible', 'liquidada', 'vencida', 'operacion_en_verificacion', 'puede_iniciar_pago'].every(k => typeof v[k] === 'boolean'));
   const proveedores = rol === ROLES.PACIENTE && Array.isArray(v.proveedores_disponibles) ? v.proveedores_disponibles : [];
   exigir(proveedores.every(p => ['stripe', 'paypal'].includes(p)) && (v.revision_pago === null || texto(v.revision_pago)));
-  if (v.intento_actual !== null) exigir(esUuid(v.intento_actual?.id) && ['stripe', 'paypal'].includes(v.intento_actual.proveedor) && ESTADOS_INTENTO.includes(v.intento_actual.estado));
-  return { id: v.id, cita: { id_cita: v.cita.id_cita, codigo_cita: v.cita.codigo_cita, inicio_at: v.cita.inicio_at, estado: v.cita.estado },
+   if (v.intento_actual !== null) exigir(esUuid(v.intento_actual?.id) && ['stripe', 'paypal', 'simulado'].includes(v.intento_actual.proveedor) && ESTADOS_INTENTO.includes(v.intento_actual.estado));
+   if (v.simulacion) exigir(typeof v.simulacion.habilitada === 'boolean' && typeof v.simulacion.puede_iniciar === 'boolean'
+     && (v.simulacion.revision === null || texto(v.simulacion.revision)));
+   if (v.intento_actual?.proveedor === 'simulado') exigir(['stripe', 'paypal'].includes(v.intento_actual.modalidad)
+     && ['completado', 'pendiente'].includes(v.intento_actual.escenario) && typeof v.intento_actual.aprobada === 'boolean');
+   return { ...(v.simulacion ? { simulacion: rol === ROLES.PACIENTE ? v.simulacion : { habilitada: false, puede_iniciar: false, revision: null } } : {}),
+     ...(v.origen_liquidacion ? { origen_liquidacion: v.origen_liquidacion } : {}),
+     id: v.id, cita: { id_cita: v.cita.id_cita, codigo_cita: v.cita.codigo_cita, inicio_at: v.cita.inicio_at, estado: v.cita.estado },
     precio: precioPago(v.precio), emitida_at: v.emitida_at, vencimiento_at: v.vencimiento_at, exigible: v.exigible, liquidada: v.liquidada,
     vencida: v.vencida, operacion_en_verificacion: v.operacion_en_verificacion,
     puede_iniciar_pago: rol === ROLES.PACIENTE && v.puede_iniciar_pago && proveedores.length > 0 && texto(v.revision_pago),
     proveedores_disponibles: proveedores, revision_pago: rol === ROLES.PACIENTE ? v.revision_pago : null,
-    intento_actual: v.intento_actual ? { id: v.intento_actual.id, proveedor: v.intento_actual.proveedor, estado: v.intento_actual.estado } : null };
+     intento_actual: v.intento_actual ? { id: v.intento_actual.id, proveedor: v.intento_actual.proveedor, estado: v.intento_actual.estado,
+       ...(v.intento_actual.proveedor === 'simulado' ? { modalidad: v.intento_actual.modalidad, escenario: v.intento_actual.escenario, aprobada: v.intento_actual.aprobada } : {}) } : null };
 }
 function pagina(v, proyectar) {
   const m = v?.meta;
@@ -105,6 +113,20 @@ export async function operarPago({ tipo, id, clave, proveedor, revision_pago }) 
       obligacion: { id: d.obligacion_id, exigible: d.obligacion.exigible, liquidada: d.obligacion.liquidada },
       devolucion: d.devolucion ? devolucion(d.devolucion) : null, operacion_en_verificacion: d.operacion_en_verificacion,
       puede_reintentar: d.puede_reintentar, ultima_verificacion_at: d.ultima_verificacion_at } };
+  } catch (error) { error.pagoEnviado = true; throw error; }
+}
+export async function operarSimulacion({ tipo, id, clave, modalidad, escenario, revision }) {
+  exigir(['iniciar', 'aprobar', 'confirmar', 'capturar', 'cerrar'].includes(tipo) && esUuid(clave));
+  if (tipo === 'iniciar') exigir(['stripe', 'paypal'].includes(modalidad) && ['completado', 'pendiente'].includes(escenario) && texto(revision));
+  const path = tipo === 'iniciar' ? `/pagos/obligaciones/${uuid(id)}/simulacion` : `/pagos/simulacion/intentos/${uuid(id)}/${tipo}`;
+  const response = await post(path, tipo === 'iniciar' ? { modalidad, escenario, revision } : {}, { 'Idempotency-Key': clave });
+  try {
+    const d = response.data?.data;
+    exigir([200, 201].includes(response.status) && d?.origen === 'Simulado' && esUuid(d.id) && esUuid(d.obligacion_id)
+      && (tipo === 'iniciar' ? d.obligacion_id === id : d.id === id) && ['stripe', 'paypal'].includes(d.modalidad)
+      && ['completado', 'pendiente'].includes(d.escenario) && ESTADOS_INTENTO.includes(d.estado)
+      && typeof d.aprobada === 'boolean' && typeof d.liquidada === 'boolean' && !d.accion);
+    return d;
   } catch (error) { error.pagoEnviado = true; throw error; }
 }
 export async function proponerMonto(id, monto) {

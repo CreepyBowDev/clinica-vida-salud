@@ -36,6 +36,7 @@ describe('catálogo de navegación por responsabilidad', () => {
   });
   it.each([
     [ROLES.PACIENTE, '/pagos/obligaciones/11111111-1111-4111-8111-111111111111', 'pagos', 'pagos', 'Detalle de obligación'],
+    [ROLES.PACIENTE, '/pagos/obligaciones/11111111-1111-4111-8111-111111111111/pagar', 'pagos', 'pagos', 'Pagar'],
     [ROLES.ADMINISTRADOR, '/pagos/pacientes/9', 'pagos', 'pagos', 'Pagos del paciente seleccionado'],
     [ROLES.ADMINISTRADOR, '/reportes', 'reportes', 'reportes', 'Consultar reportes'],
     [ROLES.PACIENTE, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],

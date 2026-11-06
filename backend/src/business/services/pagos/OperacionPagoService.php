@@ -17,6 +17,9 @@ class OperacionPagoService
     {
         $proveedor = $inicio ? $d['proveedor'] : ($this->repo->intento($d['objetivo'])?->proveedor
             ?? throw new AppError('RECURSO_NO_ENCONTRADO', 'No se encontró el recurso solicitado.'));
+        if (! in_array($proveedor, ['stripe', 'paypal'], true)) {
+            throw new AppError('PAGO_PROVEEDOR_INCOMPATIBLE', 'El intento no corresponde a un proveedor externo.');
+        }
         if ($proveedor === 'paypal') {
             $r = $inicio ? $this->paypal->iniciar($d['objetivo'], $d['revision_pago'], $d['clave'])
                 : $this->paypal->solicitar($d['objetivo'], $tipo, $d['clave']);

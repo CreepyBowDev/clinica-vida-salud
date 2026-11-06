@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Carbon\CarbonImmutable;
 use Clinica\business\services\pagos\PayPalPagoService;
 use Clinica\business\services\pagos\StripePagoService;
+use Clinica\business\services\pagos\SimulacionPagoService;
 use Clinica\data\models\ObligacionPago;
 use Clinica\presentation\dtos\citas\DisponibilidadResource;
 use Clinica\presentation\dtos\pagos\ObligacionPagoResource;
@@ -24,6 +25,9 @@ class PagosCapacidadesPresentacionTest extends TestCase
         $this->anterior = Container::getInstance();
         $container = new Container;
         $container->instance('config', new Repository(['pagos' => ['incorporacion_habilitada' => false]]));
+        $simulacion = $this->createStub(SimulacionPagoService::class);
+        $simulacion->method('elegibilidad')->willReturn(['habilitada' => false, 'puede_iniciar' => false, 'revision' => null]);
+        $container->instance(SimulacionPagoService::class, $simulacion);
         Container::setInstance($container);
     }
 

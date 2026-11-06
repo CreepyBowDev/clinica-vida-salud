@@ -1,6 +1,8 @@
 <?php
 
 return [
+    // Requiere autorización de activación independiente; nunca habilita producción.
+    'simulacion_habilitada' => env('PAGOS_SIMULACION_HABILITADA', false),
     // Solo afecta propuestas/reservas nuevas. Nunca reclasifica citas existentes.
     'incorporacion_habilitada' => env('PAGOS_INCORPORACION_HABILITADA', false),
     'paypal' => [

@@ -66,6 +66,7 @@ import ReportesPage from '../features/reportes/pages/ReportesPage';
 import PagosPage from '../features/pagos/pages/PagosPage';
 import RetornoPagoPage from '../features/pagos/pages/RetornoPagoPage';
 import DemostracionPagosPage from '../features/pagos/pages/DemostracionPagosPage';
+import PagarPage from '../features/pagos/pages/PagarPage';
 import { limpiarRetornoPago } from '../features/pagos/utils/pagoFormat';
 
 limpiarRetornoPago();
@@ -96,6 +97,7 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
       ] },
       { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [
         { path: '/pagos/obligaciones/:id', element: <PagosPage /> },
+        { path: '/pagos/obligaciones/:id/pagar', element: <PagarPage /> },
         { path: '/pagos/retorno/:proveedor/:intento?', element: <RetornoPagoPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [

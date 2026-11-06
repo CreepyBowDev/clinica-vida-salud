@@ -1,5 +1,5 @@
 export const ESTADOS_INTENTO = ['Preparando', 'RequiereAccion', 'Procesando', 'Exitoso', 'Fallido', 'Cerrado', 'Incierto'];
-export const PROVEEDORES = { stripe: 'Stripe Checkout test', paypal: 'PayPal Sandbox' };
+export const PROVEEDORES = { stripe: 'Stripe Checkout test', paypal: 'PayPal Sandbox', simulado: 'Simulación académica' };
 export const esUuid = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 export function montoEntrada(value) {
   if (typeof value !== 'string' || !/^(?:0|[1-9][0-9]{0,3})(?:[.,][0-9]{1,2})?$/.test(value)) throw new Error('Introduce un monto entre Bs 7,00 y Bs 7.000,00, sin miles y con hasta dos decimales.');
@@ -19,7 +19,7 @@ export function usdCentavos(value) {
   return `USD ${decimalVisible(`${n / 100n}.${String(n % 100n).padStart(2, '0')}`)}`;
 }
 export function situacionObligacion(o) {
-  return !o.exigible ? 'No exigible' : o.liquidada ? 'Pagada' : o.vencida ? 'Vencida regularizable' : 'Pendiente de pago';
+  return !o.exigible ? 'No exigible' : o.liquidada ? (o.origen_liquidacion === 'Simulado' ? 'Pagada — simulación académica' : 'Pagada') : o.vencida ? 'Vencida regularizable' : 'Pendiente de pago';
 }
 export const SITUACIONES_PRECIO = { NoIncorporada: 'No incorporada al módulo financiero', PendienteAsignacion: 'Pendiente de asignación de precio', Asignado: 'Precio asignado' };
 export function urlProveedor(accion, proveedor) {

@@ -21,7 +21,7 @@ class ObligacionPagoRepository
 
     private function consulta(): Builder
     {
-        return ObligacionPago::query()->with(['cita', 'intentos' => fn ($q) => $q->whereIn('estado', self::ACTIVOS)
+        return ObligacionPago::query()->with(['cita', 'liquidacion', 'intentos' => fn ($q) => $q->whereIn('estado', self::ACTIVOS)
             ->orderByDesc('creado_en')->orderByDesc('id_intento')->limit(1)])
             ->withExists(['liquidacion as liquidada', 'intentos as operacion_en_verificacion' => fn ($q) => $q
                 ->where(fn ($i) => $i->whereIn('estado', self::ACTIVOS)
@@ -74,7 +74,7 @@ class ObligacionPagoRepository
 
     public function historial(string $paciente, array $filtros, ?string $obligacion = null): LengthAwarePaginator
     {
-        $query = IntentoPago::query()->with(['obligacion', 'cobros.devolucion'])
+        $query = IntentoPago::query()->with(['obligacion', 'cobros.devolucion.cobro'])
             ->whereHas('obligacion.cita', fn ($q) => $q->where('id_paciente', $paciente));
         if ($obligacion !== null) {
             $query->where('id_obligacion', $obligacion);
@@ -92,7 +92,7 @@ class ObligacionPagoRepository
 
     public function devoluciones(string $obligacion, int $pagina): LengthAwarePaginator
     {
-        return DevolucionPago::query()->whereHas('cobro', fn ($q) => $q->where('id_obligacion', $obligacion))
+        return DevolucionPago::query()->with('cobro')->whereHas('cobro', fn ($q) => $q->where('id_obligacion', $obligacion))
             ->orderByDesc('creada_en')->orderByDesc('id_devolucion')->paginate(20, ['*'], 'devoluciones_page', $pagina);
     }
 

@@ -26,7 +26,7 @@ class IntentoPago extends Model
 
     protected function casts(): array
     {
-        return ['captura_permitida' => 'boolean', 'creado_en' => 'immutable_datetime', 'actualizado_en' => 'immutable_datetime',
+        return ['aprobada_en' => 'immutable_datetime', 'captura_permitida' => 'boolean', 'creado_en' => 'immutable_datetime', 'actualizado_en' => 'immutable_datetime',
             'proxima_revision_en' => 'immutable_datetime', 'revisado_en' => 'immutable_datetime'];
     }
 

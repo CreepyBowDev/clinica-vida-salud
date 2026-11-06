@@ -36,7 +36,7 @@ class PagosPersistenciaTest extends TestCase
         $this->beforeApplicationDestroyed(fn () => DB::rollBack());
         // Preparamos una cita realmente anterior a la migración; todo se revierte al terminar.
         $previas = array_values(array_filter(glob(base_path('src/data/database/migrations/*.php')),
-            fn ($path) => ! str_contains($path, '000040_')));
+            fn ($path) => ! str_contains($path, '000040_') && ! str_contains($path, '000041_')));
         $this->artisan('migrate', ['--force' => true, '--path' => $previas, '--realpath' => true])->assertSuccessful();
         $this->actor = (int) $this->usuarioAuth()->getKey();
         $paciente = DB::table('pacientes')->insertGetId(['codigo_paciente' => 'P-FICTICIO', 'nombres' => 'Paciente',
@@ -52,6 +52,8 @@ class PagosPersistenciaTest extends TestCase
         $this->citaLegada = $this->cita(null);
         $this->artisan('migrate', ['--force' => true,
             '--path' => 'src/data/database/migrations/2026_11_05_000040_create_pagos_persistence.php'])->assertSuccessful();
+        $this->artisan('migrate', ['--force' => true,
+            '--path' => 'src/data/database/migrations/2026_11_06_000041_add_simulacion_academica_to_pagos.php'])->assertSuccessful();
     }
 
     private function cita(?bool $incorporada = true): int

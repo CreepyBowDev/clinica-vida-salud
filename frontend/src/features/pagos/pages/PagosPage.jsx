@@ -101,11 +101,11 @@ function Detalle({ scope, id, base }) {
         {!o.exigible && <p>No permite nuevos pagos. El historial y las devoluciones se conservan aunque la cita esté cancelada.</p>}
         <p>Consulta realizada: {o.calculado_at ? formatearInstanteCita(o.calculado_at) : 'Instante no disponible'}.</p>
       </section>
-      {scope.rol === ROLES.PACIENTE && <OperacionPago obligacion={o} onConsultar={query.reload} onRiskChange={setRisk} />}
-      {scope.rol === ROLES.PACIENTE && o.exigible && !o.liquidada && <section className="catalog-panel" aria-label="Demostración independiente">
-        <h2>Explorar un ejemplo ficticio</h2>
-        <p>No paga esta obligación ni transfiere su código, importe o identificadores. El ejemplo está separado del historial real y no modifica la disponibilidad de pago.</p>
-        <Link className="button button--secondary" to="/pagos/demostracion">Simular pago — demostración</Link>
+      {scope.rol === ROLES.PACIENTE && o.intento_actual?.proveedor !== 'simulado' && <OperacionPago obligacion={o} onConsultar={query.reload} onRiskChange={setRisk} />}
+      {scope.rol === ROLES.PACIENTE && o.simulacion?.habilitada && (o.simulacion.puede_iniciar || o.intento_actual?.proveedor === 'simulado') && <section className="catalog-panel" aria-label="Pago académico">
+        <h2>Pago académico simulado</h2>
+        <p>Registra el resultado en esta obligación, sin enviar dinero ni contactar con proveedores.</p>
+        <Link className="button button--secondary" to={`/pagos/obligaciones/${o.id}/pagar`}>{o.intento_actual?.proveedor === 'simulado' ? 'Continuar pago académico' : 'Pagar'}</Link>
       </section>}
       <section><h2>Historial de intentos y cobros</h2>{o.intentos.data.length ? <HistorialPagos intentos={o.intentos.data} /> : <p>No hay intentos registrados en esta página.</p>}
         <Pagination meta={o.intentos.meta} label="intentos" onPage={intentos_page => { if (!risk) setPages(v => ({ ...v, intentos_page })); }} /></section>

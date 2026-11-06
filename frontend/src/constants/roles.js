@@ -18,7 +18,7 @@ export function destinoSeguro(pathname, rol) {
     if (pathname === '/pagos') return pathname;
     if (pathname === '/pagos/demostracion') return pathname;
     const uuid = '[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}';
-    if (rol === ROLES.PACIENTE && (new RegExp(`^/pagos/obligaciones/${uuid}$`).test(pathname)
+    if (rol === ROLES.PACIENTE && (new RegExp(`^/pagos/obligaciones/${uuid}(?:/pagar)?$`).test(pathname)
       || new RegExp(`^/pagos/retorno/(stripe|paypal)/${uuid}$`).test(pathname))) return pathname;
     const match = rol === ROLES.ADMINISTRADOR && pathname.match(new RegExp(`^/pagos/pacientes/([1-9][0-9]{0,18})(?:/obligaciones/${uuid})?$`));
     return match && BigInt(match[1]) <= 9223372036854775807n ? pathname : '/pagos';

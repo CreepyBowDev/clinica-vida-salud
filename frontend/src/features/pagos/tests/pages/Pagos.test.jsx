@@ -102,25 +102,18 @@ it('flags apagados conservan detalle sin acciones de inicio', async () => {
   await screen.findByText('Bs 70,00'); expect(screen.queryByLabelText('Proveedor de prueba')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Revisar inicio de pago' })).not.toBeInTheDocument(); expect(posts()).toHaveLength(0);
 });
-it.each([true, false])('opción A abre fixture sin transferir datos ni liquidar obligación (elegible=%s)', async elegible => {
+it.each([true, false])('Pagar vincula la obligación cuando el backend habilita simulación, independientemente del proveedor externo (%s)', async elegible => {
   detail = detalle({ cita: { ...obligacion().cita, codigo_cita: 'REAL-NO-TRANSFERIR' }, precio: { ...precio, monto_bob: '140.00', centavos_bob: 14000, monto_usd: '20.00', centavos_usd: 2000 },
+    simulacion: { habilitada: true, puede_iniciar: true, revision: 'academica' },
     puede_iniciar_pago: elegible, revision_pago: elegible ? 'revision-opaca' : null, proveedores_disponibles: elegible ? ['stripe'] : [] });
-  const originalDetail = structuredClone(detail), router = mount();
-  const link = await screen.findByRole('link', { name: 'Simular pago — demostración' });
-  expect(link).toHaveAttribute('href', '/pagos/demostracion');
+  mount();
+  const link = await screen.findByRole('link', { name: 'Pagar', exact: true });
+  expect(link).toHaveAttribute('href', `/pagos/obligaciones/${O}/pagar`);
   expect(Boolean(screen.queryByLabelText('Proveedor de prueba'))).toBe(elegible);
-  const reads = calls.length;
-  await userEvent.click(link); await screen.findByLabelText('Nombre del titular ficticio');
-  expect(router.state.location.pathname).toBe('/pagos/demostracion');
-  expect(router.state.location.search).toBe(''); expect(router.state.location.hash).toBe(''); expect(router.state.location.state).toBeNull();
-  expect(screen.queryByText(/REAL-NO-TRANSFERIR/)).not.toBeInTheDocument(); expect(screen.getByText('Bs 70,00')).toBeVisible();
-  for (const name of ['Revisar inicio simulado', 'Iniciar pago simulado', 'Representar salida al proveedor (simulada)', 'Simular retorno al portal', 'Consultar resultado ficticio']) await userEvent.click(screen.getByRole('button', { name, exact: true }));
-  await screen.findByText(/Pago completado simulado por USD 10,00/);
-  await userEvent.click(screen.getByRole('button', { name: 'Reiniciar demostración' }));
-  expect(calls).toHaveLength(reads); expect(posts()).toHaveLength(0); expect(detail).toEqual(originalDetail);
-  await act(async () => router.navigate(`/pagos/obligaciones/${O}`)); await screen.findByText('Bs 140,00');
-  expect(Boolean(screen.queryByLabelText('Proveedor de prueba'))).toBe(elegible);
-  expect(screen.queryByText(/Pago completado simulado por/)).not.toBeInTheDocument(); expect(detail).toEqual(originalDetail); expect(posts()).toHaveLength(0);
+  await userEvent.click(link); await screen.findByLabelText('Titular');
+  expect(screen.getByText(/Cita REAL-NO-TRANSFERIR/)).toBeInTheDocument();
+  expect(screen.getByText('Bs 140,00')).toBeVisible();
+  expect(posts()).toHaveLength(0);
 });
 it.each([{ exigible: false }, { liquidada: true }])('no ofrece acción sobre obligaciones no pendientes: %j', async estado => {
   detail = detalle({ ...estado, puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [] }); mount();

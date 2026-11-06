@@ -1,5 +1,7 @@
 # Demostración visual de pagos (2026-11-06)
 
+**Decisión posterior:** el usuario sustituyó expresamente la opción A y la limitación exclusivamente visual para el pago de obligaciones elegibles de citas habituales. Implementado el recorrido [Pagar con persistencia académica](pagos-simulacion-persistente.md), separado de la fixture. Se retiró el enlace fijo de opción A desde la obligación y se reemplazó por una acción vinculada/autorizada por Laravel. `/pagos/demostracion` conserva únicamente el ejemplo estático independiente para Paciente/Administrador. Sus barreras en memoria siguen vigentes en esa página, no limitan el nuevo recorrido. Migración/activación habitual aún pendientes; apartados siguientes son historia del ejemplo estático, no evidencia del nuevo backend.
+
 ## Acceso y alcance
 
 - Ruta SPA independiente: `/pagos/demostracion`. Menú **Pagos → Demostración de pagos**, exclusivamente Paciente y Administrador con sesión normal, mediante `ProtectedRoute`/`RoleRoute` existentes. Login conserva el destino local permitido. Recepción/Médico conservan navegación y denegación. No CU ni permisos financieros nuevos.

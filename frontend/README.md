@@ -1,5 +1,17 @@
 # Frontend — Clínica Vida Salud
 
+## Demostración visual de pagos (2026-11-06)
+
+Ruta `/pagos/demostracion`, acceso **Pagos → Demostración de pagos** para Paciente/Administrador con guards existentes. Recorrido estático Bs70/tasa7:1/USD10: Stripe, PayPal con aprobación/revisión/captura humana separadas y pendiente sin polling. Aviso permanente de datos ficticios; reinicio solo en memoria. No consultas de recursos reales, llamadas financieras, SDK, enlaces externos, persistencia ni cambio de elegibilidad. **Consultar pagos** sigue siendo el flujo operativo independiente.
+
+[Guion, barreras, archivos/evidencia y publicación pendiente](../docs/ai/pagos-demostracion-visual.md). Final dirigida287 pruebas/9 archivos/código0; build0 (warning previo de tamaño conservado); Chrome local con auth ficticia80 layouts/20 axe sin violaciones automáticas, teclado/foco y0 peticiones financieras/externas. Publicar solo el frontend reconstruido (`pnpm build`, `dist/` completo y fallback SPA, o reconstrucción de imagen Docker frontend existente), conservando autenticación/API. No habilitar proveedores ni migrar. Sitio publicado no inspeccionado; no despliegue/commit/push realizados. No integración ni aceptación externa acreditada.
+
+## Monto y obligaciones habilitados en el entorno local habitual (2026-11-06)
+
+Activación posterior a F8 expresamente autorizada: incorporación financiera=true; Stripe/PayPal=false. Tras recargar y abrir una nueva revisión de reserva, Administrador/Recepción deben ingresar y revisar el monto; la obligación de la cita nueva queda disponible para su titular en **Consultar pagos**, sin proveedor de pago habilitado. Reserva propia del Paciente sin precio hasta asignación posterior del personal; las citas anteriores no generan deudas retroactivas.
+
+Migraciones backend existentes33/34/35/40 aplicadas solo a la base local habitual, sin cambios de React/contratos/defaults ni operaciones externas. Configuración efectiva y capacidades de presentación por rol comprobadas;33 pruebas backend dirigidas/529 aserciones/código0 en PostgreSQL aislado. No nuevo login/registro de cita de prueba en la base habitual ni nuevo build; F8 inferior es evidencia histórica. Relevo en `docs/ai/estado-fase.md`.
+
 ## Pagos — Fase 8 integración local (2026-11-06)
 
 **React/Axios→Laravel/Sanctum→PostgreSQL verificados por HTTPS loopback; Stripe/PayPal/OAuth/postback simulados.** [Aceptación, comandos, evidencia y guion académico](../docs/ai/pagos-fase8-integracion.md). Sin cambios de interfaz/producto, solo pruebas backend/documentación. Chrome20 escenarios/56 layouts/14 axe sin violaciones automáticas/cero excepciones, captura PayPal por Enter, cookies/CSRF/origen/roles reales, respuesta perdida tras commit/misma clave/cuerpo e impago sin bloqueo asistencial. No respuestas Laravel simuladas.

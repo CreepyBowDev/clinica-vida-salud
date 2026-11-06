@@ -1,5 +1,17 @@
 # Análisis de clases — Clínica Vida Salud
 
+## Pagos — Demostración visual independiente (2026-11-06)
+
+Frontera React `DemostracionPagosPage` en `/pagos/demostracion`: coordina únicamente pasos visuales/estado en memoria y foco accesible. Colabora con fixture estática congelada `DEMOSTRACION_PAGO`, `PrecioPago`/formato puro y componentes presentacionales globales; no con hooks/servicios financieros, Resources, repositorios o modelos. No clase de dominio PHP ni motor financiero ficticio. `router`, navegación y destino seguro incorporan acceso exacto Paciente/Administrador con guards existentes, sin nuevos CU/permisos ni suplantación. Flujo real de consulta/pago intacto; Recepción/Médico no reciben acceso.
+
+Revisión previa, salida/retorno locales sin éxito automático, consulta humana de resultado ficticio, aprobación PayPal distinta de captura revisada/humana, pendiente sin polling y reinicio sin persistencia. Ninguna operación financiera/SQL/proveedor/configuración privada/contrato API/persistencia nueva; no UML/DER requerido ni autorizado. Final dirigida287/9 y build correctos/códigos0; Chrome local/auth ficticia80 layouts/20 axe/teclado y0 peticiones financieras/externas; capturas examinadas. [Barreras, evidencia y límites](pagos-demostracion-visual.md). No despliegue ni aceptación externa. Entradas anteriores y trabajo local previo preservados.
+
+## Pagos — Activación financiera local posterior a F8 (2026-11-06)
+
+Autorización expresa para incorporación financiera local y, tras detectar dependencias ausentes, aplicar únicamente migraciones existentes33/34/35/40. No clases, reglas, contratos, persistencia diseñada ni interfaces nuevas: se habilita el flujo ya implementado `DisponibilidadResource → reserva/revisión React → ReservaService/PrecioCitaService → obligación → ConsultaPagosService/Resources → PagosPage`. Presentación con configuración efectiva: personal requiere monto/Paciente no. Flags efectivos true/false/false, `.env` ignorado/defaults intactos; Stripe/PayPal no habilitados ni usados.
+
+Migración transaccional habitual local código0,5 citas/9 cambios conservados y ninguna obligación retroactiva. Laboratorio/Push36–39 pendientes. Dirigida aislada33 pruebas/529 aserciones/código0 e inventario de pruebas idéntico; comprobaciones posteriores de solo lectura. Sin semillas/citas de prueba/login sobre base habitual, nuevo build, UML/DER ni aceptación externa. Las verificaciones F8 siguientes conservan su alcance histórico; relevo vigente en `estado-fase.md`.
+
 <a id="pagos-integracion-fase8"></a>
 ## Pagos — Fase 8 integración local y verificación (2026-11-06)
 

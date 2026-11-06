@@ -32,7 +32,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     [ROLES.MEDICO, ['contrasena', 'asistencia-citas', 'agenda', 'historia', 'consulta', 'resultados', 'solicitar']],
     [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas', 'historia', 'resultados', 'avisos']],
   ])('%s tiene exactamente sus páginas operativas sin nuevos privilegios para otros roles', (role, ids) => {
-    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id).sort()).toEqual([...ids, ...([ROLES.ADMINISTRADOR, ROLES.PACIENTE].includes(role) ? ['pagos'] : [])].sort());
+    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id).sort()).toEqual([...ids, ...([ROLES.ADMINISTRADOR, ROLES.PACIENTE].includes(role) ? ['pagos', 'demostracion-pagos'] : [])].sort());
   });
   it.each([
     [ROLES.PACIENTE, '/pagos/obligaciones/11111111-1111-4111-8111-111111111111', 'pagos', 'pagos', 'Detalle de obligación'],

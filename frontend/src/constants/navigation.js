@@ -31,6 +31,7 @@ export const NAVIGATION = [
   ] },
   { id: 'pagos', label: 'Pagos', icon: 'info', items: [
     page('pagos', 'Consultar pagos', '/pagos', [P, A], ['CU-31', 'CU-32', 'CU-33', 'CU-34'], ['/pagos/obligaciones/:id', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id', '/pagos/retorno/:proveedor/:intento?']),
+    page('demostracion-pagos', 'Demostración de pagos', '/pagos/demostracion', [P, A], []),
   ] },
   { id: 'organizacion', label: 'Organización', icon: 'grid', items: [
     page('cuentas', 'Administrar cuentas', '/administracion/cuentas', [A], ['CU-03'], ['/administracion/cuentas/nueva', '/administracion/cuentas/:id']),

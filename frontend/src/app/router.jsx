@@ -65,6 +65,7 @@ import RecordatoriosPage from '../features/recordatorios/pages/RecordatoriosPage
 import ReportesPage from '../features/reportes/pages/ReportesPage';
 import PagosPage from '../features/pagos/pages/PagosPage';
 import RetornoPagoPage from '../features/pagos/pages/RetornoPagoPage';
+import DemostracionPagosPage from '../features/pagos/pages/DemostracionPagosPage';
 import { limpiarRetornoPago } from '../features/pagos/utils/pagoFormat';
 
 limpiarRetornoPago();
@@ -91,6 +92,7 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
       { path: '/mi-cuenta/contrasena', element: <ChangePasswordPage /> },
       { element: <RoleRoute roles={[ROLES.PACIENTE, ROLES.ADMINISTRADOR]} />, children: [
         { path: '/pagos', element: <PagosPage /> },
+        { path: '/pagos/demostracion', element: <DemostracionPagosPage /> },
       ] },
       { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [
         { path: '/pagos/obligaciones/:id', element: <PagosPage /> },

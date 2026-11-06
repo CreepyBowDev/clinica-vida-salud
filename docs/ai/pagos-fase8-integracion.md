@@ -1,5 +1,7 @@
 # Pagos — Fase 8: integración y verificación local (2026-11-06)
 
+**Actualización posterior expresamente autorizada (2026-11-06):** habilitada incorporación financiera en el entorno habitual local; Stripe y PayPal continúan apagados. Aplicadas únicamente migraciones existentes33/34/35/40, en transacción y sin obligaciones retroactivas;36–39 pendientes. Ver relevo `estado-fase.md` y entrada reciente de contexto/README. Dirigida posterior33 pruebas/529 aserciones/código0 en base aislada, sin nuevo recorrido autenticado habitual ni validación externa. Los flagsfalse y ausencia de migración habitual indicados debajo describen exclusivamente el cierre histórico F8, no revierten esta autorización posterior.
+
 ## 1. Resultado y alcance
 
 **Aceptación local demostrada con proveedores simulados; aceptación externa pendiente.** React/Axios → HTTPS loopback → Laravel/Sanctum → PostgreSQL reales. Stripe/PayPal/OAuth/postback simulados; no activación habitual, producción, dinero real, operaciones externas autenticadas ni credenciales privadas. Las notas F1–F7 conservan cronología: ni los mocks ni esta entrega acreditan Stripe test/PayPal Sandbox externos.

@@ -1,5 +1,11 @@
 # Backend — Clínica Vida Salud
 
+## Activación financiera local autorizada (2026-11-06)
+
+Posterior a F8, el usuario autorizó habilitar monto/obligaciones en su entorno habitual **local**, con Stripe y PayPal apagados. Aplicadas exclusivamente las migraciones existentes33/34/35/40 a `clinica_vida_salud.public`, dentro de una transacción y con comprobación previa de solapamientos; código0. Conservadas5 citas/9 cambios,0 citas antiguas incorporadas/0 obligaciones retroactivas. Migraciones36–39 (Laboratorio/Push) siguen pendientes, sin tocar. Sin seeds, borrados, nuevas migraciones ni operaciones externas.
+
+`backend/.env` privado/ignorado: incorporación=true, Stripe=false, PayPal=false; defaults versionados intactos. Administrador/Recepción ingresan y revisan monto al reservar; Paciente consulta sus obligaciones en Pagos, sin pago externo disponible. Reserva propia sigue sin precio hasta asignación del personal. Recargar/reiniciar la revisión de reserva tras cambiar el flag; no reclasificar citas anteriores. Verificación efectiva de configuración/esquema y presentación sintética por rol; dirigida aislada33 pruebas/529 aserciones/código0, inventario de pruebas idéntico. Sin nuevo recorrido autenticado en base habitual ni repetición de build/F8. Relevo en `docs/ai/estado-fase.md`; apartados inferiores conservan historia.
+
 ## Pagos — Fase 8 integración local (2026-11-06)
 
 **Aceptación local con proveedores simulados demostrada; aceptación externa pendiente.** [Matriz, aislamiento, comandos, evidencia y guion Stripe/PayPal](../docs/ai/pagos-fase8-integracion.md). React/Sanctum/PostgreSQL reales por HTTPS loopback; proveedores/OAuth/postback ficticios. Backend dirigido351 pruebas/3988 aserciones/código0, catorce carreras PostgreSQL reejecutadas; cuatro casos añadidos a PagosStripeTest de CSRF/origen y throttle/Retry-After/replay para ambos proveedores. Sin cambios productivos/contratos/persistencia/dependencias/migraciones.

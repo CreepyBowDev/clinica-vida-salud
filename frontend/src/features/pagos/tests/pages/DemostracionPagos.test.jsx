@@ -22,6 +22,7 @@ const button = name => screen.getByRole('button', { name, exact: true });
 async function click(name) {
   await userEvent.click(button(name));
   expect(screen.getByText(notice)).toBeVisible();
+  expect(screen.getByText('No introduzcas tarjetas, contraseñas ni credenciales reales')).toBeVisible();
 }
 async function start(proveedor = 'stripe', escenario = 'completado') {
   await screen.findByRole('heading', { name: 'Seleccionar recorrido ficticio' });
@@ -139,4 +140,60 @@ it('volver a seleccionar invalida la revisión; reiniciar y remontar descartan m
   await start('paypal'); view.unmount(); mount(); await screen.findByLabelText('Proveedor simulado');
   expect(screen.getByLabelText('Proveedor simulado')).toHaveValue('stripe');
   expect(screen.getByLabelText('Escenario ficticio')).toHaveValue('completado');
+});
+
+const camposStripe = [
+  ['Nombre del titular ficticio', 'titular'], ['Correo ficticio', 'correo'], ['Número de tarjeta ficticio', 'tarjeta'],
+  ['Mes de vencimiento ficticio', 'mes'], ['Año de vencimiento ficticio', 'anio'], ['Código de seguridad ficticio', 'seguridad'],
+];
+const camposPaypal = [['Correo de comprador ficticio', 'correo'], ['Clave exclusivamente de demostración', 'clave'], ['Medio de pago ficticio', 'medio']];
+it.each(['stripe', 'paypal'])('%s precarga exclusivamente fixtures y explica límites del formulario', async proveedor => {
+  mount(); await screen.findByLabelText('Proveedor simulado');
+  await userEvent.selectOptions(screen.getByLabelText('Proveedor simulado'), proveedor);
+  for (const [label, campo] of proveedor === 'stripe' ? camposStripe : camposPaypal) expect(screen.getByLabelText(label)).toHaveValue(DEMOSTRACION_PAGO[proveedor][campo]);
+  expect(screen.getByText(/Solo se comprueba formato local/)).toBeVisible();
+  expect(screen.getByText(proveedor === 'stripe' ? /Stripe Checkout alojado/ : /la clínica no recibe las credenciales/)).toBeVisible();
+});
+it.each([...camposStripe.map(([label, campo]) => ['stripe', label, campo]), ...camposPaypal.map(([label, campo]) => ['paypal', label, campo])])(
+  '%s bloquea avance sin %s, enfoca error y permite corregir', async (proveedor, label, campo) => {
+    mount(); await screen.findByLabelText('Proveedor simulado');
+    await userEvent.selectOptions(screen.getByLabelText('Proveedor simulado'), proveedor);
+    const input = screen.getByLabelText(label);
+    if (campo === 'medio') await userEvent.selectOptions(input, ''); else await userEvent.clear(input);
+    await click('Revisar inicio simulado');
+    expect(input).toHaveAttribute('aria-invalid', 'true'); expect(input).toHaveFocus();
+    expect(input).toHaveAccessibleDescription(/Completa este campo ficticio obligatorio/);
+    expect(screen.queryByRole('button', { name: 'Iniciar pago simulado' })).not.toBeInTheDocument();
+    if (campo === 'medio') await userEvent.selectOptions(input, DEMOSTRACION_PAGO[proveedor][campo]); else await userEvent.type(input, DEMOSTRACION_PAGO[proveedor][campo]);
+    await click('Revisar inicio simulado');
+    expect(screen.getByRole('heading', { name: 'Revisar inicio simulado' })).toHaveFocus();
+  },
+);
+it.each([
+  ['stripe', 'Correo ficticio', 'correo-invalido'], ['stripe', 'Correo ficticio', 'persona@dominio.test'],
+  ['stripe', 'Nombre del titular ficticio', 'A'], ['stripe', 'Número de tarjeta ficticio', '1111'],
+  ['stripe', 'Mes de vencimiento ficticio', '13'], ['stripe', 'Año de vencimiento ficticio', '2029'],
+  ['stripe', 'Año de vencimiento ficticio', 'abcd'], ['stripe', 'Código de seguridad ficticio', 'ab'],
+  ['paypal', 'Correo de comprador ficticio', 'correo-invalido'], ['paypal', 'Clave exclusivamente de demostración', 'no-demo'],
+])('%s rechaza formato básico inválido en %s', async (proveedor, label, value) => {
+  mount(); await screen.findByLabelText('Proveedor simulado'); await userEvent.selectOptions(screen.getByLabelText('Proveedor simulado'), proveedor);
+  const input = screen.getByLabelText(label); await userEvent.clear(input); await userEvent.type(input, value);
+  await click('Revisar inicio simulado');
+  expect(input).toHaveFocus(); expect(input).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.queryByRole('button', { name: 'Iniciar pago simulado' })).not.toBeInTheDocument();
+});
+it('edita antes de iniciar y reinicia valores/errores de ambos formularios aun estando en selección', async () => {
+  mount(); await screen.findByLabelText('Nombre del titular ficticio');
+  await userEvent.clear(screen.getByLabelText('Nombre del titular ficticio')); await userEvent.type(screen.getByLabelText('Nombre del titular ficticio'), 'Otro nombre ficticio');
+  await click('Revisar inicio simulado'); await click('Volver a selección ficticia');
+  expect(screen.getByLabelText('Nombre del titular ficticio')).toHaveValue('Otro nombre ficticio');
+  await userEvent.selectOptions(screen.getByLabelText('Proveedor simulado'), 'paypal');
+  await userEvent.clear(screen.getByLabelText('Clave exclusivamente de demostración')); await click('Revisar inicio simulado');
+  await click('Reiniciar demostración');
+  expect(screen.getByLabelText('Nombre del titular ficticio')).toHaveValue(DEMOSTRACION_PAGO.stripe.titular);
+  await userEvent.clear(screen.getByLabelText('Correo ficticio')); await click('Revisar inicio simulado'); await click('Reiniciar demostración');
+  expect(screen.getByLabelText('Correo ficticio')).toHaveValue(DEMOSTRACION_PAGO.stripe.correo);
+  expect(screen.getByLabelText('Correo ficticio')).toHaveAttribute('aria-invalid', 'false');
+  await userEvent.selectOptions(screen.getByLabelText('Proveedor simulado'), 'paypal');
+  expect(screen.getByLabelText('Clave exclusivamente de demostración')).toHaveValue(DEMOSTRACION_PAGO.paypal.clave);
 });

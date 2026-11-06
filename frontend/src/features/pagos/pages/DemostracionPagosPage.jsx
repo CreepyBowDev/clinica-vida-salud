@@ -6,6 +6,7 @@ import SelectField from '../../../components/SelectField';
 import ActionGroup from '../../../components/ActionGroup';
 import ConfirmationPanel from '../../../components/ConfirmationPanel';
 import PrecioPago from '../components/PrecioPago';
+import FormularioPagoDemo from '../components/FormularioPagoDemo';
 import { DEMOSTRACION_PAGO } from '../utils/demostracionPagoFixture';
 import '../../../styles/catalogs.css';
 import '../../../styles/workflows.css';
@@ -24,6 +25,7 @@ const titulos = {
 
 export default function DemostracionPagosPage() {
   const [demo, setDemo] = useState(inicial);
+  const [formularios, setFormularios] = useState(() => ({ stripe: { ...DEMOSTRACION_PAGO.stripe }, paypal: { ...DEMOSTRACION_PAGO.paypal } }));
   const heading = useRef(null), first = useRef(true);
   const { paso, proveedor, escenario } = demo;
   // Solo accesibilidad: ninguna consulta, temporizador o efecto financiero.
@@ -36,6 +38,7 @@ export default function DemostracionPagosPage() {
   return <section className="workspace-page catalog-page payments-page payment-demo">
     <PageHeading title="Demostración de pagos" description="Recorrido visual ficticio del Paciente, separado de Consultar pagos y de sus datos reales." />
     <Alert variant="warning"><p>Demostración académica con datos ficticios. No realiza cobros ni modifica citas o pagos</p></Alert>
+    <p><strong>No introduzcas tarjetas, contraseñas ni credenciales reales</strong>.</p>
     <p>El Administrador puede explorar este ejemplo sin suplantar al Paciente ni pagar en su nombre. No se consulta ninguna ficha real.</p>
     <section className="catalog-panel" aria-label="Obligación ficticia">
       <h2>Obligación ficticia · {DEMOSTRACION_PAGO.codigo_cita}</h2>
@@ -53,10 +56,12 @@ export default function DemostracionPagosPage() {
         <SelectField label="Escenario ficticio" value={escenario} onChange={e => setDemo({ ...inicial, proveedor, escenario: e.target.value })}>
           <option value="completado">Completado simulado</option><option value="pendiente">Verificación pendiente simulada</option>
         </SelectField>
-        <Button onClick={() => avanzar('seleccion', 'revision')}>Revisar inicio simulado</Button>
+        <FormularioPagoDemo key={`${proveedor}:${demo.reinicio ?? 0}`} proveedor={proveedor} datos={formularios[proveedor]}
+          onChange={datos => setFormularios(actual => ({ ...actual, [proveedor]: datos }))} onRevisar={() => avanzar('seleccion', 'revision')} />
       </>}
       {paso === 'revision' && <ConfirmationPanel title="Confirmar importe ficticio">
         <p>Revisa Bs 70,00, tasa 7:1 y USD 10,00 con {proveedores[proveedor]}. Iniciar solo cambia esta pantalla; no envía una solicitud de pago.</p>
+        <p>Formulario ficticio revisado localmente. No acredita identidad, fondos ni aceptación financiera. Puedes volver a editar antes de iniciar.</p>
         <ActionGroup><Button onClick={() => avanzar('revision', 'iniciado')}>Iniciar pago simulado</Button>
           <Button variant="quiet" onClick={() => avanzar('revision', 'seleccion')}>Volver a selección ficticia</Button></ActionGroup>
       </ConfirmationPanel>}
@@ -65,7 +70,7 @@ export default function DemostracionPagosPage() {
         <Button onClick={() => avanzar('iniciado', 'proveedor')}>Representar salida al proveedor (simulada)</Button>
       </>}
       {paso === 'proveedor' && <>
-        <p>Esta pantalla representa la salida a {proveedores[proveedor]}. Sigues en la clínica: no se abre un enlace, SDK ni formulario del proveedor. No introduzcas tarjetas ni credenciales.</p>
+        <p>Esta pantalla representa la salida a {proveedores[proveedor]}. Sigues en la clínica: no se abre un enlace, SDK ni formulario real del proveedor. Los campos anteriores solo pertenecen al ejemplo local.</p>
         {proveedor === 'paypal' ? <>
           <p>La aprobación ficticia es distinta de la captura y no representa un cobro.</p>
           <Button onClick={() => avanzar('proveedor', 'aprobacion')}>Simular aprobación PayPal</Button>
@@ -95,7 +100,7 @@ export default function DemostracionPagosPage() {
       {paso === 'completado' && <Alert variant="info"><p>Pago completado simulado por USD 10,00. Resultado de una fixture, no verificado por {proveedores[proveedor]} ni registrado en el sistema. No es comprobante ni acredita un cobro.</p></Alert>}
       {paso === 'pendiente' && <Alert variant="warning"><p>Verificación pendiente simulada. No equivale a éxito ni a fallo. No hay consultas automáticas ni polling; el ejemplo permanecerá pendiente hasta reiniciar. No habilita otro pago ni una captura.</p></Alert>}
     </section>
-    <ActionGroup><Button variant="secondary" onClick={() => { setDemo({ ...inicial }); heading.current?.focus({ preventScroll: true }); }}>Reiniciar demostración</Button></ActionGroup>
+    <ActionGroup><Button variant="secondary" onClick={() => { setDemo(actual => ({ ...inicial, reinicio: (actual.reinicio ?? 0) + 1 })); setFormularios({ stripe: { ...DEMOSTRACION_PAGO.stripe }, paypal: { ...DEMOSTRACION_PAGO.paypal } }); heading.current?.focus({ preventScroll: true }); }}>Reiniciar demostración</Button></ActionGroup>
     <p className="catalog-note">Reiniciar, recargar o salir descarta únicamente el recorrido en memoria. Sin almacenamiento del navegador, llamadas financieras ni cambios de configuración. Ningún resultado de esta página procede de Stripe o PayPal.</p>
   </section>;
 }

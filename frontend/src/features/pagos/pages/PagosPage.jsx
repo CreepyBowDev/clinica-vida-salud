@@ -102,6 +102,11 @@ function Detalle({ scope, id, base }) {
         <p>Consulta realizada: {o.calculado_at ? formatearInstanteCita(o.calculado_at) : 'Instante no disponible'}.</p>
       </section>
       {scope.rol === ROLES.PACIENTE && <OperacionPago obligacion={o} onConsultar={query.reload} onRiskChange={setRisk} />}
+      {scope.rol === ROLES.PACIENTE && o.exigible && !o.liquidada && <section className="catalog-panel" aria-label="Demostración independiente">
+        <h2>Explorar un ejemplo ficticio</h2>
+        <p>No paga esta obligación ni transfiere su código, importe o identificadores. El ejemplo está separado del historial real y no modifica la disponibilidad de pago.</p>
+        <Link className="button button--secondary" to="/pagos/demostracion">Simular pago — demostración</Link>
+      </section>}
       <section><h2>Historial de intentos y cobros</h2>{o.intentos.data.length ? <HistorialPagos intentos={o.intentos.data} /> : <p>No hay intentos registrados en esta página.</p>}
         <Pagination meta={o.intentos.meta} label="intentos" onPage={intentos_page => { if (!risk) setPages(v => ({ ...v, intentos_page })); }} /></section>
       <section><h2>Devoluciones</h2>{o.devoluciones.data.length ? o.devoluciones.data.map(d => <DevolucionPago key={d.id} devolucion={d} />) : <p>No hay devoluciones registradas en esta página.</p>}

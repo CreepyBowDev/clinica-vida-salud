@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
 import ActionGroup from '../../../components/ActionGroup';
+import PrecioPago from '../../pagos/components/PrecioPago';
+import { SITUACIONES_PRECIO } from '../../pagos/utils/pagoFormat';
 
 function hora(value) {
   return new Intl.DateTimeFormat('es-BO', { dateStyle: 'long', timeStyle: 'medium', hourCycle: 'h23', timeZone: 'America/La_Paz' }).format(new Date(value));
@@ -14,7 +16,7 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
   return <section className="reserva-section reserva-review" data-status={status} aria-busy={busy}>
     <h2 ref={heading} tabIndex="-1">{status === 'preparando' ? 'Preparando revisión' : status === 'registrada' ? 'Cita registrada'
       : status === 'incierto' || status === 'consultando' ? 'Consultar resultado de la reserva' : status === 'error' ? 'Revisa la selección' : 'Revisar cita'}</h2>
-    {failure && <Alert><p>{failure.message}</p>{Object.entries(failure.fields).filter(([key]) => key === 'fecha' || key === 'motivo_breve').map(([key, text]) => <p key={key}>{key === 'fecha' ? 'Fecha' : 'Motivo'}: {text}</p>)}</Alert>}
+    {failure && <Alert><p>{failure.message}</p>{Object.entries(failure.fields).filter(([key]) => ['fecha', 'motivo_breve', 'monto_bob'].includes(key)).map(([key, text]) => <p key={key}>{({ fecha: 'Fecha', motivo_breve: 'Motivo', monto_bob: 'Monto BOB' })[key]}: {text}</p>)}</Alert>}
     {remaining > 0 && <p role="status">Espera {remaining} segundos antes de volver a solicitarlo.</p>}
     {status === 'preparando' && <p role="status">Comprobando el turno y preparando el resumen…</p>}
     {p && failure?.status !== 403 && <>
@@ -31,6 +33,7 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
         <div><dt>Modalidad</dt><dd>{p.modalidad}</dd></div>
         <div><dt>Motivo breve</dt><dd>{p.motivo_breve ?? 'No indicado'}</dd></div>
       </dl>
+      {p.precio && <PrecioPago precio={p.precio} />}
       <p>Horario de la sede: {p.zona_horaria}. {['guardando', 'incierto', 'consultando', 'ausente'].includes(status)
         ? 'Este resumen es una propuesta; no acredita que la cita se haya registrado.' : 'El turno no queda reservado hasta completar el registro.'}</p>
     </>}
@@ -50,6 +53,8 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
         <div><dt>Modalidad</dt><dd>{cita.modalidad}</dd></div>
         <div><dt>Motivo breve</dt><dd>{cita.motivo_breve ?? 'No indicado'}</dd></div></dl>
       <p>Horario de America/La_Paz. Registrar la cita no confirma la llegada a la clínica.</p>
+      {cita.situacion_precio && <p>{SITUACIONES_PRECIO[cita.situacion_precio]}</p>}
+      {cita.precio && <PrecioPago precio={cita.precio} />}
     </>}
     <ActionGroup className="form-actions">
       {['revision', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0} onClick={registro.confirmar}>

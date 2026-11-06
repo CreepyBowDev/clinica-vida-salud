@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use Carbon\CarbonImmutable;
+use Clinica\data\repositories\bitacora\BitacoraRepository;
+use Clinica\data\repositories\pagos\ObligacionPagoRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Fixtures\AutenticacionFixtures;
 use Tests\TestCase;
@@ -93,6 +96,156 @@ class GestionCitaIntegracionTest extends TestCase
         return [$resultado, $datos];
     }
 
+    /** Fixture insertada como incorporada desde su nacimiento; nunca reclasifica la reserva legada. */
+    private function citaFinanciera(array $r, bool $conObligacion = true, bool $liquidada = false): array
+    {
+        $datos = (array) DB::table('citas')->where('id_cita', $r['cita']['id_cita'])->first();
+        unset($datos['id_cita'], $datos['id_propuesta_reserva']);
+        $datos = array_replace($datos, ['codigo_cita' => (string) Str::uuid(), 'incorporada_finanzas' => true,
+            'inicio_at' => '2026-11-01T13:00:01Z', 'fin_at' => '2026-11-01T13:15:01Z']);
+        $id = (string) DB::table('citas')->insertGetId($datos, 'id_cita');
+        $obligacion = null;
+        if ($conObligacion) {
+            $obligacion = (string) Str::uuid();
+            DB::table('obligaciones_pago')->insert(['id_obligacion' => $obligacion, 'id_cita' => $id,
+                'centavos_bob' => 704, 'centavos_usd' => 101, 'emitida_por' => $r['actor']->getKey(),
+                'emitida_en' => now(), 'vencimiento_at' => $datos['inicio_at']]);
+        }
+        if ($liquidada) {
+            // Evidencia puramente ficticia de un cobro preexistente; no se ejecuta procesamiento de pagos.
+            $intento = (string) Str::uuid();
+            DB::table('intentos_pago')->insert(['id_intento' => $intento, 'id_obligacion' => $obligacion,
+                'iniciado_por' => $r['actor']->getKey(), 'proveedor' => 'stripe', 'entorno' => 'test',
+                'cuenta_contexto' => 'fixture_sin_proveedor', 'estado' => 'Exitoso', 'creado_en' => now(), 'actualizado_en' => now()]);
+            DB::table('cobros_pago')->insert(['id_cobro' => (string) Str::uuid(), 'id_intento' => $intento,
+                'id_obligacion' => $obligacion, 'proveedor' => 'stripe', 'entorno' => 'test',
+                'cuenta_contexto' => 'fixture_sin_proveedor', 'referencia_cobro' => 'fixture_sin_cobro_real',
+                'centavos_usd' => 101, 'aplicado' => true, 'confirmado_en' => now(), 'registrado_en' => now()]);
+        }
+
+        return [$id, $obligacion];
+    }
+
+    public static function coordinaciones(): array
+    {
+        return [['Administrador', false], ['Administrador', true], ['Recepcionista', false], ['Recepcionista', true]];
+    }
+
+    #[DataProvider('coordinaciones')]
+    public function test_financial_coordination_preserves_price_payment_and_real_change(string $rol, bool $liquidada): void
+    {
+        $r = $this->preparar($rol);
+        $cookies = $r['cookies'];
+        [$id, $obligacion] = $this->citaFinanciera($r, liquidada: $liquidada);
+        $antes = (array) DB::table('obligaciones_pago')->where('id_obligacion', $obligacion)->first();
+        $cobros = DB::table('cobros_pago')->get()->toJson();
+        $intentos = DB::table('intentos_pago')->get()->toJson();
+        $locks = [];
+        DB::listen(function ($consulta) use (&$locks): void {
+            if (str_contains($consulta->sql, 'obligaciones_pago') && str_contains($consulta->sql, 'for update')) {
+                $locks[] = DB::transactionLevel();
+            }
+        });
+        [$reprogramada, $datos] = $this->reprogramar($cookies, $id, $this->alternativas($cookies, $id));
+        $posterior = DB::table('obligaciones_pago')->where('id_obligacion', $obligacion)->first();
+        $esperado = $liquidada ? $antes['vencimiento_at'] : $reprogramada['inicio_at'];
+        $this->assertTrue(CarbonImmutable::parse($esperado)->equalTo(CarbonImmutable::parse($posterior->vencimiento_at)));
+        $this->assertTrue($posterior->exigible);
+        $evento = DB::table('bitacora')->where('registro_referido', $id)->where('tipo_evento', 'CITA_REPROGRAMADA')->first();
+        $auditoria = json_decode($evento->cambios_seguros, true);
+        if ($liquidada) {
+            $this->assertArrayNotHasKey('coordinacion_financiera', $auditoria);
+        } else {
+            $this->assertSame($obligacion, $auditoria['coordinacion_financiera']['id_obligacion']);
+            $this->assertSame($reprogramada['inicio_at'], $auditoria['coordinacion_financiera']['despues']['vencimiento_at']);
+            $this->assertSame(CarbonImmutable::parse($antes['vencimiento_at'])->utc()->format('Y-m-d\TH:i:s.u\Z'),
+                $auditoria['coordinacion_financiera']['antes']['vencimiento_at']);
+        }
+        $this->navegador($cookies, 'PATCH', '/api/citas/'.$id.'/reprogramacion', $datos)->assertConflict();
+        $this->navegador($cookies, 'PATCH', '/api/citas/'.$id.'/cancelacion', $this->originales($reprogramada))->assertOk()
+            ->assertDontSee('id_obligacion')->assertDontSee('centavos_bob');
+        $final = (array) DB::table('obligaciones_pago')->where('id_obligacion', $obligacion)->first();
+        $this->assertFalse($final['exigible']);
+        $cambio = DB::table('cambios_cita')->where('id_cambio_cita', $final['id_cambio_anulacion'])->first();
+        $this->assertSame('CANCELACION', $cambio->operacion);
+        $this->assertSame($id, (string) $cambio->id_cita);
+        $this->assertSame((string) $r['actor']->getKey(), (string) $cambio->id_actor);
+        $this->assertTrue(CarbonImmutable::parse($final['anulada_en'])->equalTo(CarbonImmutable::parse($cambio->realizado_en)));
+        $evento = DB::table('bitacora')->where('registro_referido', $id)->where('tipo_evento', 'CITA_CANCELADA')->first();
+        $this->assertSame((string) $r['actor']->getKey(), (string) $evento->id_usuario_responsable);
+        $seguro = json_decode($evento->cambios_seguros, true)['coordinacion_financiera'];
+        $this->assertSame((string) $cambio->id_cambio_cita, $seguro['id_cambio_cita']);
+        $this->assertFalse($seguro['despues']['exigible']);
+        foreach (['id_obligacion', 'id_cita', 'centavos_bob', 'centavos_usd', 'tasa_numerador', 'tasa_denominador',
+            'moneda_original', 'moneda_cobro', 'emitida_por', 'emitida_en'] as $campo) {
+            $this->assertSame($antes[$campo], $final[$campo]);
+        }
+        $this->assertNotEmpty($locks);
+        $this->assertGreaterThan(1, min($locks));
+        $this->assertSame($cobros, DB::table('cobros_pago')->get()->toJson());
+        $this->assertSame($intentos, DB::table('intentos_pago')->get()->toJson());
+        // F4: la cancelación prepara devolución durable del aplicado, incluso con Stripe apagado.
+        $this->assertSame($liquidada ? 1 : 0, DB::table('devoluciones_pago')->count());
+        $this->assertSame($liquidada ? 1 : 0, DB::table('operaciones_pago')->count());
+        if ($liquidada) {
+            $this->assertSame('Pendiente', DB::table('devoluciones_pago')->value('estado'));
+            $this->assertSame('Devolver', DB::table('operaciones_pago')->value('tipo'));
+        }
+        $this->assertSame(1, DB::table('obligaciones_pago')->count());
+        $this->navegador($cookies, 'PATCH', '/api/citas/'.$id.'/cancelacion', $this->originales($reprogramada))->assertConflict();
+        $this->assertSame($final, (array) DB::table('obligaciones_pago')->where('id_obligacion', $obligacion)->first());
+    }
+
+    public function test_incorporated_without_obligation_keeps_original_management_without_creating_debt(): void
+    {
+        $r = $this->preparar('Recepcionista');
+        $cookies = $r['cookies'];
+        [$id] = $this->citaFinanciera($r, conObligacion: false);
+        [$reprogramada] = $this->reprogramar($cookies, $id, $this->alternativas($cookies, $id));
+        $this->navegador($cookies, 'PATCH', '/api/citas/'.$id.'/cancelacion', $this->originales($reprogramada))->assertOk();
+        $this->assertSame(0, DB::table('obligaciones_pago')->count());
+        $this->assertFalse(DB::table('citas')->where('id_cita', $r['cita']['id_cita'])->value('incorporada_finanzas'));
+    }
+
+    public static function fallosFinancieros(): array
+    {
+        return [['cancelacion', 'auditoria'], ['reprogramacion', 'auditoria'], ['cancelacion', 'persistencia'], ['reprogramacion', 'persistencia']];
+    }
+
+    #[DataProvider('fallosFinancieros')]
+    public function test_financial_or_audit_failure_rolls_back_entire_management(string $operacion, string $fallo): void
+    {
+        $r = $this->preparar('Administrador');
+        $cookies = $r['cookies'];
+        [$id, $obligacion] = $this->citaFinanciera($r);
+        $gestion = $this->navegador($cookies, 'GET', '/api/citas/'.$id.'/gestion')->assertOk()->json('data');
+        $datos = $this->originales($gestion);
+        if ($operacion === 'reprogramacion') {
+            $vista = $this->alternativas($cookies, $id);
+            $datos = [...$datos, 'fecha' => '2026-11-01', 'hora_inicio' => $vista['turnos'][0]['hora_inicio'],
+                'revision_turno' => $vista['turnos'][0]['revision_turno']];
+        }
+        $citaAntes = (array) DB::table('citas')->where('id_cita', $id)->first();
+        $obligacionAntes = (array) DB::table('obligaciones_pago')->where('id_obligacion', $obligacion)->first();
+        DB::table('recordatorios')->insert(['id_cita' => $id, 'version_programacion' => 1, 'generado_en' => now()]);
+        if ($fallo === 'auditoria') {
+            $this->partialMock(BitacoraRepository::class, function ($mock) use ($operacion): void {
+                $mock->shouldReceive($operacion === 'cancelacion' ? 'citaCancelada' : 'citaReprogramada')->once()
+                    ->andThrow(new \RuntimeException('Fallo simulado seguro'));
+            });
+        } else {
+            $this->partialMock(ObligacionPagoRepository::class, function ($mock): void {
+                $mock->shouldReceive('guardar')->once()->andThrow(new \RuntimeException('Fallo simulado seguro'));
+            });
+        }
+        $this->navegador($cookies, 'PATCH', '/api/citas/'.$id.'/'.$operacion, $datos)->assertStatus(500);
+        $this->assertSame($citaAntes, (array) DB::table('citas')->where('id_cita', $id)->first());
+        $this->assertSame($obligacionAntes, (array) DB::table('obligaciones_pago')->where('id_obligacion', $obligacion)->first());
+        $this->assertSame(0, DB::table('cambios_cita')->where('id_cita', $id)->count());
+        $this->assertSame(0, DB::table('bitacora')->where('registro_referido', $id)->whereIn('tipo_evento', ['CITA_CANCELADA', 'CITA_REPROGRAMADA'])->count());
+        $this->assertNull(DB::table('recordatorios')->where('id_cita', $id)->value('invalidado_en'));
+    }
+
     public static function operadores(): array
     {
         return [['Administrador'], ['Recepcionista']];
@@ -102,6 +255,9 @@ class GestionCitaIntegracionTest extends TestCase
     public function test_real_booking_management_reconciliation_cancellation_history_and_reuse(string $rol): void
     {
         $r = $this->preparar($rol);
+        $this->partialMock(ObligacionPagoRepository::class, function ($mock): void {
+            $mock->shouldNotReceive('porCitaBloqueada');
+        });
         $cookies = $r['cookies'];
         $admin = $r['administracion'];
         $id = $r['cita']['id_cita'];

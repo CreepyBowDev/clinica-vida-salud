@@ -404,6 +404,8 @@ No considerar que un usuario está autenticado únicamente porque quede un objet
 
 ## 14. ProtectedRoute, RoleRoute y permisos
 
+**Ampliación aprobada 2026-11-05 — Pagos:** la política 28/30 siguiente corresponde solo a los CU originales. El catálogo se amplía a CU-34: Paciente CU-31–CU-33 propios; Administrador CU-34 de consulta por Paciente, sin pago delegado. Administrador/Recepción fijan precio individual por CU-14; Médico sin nuevos permisos financieros. Ver `docs/ai/pasarela-pagos.md`: solo pruebas Stripe/PayPal, BOB/USD, monto Bs 7,00–7.000,00, tasa 7:1 HALF_UP autoritativa en Laravel, sin edición posterior. Fase 0 documental no acredita UI ni autoriza implementar fases siguientes.
+
 **Decisión definitiva 2026-10-24:** Administrador autorizado en **28/30 CU (CU-01–CU-03, CU-05–CU-07 y CU-09–CU-30)**; CU-04/CU-08 siguen personales del Paciente. Los demás roles no cambian. Sustituye prohibiciones administrativas anteriores: ver matriz/estado en `docs/ai/casos-de-us.md` §3.1 y contexto §17.117. Política aprobada no significa UI/backend ya ampliados; frontend se adaptará en etapa posterior. Reutilizar páginas/componentes/servicios y sidebar modular, sin identificadores CU visibles ni duplicaciones por rol. Mantener identidad visual, responsive y rutas de los demás roles.
 
 Mantener archivos:
@@ -457,6 +459,7 @@ Conservar la numeración continua del proyecto:
 | Recordatorios internos | `CU-28` |
 | Reportes administrativos | `CU-29` |
 | Bitácora del Sistema | `CU-30` |
+| Pagos académicos — aprobado, no implementado | `CU-31` a `CU-34` |
 
 No crear una pantalla, una feature o un endpoint por cada CU automáticamente. Algunos casos comparten páginas o servicios; otros requieren varias pantallas. La decisión depende del flujo funcional.
 
@@ -820,7 +823,7 @@ La documentación del análisis evoluciona **con el desarrollo del software**, c
 El frontend de Clínica Vida Salud debe ser:
 
 - **coherente con el examen** y los RF/RN oficiales;
-- **fiel a los 30 casos de uso** y a sus decisiones aprobadas;
+- **fiel al catálogo vigente de 34 casos de uso** (30 originales y cuatro de Pagos) y a sus decisiones aprobadas;
 - **organizado como el frontend de referencia**, con React Feature-Based + Component-Based;
 - **compatible con el backend Laravel por capas** y sus contratos de peticiones/errores;
 - **seguro con datos médicos** y cuidadoso con autenticación, permisos y descargas;

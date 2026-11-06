@@ -7,6 +7,8 @@ import { useCatalogQuery } from '../../../hooks/useCatalogQuery';
 import { consultarDisponibilidad } from '../services/reserva.service';
 import { normalizarMotivo } from '../services/reserva.service';
 import { formatearFechaCivil } from '../../agenda/utils/agendaFormat';
+import FormField from '../../../components/FormField';
+import { montoEntrada } from '../../pagos/utils/pagoFormat';
 
 const campos = ['fecha', 'id_medico', 'id_especialidad', 'id_paciente', 'page', 'per_page'];
 export default function DisponibilidadTurnos({ criterios, onRevisar }) {
@@ -14,6 +16,7 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
   const [turno, setTurno] = useState(null);
   const [motivo, setMotivo] = useState('');
   const [errorMotivo, setErrorMotivo] = useState('');
+  const [monto, setMonto] = useState(''), [errorMonto, setErrorMonto] = useState('');
   const query = useCatalogQuery(consultarDisponibilidad, { ...criterios, page, per_page: 12 }, campos);
   const heading = useRef(null);
   const helpId = useId();
@@ -55,9 +58,19 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
       e.preventDefault();
       try {
         const motivo_breve = normalizarMotivo(motivo); setErrorMotivo('');
-        onRevisar({ ...criterios, hora_inicio: turno.hora_inicio, revision_turno: turno.revision_turno, motivo_breve, inicioEsperado: turno.inicio_at });
+        let monto_bob;
+        if (data.requiere_monto_bob) {
+          try { monto_bob = montoEntrada(monto); setErrorMonto(''); }
+          catch (error) { setErrorMonto(error.message); return; }
+        }
+        onRevisar({ ...criterios, hora_inicio: turno.hora_inicio, revision_turno: turno.revision_turno, motivo_breve, inicioEsperado: turno.inicio_at,
+          ...(monto_bob === undefined ? {} : { monto_bob }) });
       } catch { setErrorMotivo('Introduce hasta 500 caracteres, sin saltos de línea ni caracteres de control.'); }
     }}>
+      {data.requiere_monto_bob && <FormField label="Monto de la consulta (BOB)" value={monto} inputMode="decimal" autoComplete="off" required
+        onChange={e => { setMonto(e.target.value); setErrorMonto(''); }} error={errorMonto}
+        hint="De Bs 7,00 a Bs 7.000,00, hasta dos decimales y sin separador de miles. Se revisará antes de confirmar." />}
+      {data.incorporacion_financiera_habilitada && !data.requiere_monto_bob && <p>Tu reserva se registra sin precio inicial. El personal asignará el monto después; no representa una deuda de importe cero.</p>}
       <div className="field"><label htmlFor="reserva-motivo">Motivo breve (opcional)</label>
       <input id="reserva-motivo" type="text" autoComplete="off" value={motivo} aria-invalid={Boolean(errorMotivo)}
         aria-describedby={errorMotivo ? 'reserva-motivo-error' : 'reserva-motivo-ayuda'} onChange={e => { setMotivo(e.target.value); setErrorMotivo(''); }} />

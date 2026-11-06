@@ -1,5 +1,31 @@
 # Diagrama entidad-relación — Clínica Vida Salud
 
+## Incremento Pagos Fase 2 — Infraestructura (2026-11-05)
+
+Migración propia **000040**: seis tablas financieras nuevas, `citas.incorporada_finanzas` y claves/índices/funciones de integridad. Aplicada solo en transacciones PostgreSQL aisladas con rollback; base habitual sin migrar. Diccionario exacto, nulabilidad, contextos, índices y límites: [pagos-fase2-modelo.md](pagos-fase2-modelo.md) §§1–4 y DDL. No tarifas, tabla de liquidaciones ni estado Vencida; Paciente deriva de Cita. Los censos gráficos inferiores conservan sus fechas, no describen este incremento.
+
+```mermaid
+erDiagram
+    citas ||--o| obligaciones_pago : "incorporada true, FK compuesta"
+    usuarios ||--o{ obligaciones_pago : emite
+    cambios_cita o|--o{ obligaciones_pago : anulacion_misma_cita
+    obligaciones_pago ||--o{ intentos_pago : admite
+    usuarios ||--o{ intentos_pago : inicia
+    intentos_pago ||--o{ cobros_pago : registra
+    obligaciones_pago ||--o{ cobros_pago : "una aplicacion parcial UQ"
+    cobros_pago ||--o| devoluciones_pago : "solo aplicado, total historico"
+    cambios_cita ||--o{ devoluciones_pago : referencia_cancelacion
+    intentos_pago ||--o{ operaciones_pago : recupera
+    devoluciones_pago o|--o{ operaciones_pago : reintentos
+    cobros_pago o|--o{ operaciones_pago : vinculo_devolucion
+    usuarios o|--o{ operaciones_pago : solicita_o_sistema
+    intentos_pago o|--o{ eventos_pago : vinculo_opcional
+```
+
+Marca default false e inmutable: cita anterior y reserva actual sin activación quedan NoIncorporada; true sin obligación sería PendienteAsignacion. UQ obligación/cita; FK compuesta exige incorporación. Precio/tasa/autoría históricos inmutables; centavos/tasa 7:1/monedas validados en SQL. Slots parciales de intento y operación por obligación; UQ contextual de referencias/eventos; una liquidación aplicada admite otros cobros con incidencia; devolución total única del aplicado. Contextos cruzados rechazados por FK compuestas; recepción original/cobros y evidencia de las seis tablas protegidos frente a mutación/borrado según DDL. Nada de esto acredita firma, cierre seguro, autorización, aplicación transaccional ni recuperación externa: ver límites técnicos §4. Los estados asistenciales existentes permanecen intactos.
+
+Verificación dirigida: **74 pruebas/728 aserciones**, incluyendo importe, persistencia y regresión de reserva/gestión. Esquema public inicial/final vacío, funciones propias retiradas por rollback, extensión preexistente conservada. Sin down destructivo, render gráfico, prueba financiera multiproceso ni migración habitual/remota acreditados. Fase 3 requiere autorización independiente.
+
 **CU-28 Fase3 (2026-10-31), sin cambio de esquema:** generación usa Recordatorio/UQ(cita,version_programacion) y prepara envios_recordatorio_push/UQ(aviso,suscripción) de000039; conserva destinatario/versiones capturados y estado Pendiente/intentos0 sin inferir entrega. Cambios de estado/preferencia/vigencia/programación invalidan aviso o descartan Pendientes según reglas, sin borrar historia/reabrir terminales. Solo se relaciona cita/ubicación vigente, no se agregan columnas clínicas/snapshots de ubicación ni tabla jobs. Aviso/auditoría/outbox inicial atómicos; barrido recupera faltantes autorizados. Continúa30 entidades/272 atributos/51 FK, fuentes gráficas/000038/000039 intactas;79/950 dirigidas con SQL aislado/inventario pre/post idéntico, contexto §17.186/README/análisis. No base habitual migrada, dispatcher o entrega acreditados.
 
 ## Incremento efectivo CU-28 Fase2 — Suscripciones y outbox (2026-10-31)
@@ -35,7 +61,7 @@ Esta revisión consolida las aclaraciones del modelo lógico sin aprobar decisio
 
 El examen requiere PHP y PostgreSQL, con conexión por PDO/`pdo_pgsql` o equivalente aprobado. La solución del proyecto utilizará Laravel (Eloquent y migraciones), React y notificaciones internas. **No se permite añadir nuevos roles, estados de citas, RF/RN oficiales ni CU.** Los módulos de consulta clínica, laboratorio, seguridad ampliada y recordatorios son decisiones aprobadas del proyecto, no nuevos requisitos literales del enunciado.
 
-**Alcance excluido:** pagos, farmacia, inventario, telemedicina, múltiples sedes y recordatorios por correo, SMS o WhatsApp. **Excepción aprobada el 2026-10-30:** CU-28 añade Web Push opcional en dispositivos compatibles autorizados, conservando el aviso interno; no app nativa ni garantía de encender pantalla. La clínica atiende presencialmente en una sede con varios consultorios.
+**Alcance excluido:** pagos reales/producción, farmacia, inventario, telemedicina, múltiples sedes y recordatorios por correo, SMS o WhatsApp. **Excepción aprobada el 2026-11-05:** Pagos académicos CU-31–34, Stripe test/PayPal Sandbox; incremento físico Fase 2 superior, sin activación operativa. **Excepción aprobada el 2026-10-30:** CU-28 añade Web Push opcional en dispositivos compatibles autorizados, conservando el aviso interno; no app nativa ni garantía de encender pantalla. La clínica atiende presencialmente en una sede con varios consultorios.
 
 **Impacto de CU-28/Web Push pendiente de diseño (§17.183):** las suscripciones por dispositivo, su vinculación/revocación y el seguimiento seguro de intentos necesitan diseño antes de implementar. **No se agregan tablas/atributos/FK ni se afirma soporte Web Push con el DER actual**; no se modifica ninguna fuente gráfica o migración por esta aprobación. El aviso Recordatorio persistido no equivale a suscripción ni a prueba de recepción push. Conserva esquema efectivo previo000037/28 entidades/246 atributos/45 FK; la ampliación física futura debe aprobarse y contrastarse con migraciones reales.
 

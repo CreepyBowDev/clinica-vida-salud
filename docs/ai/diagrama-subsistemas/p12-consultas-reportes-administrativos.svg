@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="470" viewBox="0 0 760 470" role="img" aria-labelledby="title desc">
+  <title id="title">P12. Consultas y reportes administrativos</title>
+  <desc id="desc">ReportesPage utiliza ReporteService mediante servicios frontend y controlador HTTP. ReporteService consulta citas y pacientes por ReporteRepository. Se omiten lecturas de médicos y especialidades y delegación de agenda diaria a AgendaService. No existe una tabla independiente de reportes.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="760" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H572 L590 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M590 48 H748 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="296" y="35" font-size="16" font-weight="700">P12. CONSULTAS Y REPORTES ADMINISTRATIVOS</text>
+  <g class="communication"><path d="M380 164 V234"/></g>
+  <g class="persistence"><path d="M340 310 L240 380"/><path d="M420 310 L520 380"/></g>
+  <g id="interfaces">
+    <g aria-label="Interface ReportesPage.jsx"><rect class="box" x="260" y="88" width="240" height="76"/><text class="stereotype" x="380" y="111">«Interface»</text><text class="name" x="380" y="141">ReportesPage.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class ReporteService.php"><rect class="box" x="260" y="234" width="240" height="76"/><text class="stereotype" x="380" y="257">«Class»</text><text class="name" x="380" y="287">ReporteService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table citas"><rect class="box" x="140" y="380" width="200" height="58"/><text class="stereotype" x="240" y="401">«Table»</text><text class="name" x="240" y="424">citas</text></g>
+    <g aria-label="Table pacientes"><rect class="box" x="420" y="380" width="200" height="58"/><text class="stereotype" x="520" y="401">«Table»</text><text class="name" x="520" y="424">pacientes</text></g>
+  </g>
+</svg>

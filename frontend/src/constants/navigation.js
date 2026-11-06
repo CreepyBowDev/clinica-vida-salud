@@ -29,6 +29,9 @@ export const NAVIGATION = [
   { id: 'recordatorios', label: 'Recordatorios', icon: 'calendar', items: [
     page('avisos', 'Consultar recordatorios', '/recordatorios', [P, A], ['CU-28']),
   ] },
+  { id: 'pagos', label: 'Pagos', icon: 'info', items: [
+    page('pagos', 'Consultar pagos', '/pagos', [P, A], ['CU-31', 'CU-32', 'CU-33', 'CU-34'], ['/pagos/obligaciones/:id', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id', '/pagos/retorno/:proveedor/:intento?']),
+  ] },
   { id: 'organizacion', label: 'Organización', icon: 'grid', items: [
     page('cuentas', 'Administrar cuentas', '/administracion/cuentas', [A], ['CU-03'], ['/administracion/cuentas/nueva', '/administracion/cuentas/:id']),
     page('especialidades', 'Gestionar especialidades', '/administracion/especialidades', [A], ['CU-09'], ['/administracion/especialidades/nueva', '/administracion/especialidades/:id', '/administracion/especialidades/:id/editar']),
@@ -59,7 +62,9 @@ export const ACCESS_FLOWS = [
 
 export function navigationForRole(role) {
   return NAVIGATION.map(module => ({ ...module, label: module.labels?.[role] ?? module.label, items: module.items.filter(item => item.roles.includes(role)).map(item =>
-    item.id === 'historia' && role === P ? { ...item, patterns: ['/historia-clinica', '/citas/:id/consulta'] }
+    item.id === 'pagos' ? { ...item, cases: role === A ? ['CU-34'] : ['CU-31', 'CU-32', 'CU-33'],
+      patterns: role === A ? ['/pagos', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id'] : ['/pagos', '/pagos/obligaciones/:id', '/pagos/retorno/:proveedor/:intento?'] }
+      : item.id === 'historia' && role === P ? { ...item, patterns: ['/historia-clinica', '/citas/:id/consulta'] }
       : item.id === 'resultados' && role !== A ? { ...item, patterns: item.patterns.filter(p => p !== '/laboratorio/pacientes/:id') } : item) }))
     .filter(module => module.items.length);
 }
@@ -78,6 +83,10 @@ export function navigationAtPath(modules, pathname) {
 }
 
 const contextPages = [
+  ['/pagos/obligaciones/:id', 'Detalle de obligación'],
+  ['/pagos/pacientes/:pacienteId/obligaciones/:id', 'Detalle de obligación'],
+  ['/pagos/pacientes/:pacienteId', 'Pagos del paciente seleccionado'],
+  ['/pagos/retorno/:proveedor/:intento?', 'Retorno al portal'],
   ['/citas/:id/consulta/solicitar-estudio', 'Solicitar estudio de laboratorio'],
   ['/laboratorio/pacientes/:id', 'Estudios del paciente'],
   ['/laboratorio/consultas/:id', 'Estudios de la consulta'],

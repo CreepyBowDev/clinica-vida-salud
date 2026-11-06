@@ -71,7 +71,7 @@ Los siguientes enunciados preservan las reglas expresas de la sección **«Regla
 | **VS-GEN-04** | La **Recepcionista** gestiona fichas administrativas y citas; verifica identidad, emite códigos de vinculación, registra llegada e inasistencia. **No** crea contraseñas del Paciente, no diagnostica, no marca Atendida y no administra cuentas del personal. | CU-07, CU-14–CU-18 |
 | **VS-GEN-05** | El **Médico** consulta únicamente su agenda y los datos clínicos autorizados; registra su atención y mantiene antecedentes de pacientes bajo su responsabilidad durante una atención real y autorizada, solicita/revisa laboratorio y marca **solo sus citas** Atendidas después de atender. **No** administra cuentas ni horarios generales. | CU-19, CU-20, CU-22–CU-27; PN18 |
 | **VS-GEN-06** | El **Paciente** reserva únicamente para su ficha vinculada, consulta información propia autorizada y edita su perfil permitido. **No** reprograma ni cancela citas ni accede a expedientes ajenos. | CU-04, CU-08, CU-14, CU-21, CU-22, CU-27, CU-28 |
-| **VS-GEN-07** | Se excluyen pagos/pasarelas, farmacia, inventarios, recetas electrónicas, telemedicina, múltiples sedes y administración dinámica de permisos. Exportación CSV/PDF y feriados o bloqueos de agenda son **opcionales**, no deben desplazar los RF obligatorios. | Alcance 1.4 |
+| **VS-GEN-07** | Se excluyen pagos reales/producción, farmacia, inventarios, recetas electrónicas, telemedicina, múltiples sedes y administración dinámica de permisos. Excepción aprobada 2026-11-05: Pagos exclusivamente académicos CU-31–CU-34, Stripe test y PayPal Sandbox independientes, según VS-PAG y `pasarela-pagos.md`; aún no implementados. Exportación CSV/PDF y feriados o bloqueos de agenda son **opcionales**, no deben desplazar los RF obligatorios. | Alcance 1.4; ampliación posterior aprobada |
 
 ---
 
@@ -459,6 +459,31 @@ Las transiciones no enumeradas están prohibidas para los flujos ordinarios. Los
 
 ---
 
+## 15 bis. Pagos — ampliación aprobada (CU-31–CU-34)
+
+**Aprobación 2026-11-05; Fases 0–1 documentales y Fase 2 de infraestructura implementada/verificada solo en pruebas PostgreSQL aisladas.** [Modelo y límites de garantías](pagos-fase2-modelo.md); [contratos/configuración Fase 1](pagos-fase1-contratos.md) aún sin implementación HTTP. Sin activación ni CU operativo; Fase 3 no autorizada. Esta política sustituye la exclusión absoluta de pagos, no RF/RN oficiales. VS-GEN-03 mantiene 28/30 para el catálogo original: solo CU-34 se añade a Administración. Ver [especificación y fases](pasarela-pagos.md).
+
+| ID propio | Regla comprobable | Relación |
+| --- | --- | --- |
+| **VS-PAG-01** | Únicamente pruebas académicas: Stripe Checkout tarjeta test y PayPal Sandbox Orders/captura independientes. Ambos obligatorios; prohibir producción y dinero real. | CU-32 |
+| **VS-PAG-02** | Paciente consulta/paga exclusivamente sus citas; Administrador consulta historial del Paciente seleccionado en solo lectura. Recepción/Médico sin permisos financieros generales. Nadie marca manualmente éxito de pago/devolución. | CU-31–CU-34 |
+| **VS-PAG-03** | Precio individual BOB, Bs 7,00–7.000,00 inclusive y máximo dos decimales; Laravel valida monto, identidad y permiso de Administrador/Recepción. No tarifa global ni catálogo. | CU-14 |
+| **VS-PAG-04** | Reserva administrativa exige monto y revisión previa; confirmar guarda cita/obligación/auditoría atómicamente con idempotencia. Sin llamadas externas bajo transacción de reserva. | CU-14 |
+| **VS-PAG-05** | Reserva propia mantiene Programada y disponibilidad actual, sin precio ni obligación inicial. Solo personal autorizado asigna monto después, incluso tras inicio si no cancelada; una obligación única y autor/fecha auditados. Paciente no impone precio. | CU-14, CU-31 |
+| **VS-PAG-06** | Emisión congela BOB, tasa académica exacta 7,00 BOB/USD, USD, emisor y fecha. Enteros y HALF_UP al centavo USD, sin float; mismo equivalente para ambos proveedores y revisión previa al pago. Sin edición ordinaria posterior. | CU-14, CU-32 |
+| **VS-PAG-07** | Plazo desde emisión; vencimiento ordinario al inicio. Calcular vencida con exigibilidad, ausencia de liquidación y fecha, no persistir estado Vencida. Exigible vencida sigue regularizable, sin recargos ni bloqueo de reserva/llegada/atención. | CU-31, CU-32 |
+| **VS-PAG-08** | Reprogramar conserva cita/obligación/precio/tasa/USD/pago; sin segunda obligación. Si impagada, actualizar vencimiento al nuevo inicio y auditar cambio. No ampliar precondiciones actuales de reprogramación. | CU-15 |
+| **VS-PAG-09** | Cancelar retira exigibilidad y conserva obligación/intentos. Cerrar o conciliar intentos activos/inciertos sin asumir que no se cobró. No reabrir cita por cobro tardío. | CU-16, CU-32 |
+| **VS-PAG-10** | Cancelación pagada devuelve automáticamente el cobro aplicado, total USD original al medio/proveedor original en pruebas. Incluye cobro iniciado antes de cancelar confirmado después. Devolución independiente, idempotente/recuperable y solo exitosa con verificación; fallo no revierte cancelación. | CU-16, CU-32 |
+| **VS-PAG-11** | Inasistencia conserva pago o deuda vencida regularizable; sin devolución automática, recargos ni nueva obligación. | CU-18 |
+| **VS-PAG-12** | Ficha sin cuenta admite citas y obligaciones. Vinculación válida conserva misma ficha y permite consulta/pago propios de deudas exigibles; no pagos por terceros ni exposición pública por CI/correo. | CU-04, CU-14, CU-31–CU-33 |
+| **VS-PAG-13** | Citas anteriores a activación excluidas sin deuda retroactiva; no presentarlas como pagadas ni confundirlas con nuevas pendientes de precio. Incorporación determinada por servidor. | CU-14, CU-21, CU-31 |
+| **VS-PAG-14** | Varios intentos históricos, solo uno cobrable/activo/incierto; cambiar proveedor solo tras cierre seguro sin cobro. Timeout no equivale a rechazo. Conciliar antes de otro cobro. | CU-32 |
+| **VS-PAG-15** | Una liquidación por obligación; verificar backend importe, moneda, entorno, referencias y destinatario. Retorno del navegador no confirma pago. Webhooks verificados, eventos deduplicados y fuera de orden sin regresión financiera. | CU-32 |
+| **VS-PAG-16** | Doble cobro externo excepcional: conservar ambos, aplicar uno e incidencia del segundo no aplicado; **sin devolución automática adicional por duplicación**, requiere procedimiento posterior autorizado. Cancelación no amplía esa compensación. | CU-32, CU-34 |
+| **VS-PAG-17** | Estado financiero independiente de los cinco asistenciales; pago no confirma llegada ni atención. No PAN/CVV, credenciales ni clínica en logs/proveedores. Auditoría conserva ejecutor, responsable de precio/cancelación y acciones SISTEMA. | CU-14–CU-19, CU-30–CU-34 |
+| **VS-PAG-18** | Verificar mínimos/restricciones de cuentas test antes de operar; incompatibilidad exige informar/autorizar ajuste, nunca modificar límites silenciosamente. Cada fase 0–8 tiene autorización independiente. | Especificación de Pagos |
+
 ## 16. Persistencia, integridad, seguridad y concurrencia transversal
 
 | ID propio | Regla comprobable | Relación |
@@ -478,7 +503,7 @@ Las transiciones no enumeradas están prohibidas para los flujos ordinarios. Los
 
 | Módulo / reglas propias | Casos de uso | RF/RN oficiales especialmente relacionados |
 | --- | --- | --- |
-| General y permisos `VS-GEN` | CU-01–CU-30 | RF01, RN12 |
+| General y permisos `VS-GEN` | CU-01–CU-34 | RF01, RN12; pagos como ampliación propia |
 | Usuarios y autenticación `VS-AUT` | CU-01–CU-07, CU-08 | RF01–RF02, RN01, RN12, RN14 |
 | Pacientes y perfil `VS-PAC` | CU-04, CU-07–CU-08, CU-21–CU-22 | RF02, RF12; RN01, RN11, RN12 |
 | Médicos y especialidades `VS-MED` | CU-09–CU-10, CU-13–CU-15 | RF03–RF04; RN02, RN04, RN11 |
@@ -491,6 +516,7 @@ Las transiciones no enumeradas están prohibidas para los flujos ordinarios. Los
 | Recordatorios `VS-NOT` | CU-28 | Perfil del Paciente y ampliación; RN12, RN14 |
 | Reportes `VS-REP` | CU-29 | RF13; RN12, RN14 |
 | Bitácora `VS-AUD` | CU-30 y registro transversal | Ampliación compatible con RN12, RN14 |
+| Pagos `VS-PAG` | CU-31–CU-34; efectos CU-14–CU-16/CU-18 | Ampliación aprobada, no RF/RN nuevos; controles RN12/RN14 |
 | Integridad `VS-INT` | Transversal | RN01–RN14 según la operación |
 
 ---
@@ -503,6 +529,8 @@ Las transiciones no enumeradas están prohibidas para los flujos ordinarios. Los
 4. **Citas:** probar solapamiento de Médico y consultorio, duración variable, cancelación liberadora, estados y autorizaciones, cambios de horario, reprogramación de Paciente inactivo y Médico/especialidad inactivos.
 5. **Clínica y laboratorio:** probar una consulta única por cita, versiones de corrección, rechazo de datos clínicos ajenos, publicación directa del resultado correcto, devolución/revisión del incorrecto, descarga protegida y cambio concurrente de versión.
 6. **Recordatorios/reportes/bitácora:** probar cálculo de 24 horas, citas con menor anticipación, avisos con Paciente sin cuenta, filtros y totales RF13, y auditoría consultable únicamente por Administrador sin exponer secretos.
+
+7. **Pagos (futuro):** probar límites/conversión, asignación concurrente y tardía, titularidad, idempotencia cruzada, webhooks/conciliación, regularización, cancelación/refund verificable, doble cobro registrado sin compensación automática y ausencia de producción/dinero real.
 
 **Estado documental inicial:** las reglas están definidas, **no** se consideran validadas por pruebas hasta contar con código y resultados reproducibles.
 

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" role="img" aria-labelledby="title desc">
+  <title id="title">P8. Agenda e historial de citas</title>
+  <desc id="desc">Tres filas de componentes existentes. AgendaPage.jsx utiliza AgendaService.php; HistorialCitas.jsx, compartido por MisCitasPage e HistorialCitasPage, utiliza HistorialCitasService.php; CitaDetallePage.jsx utiliza ConsultaCitaService.php. Los tres servicios leen citas mediante AgendaRepository y capas HTTP intermedias. Se omiten las lecturas compartidas de identidad y especialidad. No existen tablas independientes de agenda o historial.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="900" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H432 L450 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M450 48 H888 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="225" y="35" font-size="16" font-weight="700">P8. AGENDA E HISTORIAL DE CITAS</text>
+  <g class="communication">
+    <path d="M170 166 V236"/>
+    <path d="M450 166 V236"/>
+    <path d="M730 166 V236"/>
+  </g>
+  <g class="persistence">
+    <path d="M170 310 L390 374"/>
+    <path d="M450 310 V374"/>
+    <path d="M730 310 L510 374"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface AgendaPage.jsx"><rect class="box" x="60" y="86" width="220" height="80"/><text class="stereotype" x="170" y="110">«Interface»</text><text class="name" x="170" y="140">AgendaPage.jsx</text></g>
+    <g aria-label="Interface HistorialCitas.jsx"><rect class="box" x="340" y="86" width="220" height="80"/><text class="stereotype" x="450" y="110">«Interface»</text><text class="name" x="450" y="140">HistorialCitas.jsx</text></g>
+    <g aria-label="Interface CitaDetallePage.jsx"><rect class="box" x="620" y="86" width="220" height="80"/><text class="stereotype" x="730" y="110">«Interface»</text><text class="name" x="730" y="140">CitaDetallePage.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class AgendaService.php"><rect class="box" x="60" y="236" width="220" height="74"/><text class="stereotype" x="170" y="260">«Class»</text><text class="name" x="170" y="288">AgendaService.php</text></g>
+    <g aria-label="Class HistorialCitasService.php"><rect class="box" x="340" y="236" width="220" height="74"/><text class="stereotype" x="450" y="260">«Class»</text><text class="name" x="450" y="288">HistorialCitasService.php</text></g>
+    <g aria-label="Class ConsultaCitaService.php"><rect class="box" x="620" y="236" width="220" height="74"/><text class="stereotype" x="730" y="260">«Class»</text><text class="name" x="730" y="288">ConsultaCitaService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table citas"><rect class="box" x="340" y="374" width="220" height="64"/><text class="stereotype" x="450" y="397">«Table»</text><text class="name" x="450" y="422">citas</text></g>
+  </g>
+</svg>

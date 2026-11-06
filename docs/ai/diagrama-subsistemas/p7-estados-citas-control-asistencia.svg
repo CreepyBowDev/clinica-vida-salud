@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" role="img" aria-labelledby="title desc">
+  <title id="title">P7. Estados de citas y control de asistencia</title>
+  <desc id="desc">Tres filas de componentes reales. AsistenciaCitaPage.jsx consulta asistencia y ConfirmacionAsistencia.jsx solicita llegada, inasistencia o atención mediante callbacks de la página y useAsistenciaCita. Ambas conexiones resumen asistenciaCita.service.js, Axios, rutas y AsistenciaController hacia AsistenciaService.php. El servicio actualiza citas y registra cambios_cita mediante CitaRepository y los modelos Cita y CambioCita. No se crea una clase por transición ni se crea una consulta clínica al marcar Atendida.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="900" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H572 L590 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M590 48 H888 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="295" y="35" font-size="16" font-weight="700">P7. ESTADOS DE CITAS Y CONTROL DE ASISTENCIA</text>
+  <g class="communication">
+    <path d="M260 176 V202 H450 V230"/>
+    <path d="M640 176 V202 H450"/>
+  </g>
+  <g class="persistence">
+    <path d="M370 316 L260 370"/>
+    <path d="M530 316 L640 370"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface AsistenciaCitaPage.jsx">
+      <rect class="box" x="120" y="90" width="280" height="86"/>
+      <text class="stereotype" x="260" y="113">«Interface»</text>
+      <text class="name" x="260" y="143">AsistenciaCitaPage.jsx</text>
+    </g>
+    <g aria-label="Interface ConfirmacionAsistencia.jsx">
+      <rect class="box" x="500" y="90" width="280" height="86"/>
+      <text class="stereotype" x="640" y="113">«Interface»</text>
+      <text class="name" x="640" y="143">ConfirmacionAsistencia.jsx</text>
+    </g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class AsistenciaService.php">
+      <rect class="box" x="300" y="230" width="300" height="86"/>
+      <text class="stereotype" x="450" y="253">«Class»</text>
+      <text class="name" x="450" y="283">AsistenciaService.php</text>
+    </g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table citas">
+      <rect class="box" x="120" y="370" width="280" height="68"/>
+      <text class="stereotype" x="260" y="393">«Table»</text>
+      <text class="name" x="260" y="418">citas</text>
+    </g>
+    <g aria-label="Table cambios_cita">
+      <rect class="box" x="500" y="370" width="280" height="68"/>
+      <text class="stereotype" x="640" y="393">«Table»</text>
+      <text class="name" x="640" y="418">cambios_cita</text>
+    </g>
+  </g>
+</svg>

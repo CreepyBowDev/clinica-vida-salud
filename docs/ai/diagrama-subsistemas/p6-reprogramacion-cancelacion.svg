@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" role="img" aria-labelledby="title desc">
+  <title id="title">P6. Reprogramación y cancelación</title>
+  <desc id="desc">Tres filas de componentes reales. ReprogramacionCita.jsx consulta alternativas mediante DisponibilidadService.php y solicita el guardado mediante GestionCitaService.php; CancelacionCita.jsx solicita la cancelación mediante GestionCitaService.php. Ambos componentes se integran en GestionCitaPage.jsx y delegan escrituras por callbacks y useGestionCita. Disponibilidad lee citas; gestión actualiza citas y registra cambios_cita mediante CitaRepository y Eloquent. No son llamadas directas de React a PHP ni a tablas.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="900" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H452 L470 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M470 48 H888 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="235" y="35" font-size="16" font-weight="700">P6. REPROGRAMACIÓN Y CANCELACIÓN</text>
+  <g class="communication">
+    <path d="M220 176 V230"/>
+    <path d="M300 176 V202 H580 V230"/>
+    <path d="M680 176 V230"/>
+  </g>
+  <g class="persistence">
+    <path d="M220 316 V370"/>
+    <path d="M580 316 L320 370"/>
+    <path d="M680 316 V370"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface ReprogramacionCita.jsx">
+      <rect class="box" x="80" y="90" width="280" height="86"/>
+      <text class="stereotype" x="220" y="113">«Interface»</text>
+      <text class="name" x="220" y="143">ReprogramacionCita.jsx</text>
+    </g>
+    <g aria-label="Interface CancelacionCita.jsx">
+      <rect class="box" x="540" y="90" width="280" height="86"/>
+      <text class="stereotype" x="680" y="113">«Interface»</text>
+      <text class="name" x="680" y="143">CancelacionCita.jsx</text>
+    </g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class DisponibilidadService.php">
+      <rect class="box" x="80" y="230" width="280" height="86"/>
+      <text class="stereotype" x="220" y="253">«Class»</text>
+      <text class="name" x="220" y="283">DisponibilidadService.php</text>
+    </g>
+    <g aria-label="Class GestionCitaService.php">
+      <rect class="box" x="500" y="230" width="320" height="86"/>
+      <text class="stereotype" x="660" y="253">«Class»</text>
+      <text class="name" x="660" y="283">GestionCitaService.php</text>
+    </g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table citas">
+      <rect class="box" x="80" y="370" width="280" height="68"/>
+      <text class="stereotype" x="220" y="393">«Table»</text>
+      <text class="name" x="220" y="418">citas</text>
+    </g>
+    <g aria-label="Table cambios_cita">
+      <rect class="box" x="540" y="370" width="280" height="68"/>
+      <text class="stereotype" x="680" y="393">«Table»</text>
+      <text class="name" x="680" y="418">cambios_cita</text>
+    </g>
+  </g>
+</svg>

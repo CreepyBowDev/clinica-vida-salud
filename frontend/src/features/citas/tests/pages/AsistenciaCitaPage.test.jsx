@@ -105,7 +105,8 @@ it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('%s recibe en
 });
 it.each(['Administrador', 'Recepcionista'])('%s conserva retorno al detalle de historial', async role => {
   rol = role; body = asistencia(rol); mount(`/recepcion/historial-citas/${cita.id_cita}`);
-  await userEvent.click(await within(await screen.findByRole('main')).findByRole('link', { name: 'Gestionar asistencia' })); await screen.findByRole('region', { name: 'Condiciones de asistencia' });
+  await screen.findByRole('region', { name: 'Paciente' });
+  await userEvent.click(within(screen.getByRole('main')).getByRole('link', { name: 'Gestionar asistencia' })); await screen.findByRole('region', { name: 'Condiciones de asistencia' });
   expect(screen.getByRole('link', { name: 'Volver al detalle de la cita' })).toHaveAttribute('href', `/recepcion/historial-citas/${cita.id_cita}`);
 });
 it('state arbitrario no genera retorno externo', async () => {

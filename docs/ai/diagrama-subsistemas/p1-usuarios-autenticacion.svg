@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="574" viewBox="0 0 1160 574" role="img" aria-labelledby="title desc">
+  <title id="title">P1. Usuarios y autenticación</title>
+  <desc id="desc">Paquete con pestaña verde y tres filas de cajas UML individuales. Ocho interfaces React se relacionan con seis servicios Laravel y seis tablas PostgreSQL. LoginPage y LogoutButton utilizan AutenticacionService; AccountsPage utiliza AdministracionCuentaService; RegisterPatientPage utiliza RegistroPacienteService; NewStaffPage y AcceptInvitationPage comparten InvitacionPersonalService; ChangePasswordPage utiliza ClaveService; ResetPasswordPage utiliza RecuperacionClaveService. Las conexiones resumen las capas HTTP y de persistencia intermedias. Se omiten los enlaces repetidos a usuarios. La dependencia de ClaveService hacia tokens_acceso corresponde a invalidar recuperaciones anteriores.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+
+  <rect width="1160" height="574" fill="#ffffff"/>
+  <!-- Un solo contenedor; la pestaña forma parte de su borde superior. -->
+  <path d="M12 48 V12 H392 L410 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M410 48 H1148 V562 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="205" y="35" font-size="16" font-weight="700">P1. USUARIOS Y AUTENTICACIÓN</text>
+
+  <!-- Comunicación resumida: servicios frontend → HTTP/controladores → servicios PHP. -->
+  <g class="communication">
+    <path d="M97 184 V222 H166 V270"/>
+    <path d="M235 184 V222 H166"/>
+    <path d="M373 184 V270"/>
+    <path d="M511 184 V270"/>
+    <path d="M649 184 V222 H718 V270"/>
+    <path d="M787 184 V222 H718"/>
+    <path d="M925 184 V270"/>
+    <path d="M1063 184 V270"/>
+  </g>
+
+  <!-- Persistencia seleccionada; no se repiten todos los enlaces a usuarios. -->
+  <g class="persistence">
+    <path d="M166 356 L140 464"/>
+    <path d="M373 356 L344 464"/>
+    <path d="M478 356 L538 464"/>
+    <path d="M511 356 L752 464"/>
+    <path d="M550 356 L918 464"/>
+    <path d="M718 356 L1056 464"/>
+    <path d="M925 356 L1076 464"/>
+    <path d="M1063 356 L1096 464"/>
+  </g>
+
+  <!-- Primera fila: cada rectángulo contiene un único componente real. -->
+  <g id="interfaces">
+    <g aria-label="Interface LoginPage.jsx">
+      <rect class="box" x="32" y="98" width="130" height="86"/>
+      <text class="stereotype" x="97" y="121">«Interface»</text>
+      <text class="name" x="97" y="151">LoginPage.jsx</text>
+    </g>
+    <g aria-label="Interface LogoutButton.jsx">
+      <rect class="box" x="170" y="98" width="130" height="86"/>
+      <text class="stereotype" x="235" y="121">«Interface»</text>
+      <text class="name" x="235" y="151">LogoutButton.jsx</text>
+    </g>
+    <g aria-label="Interface AccountsPage.jsx">
+      <rect class="box" x="308" y="98" width="130" height="86"/>
+      <text class="stereotype" x="373" y="121">«Interface»</text>
+      <text class="name" x="373" y="151">AccountsPage.jsx</text>
+    </g>
+    <g aria-label="Interface RegisterPatientPage.jsx">
+      <rect class="box" x="446" y="98" width="130" height="86"/>
+      <text class="stereotype" x="511" y="121">«Interface»</text>
+      <text class="name" x="511" y="146"><tspan x="511">RegisterPatient</tspan><tspan x="511" dy="18">Page.jsx</tspan></text>
+    </g>
+    <g aria-label="Interface NewStaffPage.jsx">
+      <rect class="box" x="584" y="98" width="130" height="86"/>
+      <text class="stereotype" x="649" y="121">«Interface»</text>
+      <text class="name" x="649" y="151">NewStaffPage.jsx</text>
+    </g>
+    <g aria-label="Interface AcceptInvitationPage.jsx">
+      <rect class="box" x="722" y="98" width="130" height="86"/>
+      <text class="stereotype" x="787" y="121">«Interface»</text>
+      <text class="name" x="787" y="146"><tspan x="787">AcceptInvitation</tspan><tspan x="787" dy="18">Page.jsx</tspan></text>
+    </g>
+    <g aria-label="Interface ChangePasswordPage.jsx">
+      <rect class="box" x="860" y="98" width="130" height="86"/>
+      <text class="stereotype" x="925" y="121">«Interface»</text>
+      <text class="name" x="925" y="146"><tspan x="925">ChangePassword</tspan><tspan x="925" dy="18">Page.jsx</tspan></text>
+    </g>
+    <g aria-label="Interface ResetPasswordPage.jsx">
+      <rect class="box" x="998" y="98" width="130" height="86"/>
+      <text class="stereotype" x="1063" y="121">«Interface»</text>
+      <text class="name" x="1063" y="146"><tspan x="1063">ResetPassword</tspan><tspan x="1063" dy="18">Page.jsx</tspan></text>
+    </g>
+  </g>
+
+  <!-- Segunda fila: clases de negocio, sin inventar una clase por rol. -->
+  <g id="classes">
+    <g aria-label="Class AutenticacionService.php">
+      <rect class="box" x="32" y="270" width="268" height="86"/>
+      <text class="stereotype" x="166" y="293">«Class»</text>
+      <text class="name" x="166" y="323">AutenticacionService.php</text>
+    </g>
+    <g aria-label="Class AdministracionCuentaService.php">
+      <rect class="box" x="308" y="270" width="130" height="86"/>
+      <text class="stereotype" x="373" y="293">«Class»</text>
+      <text class="name" x="373" y="318"><tspan x="373">Administracion</tspan><tspan x="373" dy="18">CuentaService.php</tspan></text>
+    </g>
+    <g aria-label="Class RegistroPacienteService.php">
+      <rect class="box" x="446" y="270" width="130" height="86"/>
+      <text class="stereotype" x="511" y="293">«Class»</text>
+      <text class="name" x="511" y="318"><tspan x="511">RegistroPaciente</tspan><tspan x="511" dy="18">Service.php</tspan></text>
+    </g>
+    <g aria-label="Class InvitacionPersonalService.php">
+      <rect class="box" x="584" y="270" width="268" height="86"/>
+      <text class="stereotype" x="718" y="293">«Class»</text>
+      <text class="name" x="718" y="323">InvitacionPersonalService.php</text>
+    </g>
+    <g aria-label="Class ClaveService.php">
+      <rect class="box" x="860" y="270" width="130" height="86"/>
+      <text class="stereotype" x="925" y="293">«Class»</text>
+      <text class="name" x="925" y="323">ClaveService.php</text>
+    </g>
+    <g aria-label="Class RecuperacionClaveService.php">
+      <rect class="box" x="998" y="270" width="130" height="86"/>
+      <text class="stereotype" x="1063" y="293">«Class»</text>
+      <text class="name" x="1063" y="318"><tspan x="1063">RecuperacionClave</tspan><tspan x="1063" dy="18">Service.php</tspan></text>
+    </g>
+  </g>
+
+  <!-- Tercera fila: referencias a tablas de una única base PostgreSQL. -->
+  <g id="tables">
+    <g aria-label="Table sessions">
+      <rect class="box" x="60" y="464" width="160" height="68"/>
+      <text class="stereotype" x="140" y="487">«Table»</text>
+      <text class="name" x="140" y="512">sessions</text>
+    </g>
+    <g aria-label="Table usuarios">
+      <rect class="box" x="264" y="464" width="160" height="68"/>
+      <text class="stereotype" x="344" y="487">«Table»</text>
+      <text class="name" x="344" y="512">usuarios</text>
+    </g>
+    <g aria-label="Table registros_paciente_pendientes">
+      <rect class="box" x="468" y="464" width="190" height="68"/>
+      <text class="stereotype" x="563" y="484">«Table»</text>
+      <text class="name" x="563" y="505"><tspan x="563">registros_paciente_</tspan><tspan x="563" dy="17">pendientes</tspan></text>
+    </g>
+    <g aria-label="Table verificaciones_correo">
+      <rect class="box" x="682" y="464" width="160" height="68"/>
+      <text class="stereotype" x="762" y="487">«Table»</text>
+      <text class="name" x="762" y="512">verificaciones_correo</text>
+    </g>
+    <g aria-label="Table pacientes">
+      <rect class="box" x="866" y="464" width="124" height="68"/>
+      <text class="stereotype" x="928" y="487">«Table»</text>
+      <text class="name" x="928" y="512">pacientes</text>
+    </g>
+    <g aria-label="Table tokens_acceso">
+      <rect class="box" x="1014" y="464" width="124" height="68"/>
+      <text class="stereotype" x="1076" y="487">«Table»</text>
+      <text class="name" x="1076" y="512">tokens_acceso</text>
+    </g>
+  </g>
+</svg>

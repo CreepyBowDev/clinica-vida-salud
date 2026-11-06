@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="500" viewBox="0 0 1160 500" role="img" aria-labelledby="title desc">
+  <title id="title">P10. Laboratorio digital</title>
+  <desc id="desc">SolicitarEstudioPage.jsx utiliza SolicitudLaboratorioService.php; GestionDocumentoLaboratorio.jsx utiliza DocumentoLaboratorioService.php; GestionRevisionResultado.jsx utiliza RevisionResultadoService.php; LaboratorioPage.jsx y DescargarResultado.jsx utilizan ResultadoLaboratorioService.php. Cada línea resume capas HTTP existentes. Se seleccionan dependencias a solicitudes_laboratorio, documentos_laboratorio, revisiones_resultado y versiones_resultado mediante repositorios reales. Carga también crea versiones y actualiza solicitudes; revisión actualiza publicación; lectura combina las cuatro tablas. Los bytes se guardan fuera de PostgreSQL mediante ArchivoLaboratorio y se entregan por endpoint protegido. Las gestiones y la descarga se integran en SolicitudLaboratorioPage.jsx, omitida del dibujo.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="1160" height="500" fill="#ffffff"/>
+  <path d="M12 48 V12 H352 L370 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M370 48 H1148 V488 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="185" y="35" font-size="16" font-weight="700">P10. LABORATORIO DIGITAL</text>
+  <g class="communication">
+    <path d="M132 174 V245"/>
+    <path d="M356 174 V245"/>
+    <path d="M580 174 V245"/>
+    <path d="M804 174 V210 H916 V245"/>
+    <path d="M1028 174 V210 H916"/>
+  </g>
+  <g class="persistence">
+    <path d="M132 325 V400"/>
+    <path d="M356 325 V400"/>
+    <path d="M580 325 V400"/>
+    <path d="M916 325 V400"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface SolicitarEstudioPage.jsx"><rect class="box" x="32" y="94" width="200" height="80"/><text class="stereotype" x="132" y="117">«Interface»</text><text class="name" x="132" y="147">SolicitarEstudioPage.jsx</text></g>
+    <g aria-label="Interface GestionDocumentoLaboratorio.jsx"><rect class="box" x="256" y="94" width="200" height="80"/><text class="stereotype" x="356" y="117">«Interface»</text><text class="name" x="356" y="140"><tspan x="356">GestionDocumento</tspan><tspan x="356" dy="18">Laboratorio.jsx</tspan></text></g>
+    <g aria-label="Interface GestionRevisionResultado.jsx"><rect class="box" x="480" y="94" width="200" height="80"/><text class="stereotype" x="580" y="117">«Interface»</text><text class="name" x="580" y="140"><tspan x="580">GestionRevision</tspan><tspan x="580" dy="18">Resultado.jsx</tspan></text></g>
+    <g aria-label="Interface LaboratorioPage.jsx"><rect class="box" x="704" y="94" width="200" height="80"/><text class="stereotype" x="804" y="117">«Interface»</text><text class="name" x="804" y="147">LaboratorioPage.jsx</text></g>
+    <g aria-label="Interface DescargarResultado.jsx"><rect class="box" x="928" y="94" width="200" height="80"/><text class="stereotype" x="1028" y="117">«Interface»</text><text class="name" x="1028" y="147">DescargarResultado.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class SolicitudLaboratorioService.php"><rect class="box" x="32" y="245" width="200" height="80"/><text class="stereotype" x="132" y="268">«Class»</text><text class="name" x="132" y="291"><tspan x="132">SolicitudLaboratorio</tspan><tspan x="132" dy="18">Service.php</tspan></text></g>
+    <g aria-label="Class DocumentoLaboratorioService.php"><rect class="box" x="256" y="245" width="200" height="80"/><text class="stereotype" x="356" y="268">«Class»</text><text class="name" x="356" y="291"><tspan x="356">DocumentoLaboratorio</tspan><tspan x="356" dy="18">Service.php</tspan></text></g>
+    <g aria-label="Class RevisionResultadoService.php"><rect class="box" x="480" y="245" width="200" height="80"/><text class="stereotype" x="580" y="268">«Class»</text><text class="name" x="580" y="291"><tspan x="580">RevisionResultado</tspan><tspan x="580" dy="18">Service.php</tspan></text></g>
+    <g aria-label="Class ResultadoLaboratorioService.php"><rect class="box" x="704" y="245" width="424" height="80"/><text class="stereotype" x="916" y="269">«Class»</text><text class="name" x="916" y="299">ResultadoLaboratorioService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table solicitudes_laboratorio"><rect class="box" x="32" y="400" width="200" height="64"/><text class="stereotype" x="132" y="423">«Table»</text><text class="name" x="132" y="448">solicitudes_laboratorio</text></g>
+    <g aria-label="Table documentos_laboratorio"><rect class="box" x="256" y="400" width="200" height="64"/><text class="stereotype" x="356" y="423">«Table»</text><text class="name" x="356" y="448">documentos_laboratorio</text></g>
+    <g aria-label="Table revisiones_resultado"><rect class="box" x="480" y="400" width="200" height="64"/><text class="stereotype" x="580" y="423">«Table»</text><text class="name" x="580" y="448">revisiones_resultado</text></g>
+    <g aria-label="Table versiones_resultado"><rect class="box" x="816" y="400" width="200" height="64"/><text class="stereotype" x="916" y="423">«Table»</text><text class="name" x="916" y="448">versiones_resultado</text></g>
+  </g>
+</svg>

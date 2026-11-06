@@ -89,7 +89,15 @@ class ConsultaCitaTest extends TestCase
         $data = $response->json('data');
         $common = ['id_cita', 'codigo_cita', 'inicio_at', 'fin_at', 'duracion_minutos', 'estado', 'modalidad',
             'sede_atencion', 'consultorio_atencion', 'creada_en', 'medico', 'especialidad', 'paciente'];
-        $this->assertEqualsCanonicalizing([...$common, 'motivo_breve'], array_keys($data));
+        $finanzas = $rol === 'Médico' ? [] : ['incorporada_finanzas', 'situacion_precio', 'puede_asignar_monto', 'obligacion_id', 'precio'];
+        $this->assertEqualsCanonicalizing([...$common, 'motivo_breve', ...$finanzas], array_keys($data));
+        if ($rol !== 'Médico') {
+            $this->assertFalse($data['incorporada_finanzas']);
+            $this->assertSame('NoIncorporada', $data['situacion_precio']);
+            $this->assertFalse($data['puede_asignar_monto']);
+            $this->assertNull($data['obligacion_id']);
+            $this->assertNull($data['precio']);
+        }
         $this->assertSame($motivo, $data['motivo_breve']);
         $patientKeys = ['id_paciente', 'codigo_paciente', 'nombres', 'apellidos'];
         if (in_array($rol, ['Administrador', 'Recepcionista'], true)) {

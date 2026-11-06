@@ -6,6 +6,7 @@ use Clinica\data\models\Cita;
 use Clinica\data\models\ConsultaMedica;
 use Clinica\data\models\Especialidad;
 use Clinica\data\models\Medico;
+use Clinica\data\models\ObligacionPago;
 use Clinica\data\models\Paciente;
 use Clinica\data\models\Usuario;
 use Clinica\data\models\VersionAntecedente;
@@ -16,6 +17,12 @@ use RuntimeException;
 
 class PausarEscrituraPlanificacionRepository extends BitacoraRepository
 {
+    public function obligacionEmitida(Cita $cita, ObligacionPago $obligacion, Usuario $actor, array $contexto): void
+    {
+        parent::obligacionEmitida($cita, $obligacion, $actor, $contexto);
+        $this->pausar();
+    }
+
     private bool $clinicaPausada = false;
 
     private function pausarClinica(): void
@@ -63,15 +70,15 @@ class PausarEscrituraPlanificacionRepository extends BitacoraRepository
         $this->pausar();
     }
 
-    public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes, ?array $finanzas = null): void
     {
-        parent::citaReprogramada($cita, $actor, $contexto, $antes);
+        parent::citaReprogramada($cita, $actor, $contexto, $antes, $finanzas);
         $this->pausar();
     }
 
-    public function citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    public function citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes, ?array $finanzas = null): void
     {
-        parent::citaCancelada($cita, $actor, $contexto, $antes);
+        parent::citaCancelada($cita, $actor, $contexto, $antes, $finanzas);
         $this->pausar();
     }
 

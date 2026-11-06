@@ -10,12 +10,12 @@ describe('catálogo de navegación por responsabilidad', () => {
     const patterns = NAVIGATION.flatMap(module => module.items.flatMap(item => item.patterns ?? []));
     expect(patterns.every(pattern => actual.includes(pattern))).toBe(true);
     const roots = ['/inicio', ...Object.values(AREAS).map(area => area.path)];
-    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|asistencia|citas|mis-citas|historia-clinica|registrar-consulta|laboratorio|recordatorios|reportes)(\/|$)/.test(path));
+    const protectedPaths = actual.filter(path => !roots.includes(path) && /^\/(administracion|recepcion|mi-perfil|mi-cuenta|reservar-cita|agenda|asistencia|citas|mis-citas|historia-clinica|registrar-consulta|laboratorio|recordatorios|reportes|pagos)(\/|$)/.test(path));
     expect([...patterns].sort()).toEqual(protectedPaths.sort());
   });
   it('conserva los treinta CU sin convertir acciones o flujos públicos en páginas protegidas', () => {
     const cases = [...NAVIGATION.flatMap(module => module.items.flatMap(item => item.cases)), ...ACCESS_FLOWS.flatMap(flow => flow.cases)];
-    expect([...new Set(cases)].sort()).toEqual(Array.from({ length: 30 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`));
+    expect([...new Set(cases)].sort()).toEqual(Array.from({ length: 34 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`));
     expect(ACCESS_FLOWS.find(flow => flow.cases.includes('CU-02')).kind).toBe('action');
     expect(NAVIGATION.flatMap(module => module.items).filter(item => item.kind === 'pending').every(item => !item.to && !item.patterns)).toBe(true);
     expect(NAVIGATION.every(module => !/CU-\d/.test(module.label) && module.items.every(item => !/CU-\d/.test(item.label)))).toBe(true);
@@ -32,9 +32,11 @@ describe('catálogo de navegación por responsabilidad', () => {
     [ROLES.MEDICO, ['contrasena', 'asistencia-citas', 'agenda', 'historia', 'consulta', 'resultados', 'solicitar']],
     [ROLES.PACIENTE, ['contrasena', 'perfil', 'reservar', 'mis-citas', 'historia', 'resultados', 'avisos']],
   ])('%s tiene exactamente sus páginas operativas sin nuevos privilegios para otros roles', (role, ids) => {
-    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id).sort()).toEqual([...ids].sort());
+    expect(navigationForRole(role).flatMap(module => module.items).filter(item => item.kind === 'page').map(item => item.id).sort()).toEqual([...ids, ...([ROLES.ADMINISTRADOR, ROLES.PACIENTE].includes(role) ? ['pagos'] : [])].sort());
   });
   it.each([
+    [ROLES.PACIENTE, '/pagos/obligaciones/11111111-1111-4111-8111-111111111111', 'pagos', 'pagos', 'Detalle de obligación'],
+    [ROLES.ADMINISTRADOR, '/pagos/pacientes/9', 'pagos', 'pagos', 'Pagos del paciente seleccionado'],
     [ROLES.ADMINISTRADOR, '/reportes', 'reportes', 'reportes', 'Consultar reportes'],
     [ROLES.PACIENTE, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
     [ROLES.ADMINISTRADOR, '/recordatorios', 'recordatorios', 'avisos', 'Consultar recordatorios'],
@@ -85,10 +87,10 @@ describe('catálogo de navegación por responsabilidad', () => {
     expect(navigationTitle(path, active, AREAS[role])).toBe(title);
   });
   it.each([
-    [ROLES.ADMINISTRADOR, ['Agenda y citas', 'Pacientes', 'Atención clínica', 'Recordatorios', 'Organización', 'Reportes y bitácora', 'Mi cuenta']],
+    [ROLES.ADMINISTRADOR, ['Agenda y citas', 'Pacientes', 'Atención clínica', 'Recordatorios', 'Pagos', 'Organización', 'Reportes y bitácora', 'Mi cuenta']],
     [ROLES.RECEPCIONISTA, ['Agenda y citas', 'Pacientes', 'Mi cuenta']],
     [ROLES.MEDICO, ['Mi agenda', 'Atención clínica', 'Mi cuenta']],
-    [ROLES.PACIENTE, ['Mis citas', 'Mi salud', 'Recordatorios', 'Mi cuenta']],
+    [ROLES.PACIENTE, ['Mis citas', 'Mi salud', 'Recordatorios', 'Pagos', 'Mi cuenta']],
   ])('%s recibe grupos de tareas ordenados sin duplicar destinos', (role, labels) => {
     const modules = navigationForRole(role), paths = modules.flatMap(module => module.items.map(item => item.to));
     expect(modules.map(module => module.label)).toEqual(labels);
@@ -112,7 +114,7 @@ describe('catálogo de navegación por responsabilidad', () => {
     const items = navigationForRole(ROLES.ADMINISTRADOR).flatMap(module => module.items);
     const actions = ACCESS_FLOWS.filter(flow => ['action', 'pending-action'].includes(flow.kind) && flow.roles?.includes(ROLES.ADMINISTRADOR));
     const cases = [...items.flatMap(item => item.cases), ...actions.flatMap(item => item.cases), 'CU-01', 'CU-02', 'CU-06'];
-    expect([...new Set(cases)].sort()).toEqual(Array.from({ length: 30 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`).filter(id => !['CU-04', 'CU-08'].includes(id)));
+    expect([...new Set(cases)].sort()).toEqual([...Array.from({ length: 30 }, (_, i) => `CU-${String(i + 1).padStart(2, '0')}`).filter(id => !['CU-04', 'CU-08'].includes(id)), 'CU-34']);
     expect([...new Set([...items.filter(item => item.kind === 'pending'), ...actions.filter(a => a.kind === 'pending-action')].flatMap(item => item.cases))]).toHaveLength(0);
     expect(items.find(item => item.id === 'gestion-citas').cases).toEqual(['CU-15', 'CU-16']);
     expect(items.filter(item => item.kind === 'pending').every(item => !item.to && !item.patterns)).toBe(true);

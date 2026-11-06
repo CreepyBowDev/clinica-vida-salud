@@ -130,7 +130,7 @@ class GestionCitaConcurrenteTest extends TestCase
         $this->fail('El proceso no esperó un lock real PostgreSQL.');
     }
 
-    private function preparar(): array
+    private function preparar(bool $finanzas = false): array
     {
         $cookies = [];
         $actores = [];
@@ -144,7 +144,8 @@ class GestionCitaConcurrenteTest extends TestCase
             DB::table('horarios_atencion')->insert(['id_medico' => $medico, 'dia_semana' => 7, 'hora_inicio' => '08:00:00', 'hora_fin' => '09:00:00']);
         }
         $id = (string) DB::table('citas')->insertGetId($this->citaRow($r, ['inicio_at' => '2026-11-01T12:30:00Z',
-            'fin_at' => '2026-11-01T12:45:00Z', 'estado' => 'Confirmada', 'actualizada_en' => '2026-11-01T10:00:00Z']), 'id_cita');
+            'fin_at' => '2026-11-01T12:45:00Z', 'estado' => 'Confirmada', 'actualizada_en' => '2026-11-01T10:00:00Z',
+            'incorporada_finanzas' => $finanzas]), 'id_cita');
         DB::table('recordatorios')->insert(['id_cita' => $id, 'version_programacion' => 1, 'generado_en' => now()]);
 
         return [$cookies, $r, $id, $actores];
@@ -163,6 +164,57 @@ class GestionCitaConcurrenteTest extends TestCase
         return ['version_programacion_original' => $vista['cita_original']['version_programacion'],
             'actualizada_en_original' => $vista['cita_original']['actualizada_en'], 'fecha' => '2026-11-01',
             'hora_inicio' => $vista['turnos'][$turno]['hora_inicio'], 'revision_turno' => $vista['turnos'][$turno]['revision_turno']];
+    }
+
+    public static function carrerasFinancieras(): array
+    {
+        return [['monto', 'monto', true], ['monto', 'monto', false], ['monto', 'cancelacion', true],
+            ['monto', 'cancelacion', false], ['cancelacion', 'monto', true], ['cancelacion', 'monto', false]];
+    }
+
+    #[DataProvider('carrerasFinancieras')]
+    public function test_financial_assignment_serializes_with_assignment_and_cancellation(string $primera, string $segunda, bool $commit): void
+    {
+        config(['pagos.incorporacion_habilitada' => true]);
+        [$cookies, $r, $id] = $this->preparar(true);
+        $payloads = [];
+        foreach ([$primera, $segunda] as $i => $operacion) {
+            $payloads[$i] = $operacion === 'cancelacion' ? $this->datos($cookies[$i], $id, 'cancelacion')
+                : ['propuesta' => $this->navegador($cookies[$i], 'POST', '/api/citas/'.$id.'/monto/propuesta',
+                    ['monto_bob' => $i === 0 ? '70.00' : '140.00'])->assertOk()->json('data.propuesta')];
+        }
+        $w1 = $this->worker($cookies[0], '/api/citas/'.$id.'/'.$primera, $payloads[0], true,
+            ['metodo' => $primera === 'monto' ? 'POST' : 'PATCH', 'habilitar_pagos' => true]);
+        $this->signal($w1, 'INICIAR');
+        $this->assertSame('ESCRITURA_PENDIENTE', $this->line($w1));
+        $w2 = $this->worker($cookies[1], '/api/citas/'.$id.'/'.$segunda, $payloads[1], false,
+            ['metodo' => $segunda === 'monto' ? 'POST' : 'PATCH', 'habilitar_pagos' => true]);
+        $this->signal($w2, 'INICIAR');
+        $this->blocked($w2);
+        $this->assertSame(0, DB::table('obligaciones_pago')->count());
+        $this->signal($w1, $commit ? 'CONFIRMAR' : 'REVERTIR');
+        $a = json_decode($this->line($w1), true);
+        $b = json_decode($this->line($w2), true);
+        $this->assertSame($commit ? ($primera === 'monto' ? 201 : 200) : 500, $a['status']);
+        $conflicto = $commit && ($segunda === 'monto');
+        $this->assertSame($conflicto ? 409 : ($segunda === 'monto' ? 201 : 200), $b['status']);
+        $cancelada = ($commit && $primera === 'cancelacion') || (! $conflicto && $segunda === 'cancelacion');
+        $this->assertSame($cancelada ? 'Cancelada' : 'Confirmada', DB::table('citas')->where('id_cita', $id)->value('estado'));
+        $obligacion = DB::table('obligaciones_pago')->first();
+        if ($commit && $primera === 'cancelacion' || ! $commit && $segunda === 'cancelacion') {
+            $this->assertNull($obligacion);
+        } else {
+            $this->assertSame(1, DB::table('obligaciones_pago')->count());
+            $this->assertSame(! $cancelada, $obligacion->exigible);
+            $this->assertSame($commit ? 7000 : 14000, $obligacion->centavos_bob);
+            $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'PAGO_OBLIGACION_EMITIDA')->count());
+            if ($cancelada) {
+                $this->assertNotNull($obligacion->id_cambio_anulacion);
+            }
+        }
+        $this->assertSame(0, DB::table('intentos_pago')->count());
+        $this->assertSame(0, DB::table('cobros_pago')->count());
+        $this->assertSame(0, DB::table('devoluciones_pago')->count());
     }
 
     public static function mismaCita(): array

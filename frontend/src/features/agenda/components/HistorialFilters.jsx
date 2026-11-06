@@ -9,6 +9,9 @@ export default function HistorialFilters({ draft, defaultPeriod, onChange, onApp
       hint="El período clasifica las citas por tiempo; no modifica su estado.">
       <option value="proximas">Próximas</option><option value="anteriores">Anteriores</option><option value="todas">Todas</option>
     </SelectField>
+    <SelectField label="Situación del precio" value={draft.situacion_precio ?? ''} error={errors.situacion_precio} onChange={event => onChange({ ...draft, situacion_precio: event.target.value })}>
+      <option value="">Todas</option><option value="pendiente_asignacion">Pendiente de asignación de precio</option><option value="asignado">Precio asignado</option><option value="no_incorporada">No incorporada al módulo financiero</option>
+    </SelectField>
     <SelectField label="Estado de cita" value={draft.estado} error={errors.estado} onChange={event => onChange({ ...draft, estado: event.target.value })}>
       <option value="">Todos los estados</option>{ESTADOS_CITA.map(estado => <option key={estado} value={estado}>{estado}</option>)}
     </SelectField>

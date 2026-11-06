@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" role="img" aria-labelledby="title desc">
+  <title id="title">P5. Registro y reserva de citas médicas</title>
+  <desc id="desc">Tres filas de componentes reales. ReservarCitaPage.jsx consulta catálogos y DisponibilidadTurnos.jsx consulta turnos mediante DisponibilidadService.php. ReservaRegistro.jsx confirma y consulta el resultado mediante callbacks de useReservaRegistro y ReservaService.php. Se seleccionan las dependencias de DisponibilidadService hacia especialidades y medicos, y de ReservaService hacia citas. Se resumen servicios HTTP, controladores, repositorios y Eloquent. Disponibilidad y sus recursos son compartidos con P4; no se duplican en el software.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="900" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H542 L560 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M560 48 H888 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="280" y="35" font-size="16" font-weight="700">P5. REGISTRO Y RESERVA DE CITAS MÉDICAS</text>
+  <g class="communication">
+    <path d="M165 176 V202 H285 V230"/>
+    <path d="M450 176 V202 H285"/>
+    <path d="M735 176 V230"/>
+  </g>
+  <g class="persistence">
+    <path d="M225 316 L165 370"/>
+    <path d="M345 316 L450 370"/>
+    <path d="M735 316 V370"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface ReservarCitaPage.jsx">
+      <rect class="box" x="50" y="90" width="230" height="86"/>
+      <text class="stereotype" x="165" y="113">«Interface»</text>
+      <text class="name" x="165" y="143">ReservarCitaPage.jsx</text>
+    </g>
+    <g aria-label="Interface DisponibilidadTurnos.jsx">
+      <rect class="box" x="335" y="90" width="230" height="86"/>
+      <text class="stereotype" x="450" y="113">«Interface»</text>
+      <text class="name" x="450" y="143">DisponibilidadTurnos.jsx</text>
+    </g>
+    <g aria-label="Interface ReservaRegistro.jsx">
+      <rect class="box" x="620" y="90" width="230" height="86"/>
+      <text class="stereotype" x="735" y="113">«Interface»</text>
+      <text class="name" x="735" y="143">ReservaRegistro.jsx</text>
+    </g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class DisponibilidadService.php">
+      <rect class="box" x="135" y="230" width="300" height="86"/>
+      <text class="stereotype" x="285" y="253">«Class»</text>
+      <text class="name" x="285" y="283">DisponibilidadService.php</text>
+    </g>
+    <g aria-label="Class ReservaService.php">
+      <rect class="box" x="620" y="230" width="230" height="86"/>
+      <text class="stereotype" x="735" y="253">«Class»</text>
+      <text class="name" x="735" y="283">ReservaService.php</text>
+    </g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table especialidades">
+      <rect class="box" x="50" y="370" width="230" height="68"/>
+      <text class="stereotype" x="165" y="393">«Table»</text>
+      <text class="name" x="165" y="418">especialidades</text>
+    </g>
+    <g aria-label="Table medicos">
+      <rect class="box" x="335" y="370" width="230" height="68"/>
+      <text class="stereotype" x="450" y="393">«Table»</text>
+      <text class="name" x="450" y="418">medicos</text>
+    </g>
+    <g aria-label="Table citas">
+      <rect class="box" x="620" y="370" width="230" height="68"/>
+      <text class="stereotype" x="735" y="393">«Table»</text>
+      <text class="name" x="735" y="418">citas</text>
+    </g>
+  </g>
+</svg>

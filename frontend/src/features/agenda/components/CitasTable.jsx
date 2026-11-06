@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatearDiaCita, formatearHoraCita, formatearInstanteCita } from '../utils/agendaFormat';
+import { SITUACIONES_PRECIO } from '../../pagos/utils/pagoFormat';
 
 export default function CitasTable({ citas, caption, onDetail, historial = false, detailPath = id => `/citas/${id}`, detailState, destacarHorario = false, destacarFecha = false }) {
   return <div className={destacarHorario || destacarFecha ? 'agenda-day-table' : 'catalog-table-wrap query-table agenda-table'}><table className={destacarHorario || destacarFecha ? 'agenda-day-records' : 'catalog-table'} role="table"><caption>{caption}</caption>
@@ -26,6 +27,7 @@ export default function CitasTable({ citas, caption, onDetail, historial = false
       <td role="cell"><span className="catalog-cell-label" aria-hidden="true">Especialidad</span>{cita.especialidad.nombre}</td>
       <td role="cell"><span className="catalog-cell-label" aria-hidden="true">Consultorio</span>{cita.consultorio_atencion}<span className="agenda-cell-secondary">{cita.sede_atencion}</span></td>
       <td role="cell"><span className="catalog-cell-label" aria-hidden="true">Modalidad</span>{cita.modalidad}</td>
-      <td role="cell"><span className="catalog-cell-label" aria-hidden="true">Estado</span><span className="agenda-state" data-estado={cita.estado}>{cita.estado}</span></td>
+       <td role="cell"><span className="catalog-cell-label" aria-hidden="true">Estado</span><span className="agenda-state" data-estado={cita.estado}>{cita.estado}</span>
+         {historial && cita.situacion_precio && <span className="agenda-cell-secondary">{SITUACIONES_PRECIO[cita.situacion_precio]}</span>}</td>
     </tr>)}</tbody></table></div>;
 }

@@ -3,6 +3,7 @@
 namespace Clinica\business\services\citas;
 
 use Carbon\CarbonImmutable;
+use Clinica\business\services\pagos\CoordinacionFinancieraCitaService;
 use Clinica\business\services\recordatorios\RecordatorioService;
 use Clinica\business\services\usuarios\AutenticacionService;
 use Clinica\business\services\usuarios\ContinuidadAdministrativaService;
@@ -26,6 +27,7 @@ class GestionCitaService
         private CitaRepository $citas,
         private RecordatorioService $recordatorios,
         private BitacoraRepository $bitacora,
+        private CoordinacionFinancieraCitaService $finanzas,
     ) {}
 
     private function actor(): Usuario
@@ -167,9 +169,10 @@ class GestionCitaService
                     'actualizada_en' => $ahora->greaterThan($cita->actualizada_en) ? $ahora : $cita->actualizada_en->addMicrosecond()]);
                 $this->citas->guardar($cita);
                 $despues = $this->detalle($cita);
-                $this->citas->agregarCambio($cita, (string) $actor->getKey(), $antes, $despues, $ahora);
+                $cambio = $this->citas->agregarCambio($cita, (string) $actor->getKey(), $antes, $despues, $ahora);
+                $finanzas = $this->finanzas->coordinar($cita, $cambio);
                 $this->recordatorios->invalidarPorCita($id, $ahora);
-                $this->bitacora->citaReprogramada($cita, $actor, $contexto, $antes);
+                $this->bitacora->citaReprogramada($cita, $actor, $contexto, $antes, $finanzas);
 
                 return [...$despues, 'ultimo_cambio' => $this->ultimoCambio($id)];
             });
@@ -212,10 +215,11 @@ class GestionCitaService
                 ? $ahora : $cita->actualizada_en->addMicrosecond()]);
             $this->citas->guardar($cita);
             $despues = $this->detalle($cita);
-            $this->citas->agregarCambio($cita, (string) $actor->getKey(), $antes, $despues, $ahora,
+            $cambio = $this->citas->agregarCambio($cita, (string) $actor->getKey(), $antes, $despues, $ahora,
                 'CANCELACION', $motivo === '' ? null : $motivo);
+            $finanzas = $this->finanzas->coordinar($cita, $cambio);
             $this->recordatorios->invalidarPorCita($id, $ahora);
-            $this->bitacora->citaCancelada($cita, $actor, $contexto, $antes);
+            $this->bitacora->citaCancelada($cita, $actor, $contexto, $antes, $finanzas);
 
             return [...$despues, 'ultimo_cambio' => $this->ultimoCambio($id)];
         });

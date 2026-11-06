@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="470" viewBox="0 0 760 470" role="img" aria-labelledby="title desc">
+  <title id="title">P13. Bitácora del sistema</title>
+  <desc id="desc">BitacoraPage y BitacoraDetailPage consultan BitacoraService mediante servicios frontend y controlador HTTP. BitacoraService lee bitacora a través de BitacoraRepository y el modelo Bitacora. Consulta exclusiva del Administrador y de solo lectura. Se omiten productores de eventos de otros módulos.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="760" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H392 L410 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M410 48 H748 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="206" y="35" font-size="16" font-weight="700">P13. BITÁCORA DEL SISTEMA</text>
+  <g class="communication"><path d="M240 164 V198 H380 V234"/><path d="M520 164 V198 H380"/></g>
+  <g class="persistence"><path d="M380 310 V380"/></g>
+  <g id="interfaces">
+    <g aria-label="Interface BitacoraPage.jsx"><rect class="box" x="130" y="88" width="220" height="76"/><text class="stereotype" x="240" y="111">«Interface»</text><text class="name" x="240" y="141">BitacoraPage.jsx</text></g>
+    <g aria-label="Interface BitacoraDetailPage.jsx"><rect class="box" x="410" y="88" width="220" height="76"/><text class="stereotype" x="520" y="111">«Interface»</text><text class="name" x="520" y="141">BitacoraDetailPage.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class BitacoraService.php"><rect class="box" x="260" y="234" width="240" height="76"/><text class="stereotype" x="380" y="257">«Class»</text><text class="name" x="380" y="287">BitacoraService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table bitacora"><rect class="box" x="260" y="380" width="240" height="58"/><text class="stereotype" x="380" y="401">«Table»</text><text class="name" x="380" y="424">bitacora</text></g>
+  </g>
+</svg>

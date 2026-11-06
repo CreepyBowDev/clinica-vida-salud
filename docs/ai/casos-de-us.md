@@ -20,7 +20,7 @@
 > **Base vigente:** `Clinica_Vida_Salud_Captura_Actualizada(3).pdf` (104 páginas), especialmente capítulo 4, apartados 4.1–4.3.  
 > **Referencia superior:** examen oficial del Segundo Parcial de Ingeniería de Requisitos, `RF01`–`RF13` y `RN01`–`RN14`.  
 > **Estado documental:** los 30 casos están **especificados** en el PDF; su implementación y pruebas deben verificarse en el repositorio.  
-> **Revisión documental:** 18 de octubre de 2026.
+> **Revisión documental:** base original 18 de octubre de 2026; ampliación Pagos aprobada y formalizada 2026-11-05. Treinta CU originales más CU-31–CU-34, estos últimos sin implementación ni ficha en el PDF original.
 
 > **Actualización de permisos 2026-10-24 — Fase 1:** decisión definitiva del responsable: Administrador autorizado en 28/30 CU, excepto CU-04 y CU-08. Catálogo y §3.1 son la matriz vigente; sustituyen las exclusiones administrativas de la versión fuente sin afirmar cotejo de un nuevo Word/PDF. Las fichas conservan sus recorridos de origen: en los CU ampliados, sus apartados Actores/Iniciador y menciones exclusivas de Recepción/Médico se interpretan con la participación adicional del Administrador según §3.1, **sin ampliar los permisos de los otros roles ni atribuir al Médico acciones administrativas**. No acredita implementación de nuevos permisos.
 
@@ -30,7 +30,7 @@
 
 ## 1. Objetivo y forma de uso
 
-Fuente operativa de consulta para implementar los **30 casos de uso** con la numeración y reglas de la documentación académica. Contiene sus fichas funcionales, **no representa código implementado**, esquemas físicos definitivos ni contratos HTTP aprobados. Antes de trabajar un CU, consultar además `contexto-maestro.md`, `requerimientos.md`, `reglas-negocio.md`, el DER, el examen oficial y los AGENTS correspondientes. No convertir automáticamente cada paso en un endpoint ni inventar permisos por inferencia.
+Fuente operativa de consulta para implementar los **34 casos de uso: treinta originales y cuatro de Pagos aprobados posteriormente**, conservando numeración original y RF/RN oficiales. Contiene sus fichas funcionales, **no representa código implementado**, esquemas físicos definitivos ni contratos HTTP aprobados. Antes de trabajar un CU, consultar además `contexto-maestro.md`, `requerimientos.md`, `reglas-negocio.md`, el DER, el examen oficial y los AGENTS correspondientes; para Pagos, `pasarela-pagos.md`. No convertir automáticamente cada paso en un endpoint ni inventar permisos por inferencia.
 
 **Precedencia:** el examen es obligatorio; las decisiones aprobadas más recientes desarrollan lo no especificado; este archivo reproduce las fichas de la versión fuente. En caso de diferencia, contrastar la fuente y pedir definición en lugar de alterar silenciosamente requisitos. Los plazos, códigos, Brevo, módulos clínicos y bitácora son decisiones del proyecto cuando el examen no los exige expresamente.
 
@@ -48,6 +48,8 @@ Fuente operativa de consulta para implementar los **30 casos de uso** con la num
 | Paciente | Registro/activación de su cuenta, perfil permitido, reserva únicamente para sí, historial, información clínica autorizada, resultados publicados y recordatorios internos. No edita antecedentes, reprograma ni cancela citas. |
 
 En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y relación con el recurso**; React no sustituye la autorización. Brevo es servicio externo transaccional, no rol nuevo. Los procesos automáticos (notificaciones/auditoría) no crean un quinto actor.
+
+**Permisos de Pagos aprobados, pendientes de implementación:** Paciente CU-31–CU-33 propios; Administrador solo CU-34 por Paciente seleccionado. Administrador/Recepción fijan precio inicial/posterior por ampliación de CU-14, sin pago delegado ni edición ordinaria posterior; Recepción sin historial financiero general, Médico sin permisos nuevos. Stripe/PayPal son sistemas externos, no roles. Ningún usuario marca pagos/devoluciones manualmente como exitosos.
 
 ## 3. Catálogo, correspondencia y priorización
 
@@ -83,10 +85,16 @@ En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y r
 | [CU-28](#cu-28) | Consultar recordatorios de próximas citas y recibir Web Push opcional | Administrador, Paciente | 2 | Medio | p. 98 + ampliación aprobada 2026-10-30 |
 | [CU-29](#cu-29) | Generar reportes administrativos | Administrador | 2 | Medio | p. 99 |
 | [CU-30](#cu-30) | Consultar bitácora del sistema | Administrador | 1 | Medio | p. 100 |
+| [CU-31](#cu-31) | Consultar obligaciones de pago propias | Paciente | Ampliación | Alto | Aprobación 2026-11-05; no ficha PDF |
+| [CU-32](#cu-32) | Pagar una cita | Paciente; Stripe y PayPal externos | Ampliación | Alto | Aprobación 2026-11-05; no ficha PDF |
+| [CU-33](#cu-33) | Consultar historial de pagos propio | Paciente | Ampliación | Alto | Aprobación 2026-11-05; no ficha PDF |
+| [CU-34](#cu-34) | Consultar historial financiero de un Paciente | Administrador | Ampliación | Alto | Aprobación 2026-11-05; no ficha PDF |
 
 **Nota sobre el ciclo:** el examen y la priorización indican entregas por fases; el catálogo identifica funciones, no el orden exacto de programación. Todos los casos aquí son especificaciones, no tareas terminadas.
 
 ### 3.1. Matriz administrativa vigente y estado real — 2026-10-24
+
+**Extensión 2026-11-05:** 28/30 corresponde solo al catálogo original. Los nuevos CU no amplían automáticamente esa política: CU-31/32/33 excluidos del Administrador; CU-34 autorizado en solo lectura. Pagos está únicamente especificado en Fase 0, sin nuevos permisos implementados. Los ciclos originales 17+13 y sus evidencias históricas permanecen intactos.
 
 **Decisión expresa:** 28/30 CU autorizados; CU-04 y CU-08 excluidos. Priorización vigente de esta entrega: **Ciclo 1 = CU-01–CU-14, CU-20, CU-21 y CU-30 (17)**, con 15 autorizados para Administración; **Ciclo 2 = CU-15–CU-19 y CU-22–CU-29 (13)**. CU-30 se incluye en Ciclo 1 por la priorización actual y su implementación existente; su ficha/PDF conservan el antecedente de ciclo 2, no se modifica el académico. El estado siguiente procede de inspección de rutas/servicios/React, no de una nueva ejecución de pruebas funcionales.
 
@@ -122,6 +130,10 @@ En los flujos protegidos, el backend valida **sesión, rol, estado de cuenta y r
 | CU-28 | Sí, consulta administrativa por paciente | Generación, consultas, outbox, gestión de suscripciones y SW implementados; avisos propios/admin y lectura de dispositivos integrados por HTTP real en `validacion-v1.md`. Alta/entrega Web Push real y operación final del scheduler pendientes; Admin no gestiona preferencias/dispositivos del titular |
 | CU-29 | Sí | Siete mínimos RF13 implementados e integrados por React/HTTP/Laravel/PostgreSQL aislado en `validacion-v1.md`; no CSV/PDF opcional ni certificación de producción |
 | CU-30 | Sí, solo lectura | Backend verificado; frontend origen administrativo/Recepción/propio y referencias seguras integrados en Fase 5 local, exclusivo de Administrador (§17.134) |
+| CU-31 | **No** | Propio del Paciente; aprobado, no implementado |
+| CU-32 | **No** | Pago propio exclusivo del Paciente; aprobado, no implementado |
+| CU-33 | **No** | Historial propio del Paciente; aprobado, no implementado |
+| CU-34 | Sí, consulta financiera por Paciente | Aprobado, no implementado; sin pago delegado ni modificaciones |
 
 **Evidencia histórica Fase 5 aplicable a las filas entonces existentes:** suite completa 2535/25681 correcta en PostgreSQL aislado, incluidas regresiones positivas/integradas/concurrentes heredadas y administrativas nuevas. Ese cierre de los 15 CU del Ciclo 1 no acreditaba los trece CU del Ciclo 2 ni UI React ampliada en esa fecha; los estados actuales de la tabla incorporan los cierres posteriores y `validacion-v1.md`. CU-04/CU-08 siguen personales, sin nuevos permisos para otros roles; contexto §17.122.
 
@@ -1873,6 +1885,53 @@ Comprobar acceso exclusivo del Administrador, filtros, paginación, ausencia de 
 
 **Avance frontend fase 4 (2026-10-21):** revisión de seguridad/teclado/responsive/accesibilidad completada con Chrome/HTTP ficticio interceptado: 72 comprobaciones de tamaño sin desbordamiento, 18 auditorías axe sin infracciones detectadas y permisos/revocación verificados. Corregidas reapertura/foco de avanzados tras 422 y normalización de fechas imposibles. 14 pruebas nuevas; acumulado Bitácora 100/6 archivos y suite completa 621/36 archivos correctos, build correcto. Contexto §17.75/análisis sincronizados. Fase 5 integración Laravel/PostgreSQL y cierre local pendientes; producción/diagrama global mantienen pendientes previos.
 
+### 4.14. Pagos — ampliación aprobada (CU-31–CU-34)
+
+**Estado común:** especificado y aprobado 2026-11-05; Fases 0–1 documentales y [Fase 2 de infraestructura](pagos-fase2-modelo.md) implementada/verificada en PostgreSQL aislado, sin activación ni CU operativo. [Contratos/configuración Fase 1](pagos-fase1-contratos.md) siguen sin implementación HTTP; Fase 3 pendiente de autorización. Fuente: aprobación expresa del responsable, no PDF/examen. [Especificación](pasarela-pagos.md), reglas VS-PAG-01–18. Stripe test y PayPal Sandbox independientes; BOB interno/USD externo a 7:1 HALF_UP, sin dinero real.
+
+**Ampliación de CU-14 sin nuevo CU:** Administrador/Recepción exige monto individual Bs 7,00–7.000,00 revisado antes de confirmar; cita/obligación/auditoría transaccionales. Paciente registra Programada sin precio/obligación; personal asigna monto una sola vez, incluso después del inicio si no cancelada, mediante filtro/detalle. No edición posterior ordinaria ni manipulación por Paciente. Unicidad y locks impiden doble asignación. No cambia disponibilidad ni crea sexto estado. CU-15 conserva precio/pago/obligación y ajusta vencimiento si impagada; CU-16 retira exigibilidad y coordina devolución autorizada; CU-18 conserva pago/deuda sin recargos. Las precondiciones actuales de esos CU permanecen.
+
+<a id="cu-31"></a>
+#### CU-31 — Consultar obligaciones de pago propias
+
+- **Actor/iniciador:** Paciente autenticado y vinculado a su ficha.
+- **Objetivo:** identificar obligaciones propias pendientes, vencidas regularizables, pagadas o anuladas y consultar detalle; distinguir citas pendientes de precio de antiguas excluidas, sin inventar obligaciones.
+- **Precondiciones:** sesión normal y cuenta autorizada; titularidad derivada del vínculo real, no de un idPaciente libre.
+- **Flujo:** abrir Pagos; backend resuelve titular; consultar con filtros/paginación; mostrar cita, BOB/tasa/USD, emisión, vencimiento, exigibilidad y situación de verificación; abrir detalle o iniciar CU-32 si habilitado.
+- **Alternativas:** vacío; precio pendiente (sin pago); obligación anulada; intento incierto (otro cobro bloqueado); sesión inválida o recurso ajeno sin exposición.
+- **Postcondición:** consulta sin cambios; vencimiento calculado no elimina regularización mientras exigible.
+
+<a id="cu-32"></a>
+#### CU-32 — Pagar una cita
+
+- **Actor/iniciador:** Paciente titular. **Secundarios:** Stripe Checkout test o PayPal Sandbox.
+- **Precondiciones:** obligación propia, exigible, sin liquidación ni otra operación cobrable/incierta; sesión autorizada y configuración académica válida. Vencimiento no impide regularizar.
+- **Flujo:** revisar BOB/tasa/USD históricos; elegir proveedor; Laravel revalida y reserva intento idempotente; crea sesión Checkout u orden PayPal; Paciente completa acción externa; Laravel captura PayPal cuando corresponde y verifica referencias/importe/moneda/entorno/resultado; aplica una liquidación y audita; portal consulta resultado.
+- **Alternativas:** rechazo, abandono, operación activa, timeout/incierto y conciliación; evento repetido/desordenado; obligación ya pagada/anulada; cambio de proveedor solo tras cierre seguro sin cobro. No confiar en retorno del navegador ni cerrar por simple cancel_url.
+- **Cancelación concurrente:** conservar cancelación e historial, impedir nuevos pagos; si se confirma cobro iniciado antes, tramitar devolución total verificable del aplicado. No revertir cancelación por fallo de refund.
+- **Doble cobro excepcional:** registrar ambos y aplicar uno; incidencia del segundo sin devolución automática adicional. Ningún usuario fuerza éxito.
+- **Postcondición:** pago aplicado una sola vez o intento conservado con resultado conocido/por resolver. No modifica estado asistencial.
+
+<a id="cu-33"></a>
+#### CU-33 — Consultar historial de pagos propio
+
+- **Actor/iniciador:** Paciente titular autenticado.
+- **Precondiciones:** sesión autorizada y vínculo con ficha.
+- **Flujo:** consultar historial propio; filtrar período/proveedor/resultado; paginar y abrir obligación, intentos y devoluciones con fechas, importes históricos y referencias autorizadas.
+- **Alternativas:** lista vacía, sesión inválida, recurso no accesible, error de red sin afirmar pérdida de cobro.
+- **Postcondición:** sin modificaciones ni eliminación; pagos/reembolsos conservan historia, incidencias no aparecen como segundo pago aplicado.
+
+<a id="cu-34"></a>
+#### CU-34 — Consultar historial financiero de un Paciente
+
+- **Actor/iniciador:** Administrador, no Recepcionista ni Médico.
+- **Precondiciones:** sesión administrativa autorizada y Paciente seleccionado por mecanismo administrativo existente; ficha puede carecer de cuenta web.
+- **Flujo:** seleccionar Paciente; consultar obligaciones/historial; filtrar y paginar; abrir detalles mínimos de intentos, liquidación, devoluciones e incidencias autorizadas.
+- **Alternativas:** Paciente/lista inexistente o vacía, sesión inválida o error seguro.
+- **Postcondición:** solo lectura; no pagar por el titular, editar importes/resultados ni marcar devoluciones exitosas. Consulta financiera no concede nuevos permisos clínicos.
+
+**Procesos de apoyo:** emisión, verificación de eventos, conciliación y devolución por cancelación son automáticos, no nuevos CU humanos. No crear una pantalla/clase/endpoint por CU obligatoriamente. Casos de consulta pueden compartir componentes y CU-32 iniciarse desde obligación o detalle autorizado de cita, sin incluir todo el listado como paso obligatorio.
+
 ## 5. Reglas transversales que no se deben perder
 
 ### 5.1. Autenticación y verificación
@@ -1903,12 +1962,13 @@ Comprobar acceso exclusivo del Administrador, filtros, paginación, ausencia de 
 1. Antes de implementar un CU, verificar la ficha y las reglas relacionadas en este archivo y el examen; comprobar la realidad del repositorio y dependencias.
 2. Al terminar un CU o grupo relacionado, actualizar `analisis-clases.md` con clases participantes y relaciones efectivamente utilizadas o previstas, indicando su estado real. Cuando se complete el módulo, integrar sus clases en `diagrama-clases.md` sin recrearlo desde cero.
 3. Si se modifica el esquema, actualizar `diagrama-entidad-relacion.md` y verificar migraciones/relaciones. Actualizar `requerimientos.md` y `reglas-negocio.md` cuando exista una **decisión aprobada**, no por un ajuste técnico accidental.
-4. Actualizar esta ficha **solo ante aclaraciones aprobadas** y conservar la identificación `CU-01` a `CU-30`. Nunca convertir un requisito pendiente en implementado por la sola existencia del documento.
+4. Actualizar esta ficha **solo ante aclaraciones aprobadas** y conservar los treinta identificadores originales; ampliación aprobada CU-31–CU-34 sin renumerarlos. Nunca convertir un requisito pendiente en implementado por la sola existencia del documento.
 5. Mantener el 4.5 académico reservado para desarrollo posterior según la decisión vigente; no agregar aquí diagramas UML generales en su lugar.
 
 ## 7. Fuente y límites
 
 - **Fuente funcional:** capítulo 4 de `Clinica_Vida_Salud_Captura_Actualizada(3).pdf` (páginas 62–101), complementado por el Alcance y PN01–PN24 de ese mismo documento.
 - **Fuente obligatoria superior:** enunciado oficial del examen de Ingeniería de Requisitos (RF01–RF13, RN01–RN14 y pruebas mínimas).
+- **Pagos CU-31–CU-34:** aprobación expresa del responsable 2026-11-05, formalizada en `pasarela-pagos.md`; sin páginas/ciclos/PN nuevos atribuidos al PDF, sin implementación acreditada.
 - **Documentos relacionados:** `contexto-maestro.md`, `requerimientos.md`, `reglas-negocio.md`, `diagrama-entidad-relacion.md`, `diagrama-clases.md`, `analisis-clases.md`. Si aún no existen, no suponer su contenido.
 - **Estado técnico:** esta ficha no demuestra que exista un backend, frontend, migraciones ni pruebas. Comprobar el código antes de afirmar implementación.

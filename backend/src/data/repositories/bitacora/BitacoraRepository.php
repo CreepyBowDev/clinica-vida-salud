@@ -9,6 +9,7 @@ use Clinica\data\models\ConsultaMedica;
 use Clinica\data\models\Consultorio;
 use Clinica\data\models\Especialidad;
 use Clinica\data\models\Medico;
+use Clinica\data\models\ObligacionPago;
 use Clinica\data\models\Paciente;
 use Clinica\data\models\Recordatorio;
 use Clinica\data\models\SolicitudLaboratorio;
@@ -22,6 +23,35 @@ use Illuminate\Support\Str;
 
 class BitacoraRepository
 {
+    public function stripe(string $tipo, string $obligacion, array $referencias = [], ?Usuario $actor = null): void
+    {
+        $this->pago($tipo, $obligacion, $referencias, $actor);
+    }
+
+    public function pago(string $tipo, string $obligacion, array $referencias = [], ?Usuario $actor = null): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => $tipo, 'tipo_actor' => $actor ? 'USUARIO' : 'SISTEMA',
+            'id_usuario_responsable' => $actor?->getKey(), 'rol_responsable' => $actor?->rol->nombre,
+            'modulo' => 'PAGOS', 'operacion' => $tipo, 'resultado' => 'EXITO',
+            'entidad_referida' => 'ObligacionPago', 'registro_referido' => $obligacion,
+            'ocurrido_en' => CarbonImmutable::now('UTC'), 'correlacion' => (string) Str::uuid(),
+            'referencias' => ['id_obligacion' => $obligacion, ...$referencias]])->saveOrFail();
+    }
+
+    public function obligacionEmitida(Cita $cita, ObligacionPago $obligacion, Usuario $actor, array $contexto): void
+    {
+        $evento = new Bitacora;
+        $evento->forceFill(['tipo_evento' => 'PAGO_OBLIGACION_EMITIDA', 'tipo_actor' => 'USUARIO',
+            'id_usuario_responsable' => $actor->getKey(), 'rol_responsable' => $actor->rol->nombre,
+            'modulo' => 'PAGOS', 'operacion' => 'PAGO_OBLIGACION_EMITIDA', 'resultado' => 'EXITO',
+            'entidad_referida' => 'Cita', 'registro_referido' => (string) $cita->getKey(),
+            'ocurrido_en' => $obligacion->emitida_en, 'direccion_ip' => $contexto['ip'],
+            'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
+            'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente,
+                'id_obligacion' => (string) $obligacion->getKey()]])->saveOrFail();
+    }
+
     public function porId(int|string $id): ?Bitacora
     {
         // Los eventos son inmutables: solo se bloquea la cuenta del lector en el Service.
@@ -251,7 +281,7 @@ class BitacoraRepository
             'cambios_seguros' => ['version_anterior' => $anterior->numero_version, 'version_nueva' => $version->numero_version]])->saveOrFail();
     }
 
-    public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    public function citaReprogramada(Cita $cita, Usuario $actor, array $contexto, array $antes, ?array $finanzas = null): void
     {
         $referencias = [];
         foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
@@ -265,6 +295,7 @@ class BitacoraRepository
             'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
             'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
             'referencias' => $referencias, 'cambios_seguros' => [
+                ...($finanzas === null ? [] : ['coordinacion_financiera' => $finanzas]),
                 'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
                 'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
     }
@@ -323,7 +354,7 @@ class BitacoraRepository
                 'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
     }
 
-    public function citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes): void
+    public function citaCancelada(Cita $cita, Usuario $actor, array $contexto, array $antes, ?array $finanzas = null): void
     {
         $referencias = [];
         foreach (['id_cita', 'id_paciente', 'id_medico', 'id_especialidad', 'id_consultorio'] as $campo) {
@@ -337,6 +368,7 @@ class BitacoraRepository
             'ocurrido_en' => CarbonImmutable::now('UTC'), 'direccion_ip' => $contexto['ip'],
             'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
             'referencias' => $referencias, 'cambios_seguros' => [
+                ...($finanzas === null ? [] : ['coordinacion_financiera' => $finanzas]),
                 'antes' => ['estado' => $antes['estado'], 'version_programacion' => $antes['version_programacion']],
                 'despues' => ['estado' => $cita->estado, 'version_programacion' => $cita->version_programacion]]])->saveOrFail();
     }

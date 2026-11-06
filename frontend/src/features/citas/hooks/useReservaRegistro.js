@@ -61,7 +61,7 @@ export function useReservaRegistro() {
       if (!mounted.current || operation !== sequence.current) return;
       // Una época descartada no es un rollback. Si la ruta sigue montada (p. ej.
       // logout fallido), hay que salir de busy sin publicar la respuesta antigua.
-      const failure = describirError(error, { operation: 'reserva', allowedFields: ['fecha', 'motivo_breve', 'propuesta', 'revision_turno'] });
+       const failure = describirError(error, { operation: 'reserva', allowedFields: ['fecha', 'motivo_breve', 'monto_bob', 'propuesta', 'revision_turno'] });
       const code = error.response?.data?.error?.code;
       if (failure.status === 409) failure.message = mensajes[code] || 'La selección cambió. Consulta los turnos antes de continuar.';
       if (failure.status === 404) failure.message = 'No se encontró una selección disponible. Vuelve a consultar.';

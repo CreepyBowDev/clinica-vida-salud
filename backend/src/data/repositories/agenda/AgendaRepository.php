@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AgendaRepository
 {
@@ -47,7 +48,20 @@ class AgendaRepository
 
     public function historial(string $paciente, CarbonImmutable $ahora, array $filtros): LengthAwarePaginator
     {
-        $query = $this->citasProyectadas()->where('citas.id_paciente', $paciente);
+        $query = $this->conFinanzas($this->citasProyectadas())->where('citas.id_paciente', $paciente);
+        if (isset($filtros['situacion_precio'])) {
+            if (! Schema::hasTable('obligaciones_pago')) {
+                if ($filtros['situacion_precio'] !== 'no_incorporada') {
+                    $query->whereRaw('false');
+                }
+            } else {
+                match ($filtros['situacion_precio']) {
+                    'no_incorporada' => $query->where('citas.incorporada_finanzas', false),
+                    'pendiente_asignacion' => $query->where('citas.incorporada_finanzas', true)->whereNull('op.id_obligacion'),
+                    'asignado' => $query->whereNotNull('op.id_obligacion'),
+                };
+            }
+        }
         if ($filtros['periodo'] === 'proximas') {
             $query->whereIn('citas.estado', ['Programada', 'Confirmada'])->where('citas.fin_at', '>', $ahora->format('Y-m-d H:i:s.uP'));
         } elseif ($filtros['periodo'] === 'anteriores') {
@@ -61,14 +75,29 @@ class AgendaRepository
         return $this->paginar($query->toBase(), $filtros, $orden, 'id_cita');
     }
 
-    public function detalle(string $id, array $ambito, array $campos): ?array
+    public function detalle(string $id, array $ambito, array $campos, bool $finanzas = false): ?array
     {
         // Ámbito y columnas los decide el Service, nunca parámetros HTTP.
         // Filtrar en SQL antes de leer: una cita ajena no se materializa en PHP.
-        $row = $this->citasProyectadas()->where('citas.id_cita', $id)->where($ambito)
+        $query = $this->citasProyectadas();
+        if ($finanzas) {
+            $this->conFinanzas($query);
+        }
+        $row = $query->where('citas.id_cita', $id)->where($ambito)
             ->addSelect($campos)->toBase()->first();
 
         return $row !== null ? (array) $row : null;
+    }
+
+    private function conFinanzas(EloquentBuilder $query): EloquentBuilder
+    {
+        if (! Schema::hasTable('obligaciones_pago')) {
+            return $query->selectRaw('false AS incorporada_finanzas');
+        }
+
+        return $query->leftJoin('obligaciones_pago as op', 'op.id_cita', '=', 'citas.id_cita')
+            ->addSelect(['citas.incorporada_finanzas', 'op.id_obligacion', 'op.centavos_bob', 'op.centavos_usd',
+                'op.tasa_numerador', 'op.tasa_denominador']);
     }
 
     private function citasProyectadas(): EloquentBuilder

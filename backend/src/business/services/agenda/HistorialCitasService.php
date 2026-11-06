@@ -3,6 +3,7 @@
 namespace Clinica\business\services\agenda;
 
 use Carbon\CarbonImmutable;
+use Clinica\business\services\pagos\ResumenFinancieroCitaService;
 use Clinica\business\services\usuarios\AutenticacionService;
 use Clinica\data\repositories\agenda\AgendaRepository;
 use Clinica\shared\errors\AppError;
@@ -11,7 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class HistorialCitasService
 {
-    public function __construct(private AutenticacionService $autenticacion, private AgendaRepository $agenda) {}
+    public function __construct(private AutenticacionService $autenticacion, private AgendaRepository $agenda,
+        private ResumenFinancieroCitaService $finanzas) {}
 
     public function consultar(array $filtros, ?string $idPaciente = null): array
     {
@@ -38,9 +40,13 @@ class HistorialCitasService
             $ahora = CarbonImmutable::now('UTC');
             $filtros['periodo'] ??= $rol === 'Paciente' ? 'proximas' : 'todas';
 
-            return ['pagina' => $this->agenda->historial($idPaciente, $ahora, $filtros),
+            $pagina = $this->agenda->historial($idPaciente, $ahora, $filtros);
+            $pagina->through(fn (array $fila) => [...$fila, 'finanzas' => $this->finanzas->proyectar($fila, $rol)]);
+
+            return ['pagina' => $pagina,
                 'contexto' => ['zona_horaria' => 'America/La_Paz', 'consultado_en' => $ahora->format('Y-m-d\TH:i:s.u\Z'),
-                    'filtros' => ['periodo' => $filtros['periodo'], 'estado' => $filtros['estado'] ?? null],
+                    'filtros' => ['periodo' => $filtros['periodo'], 'estado' => $filtros['estado'] ?? null,
+                        'situacion_precio' => $filtros['situacion_precio'] ?? null],
                     'paciente' => ['id_paciente' => (string) $paciente['id_paciente'], 'codigo_paciente' => $paciente['codigo_paciente'],
                         'nombres' => $paciente['nombres'], 'apellidos' => $paciente['apellidos']]]];
         });

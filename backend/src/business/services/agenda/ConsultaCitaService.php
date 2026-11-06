@@ -2,6 +2,7 @@
 
 namespace Clinica\business\services\agenda;
 
+use Clinica\business\services\pagos\ResumenFinancieroCitaService;
 use Clinica\business\services\usuarios\AutenticacionService;
 use Clinica\data\repositories\agenda\AgendaRepository;
 use Clinica\shared\errors\AppError;
@@ -9,7 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class ConsultaCitaService
 {
-    public function __construct(private AutenticacionService $autenticacion, private AgendaRepository $agenda) {}
+    public function __construct(private AutenticacionService $autenticacion, private AgendaRepository $agenda,
+        private ResumenFinancieroCitaService $finanzas) {}
 
     public function consultar(string $id): array
     {
@@ -37,8 +39,12 @@ class ConsultaCitaService
             } else {
                 throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
             }
-            $cita = $this->agenda->detalle($id, $ambito, $campos)
+            $cita = $this->agenda->detalle($id, $ambito, $campos, $rol !== 'Médico')
                 ?? throw new AppError('RECURSO_NO_ENCONTRADO', 'No se encontró el recurso solicitado.');
+
+            if ($rol !== 'Médico') {
+                $cita['finanzas'] = $this->finanzas->proyectar($cita, $rol);
+            }
 
             return ['cita' => $cita, 'rol' => $rol];
         });

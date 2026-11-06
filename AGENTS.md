@@ -7,9 +7,9 @@ Instrucciones obligatorias para todo el repositorio. **Versión compacta (2026-1
 - Sistema web de gestión de citas médicas para una clínica privada ficticia; **proyecto universitario de Ingeniería de Requisitos**.
 - Una sede, atención **exclusivamente presencial**, consultorios identificados.
 - Cuatro roles fijos: **Administrador, Recepcionista, Médico, Paciente**. Nunca un quinto rol ni permisos dinámicos.
-- Casos de uso continuos `CU-01`–`CU-30`; no renumerar ni reutilizar identificadores.
+- Catálogo continuo `CU-01`–`CU-34`: treinta originales intactos y ampliación aprobada Pagos CU-31–CU-34. No renumerar ni reutilizar identificadores.
 - Requisitos oficiales `RF01`–`RF13` y reglas `RN01`–`RN14`: cumplimiento íntegro, sin editar ni renumerar.
-- Fuera de alcance: pagos, farmacia, inventario, recetas electrónicas, telemedicina, varias sedes, recordatorios por correo/SMS/WhatsApp. Excepción aprobada (2026-10-30): **Web Push opcional** en CU-28, sin app nativa ni garantía de entrega, sonido o encendido de pantalla.
+- Fuera de alcance: pagos reales/producción, farmacia, inventario, recetas electrónicas, telemedicina, varias sedes, recordatorios por correo/SMS/WhatsApp. Excepciones aprobadas: **Web Push opcional** CU-28 (2026-10-30), sin app nativa ni garantía de entrega; **Pagos académicos** CU-31–CU-34 (2026-11-05), Stripe Checkout test y PayPal Sandbox independientes, sin dinero real. Ver `docs/ai/pasarela-pagos.md`; Fase 0 solo documental, fases siguientes requieren autorización.
 - Distinguir siempre **exigencia del examen**, **ampliación aprobada** y **recomendación técnica**. Priorizar lo obligatorio sobre ampliaciones.
 
 | Módulo | Casos |
@@ -27,6 +27,7 @@ Instrucciones obligatorias para todo el repositorio. **Versión compacta (2026-1
 | Recordatorios internos | CU-28 |
 | Reportes | CU-29 |
 | Bitácora | CU-30 |
+| Pagos académicos — aprobado, no implementado | CU-31–CU-34 |
 
 ## 2. Stack
 
@@ -42,7 +43,7 @@ React + Vite + JavaScript + React Router + Axios + Context API (`useAuth`) · PH
 
 - Si la petición contradice el examen: señalarlo y pedir aclaración; no implementar el conflicto en silencio.
 - `/AGENTS.md` aplica a todo; `frontend/AGENTS.md` y `backend/AGENTS.md` complementan y **no pueden contradecirlo**.
-- `docs/ai/`: `contexto-maestro.md` (decisiones, arquitectura, progreso), `requerimientos.md` (RF/RN oficiales, no editar), `reglas-negocio.md` (restricciones verificables), `casos-de-us.md` (CU-01–CU-30 y matriz de permisos §3.1), `diagrama-entidad-relacion.md`, `diagrama-clases.md`, `analisis-clases.md`, `estado-fase.md` (relevo).
+- `docs/ai/`: `contexto-maestro.md` (decisiones, arquitectura, progreso), `requerimientos.md` (RF/RN oficiales, no editar), `reglas-negocio.md` (restricciones verificables), `casos-de-us.md` (CU-01–CU-34 y matriz de permisos §3.1), `pasarela-pagos.md` (ampliación académica aprobada), `diagrama-entidad-relacion.md`, `diagrama-clases.md`, `analisis-clases.md`, `estado-fase.md` (relevo).
 - Si un documento falta: no inventar su contenido ni afirmar que está actualizado.
 - Referencias antiguas a Blade como frontend o a nombre de usuario para login están superadas: React + correo/contraseña.
 
@@ -114,7 +115,8 @@ Detalle completo y vigencias en `docs/ai/reglas-negocio.md` y `docs/ai/casos-de-
 
 **Roles y autorización**
 
-- Administrador: 28/30 CU (todos salvo CU-04 y CU-08). Recepcionista: registro administrativo, códigos, citas, llegadas e inasistencias. Médico: su agenda, historia autorizada, consultas, antecedentes, laboratorio propio y marcar sus propias citas como Atendida. Paciente: alta y activación propia, perfil, reserva propia, su historial y documentos publicados.
+- Administrador: 28/30 CU originales (todos salvo CU-04 y CU-08); en Pagos solo CU-34, consulta por Paciente. Recepcionista: registro administrativo, códigos, citas, llegadas e inasistencias. Ambos fijan monto individual por ampliación CU-14, sin pagar por el titular. Médico: su agenda, historia autorizada, consultas, antecedentes, laboratorio propio y marcar sus propias citas como Atendida, sin permisos financieros nuevos. Paciente: funciones propias previas y CU-31–CU-33; solo paga sus citas.
+- Pagos aprobados, no implementados: Bs 7,00–7.000,00 por cita, máximo dos decimales; 7,00 BOB/USD, enteros/HALF_UP; obligación única con precio histórico. Reserva propia sin precio hasta asignación del personal, incluso después del inicio si no cancelada. Vencimiento calculado al inicio, regularizable sin bloqueo asistencial/recargos; reprogramación conserva precio/pago. Cancelación retira exigibilidad y devuelve automáticamente el cobro aplicado al medio original en pruebas, incluido cobro tardío; inasistencia no devuelve. Doble cobro: registrar ambos/aplicar uno/incidencia, sin devolución adicional automática. Citas antiguas excluidas; no marcar pagos o devoluciones manualmente como exitosos.
 - Separar siempre **usuario ejecutor**, **Paciente afectado** y **Médico responsable**. Nunca simular sesiones ni atribuir autoría.
 - Autorización en servidor, distinguiendo permiso de rol y permiso sobre el recurso concreto.
 

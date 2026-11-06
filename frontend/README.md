@@ -1,5 +1,21 @@
 # Frontend — Clínica Vida Salud
 
+## Pagos — Fase 8 integración local (2026-11-06)
+
+**React/Axios→Laravel/Sanctum→PostgreSQL verificados por HTTPS loopback; Stripe/PayPal/OAuth/postback simulados.** [Aceptación, comandos, evidencia y guion académico](../docs/ai/pagos-fase8-integracion.md). Sin cambios de interfaz/producto, solo pruebas backend/documentación. Chrome20 escenarios/56 layouts/14 axe sin violaciones automáticas/cero excepciones, captura PayPal por Enter, cookies/CSRF/origen/roles reales, respuesta perdida tras commit/misma clave/cuerpo e impago sin bloqueo asistencial. No respuestas Laravel simuladas.
+
+Dirigida final1905 pruebas/43 archivos/código0; backend351/3988/código0. Build correcto, warning chunk>500kB conservado/sin lint. Defaults/flags habituales false/false/false, perfiles/procesos/esquemas propios retirados e inventarios PostgreSQL idénticos; trabajo previo conservado. Aceptación externa pendiente de autorización específica, no módulo activado/dinero real. Incidencias y avisos Symfony pendientes. Esperar revisión F8; entradas siguientes conservan historia.
+
+## Pagos — Fase 7 React (2026-11-06)
+
+Implementación local con API/proveedores simulados, **no módulo activado ni integración externa acreditada**. [Contrato, archivos, pruebas y límites F7](../docs/ai/pagos-fase7-frontend.md). Notas inferiores conservan historia.
+
+- Paciente: `/pagos`, detalle/historial propios, BOB/tasa/USD históricos, selección solo de proveedores elegibles, redirección corroborada, resultado/cierre y captura PayPal expresamente confirmada. Retorno no acredita pago ni captura automáticamente.202/incertidumbre mantienen exclusión; clave UUIDv4 conservada en memoria para recuperar exactamente la misma solicitud, sin polling/retry ni persistencia web.
+- Administrador: selector `PatientsPage` y consulta financiera por ficha en solo lectura. Recepción solo monto/asignación desde reserva/historial/detalle existentes; Médico sin proyecciones financieras nuevas. Reserva propia sin precio no fabrica deuda cero; legado no significa pagado.
+- Diseño original conservado: componentes globales, Source Sans3/tokens, MainLayout/sidebar modular; Pagos después de Recordatorios sin alterar orden relativo anterior. Dos Resources backend ampliados adicionalmente con autorización expresa para capacidades de incorporación/monto y proveedores disponibles; sin endpoints/esquema/reglas nuevas.
+- Dirigida1839 pruebas/39 archivos correcta; complementos focales97/2 y89/2 con solapamientos, **no sumar**. PHPUnit puro4/41 sin Laravel/SQL/red; build correcto (warning chunk>500kB conservado), sin script lint. Chrome con HTTP simulado:88 layouts,22 axe sin violaciones automáticas, capturas revisadas/Enter en captura PayPal/cero excepciones; cinco POST solo ficticios.
+- Sin PostgreSQL, credenciales/operaciones externas, SDK/dependencias/migraciones, `.env`, producción ni cambios de RF/RN/diagramas académicos. Flags defaultfalse intactos; avisos Symfony previos pendientes. Relevo en `docs/ai/estado-fase.md`; detenerse para revisión F7. F8 requiere autorización separada.
+
 ## Laboratorio digital — Fase 6 frontend: integración y cierre local CU-24–CU-27 (2026-10-30)
 
 **Seis fases frontend completadas localmente.** Se verificó React/Axios → Laravel/Sanctum → PostgreSQL real, sin modificar código productivo, contratos, rutas, CSS o dependencias durante F6. Las notas F1–F5 siguientes conservan su alcance histórico. Contexto §17.182/análisis `laboratorio-frontend-fase6`; producción y migración de la base habitual/remota no acreditadas.

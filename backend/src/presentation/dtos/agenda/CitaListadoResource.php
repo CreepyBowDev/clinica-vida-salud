@@ -12,7 +12,7 @@ class CitaListadoResource extends JsonResource
     {
         $row = $this->resource;
 
-        return ['id_cita' => (string) $row['id_cita'], 'codigo_cita' => $row['codigo_cita'],
+        return [...($row['finanzas'] ?? []), 'id_cita' => (string) $row['id_cita'], 'codigo_cita' => $row['codigo_cita'],
             'inicio_at' => CarbonImmutable::parse($row['inicio_at'])->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'fin_at' => CarbonImmutable::parse($row['fin_at'])->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'duracion_minutos' => (int) $row['duracion_minutos'], 'estado' => $row['estado'], 'modalidad' => $row['modalidad'],

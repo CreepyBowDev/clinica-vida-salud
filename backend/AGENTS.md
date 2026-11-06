@@ -16,6 +16,8 @@ Frontend separado: React + Vite + JavaScript
 
 ## 2. Flujo obligatorio por capas
 
+**Pagos — ampliación aprobada 2026-11-05:** consultar `../docs/ai/pasarela-pagos.md` antes de CU-31–CU-34 o ampliación monetaria CU-14–CU-16. Solo Stripe test/PayPal Sandbox, BOB interno/USD externo, precio individual Bs 7,00–7.000,00 y tasa exacta 7:1 HALF_UP. Aprobación documental no autoriza código, dependencias, migraciones ni operaciones externas de fases siguientes. No extrapolar permisos administrativos originales al pago de citas ajenas ni añadir `Vencida` como estado persistido/asistencial.
+
 ```text
 Route → Middleware → Controller (+FormRequest) → Service → Repository → Eloquent Model → PostgreSQL
 ```

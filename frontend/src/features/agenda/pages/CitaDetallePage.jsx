@@ -10,6 +10,7 @@ import { useAgendaQuery } from '../hooks/useAgendaQuery';
 import { consultarCita } from '../services/agenda.service';
 import { useAgendaWorkspace } from '../components/AgendaWorkspace';
 import { ROLES } from '../../../constants/roles';
+import FinanzasCita from '../../pagos/components/FinanzasCita';
 import '../../../styles/catalogs.css';
 import '../styles/agenda.css';
 import '../styles/appointment-detail.css';
@@ -37,7 +38,8 @@ function Detalle({ id, rol, origin }) {
       <Alert><p>{query.failure.message}</p>{query.remaining > 0 && <p>Espera {query.remaining} segundos antes de volver a consultar.</p>}</Alert>
       {![401, 403, 404, 422].includes(query.failure.status) && <Button variant="secondary" disabled={query.remaining > 0} onClick={query.reload}>Volver a consultar</Button>}
     </div> : <><CitaDetalle cita={query.data} rol={rol} />
-       <div className="appointment-detail-actions" role="group" aria-label="Acciones disponibles de la cita">
+        <FinanzasCita cita={query.data} rol={rol} onActualizar={query.reload} />
+        <div className="appointment-detail-actions" role="group" aria-label="Acciones disponibles de la cita">
        {[ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE].includes(rol) && <>
         <Link className="button button--secondary" to={`/citas/${id}/consulta`}>Consultar consulta médica</Link>
         <Link className="button button--secondary" to={rol === ROLES.PACIENTE ? '/historia-clinica' : `/historia-clinica/pacientes/${query.data.paciente.id_paciente}`}>Consultar historia clínica del paciente</Link>

@@ -17,7 +17,7 @@ Este documento es la **referencia de requerimientos funcionales y técnicos** pa
 2. **Precisiones y ampliaciones aprobadas del proyecto:** desarrollan decisiones que el enunciado no fija de modo exhaustivo (ver secciones 5–8). **No se presentan como RF/RN textuales de la docente**.
 3. **Diseño técnico:** rutas, clases, endpoints, tablas físicas, algoritmos y mecanismos específicos; se definen cuando corresponde y deben realizar los requerimientos, no sustituirlos.
 
-Ante una discrepancia, contrastar el enunciado oficial y la decisión aprobada más reciente. No resolver contradicciones inventando funcionalidades ni modificando silenciosamente este archivo. La **numeración oficial** `RF01`–`RF13` y `RN01`–`RN14` permanece invariable; la numeración `CU-01`–`CU-30` corresponde exclusivamente a casos de uso.
+Ante una discrepancia, contrastar el enunciado oficial y la decisión aprobada más reciente. No resolver contradicciones inventando funcionalidades ni modificando silenciosamente este archivo. La **numeración oficial** `RF01`–`RF13` y `RN01`–`RN14` permanece invariable; `CU-01`–`CU-30` son los casos originales, ampliados con aprobación expresa por Pagos `CU-31`–`CU-34` (2026-11-05), no requisitos nuevos del examen.
 
 **Clave de lectura:** cada RF contiene una descripción fiel del enunciado (parafraseada para consulta operativa sin cambiar sus obligaciones) y su trazabilidad. Las secciones posteriores describen complementos propios de Vida Salud.
 
@@ -25,7 +25,7 @@ Ante una discrepancia, contrastar el enunciado oficial y la decisión aprobada m
 
 ## 2. Alcance, actores y límites
 
-**Objetivo:** implementar un sistema web para registrar pacientes, médicos y especialidades; administrar horarios y citas; impedir conflictos de disponibilidad; gestionar asistencia, agenda, historial y reportes; y desarrollar las ampliaciones aprobadas de perfil, historia clínica, consultas, laboratorio, recordatorios y bitácora.
+**Objetivo:** implementar un sistema web para registrar pacientes, médicos y especialidades; administrar horarios y citas; impedir conflictos de disponibilidad; gestionar asistencia, agenda, historial y reportes; y desarrollar las ampliaciones aprobadas de perfil, historia clínica, consultas, laboratorio, recordatorios, bitácora y pagos exclusivamente académicos. Pagos está especificado, no implementado; ver §5.11 y `pasarela-pagos.md`.
 
 **Roles del examen (solo cuatro):**
 
@@ -36,7 +36,9 @@ Ante una discrepancia, contrastar el enunciado oficial y la decisión aprobada m
 | **Médico** | Agenda y pacientes asignados; consulta e historia clínica autorizadas; registro y actualización de antecedentes durante una atención real y autorizada; solicitudes y revisión de laboratorio; marca como Atendidas **sus propias citas** tras realizar la atención. | No administra cuentas ni cambia citas de terceros; no publica resultados ajenos. |
 | **Paciente** | Registro/activación de cuenta, perfil permitido, reserva de citas **solo para sí**, seguimiento, historial propio, información clínica autorizada y recordatorios internos. | No se autoasigna roles, no reprograma ni cancela citas, no altera antecedentes, diagnósticos, tratamientos ni documentos de laboratorio. |
 
-**Delimitación propia del proyecto:** una sede, varios consultorios identificados y atención únicamente **Presencial**. Excluidos pagos/cobros/pasarelas, farmacia, inventarios, recetas electrónicas, telemedicina, videollamadas, atención remota, múltiples sedes y administración dinámica de permisos. Exportar reportes CSV/PDF y excluir feriados/bloqueos de agenda son mejoras **opcionales**.
+**Delimitación propia del proyecto:** una sede, varios consultorios identificados y atención únicamente **Presencial**. Excluidos pagos reales/producción, farmacia, inventarios, recetas electrónicas, telemedicina, videollamadas, atención remota, múltiples sedes y administración dinámica de permisos. La ampliación aprobada 2026-11-05 admite Stripe Checkout test y PayPal Sandbox independientes, sin dinero real, y sustituye solo la exclusión previa de pagos académicos. Exportar reportes CSV/PDF y excluir feriados/bloqueos de agenda son mejoras **opcionales**.
+
+**Permisos adicionales aprobados, todavía no implementados:** Administrador conserva 28/30 CU originales y añade solo CU-34; Paciente ejecuta CU-31–CU-33 propios. Administrador/Recepción fijan monto individual por ampliación CU-14, sin permiso de pagar por el titular. Médico sin nuevos permisos financieros. Ningún usuario marca manualmente pagos/devoluciones exitosos.
 
 Las funciones clínicas y de laboratorio se incorporan como decisiones adicionales documentadas: no forman un nuevo conjunto de RF oficiales. Los cuatro roles conservan sus permisos fijos; la autenticación mediante **solo correo electrónico y contraseña** es la concreción elegida de la alternativa de identificación permitida por el examen.
 
@@ -349,6 +351,19 @@ Agenda diaria en America/La_Paz con fecha actual por defecto y filtros Médico/f
 
 ---
 
+### 5.11. Pagos (CU-31–CU-34)
+
+**Ampliación aprobada 2026-11-05; Fases 0–1 documentales y Fase 2 de infraestructura implementada/verificada en PostgreSQL aislado.** Especificación y requisitos propios `PAG-RF-01`–`PAG-RF-15` en [pasarela-pagos.md](pasarela-pagos.md); [contratos/configuración Fase 1](pagos-fase1-contratos.md) sin implementación HTTP. [Modelo y límites de Fase 2](pagos-fase2-modelo.md). Reglas `VS-PAG` y fichas CU-31–CU-34 conservadas. No constituye RF/RN oficial ni acredita CU operativo, activación o base habitual migrada; Fase 3 pendiente de autorización.
+
+- Precio individual por cita: Bs 7,00–7.000,00 inclusive, máximo dos decimales. Administrador/Recepción introduce monto obligatorio, revisado antes de confirmar; cita/obligación/auditoría atómicas. Sin tarifa global, catálogo ni edición ordinaria de obligaciones emitidas.
+- Reserva propia: Programada sin precio ni obligación; asignación posterior por personal autorizado, incluso después del inicio si no cancelada. Rechazar manipulación monetaria del Paciente; emitir una obligación única con autor y fecha.
+- BOB interno/USD externo; tasa académica 7,00 BOB/USD, enteros y HALF_UP al centavo. Congelar BOB/tasa/USD al emitir y mostrarlos antes de pagar con cualquiera de los dos proveedores.
+- Vencimiento calculado al inicio, sin estado Vencida persistido; deuda exigible regularizable, sin recargos/cancelación/bloqueo asistencial. Reprogramar conserva precio/pago y ajusta vencimiento si impagada. Inasistencia conserva pago/deuda sin devolución.
+- Cancelación retira exigibilidad, conserva registros y devuelve automáticamente el cobro aplicado al medio original, en pruebas y con resultado verificable, incluido cobro tardío. Fallo no revierte cancelación. Doble cobro excepcional: registrar ambos, aplicar uno e incidencia; sin devolución adicional automática.
+- CU-31/32/33 son propios del Paciente; CU-34 consulta administrativa por Paciente, solo lectura. Sin terceros, estados asistenciales nuevos ni permisos financieros generales de Recepción/Médico.
+- Fichas sin cuenta conservan obligaciones; vínculo válido permite consulta/pago posterior. Citas anteriores excluidas sin cobro retroactivo ni marcación como pagadas.
+- Ambos proveedores obligatorios; una operación activa/incierta por obligación, verificación backend, idempotencia, eventos deduplicados y conciliación. Prohibir producción; verificar restricciones de cuentas antes de operar, sin modificar límites silenciosamente.
+
 ## 6. Transiciones de citas acordadas (complemento propio, sin reemplazar RF10)
 
 | Estado origen | Estado destino | Responsable | Condición |
@@ -441,7 +456,7 @@ Esta matriz orienta la navegación y **no reemplaza** las referencias completas 
 | RF12 | CU-21 | PN16; 1.4.8 |
 | RF13 | CU-29 | PN24; 1.4.12 |
 
-**Ampliaciones propias sin nuevo RF oficial:** `CU-22`–`CU-27` (historia clínica/consultas/laboratorio), `CU-28` (recordatorios internos; perfil de paciente del examen), `CU-30` (consulta de bitácora); activación con códigos y recuperación de credenciales concretan seguridad y registro. Se conserva un total de **30 casos de uso**, 13 módulos de alcance (`1.4.1`–`1.4.13`) y PN01–PN24 sin inventar PN25 de auditoría.
+**Ampliaciones propias sin nuevo RF oficial:** `CU-22`–`CU-27` (historia clínica/consultas/laboratorio), `CU-28` (recordatorios internos; perfil de paciente del examen), `CU-30` (consulta de bitácora) y `CU-31`–`CU-34` (Pagos académicos, aprobación 2026-11-05); activación con códigos y recuperación de credenciales concretan seguridad y registro. Catálogo vigente: **34 CU = 30 originales + cuatro de Pagos**. Se conservan numeración de los 13 módulos de alcance originales (`1.4.1`–`1.4.13`) y PN01–PN24, sin inventar procesos/páginas académicos para la ampliación.
 
 ---
 
@@ -465,7 +480,8 @@ Este archivo documenta **lo exigido y aprobado**, no el estado real de desarroll
 | --- | --- | --- |
 | RF01–RF13 | Definidos por enunciado oficial | **No verificado en código** |
 | RN01–RN14 | Definidas por enunciado oficial | **No verificado en código** |
-| Funciones complementarias de Vida Salud | Definidas en Alcance y CU-01–CU-30 | **No verificado en código** |
+| Funciones complementarias originales de Vida Salud | Definidas en Alcance y CU-01–CU-30; Pagos se distingue en la fila siguiente | **No verificado en código en esta formalización** |
+| Pagos académicos CU-31–CU-34 y efectos CU-14–CU-16 | Aprobados; `pasarela-pagos.md` y contratos/configuración Fase 1 documentales | **No implementado; Fase 1 diseñada pendiente de revisión, Fase 2 no autorizada** |
 | Pruebas mínimas del examen | Definidas, diez casos | **Ejecución no verificada** |
 | Diagrama de clases y DER | Requeridos/previstos; existe DER de referencia | **Migraciones no verificadas** |
 

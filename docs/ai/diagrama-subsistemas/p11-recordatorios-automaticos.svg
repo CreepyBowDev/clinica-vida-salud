@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="470" viewBox="0 0 1000 470" role="img" aria-labelledby="title desc">
+  <title id="title">P11. Recordatorios automáticos</title>
+  <desc id="desc">RecordatoriosPage consulta RecordatorioService; AltaPush y DispositivosPush utilizan SuscripcionPushService. RecordatorioService depende de recordatorios, SuscripcionPushService de suscripciones_push y DespachoPushService de envios_recordatorio_push. Los enlaces resumen HTTP y repositorios. Generación y despacho se invocan por scheduler, no desde React. Se omiten dependencias cruzadas del outbox, TransportePush y Service Worker, explicadas en el documento.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="1000" height="470" fill="#ffffff"/>
+  <path d="M12 48 V12 H412 L430 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M430 48 H988 V458 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="216" y="35" font-size="16" font-weight="700">P11. RECORDATORIOS AUTOMÁTICOS</text>
+  <g class="communication"><path d="M180 164 V234"/><path d="M420 164 V198 H500 V234"/><path d="M610 164 V198 H500"/></g>
+  <g class="persistence"><path d="M180 310 V380"/><path d="M500 310 V380"/><path d="M820 310 V380"/></g>
+  <g id="interfaces">
+    <g aria-label="Interface RecordatoriosPage.jsx"><rect class="box" x="60" y="88" width="240" height="76"/><text class="stereotype" x="180" y="111">«Interface»</text><text class="name" x="180" y="141">RecordatoriosPage.jsx</text></g>
+    <g aria-label="Interface AltaPush.jsx"><rect class="box" x="335" y="88" width="170" height="76"/><text class="stereotype" x="420" y="111">«Interface»</text><text class="name" x="420" y="141">AltaPush.jsx</text></g>
+    <g aria-label="Interface DispositivosPush.jsx"><rect class="box" x="525" y="88" width="170" height="76"/><text class="stereotype" x="610" y="111">«Interface»</text><text class="name" x="610" y="141">DispositivosPush.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class RecordatorioService.php"><rect class="box" x="60" y="234" width="240" height="76"/><text class="stereotype" x="180" y="257">«Class»</text><text class="name" x="180" y="287">RecordatorioService.php</text></g>
+    <g aria-label="Class SuscripcionPushService.php"><rect class="box" x="380" y="234" width="240" height="76"/><text class="stereotype" x="500" y="257">«Class»</text><text class="name" x="500" y="287">SuscripcionPushService.php</text></g>
+    <g aria-label="Class DespachoPushService.php"><rect class="box" x="700" y="234" width="240" height="76"/><text class="stereotype" x="820" y="257">«Class»</text><text class="name" x="820" y="287">DespachoPushService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table recordatorios"><rect class="box" x="60" y="380" width="240" height="58"/><text class="stereotype" x="180" y="401">«Table»</text><text class="name" x="180" y="424">recordatorios</text></g>
+    <g aria-label="Table suscripciones_push"><rect class="box" x="380" y="380" width="240" height="58"/><text class="stereotype" x="500" y="401">«Table»</text><text class="name" x="500" y="424">suscripciones_push</text></g>
+    <g aria-label="Table envios_recordatorio_push"><rect class="box" x="700" y="380" width="240" height="58"/><text class="stereotype" x="820" y="401">«Table»</text><text class="name" x="820" y="424">envios_recordatorio_push</text></g>
+  </g>
+</svg>

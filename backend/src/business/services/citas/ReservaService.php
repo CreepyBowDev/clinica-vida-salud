@@ -3,6 +3,8 @@
 namespace Clinica\business\services\citas;
 
 use Carbon\CarbonImmutable;
+use Clinica\business\services\pagos\PrecioCitaService;
+use Clinica\business\services\pagos\ResumenFinancieroCitaService;
 use Clinica\business\services\usuarios\AutenticacionService;
 use Clinica\business\services\usuarios\ContinuidadAdministrativaService;
 use Clinica\data\models\Cita;
@@ -13,7 +15,9 @@ use Clinica\data\repositories\citas\CitaRepository;
 use Clinica\data\repositories\citas\DisponibilidadRepository;
 use Clinica\data\repositories\horarios\ConfiguracionCitasRepository;
 use Clinica\data\repositories\horarios\PlanificacionRepository;
+use Clinica\data\repositories\pagos\ObligacionPagoRepository;
 use Clinica\shared\errors\AppError;
+use Clinica\shared\utils\ImportePago;
 use Clinica\shared\utils\PropuestaReserva;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +37,9 @@ class ReservaService
         private CitaRepository $citas,
         private PropuestaReserva $propuestas,
         private BitacoraRepository $bitacora,
+        private PrecioCitaService $precios,
+        private ObligacionPagoRepository $obligaciones,
+        private ResumenFinancieroCitaService $finanzas,
     ) {}
 
     private function actor(): Usuario
@@ -72,8 +79,14 @@ class ReservaService
             $prueba = ['id_propuesta' => $uuid, 'actor' => (string) $actor->getKey(), 'rol' => $actor->rol->nombre,
                 'id_paciente' => (string) $paciente->getKey(), 'seleccion' => $seleccion,
                 'revision_turno' => $datos['revision_turno'], 'resumen' => $resumen, 'motivo_hash' => $this->propuestas->motivo($motivo)];
+            $precio = null;
+            if (config('pagos.incorporacion_habilitada') === true) {
+                $precio = $actor->rol->nombre === 'Paciente' ? null : ImportePago::desdeBob($datos['monto_bob'])->precio();
+                $prueba += ['version' => 2, 'incorporada_finanzas' => true, 'precio' => $precio];
+            }
 
-            return ['id_propuesta' => $uuid, 'propuesta' => $this->propuestas->emitir($prueba), ...$resumen, 'motivo_breve' => $motivo];
+            return ['id_propuesta' => $uuid, 'propuesta' => $this->propuestas->emitir($prueba), ...$resumen,
+                'precio' => $precio, 'motivo_breve' => $motivo];
         });
     }
 
@@ -175,6 +188,13 @@ class ReservaService
                 return $guardar ? ['cita' => $this->detalle($cita), 'repetida' => true]
                     : ['registrada' => true, 'cita' => $this->detalle($cita)];
             }
+            $incorporada = ($prueba['version'] ?? 1) === 2 && ($prueba['incorporada_finanzas'] ?? false) === true;
+            if ($incorporada !== (config('pagos.incorporacion_habilitada') === true)) {
+                $this->obsoleta();
+            }
+            if ($incorporada && $actor->rol->nombre !== 'Paciente' && ! is_array($prueba['precio'] ?? null)) {
+                $this->obsoleta();
+            }
             $seleccion = [...$prueba['seleccion'], ...(in_array($actor->rol->nombre, ['Administrador', 'Recepcionista'], true) ? ['id_paciente' => $prueba['id_paciente']] : [])];
             $vista = $this->seleccionar($seleccion, $prueba['revision_turno'], $prueba['resumen']);
             $paciente = $this->ficha($actor, $prueba['id_paciente']);
@@ -198,7 +218,12 @@ class ReservaService
                 'estado' => 'Programada', 'modalidad' => 'Presencial', 'version_programacion' => 1, 'motivo_breve' => $motivo,
                 'sede_atencion' => $resumen['sede_atencion'],
                 'consultorio_atencion' => $resumen['consultorio']['codigo_consultorio'].' — '.$resumen['consultorio']['nombre']];
-            $cita = $this->insertar($campos);
+            $cita = $this->insertar([...$campos, ...($incorporada ? ['incorporada_finanzas' => true] : [])]);
+            if ($incorporada && $actor->rol->nombre !== 'Paciente') {
+                $precio = $prueba['precio'];
+                $this->precios->emitir($cita, $actor, ImportePago::desdeHistorico($precio['centavos_bob'],
+                    $precio['centavos_usd'], 7, 1), $prueba['id_propuesta'], $contexto);
+            }
             $this->bitacora->citaProgramada($cita, $actor, $contexto);
 
             return ['cita' => $this->detalle($cita), 'repetida' => false];
@@ -233,7 +258,11 @@ class ReservaService
             $datos[$campo] = $cita->getAttribute($campo)->utc()->format('Y-m-d\TH:i:s.u\Z');
         }
 
-        return $datos;
+        $obligacion = $cita->incorporada_finanzas ? $this->obligaciones->porCita((string) $cita->getKey()) : null;
+
+        return [...$datos, ...$this->finanzas->proyectar([
+            'incorporada_finanzas' => $cita->incorporada_finanzas, 'estado' => $cita->estado,
+            ...($obligacion?->getAttributes() ?? [])], $this->autenticacion->exigirSesionNormal()->rol->nombre)];
     }
 
     private function normalizarMotivo(?string $motivo): ?string

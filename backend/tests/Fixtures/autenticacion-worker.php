@@ -93,6 +93,7 @@ try {
     }
     if ($data['mode'] === 'gestion-http') {
         $app['env'] = 'local';
+        config(['pagos.incorporacion_habilitada' => ($data['habilitar_pagos'] ?? false) === true]);
         config(['seguridad.correo.mailer' => 'array']);
         Mail::fake();
         if (isset($data['ahora_tras_planificacion'])) {

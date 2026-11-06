@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="574" viewBox="0 0 1160 574" role="img" aria-labelledby="title desc">
+  <title id="title">P4. Consultorios, horarios y disponibilidad</title>
+  <desc id="desc">Cinco interfaces React y cinco servicios Laravel con dependencias representativas hacia cinco tablas existentes. ConsultorioEditorPage utiliza ConsultorioService y consultorios; AsignacionConsultorioPage utiliza AsignacionConsultorioService y medicos; HorariosMedicoPage utiliza HorarioService y horarios_atencion; ConfiguracionCitasPage utiliza ConfiguracionCitasService y configuracion_clinica; DisponibilidadTurnos utiliza DisponibilidadService y consulta citas para calcular ocupación, sin registrar reservas. Las líneas resumen HTTP y persistencia; las dependencias compartidas omitidas se explican en el documento.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="1160" height="574" fill="#ffffff"/>
+  <path d="M12 48 V12 H562 L580 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M580 48 H1148 V562 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="290" y="35" font-size="16" font-weight="700">P4. CONSULTORIOS, HORARIOS Y DISPONIBILIDAD</text>
+  <g class="communication"><path d="M142 184 V270"/><path d="M362 184 V270"/><path d="M582 184 V270"/><path d="M802 184 V270"/><path d="M1022 184 V270"/></g>
+  <g class="persistence"><path d="M142 356 V464"/><path d="M362 356 V464"/><path d="M582 356 V464"/><path d="M802 356 V464"/><path d="M1022 356 V464"/></g>
+  <g id="interfaces">
+    <g aria-label="Interface ConsultorioEditorPage.jsx"><rect class="box" x="32" y="98" width="220" height="86"/><text class="stereotype" x="142" y="121">«Interface»</text><text class="name" x="142" y="151">ConsultorioEditorPage.jsx</text></g>
+    <g aria-label="Interface AsignacionConsultorioPage.jsx"><rect class="box" x="262" y="98" width="200" height="86"/><text class="stereotype" x="362" y="121">«Interface»</text><text class="name" x="362" y="146"><tspan x="362">AsignacionConsultorio</tspan><tspan x="362" dy="18">Page.jsx</tspan></text></g>
+    <g aria-label="Interface HorariosMedicoPage.jsx"><rect class="box" x="482" y="98" width="200" height="86"/><text class="stereotype" x="582" y="121">«Interface»</text><text class="name" x="582" y="151">HorariosMedicoPage.jsx</text></g>
+    <g aria-label="Interface ConfiguracionCitasPage.jsx"><rect class="box" x="702" y="98" width="200" height="86"/><text class="stereotype" x="802" y="121">«Interface»</text><text class="name" x="802" y="146"><tspan x="802">ConfiguracionCitas</tspan><tspan x="802" dy="18">Page.jsx</tspan></text></g>
+    <g aria-label="Interface DisponibilidadTurnos.jsx"><rect class="box" x="922" y="98" width="206" height="86"/><text class="stereotype" x="1022" y="121">«Interface»</text><text class="name" x="1022" y="151">DisponibilidadTurnos.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class ConsultorioService.php"><rect class="box" x="32" y="270" width="220" height="86"/><text class="stereotype" x="142" y="293">«Class»</text><text class="name" x="142" y="323">ConsultorioService.php</text></g>
+    <g aria-label="Class AsignacionConsultorioService.php"><rect class="box" x="262" y="270" width="200" height="86"/><text class="stereotype" x="362" y="293">«Class»</text><text class="name" x="362" y="318"><tspan x="362">AsignacionConsultorio</tspan><tspan x="362" dy="18">Service.php</tspan></text></g>
+    <g aria-label="Class HorarioService.php"><rect class="box" x="482" y="270" width="200" height="86"/><text class="stereotype" x="582" y="293">«Class»</text><text class="name" x="582" y="323">HorarioService.php</text></g>
+    <g aria-label="Class ConfiguracionCitasService.php"><rect class="box" x="702" y="270" width="200" height="86"/><text class="stereotype" x="802" y="293">«Class»</text><text class="name" x="802" y="318"><tspan x="802">ConfiguracionCitas</tspan><tspan x="802" dy="18">Service.php</tspan></text></g>
+    <g aria-label="Class DisponibilidadService.php"><rect class="box" x="922" y="270" width="206" height="86"/><text class="stereotype" x="1022" y="293">«Class»</text><text class="name" x="1022" y="323">DisponibilidadService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table consultorios"><rect class="box" x="32" y="464" width="220" height="68"/><text class="stereotype" x="142" y="487">«Table»</text><text class="name" x="142" y="512">consultorios</text></g>
+    <g aria-label="Table medicos"><rect class="box" x="262" y="464" width="200" height="68"/><text class="stereotype" x="362" y="487">«Table»</text><text class="name" x="362" y="512">medicos</text></g>
+    <g aria-label="Table horarios_atencion"><rect class="box" x="482" y="464" width="200" height="68"/><text class="stereotype" x="582" y="487">«Table»</text><text class="name" x="582" y="512">horarios_atencion</text></g>
+    <g aria-label="Table configuracion_clinica"><rect class="box" x="702" y="464" width="200" height="68"/><text class="stereotype" x="802" y="487">«Table»</text><text class="name" x="802" y="512">configuracion_clinica</text></g>
+    <g aria-label="Table citas"><rect class="box" x="922" y="464" width="206" height="68"/><text class="stereotype" x="1022" y="487">«Table»</text><text class="name" x="1022" y="512">citas</text></g>
+  </g>
+</svg>

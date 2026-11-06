@@ -20,7 +20,13 @@ class DisponibilidadResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        return [...$this->resource, 'turnos' => $this->pagina($request)->items()];
+        $incorporacion = config('pagos.incorporacion_habilitada') === true;
+
+        return [...$this->resource, 'turnos' => $this->pagina($request)->items(),
+            ...($request->route()?->getActionMethod() === 'turnos' ? [
+                'incorporacion_financiera_habilitada' => $incorporacion,
+                'requiere_monto_bob' => $incorporacion && in_array($request->user()?->rol?->nombre, ['Administrador', 'Recepcionista'], true),
+            ] : [])];
     }
 
     public function with(Request $request): array

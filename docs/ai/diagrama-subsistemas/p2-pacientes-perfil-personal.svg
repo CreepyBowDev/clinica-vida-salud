@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="574" viewBox="0 0 1160 574" role="img" aria-labelledby="title desc">
+  <title id="title">P2. Pacientes y perfil personal</title>
+  <desc id="desc">Cinco interfaces React, cuatro servicios Laravel y seis tablas existentes. NewPatientPage y EditPatientPage comparten PacienteService; ActivationCodePage utiliza CodigoActivacionService; MyProfilePage utiliza MiPerfilService; ChangeEmailPage utiliza CambioCorreoService. Las dependencias seleccionadas son PacienteService a pacientes, CodigoActivacionService a codigos_activacion_paciente, MiPerfilService a contactos_emergencia y preferencias_paciente, y CambioCorreoService a usuarios y verificaciones_correo. Se resumen las capas HTTP, repositorios y Eloquent y se omiten dependencias compartidas descritas en el documento.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="1160" height="574" fill="#ffffff"/>
+  <path d="M12 48 V12 H432 L450 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M450 48 H1148 V562 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="225" y="35" font-size="16" font-weight="700">P2. PACIENTES Y PERFIL PERSONAL</text>
+  <g class="communication">
+    <path d="M142 184 V222 H252 V270"/><path d="M362 184 V222 H252"/>
+    <path d="M582 184 V270"/><path d="M802 184 V270"/><path d="M1022 184 V270"/>
+  </g>
+  <g class="persistence">
+    <path d="M252 356 L147 464"/><path d="M582 356 L393 464"/>
+    <path d="M782 356 L614 464"/><path d="M822 356 L800 464"/>
+    <path d="M1002 356 L941 464"/><path d="M1042 356 L1065 464"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface NewPatientPage.jsx"><rect class="box" x="32" y="98" width="220" height="86"/><text class="stereotype" x="142" y="121">«Interface»</text><text class="name" x="142" y="151">NewPatientPage.jsx</text></g>
+    <g aria-label="Interface EditPatientPage.jsx"><rect class="box" x="262" y="98" width="200" height="86"/><text class="stereotype" x="362" y="121">«Interface»</text><text class="name" x="362" y="151">EditPatientPage.jsx</text></g>
+    <g aria-label="Interface ActivationCodePage.jsx"><rect class="box" x="482" y="98" width="200" height="86"/><text class="stereotype" x="582" y="121">«Interface»</text><text class="name" x="582" y="151">ActivationCodePage.jsx</text></g>
+    <g aria-label="Interface MyProfilePage.jsx"><rect class="box" x="702" y="98" width="200" height="86"/><text class="stereotype" x="802" y="121">«Interface»</text><text class="name" x="802" y="151">MyProfilePage.jsx</text></g>
+    <g aria-label="Interface ChangeEmailPage.jsx"><rect class="box" x="922" y="98" width="206" height="86"/><text class="stereotype" x="1022" y="121">«Interface»</text><text class="name" x="1022" y="151">ChangeEmailPage.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class PacienteService.php"><rect class="box" x="32" y="270" width="430" height="86"/><text class="stereotype" x="252" y="293">«Class»</text><text class="name" x="252" y="323">PacienteService.php</text></g>
+    <g aria-label="Class CodigoActivacionService.php"><rect class="box" x="482" y="270" width="200" height="86"/><text class="stereotype" x="582" y="293">«Class»</text><text class="name" x="582" y="318"><tspan x="582">CodigoActivacion</tspan><tspan x="582" dy="18">Service.php</tspan></text></g>
+    <g aria-label="Class MiPerfilService.php"><rect class="box" x="702" y="270" width="200" height="86"/><text class="stereotype" x="802" y="293">«Class»</text><text class="name" x="802" y="323">MiPerfilService.php</text></g>
+    <g aria-label="Class CambioCorreoService.php"><rect class="box" x="922" y="270" width="206" height="86"/><text class="stereotype" x="1022" y="293">«Class»</text><text class="name" x="1022" y="323">CambioCorreoService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table pacientes"><rect class="box" x="32" y="464" width="230" height="68"/><text class="stereotype" x="147" y="487">«Table»</text><text class="name" x="147" y="512">pacientes</text></g>
+    <g aria-label="Table codigos_activacion_paciente"><rect class="box" x="278" y="464" width="230" height="68"/><text class="stereotype" x="393" y="487">«Table»</text><text class="name" x="393" y="512">codigos_activacion_paciente</text></g>
+    <g aria-label="Table contactos_emergencia"><rect class="box" x="524" y="464" width="180" height="68"/><text class="stereotype" x="614" y="487">«Table»</text><text class="name" x="614" y="512">contactos_emergencia</text></g>
+    <g aria-label="Table preferencias_paciente"><rect class="box" x="720" y="464" width="160" height="68"/><text class="stereotype" x="800" y="487">«Table»</text><text class="name" x="800" y="512">preferencias_paciente</text></g>
+    <g aria-label="Table usuarios"><rect class="box" x="896" y="464" width="90" height="68"/><text class="stereotype" x="941" y="487">«Table»</text><text class="name" x="941" y="512">usuarios</text></g>
+    <g aria-label="Table verificaciones_correo"><rect class="box" x="1002" y="464" width="126" height="68"/><text class="stereotype" x="1065" y="484">«Table»</text><text class="name" x="1065" y="505"><tspan x="1065">verificaciones_</tspan><tspan x="1065" dy="17">correo</tspan></text></g>
+  </g>
+</svg>

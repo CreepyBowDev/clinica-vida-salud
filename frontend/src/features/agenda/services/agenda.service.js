@@ -2,6 +2,7 @@ import { api } from '../../../api/api';
 import { ROLES } from '../../../constants/roles';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { esFechaCivil, esInstanteCita, ESTADOS_CITA, PERIODOS_CITA, ZONA_CLINICA } from '../utils/agendaFormat';
+import { resumenFinanciero } from '../../pagos/services/pago.service';
 
 const fallo = () => { throw new Error('No se pudo verificar la consulta de citas.'); };
 const texto = value => typeof value === 'string' && value.trim().length > 0;
@@ -29,7 +30,7 @@ function cita(value) {
   return { id_cita: id(value.id_cita), codigo_cita: value.codigo_cita, inicio_at: value.inicio_at, fin_at: value.fin_at,
     duracion_minutos: value.duracion_minutos, estado: value.estado, modalidad: value.modalidad, sede_atencion: value.sede_atencion,
     consultorio_atencion: value.consultorio_atencion, creada_en: value.creada_en, medico: persona(value.medico, 'medico'),
-    paciente: persona(value.paciente, 'paciente'), especialidad: { id_especialidad: id(value.especialidad.id_especialidad), nombre: value.especialidad.nombre } };
+     paciente: persona(value.paciente, 'paciente'), especialidad: { id_especialidad: id(value.especialidad.id_especialidad), nombre: value.especialidad.nombre } };
 }
 function pagina(value, params, proyectar) {
   const meta = value?.meta;
@@ -83,8 +84,9 @@ export async function consultarAgenda(filtros = {}, signal) {
 async function historial(path, filtros, signal, pacienteEsperado, periodoInicial) {
   const params = paginacion(filtros);
   opcional(params, filtros, 'periodo', value => PERIODOS_CITA.includes(value));
+  opcional(params, filtros, 'situacion_precio', value => ['no_incorporada', 'pendiente_asignacion', 'asignado'].includes(value));
   opcional(params, filtros, 'estado', value => ESTADOS_CITA.includes(value));
-  const value = await get(path, params, signal), result = pagina(value, params, cita);
+  const value = await get(path, params, signal), result = pagina(value, params, v => ({ ...cita(v), ...resumenFinanciero(v) }));
   const meta = value.meta, paciente = persona(meta.paciente, 'paciente');
   exigir(meta.zona_horaria === ZONA_CLINICA && esInstanteCita(meta.consultado_en)
     && meta.filtros?.periodo === (params.periodo ?? periodoInicial) && meta.filtros.estado === (params.estado ?? null)
@@ -106,7 +108,7 @@ export async function consultarHistorialPaciente({ id: paciente, ...filtros }, s
 export async function consultarCita({ id: objetivo, rol }, signal) {
   id(objetivo); exigir(Object.values(ROLES).includes(rol));
   const value = (await get(`/citas/${objetivo}`, null, signal))?.data;
-  const result = cita(value);
+  const result = { ...cita(value), ...(rol === ROLES.MEDICO ? {} : resumenFinanciero(value)) };
   exigir(result.id_cita === objetivo);
   // El rol solo limita presentación. Laravel decide sesión, titularidad y campos autorizados.
   // Se proyectan claves explícitas: nunca conservar extras clínicos o administrativos de otra matriz.

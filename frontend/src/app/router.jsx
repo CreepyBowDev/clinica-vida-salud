@@ -63,7 +63,11 @@ import SolicitudLaboratorioPage from '../features/laboratorio/pages/SolicitudLab
 import SolicitarEstudioPage from '../features/laboratorio/pages/SolicitarEstudioPage';
 import RecordatoriosPage from '../features/recordatorios/pages/RecordatoriosPage';
 import ReportesPage from '../features/reportes/pages/ReportesPage';
+import PagosPage from '../features/pagos/pages/PagosPage';
+import RetornoPagoPage from '../features/pagos/pages/RetornoPagoPage';
+import { limpiarRetornoPago } from '../features/pagos/utils/pagoFormat';
 
+limpiarRetornoPago();
 const recoveryLink = capturarEnlaceRecuperacion();
 const invitationLink = capturarEnlaceRecuperacion('/activar-personal');
 export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) { return [{ element: <CredentialReceiptHost />, children: [
@@ -85,6 +89,17 @@ export function crearRutas(enlace = recoveryLink, invitacion = invitationLink) {
     children: [{ element: <MainLayout />, children: [
       { path: '/inicio', element: <HomePage /> },
       { path: '/mi-cuenta/contrasena', element: <ChangePasswordPage /> },
+      { element: <RoleRoute roles={[ROLES.PACIENTE, ROLES.ADMINISTRADOR]} />, children: [
+        { path: '/pagos', element: <PagosPage /> },
+      ] },
+      { element: <RoleRoute roles={[ROLES.PACIENTE]} />, children: [
+        { path: '/pagos/obligaciones/:id', element: <PagosPage /> },
+        { path: '/pagos/retorno/:proveedor/:intento?', element: <RetornoPagoPage /> },
+      ] },
+      { element: <RoleRoute roles={[ROLES.ADMINISTRADOR]} />, children: [
+        { path: '/pagos/pacientes/:pacienteId', element: <PagosPage /> },
+        { path: '/pagos/pacientes/:pacienteId/obligaciones/:id', element: <PagosPage /> },
+      ] },
       { element: <RoleRoute roles={[ROLES.PACIENTE, ROLES.ADMINISTRADOR]} />, children: [{ path: '/recordatorios', element: <RecordatoriosPage /> }] },
       { element: <RoleRoute roles={[ROLES.ADMINISTRADOR, ROLES.MEDICO, ROLES.PACIENTE]} />, children: [
         { path: '/laboratorio', element: <LaboratorioPage /> },

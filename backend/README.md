@@ -1,5 +1,50 @@
 # Backend — Clínica Vida Salud
 
+## Pagos — Fase 8 integración local (2026-11-06)
+
+**Aceptación local con proveedores simulados demostrada; aceptación externa pendiente.** [Matriz, aislamiento, comandos, evidencia y guion Stripe/PayPal](../docs/ai/pagos-fase8-integracion.md). React/Sanctum/PostgreSQL reales por HTTPS loopback; proveedores/OAuth/postback ficticios. Backend dirigido351 pruebas/3988 aserciones/código0, catorce carreras PostgreSQL reejecutadas; cuatro casos añadidos a PagosStripeTest de CSRF/origen y throttle/Retry-After/replay para ambos proveedores. Sin cambios productivos/contratos/persistencia/dependencias/migraciones.
+
+Chrome20 escenarios/56 layouts/14 axe sin violaciones automáticas, impago sin bloqueo asistencial y misma clave/cuerpo tras respuesta perdida después de commit. Esquemas propios retirados/inventarios idénticos/ajeno conservado. Flags habituales/defaults false/false/false; sin activación, operaciones autenticadas, migración habitual o despliegue. Incidencias/refunds terminales/sin ID y siete avisos Symfony pendientes. Esperar revisión; recorridos externos requieren autorización independiente. Secciones inferiores conservan historia.
+
+## Pagos — Fase 6 coordinación backend (2026-11-06)
+
+**Implementada y verificada localmente con simulaciones; pendiente de revisión, no CU-32 habilitado.** [Protocolo, archivos, garantías y límites](../docs/ai/pagos-fase6-coordinacion.md). Cambio condicionado al cierre sin cobro corroborado, revocación PayPal distinta del handoff, coordinación de evidencia tardía, leases de inbox y recuperación de refunds pendientes de despacho. Sin nuevas dependencias/migraciones; seis entidades existentes.
+
+- `pagos:conciliar --lote=100` (1–1000) sustituye los dos schedules financieros por uno cada minuto; comandos específicos se conservan manualmente. Flags incorporación/Stripe/PayPal defaultfalse; apagado no procesa tablas/red.
+- Incidencias pendientes por decisión confirmada, sin nueva resolución, compensación adicional ni reintento refund terminal. Refund PayPal incierto sin ID espera referencia verificable.
+- Final dirigida **343 pruebas/3887 aserciones/código nativo0**,154,018s/148MB; seis carreras nuevas más ocho previas, proveedores/OAuth/postback simulados. Sintaxis20/Pint/autoload correctos. PostgreSQL18.6 aislado revalidado pre/post; public vacío/esquemas propios0/esquema ajeno conservado. Bloqueo inicial resuelto al iniciar el usuario PostgreSQL; dos ajustes de pruebas tras primer pase fallido, sin relajar producción; último pase incluye protección de URL Stripe ya liquidada. Logs externos `Temp/opencode/pagos-fase6-final3-*`.324/3616 inferior es F5.
+- Sin React/F7/F8, activación habitual, operaciones externas autenticadas, dinero real, diagramas académicos ni commit/despliegue. Siete avisos Symfony previos pendientes. Refund PayPal incierto sin ID sigue esperando referencia verificable; no recuperación universal ni éxito manual. Relevo en `docs/ai/estado-fase.md`; detenerse para revisión. Secciones inferiores son cronología.
+
+## Pagos — Fase 5 PayPal Sandbox (2026-11-06)
+
+**Backend verificado localmente con simulaciones; no CU-32 habilitado habitualmente.** [Entrega técnica/archivos/límites](../docs/ai/pagos-fase5-paypal.md). Orders/OAuth backend/captura explícita, evidencia GET, postback de firma/inbox durable, idempotencia/leases/recuperación y refund total. Coordinación mínima PayPal de cancelación/cobro tardío adicionalmente autorizada, Stripe preservado; sin resto F6 ni cambio operativo de proveedor.
+
+- `PAGOS_INCORPORACION_HABILITADA`, `PAGOS_STRIPE_HABILITADO` y `PAGOS_PAYPAL_HABILITADO`: **false por defecto**. PayPal solo Sandbox/local/testing/host fijo, sin redirects ni fallback live. Variables futuras backend: PAYPAL_ENVIRONMENT, CLIENT_ID, CLIENT_SECRET, APP_ID esperado de OAuth, MERCHANT_ID, WEBHOOK_ID (todos con prefijo PAYPAL_) y PAGOS_ORIGEN_RETORNO HTTPS permitido. Ningún secreto configurado/versionado.
+- Rutas comunes intentos/resultado/cierre ahora usan PagoController/IntentoPagoRequest; nueva POST `/api/pagos/intentos/{uuid}/paypal/captura`. Solo titular/sesión/origen/CSRF/rol/revisión/UUIDv4. Retorno y aprobación no capturan. Nueva POST `/api/webhooks/pagos/paypal` fuera de api/web: postback oficial con OAuth/Webhook ID, bytes originales, inbox antes de200 JSON; Stripe conserva204. No bypass de firma.
+- `pagos:recuperar-paypal --lote=100`: scheduler cada minuto, leases/consultas específicas; apagado no procesa tablas/red. Cancelación revoca nuevas capturas y conserva recuperación de lo entregado. Refund original total solo confirmado tras GET verificado; respuesta perdida sin ID permanece Incierta hasta referencia verificada, sin repetir POST suponiendo ventana Orders.
+- Final dirigida **324 pruebas/3616 aserciones, código nativo0,114,147s/142MB**;281 de regresión+43 PayPal. Carrera PayPal/Stripe/seis financieras en PostgreSQL18.6 aislado. OAuth/HTTP/firma/proveedores simulados: no PayPal real Sandbox ni Stripe real test acreditados. Sintaxis26/Pint/autoload sin scripts correctos. Dos ejecuciones interrumpidas por memoria/wrapper no sumadas; logs externos en Temp/opencode/pagos-fase5-*.
+- No nuevas dependencias/migraciones, base habitual, operaciones autenticadas, React, diagramas académicos, commit/push/despliegue. Public y esquemas propios PayPal/Stripe vacíos al final; antiguo esquema ajeno conservado. Siete avisos Symfony previos pendientes, sin actualizar paquetes ajenos/deshabilitar auditoría. **Esperar revisión/autorización independiente antes del resto F6–8 o activar flags.** Secciones inferiores conservan cronología.
+
+## Pagos — Fase 4 Stripe test (2026-11-06)
+
+**Soporte backend implementado/verificado localmente, sin habilitar CU-32 habitualmente.** [Entrega técnica y archivos](../docs/ai/pagos-fase4-stripe.md): SDK oficial `stripe/stripe-php:22.1.0`, Checkout del titular/importes históricos, firma original/inbox idempotente, evidencia autoritativa y recuperación Stripe; coordinación mínima autorizada de cancelación/cierre/devolución total del aplicado, incluido cobro tardío. Sin nueva migración ni PayPal/React/resto Fase6.
+
+- `PAGOS_INCORPORACION_HABILITADA` y `PAGOS_STRIPE_HABILITADO` **false por defecto**. No credenciales/configuración privada modificadas ni llamadas autenticadas. Puede_iniciar_pago=false/revision_pago=null cuando apagado/configuración incompleta; Administrador no paga.
+- POST `/api/pagos/obligaciones/{uuid}/intentos`, `/api/pagos/intentos/{uuid}/resultado|cierre`: sesión/cuenta/rol/titular/origen/CSRF, JSON cerrado, UUIDv4 Idempotency-Key; 201 acción corroborada/200 replay o resultado/202 incertidumbre. Receptor POST `/api/webhooks/pagos/stripe` fuera de grupos api/web; firma SDK sobre bytes originales, límites y acuse tras persistencia.
+- `pagos:recuperar-stripe --lote=100`: scheduler cada minuto y recuperación por operación durable/lease; apagado no procesa red/tablas. Nada de llamadas externas dentro de transacciones. Timeout no libera exclusión; refund solo Exitosa con resultado verificado, nunca por aceptar solicitud.
+- Final dirigida **281 pruebas/3150 aserciones, código nativo0,77,978s/94MB**; PostgreSQL18.6 aislado/public vacío pre/post, nueva carrera Stripe y seis previas. SDK/transporte/proveedor simulados; sin Stripe real test/HTTPS/cuenta/rendimiento web acreditados. Siete avisos de seguridad Symfony previos pendientes; Composer strict advierte del pin exacto expresamente solicitado, no cambios generales.
+- Sin activación/migración habitual/producción/commit/push/despliegue. Diagramas académicos intactos en esta fase. **Esperar revisión antes de otras fases.** Secciones inferiores mantienen su cierre histórico.
+
+## Pagos — Fase 3 backend (2026-11-06)
+
+Reserva con monto revisado, asignación posterior, obligaciones transaccionales y consultas CU-31/33/34 implementadas localmente; **incorporación desactivada por defecto, sin CU-32/proveedores/React**. Contrato/archivo/protocolo/evidencia: [`pagos-fase3-backend.md`](../docs/ai/pagos-fase3-backend.md), junto con F1/F2. No activar ni migrar base habitual por esta entrega.
+
+- Nuevas POST `/api/citas/{id}/monto/propuesta` y `/api/citas/{id}/monto`: Administrador/Recepcionista, JSON cerrado, revisión cifrada, precio único e idempotencia por UUID, sin edición ordinaria.
+- Nuevas GET `/api/pagos/obligaciones`, `/api/pagos/obligaciones/{uuid}`, `/api/pagos/historial`: Paciente propio o Administrador con id_paciente; sin Recepción/Médico. Filtros/paginación/detalle privados; puede_iniciar_pago=false/revision_pago=null.
+- Reservas existentes amplían propuesta/confirmación/resultado con precio y resumen autorizado cuando corresponda; listados de citas admiten situacion_precio. Médico/agenda global no reciben finanzas.
+- `PAGOS_INCORPORACION_HABILITADA=false` por defecto; habilitar solo tras instalación autorizada de F2 y decisión operativa expresa. Propuestas antiguas pendientes exigen revisión si cambia el corte; replay confirmado conserva legado. Cancelar/reprogramar coordinan exigibilidad/vencimiento bajo la misma transacción, sin efectos externos.
+- Batería final dirigida247/2799 correcta, incluidas seis carreras PostgreSQL reales;63,606s/74MB, sintaxis47/Pint/autoload correctos. Sin suite global, bases/roles creados, migración habitual ni activación. Un esquema antiguo ajeno de pruebas conservado, public vacío pre/post. Relevo en docs/ai/estado-fase.md. Esperar revisión antes de Fase4.
+
 ## CU-29 — REP-5: integración y cierre backend local (2026-10-31)
 
 **Backend cerrado proporcionalmente en REP-1–REP-5: siete mínimos RF13 implementados y verificados localmente. No CU-29 completo, frontend ni despliegue acreditados.** Contratos y cálculos: [`cu29-contratos-api.md`](../docs/ai/cu29-contratos-api.md). Sin cambios funcionales en esta fase; nuevo `tests/Feature/ReportesIntegracionTest.php` y documentación mínima. Análisis/diagramas siguen aplazados por decisión del usuario.

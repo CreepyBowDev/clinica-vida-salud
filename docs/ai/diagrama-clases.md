@@ -1,5 +1,76 @@
 # Diagrama global de clases — Clínica Vida Salud
 
+## Incremento Pagos — Fase 3 backend efectiva (2026-11-06)
+
+Se integran tres Services/dos Controllers nuevos con las clases financieras F2 y la coordinación previa, sin Models/tablas/DER adicionales. Firmas/detalle: análisis [Fase3](analisis-clases.md#pagos-backend-fase3) y [contrato técnico](pagos-fase3-backend.md). Sin censo global recalculado/render ni cierre del módulo.
+
+```mermaid
+classDiagram
+    ReservaService --> PrecioCitaService : emitir dentro de reserva
+    ReservaService --> ResumenFinancieroCitaService
+    MontoCitaController --> PrecioCitaService
+    PrecioCitaService --> CitaRepository : bloquear cita
+    PrecioCitaService --> ObligacionPagoRepository : bloquear y emitir
+    PrecioCitaService --> BitacoraRepository : obligacionEmitida
+    ConsultaPagosController --> ConsultaPagosService
+    ConsultaPagosService --> ObligacionPagoRepository : consultas autorizadas
+    HistorialCitasService --> ResumenFinancieroCitaService
+    ConsultaCitaService --> ResumenFinancieroCitaService
+    ObligacionPagoRepository --> ObligacionPago
+    ObligacionPagoRepository --> IntentoPago
+    ObligacionPagoRepository --> DevolucionPago
+```
+
+También se reutilizan AutenticacionService/ContinuidadAdministrativaService/PlanificacionRepository para permisos/locks de emisión. PropuestaMonto/ImportePagoRule/Resources/Requests/config son auxiliares, no nuevos Models ni proveedores. CU-32/adaptadores/Controllers externos permanecen no implementados; incorporación apagada.
+
+## Incremento Pagos — Coordinación local de citas (2026-11-05)
+
+Adelanto local expresamente autorizado de CU-15/CU-16; no emisión, endpoints financieros, proveedores ni resto de Fase6. Dos clases operativas nuevas, sin Models/tablas. Firmas/protocolo/evidencia: análisis [coordinación local](analisis-clases.md#pagos-coordinacion-local-citas). Sin render gráfico ni censo global recalculado.
+
+```mermaid
+classDiagram
+    GestionCitaService --> CoordinacionFinancieraCitaService : coordinar cita y cambio reales
+    CoordinacionFinancieraCitaService --> ObligacionPagoRepository : bloquear y guardar
+    CoordinacionFinancieraCitaService --> CambioCita : validar correspondencia
+    ObligacionPagoRepository --> ObligacionPago : lock posterior a Cita
+    ObligacionPagoRepository --> CobroPago : consultar aplicado
+    GestionCitaService --> BitacoraRepository : auditar metadatos locales
+```
+
+`coordinar(Cita,CambioCita): ?array` devuelve el bloque seguro para el evento existente; no crea transacción independiente. BitacoraRepository.citaReprogramada/citaCancelada añaden `?array $finanzas=null`; constructor de GestionCitaService añade el nuevo Service. Incorporación sigue default false, sin flujo de habilitación ni cambios de respuestas HTTP.
+
+## Incremento Pagos Fase 2 — Models efectivos y valor monetario (2026-11-05)
+
+Seis Models efectivos adicionales, sin nuevos Controller/Service/Repository operativos: `ObligacionPago`, `IntentoPago`, `CobroPago`, `DevolucionPago`, `OperacionPago`, `EventoPago`. Atributos/casts/protecciones y firmas relacionales reales: [Fase 2](pagos-fase2-modelo.md) §2 y clases en `backend/src/data/models/`. `Cita` añade el cast boolean/hidden de incorporación y `obligacionPago(): HasOne`. Censos/fuentes gráficas anteriores se conservan históricos; no se atribuye un render nuevo ni cierre del módulo.
+
+```mermaid
+classDiagram
+    Cita "1" --> "0..1" ObligacionPago : obligacionPago
+    ObligacionPago --> Cita : cita
+    ObligacionPago --> Usuario : emisor
+    ObligacionPago --> CambioCita : cambioAnulacion
+    ObligacionPago --> IntentoPago : intentos
+    ObligacionPago --> CobroPago : cobros / liquidacion aplicada
+    IntentoPago --> ObligacionPago : obligacion
+    IntentoPago --> Usuario : iniciador
+    IntentoPago --> CobroPago : cobros
+    IntentoPago --> OperacionPago : operaciones
+    IntentoPago --> EventoPago : eventos
+    CobroPago --> ObligacionPago : obligacion
+    CobroPago --> IntentoPago : intento
+    CobroPago --> DevolucionPago : devolucion
+    DevolucionPago --> CobroPago : cobro
+    DevolucionPago --> CambioCita : cancelacion
+    DevolucionPago --> OperacionPago : operaciones
+    OperacionPago --> IntentoPago : intento
+    OperacionPago --> CobroPago : cobro
+    OperacionPago --> DevolucionPago : devolucion
+    OperacionPago --> Usuario : solicitante opcional
+    EventoPago --> IntentoPago : intento opcional
+```
+
+Auxiliar puro efectivo, fuera del censo selectivo de familias operativas: `shared/utils/ImportePago` readonly; `desdeBob(mixed): self`, `desdeHistorico(int,int,int,int): self`, `montoBob(): string`, `centavosStripe(): int`, `montoPayPal(): string`, `decimal(int): string` privado. Atributos integer readonly centavosBob/centavosUsd/tasaNumerador/tasaDenominador; sin dependencias HTTP/Models/configuración ni conversión externa operativa. No se dibujan Services/Endpoints diseñados de F1 como implementados. **74/728** dirigidas correctas; infraestructura y regresión, no CU-31–34 completo ni operación de proveedores. DER000040 y análisis sincronizados.
+
 ## Incremento CU-28 Fase3 — Generación efectiva (2026-10-31)
 
 **Censo incremental125 E/4 P/Sesion R**,130 participantes:29 Models/33 Controllers/36 Services/27 Repositories. EnvioRecordatorioPushRepository es la única clase selectiva nueva; RecordatorioService/Repository ya eran efectivos por invalidación y ahora amplían generación/outbox. Reflexión96 operativas/567 firmas; no promover RecordatorioController, DespachoPushService o transporte inexistentes. Contexto §17.186/análisis recordatorios-backend-fase3/README. Fuentes gráficas históricas/censo de sus fechas preservados, global acumulativo final F7 pendiente, sin render nuevo atribuido al extracto textual.

@@ -1,5 +1,7 @@
 import { api, csrfURL } from '../../../api/api';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
+import { montoEntrada } from '../../pagos/utils/pagoFormat';
+import { precioPago } from '../../pagos/services/pago.service';
 
 const pagina = ({ page = 1, per_page = 20 }) => ({ page, per_page });
 function paginaValida(result, lista, validarItem) {
@@ -34,6 +36,9 @@ export async function consultarDisponibilidad(filtros, signal) {
   if (filtros.id_paciente !== undefined) params.id_paciente = id(filtros.id_paciente);
   const result = (await api.get('/reservas/disponibilidad', { params, signal, sessionBound: true })).data;
   const d = result?.data;
+  // Campos aditivos: ante un servidor anterior no se inventa una incorporación.
+  if (d && d.requiere_monto_bob !== undefined && (typeof d.requiere_monto_bob !== 'boolean'
+    || typeof d.incorporacion_financiera_habilitada !== 'boolean')) throw new Error('No se pudo verificar la capacidad de reserva.');
   if (!d || d.fecha !== params.fecha || d.medico?.id_medico !== params.id_medico || d.especialidad?.id_especialidad !== params.id_especialidad
     || !texto(d.medico.nombres) || !texto(d.medico.apellidos) || !texto(d.especialidad.nombre) || !salaValida(d.consultorio)
     || d.zona_horaria !== 'America/La_Paz' || typeof d.paciente_reservable !== 'boolean'
@@ -76,6 +81,10 @@ export async function proponerReserva(datos) {
   const payload = { id_especialidad: id(datos.id_especialidad), id_medico: id(datos.id_medico), fecha: datos.fecha,
     hora_inicio: datos.hora_inicio, revision_turno: datos.revision_turno, motivo_breve: normalizarMotivo(datos.motivo_breve) };
   if (datos.id_paciente !== undefined) payload.id_paciente = id(datos.id_paciente);
+  if (datos.monto_bob !== undefined) {
+    if (datos.id_paciente === undefined) throw new Error('La reserva propia no admite monto.');
+    payload.monto_bob = montoEntrada(datos.monto_bob);
+  }
   const result = await postReserva('/reservas/propuesta', payload, response => {
     const p = response.data?.data;
     return response.status === 200 && p && texto(p.propuesta) && p.propuesta.length <= 16384
@@ -90,6 +99,8 @@ export async function proponerReserva(datos) {
       && Number.isInteger(p.duracion_minutos) && p.duracion_minutos > 0 && texto(p.sede_atencion)
       && (p.direccion_sede === null || typeof p.direccion_sede === 'string') && p.motivo_breve === payload.motivo_breve;
   });
+  if (result.data.precio) result.data.precio = precioPago(result.data.precio);
+  if (payload.monto_bob !== undefined && result.data.precio?.monto_bob !== payload.monto_bob) throw new Error('El monto revisado no coincide con la selección.');
   return result.data;
 }
 export async function confirmarReserva({ propuesta, motivo_breve, pacienteEsperado }) {

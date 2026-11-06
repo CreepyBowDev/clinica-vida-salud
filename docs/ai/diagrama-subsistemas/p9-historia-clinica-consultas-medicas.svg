@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500" viewBox="0 0 1000 500" role="img" aria-labelledby="title desc">
+  <title id="title">P9. Historia clínica y consultas médicas</title>
+  <desc id="desc">HistoriaClinicaPage.jsx, ConsultaDetallePage.jsx y VersionesClinicasPage.jsx utilizan HistoriaClinicaService.php. ConsultaEditorPage.jsx guarda mediante ConsultaMedicaService.php. Las líneas resumen hooks, servicios frontend y controladores. HistoriaClinicaService lee consultas_medicas mediante HistoriaClinicaRepository; ConsultaMedicaService registra versiones_consulta y versiones_antecedente mediante ConsultaMedicaRepository. Se omiten lectura de contexto del editor, creación de consulta y lecturas de versiones, así como recursos clínicos compartidos. Guardar no marca la cita Atendida.</desc>
+  <defs>
+    <marker id="dependency" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#384238" stroke-width="1.1"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #233123; text-anchor: middle; }
+      .box { fill: #e2f0d9; stroke: #6c9652; stroke-width: 1; }
+      .stereotype { font-size: 13px; }
+      .name { font-size: 13px; font-weight: 600; }
+      .communication { fill: none; stroke: #384238; stroke-width: 1.1; stroke-linejoin: round; }
+      .persistence { fill: none; stroke: #384238; stroke-width: 1.05; stroke-dasharray: 5 4; marker-end: url(#dependency); }
+    </style>
+  </defs>
+  <rect width="1000" height="500" fill="#ffffff"/>
+  <path d="M12 48 V12 H582 L600 30 V48 Z" fill="#a9d18e" stroke="#6c9652" stroke-width="1"/>
+  <path d="M600 48 H988 V488 H12 V48 Z" fill="#ffffff" stroke="#6c9652" stroke-width="1"/>
+  <text x="300" y="35" font-size="16" font-weight="700">P9. HISTORIA CLÍNICA Y CONSULTAS MÉDICAS</text>
+  <g class="communication">
+    <path d="M145 174 V210 H375 V245"/>
+    <path d="M375 174 V210"/>
+    <path d="M605 174 V210 H375"/>
+    <path d="M855 174 V245"/>
+  </g>
+  <g class="persistence">
+    <path d="M375 325 L240 400"/>
+    <path d="M810 325 L550 400"/>
+    <path d="M855 325 V400"/>
+  </g>
+  <g id="interfaces">
+    <g aria-label="Interface HistoriaClinicaPage.jsx"><rect class="box" x="40" y="94" width="210" height="80"/><text class="stereotype" x="145" y="118">«Interface»</text><text class="name" x="145" y="148">HistoriaClinicaPage.jsx</text></g>
+    <g aria-label="Interface ConsultaDetallePage.jsx"><rect class="box" x="270" y="94" width="210" height="80"/><text class="stereotype" x="375" y="118">«Interface»</text><text class="name" x="375" y="148">ConsultaDetallePage.jsx</text></g>
+    <g aria-label="Interface VersionesClinicasPage.jsx"><rect class="box" x="500" y="94" width="210" height="80"/><text class="stereotype" x="605" y="118">«Interface»</text><text class="name" x="605" y="148">VersionesClinicasPage.jsx</text></g>
+    <g aria-label="Interface ConsultaEditorPage.jsx"><rect class="box" x="750" y="94" width="210" height="80"/><text class="stereotype" x="855" y="118">«Interface»</text><text class="name" x="855" y="148">ConsultaEditorPage.jsx</text></g>
+  </g>
+  <g id="classes">
+    <g aria-label="Class HistoriaClinicaService.php"><rect class="box" x="155" y="245" width="440" height="80"/><text class="stereotype" x="375" y="269">«Class»</text><text class="name" x="375" y="299">HistoriaClinicaService.php</text></g>
+    <g aria-label="Class ConsultaMedicaService.php"><rect class="box" x="750" y="245" width="210" height="80"/><text class="stereotype" x="855" y="269">«Class»</text><text class="name" x="855" y="299">ConsultaMedicaService.php</text></g>
+  </g>
+  <g id="tables">
+    <g aria-label="Table consultas_medicas"><rect class="box" x="135" y="400" width="210" height="64"/><text class="stereotype" x="240" y="423">«Table»</text><text class="name" x="240" y="448">consultas_medicas</text></g>
+    <g aria-label="Table versiones_consulta"><rect class="box" x="445" y="400" width="210" height="64"/><text class="stereotype" x="550" y="423">«Table»</text><text class="name" x="550" y="448">versiones_consulta</text></g>
+    <g aria-label="Table versiones_antecedente"><rect class="box" x="750" y="400" width="210" height="64"/><text class="stereotype" x="855" y="423">«Table»</text><text class="name" x="855" y="448">versiones_antecedente</text></g>
+  </g>
+</svg>

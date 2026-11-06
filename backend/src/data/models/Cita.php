@@ -21,13 +21,14 @@ class Cita extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['motivo_breve', 'id_propuesta_reserva'];
+    protected $hidden = ['motivo_breve', 'id_propuesta_reserva', 'incorporada_finanzas', 'obligacionPago'];
 
     protected $attributes = ['estado' => 'Programada', 'modalidad' => 'Presencial', 'version_programacion' => 1];
 
     protected function casts(): array
     {
         return [
+            'incorporada_finanzas' => 'boolean',
             'inicio_at' => 'immutable_datetime',
             'fin_at' => 'immutable_datetime',
             'duracion_minutos' => 'integer',
@@ -75,5 +76,10 @@ class Cita extends Model
     public function consulta(): HasOne
     {
         return $this->hasOne(ConsultaMedica::class, 'id_cita', 'id_cita');
+    }
+
+    public function obligacionPago(): HasOne
+    {
+        return $this->hasOne(ObligacionPago::class, 'id_cita', 'id_cita');
     }
 }

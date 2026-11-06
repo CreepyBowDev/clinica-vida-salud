@@ -21,7 +21,8 @@ class HistorialCitasRequest extends FormRequest
 
     public function rules(): array
     {
-        $rules = ['periodo' => ['sometimes', 'required', Rule::in(['proximas', 'anteriores', 'todas'])],
+        $rules = ['situacion_precio' => ['sometimes', 'required', Rule::in(['no_incorporada', 'pendiente_asignacion', 'asignado'])],
+            'periodo' => ['sometimes', 'required', Rule::in(['proximas', 'anteriores', 'todas'])],
             'estado' => ['sometimes', 'required', Rule::in(['Programada', 'Confirmada', 'Atendida', 'Cancelada', 'Inasistencia'])],
             'page' => ['sometimes', 'integer', 'min:1', 'max:1000000'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100']];

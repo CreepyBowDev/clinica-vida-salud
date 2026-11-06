@@ -13,6 +13,15 @@ export const AREAS = Object.freeze({
 });
 
 export function destinoSeguro(pathname, rol) {
+  if (typeof pathname === 'string' && (pathname === '/pagos' || pathname.startsWith('/pagos/'))) {
+    if (![ROLES.PACIENTE, ROLES.ADMINISTRADOR].includes(rol)) return '/inicio';
+    if (pathname === '/pagos') return pathname;
+    const uuid = '[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}';
+    if (rol === ROLES.PACIENTE && (new RegExp(`^/pagos/obligaciones/${uuid}$`).test(pathname)
+      || new RegExp(`^/pagos/retorno/(stripe|paypal)/${uuid}$`).test(pathname))) return pathname;
+    const match = rol === ROLES.ADMINISTRADOR && pathname.match(new RegExp(`^/pagos/pacientes/([1-9][0-9]{0,18})(?:/obligaciones/${uuid})?$`));
+    return match && BigInt(match[1]) <= 9223372036854775807n ? pathname : '/pagos';
+  }
   if (pathname === '/reportes') return rol === ROLES.ADMINISTRADOR ? pathname : '/inicio';
   if (pathname === '/recordatorios') return [ROLES.PACIENTE, ROLES.ADMINISTRADOR].includes(rol) ? pathname : '/inicio';
   if (typeof pathname === 'string' && pathname.startsWith('/laboratorio')) {

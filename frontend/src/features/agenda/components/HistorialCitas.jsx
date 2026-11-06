@@ -23,7 +23,7 @@ export default function HistorialCitas({ own = false, pacienteId }) {
   const { draft, filters } = state;
   const defaultPeriod = own ? 'proximas' : 'todas';
   const query = useAgendaQuery(own ? consultarMisCitas : consultarHistorialPaciente, { ...filters, ...(own ? {} : { id: pacienteId }) }, {
-    kind: 'historial', allowedFields: ['periodo', 'estado', 'page', 'per_page'],
+    kind: 'historial', allowedFields: ['periodo', 'estado', 'situacion_precio', 'page', 'per_page'],
   });
   const form = useRef(null), results = useRef(null);
   useEffect(() => { if (query.failure?.status === 422) form.current?.querySelector('[aria-invalid="true"]')?.focus(); }, [query.failure]);
@@ -34,7 +34,7 @@ export default function HistorialCitas({ own = false, pacienteId }) {
     {!own && <Link className="back-link" to={`/recepcion/pacientes/${pacienteId}`}>Volver a la ficha del paciente</Link>}
     <PageHeading title={own ? 'Mis citas' : 'Historial de citas'} description={own ? 'Consulta las citas vinculadas a tu ficha. El período y el estado se filtran por separado.' : 'Consulta administrativa de las citas del paciente seleccionado, incluidas las anteriores y canceladas.'} />
     <HistorialFilters draft={draft} defaultPeriod={defaultPeriod} onChange={next => change({ draft: next })}
-      onApply={() => { change({ filters: { periodo: draft.periodo ?? defaultPeriod, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); query.reload(); }}
+      onApply={() => { change({ filters: { periodo: draft.periodo ?? defaultPeriod, estado: draft.estado, situacion_precio: draft.situacion_precio ?? '', per_page: Number(draft.per_page), page: 1 } }); query.reload(); }}
       onClear={() => { change(inicial(owner)); query.reload(); }} disabled={query.remaining > 0} errors={query.failure?.fields ?? {}} formRef={form} />
     <div ref={results} tabIndex="-1" role="region" aria-label={own ? 'Resultados de Mis citas' : 'Resultados del historial del paciente'} aria-busy={query.loading} className="agenda-results">
       {query.data && <section className="agenda-context" aria-label="Paciente del historial"><h2>{query.data.meta.paciente.nombres} {query.data.meta.paciente.apellidos}</h2>

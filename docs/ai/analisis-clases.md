@@ -1,5 +1,135 @@
 # Análisis de clases — Clínica Vida Salud
 
+<a id="pagos-integracion-fase8"></a>
+## Pagos — Fase 8 integración local y verificación (2026-11-06)
+
+[Matriz, arnés, guion académico y límites](pagos-fase8-integracion.md). React/Axios→HTTPS loopback→Laravel/Sanctum→PostgreSQL reales; Stripe/PayPal/OAuth/postback simulados, no aceptación externa ni activación. Se reutilizan fronteras React F7, Requests/Resources/controllers y Services/Repositories/Models existentes: sesión database, precio revisado/asignación, intentos idempotentes, evidencia/conciliación y cancelación/devolución mantienen sus responsabilidades. Ninguna clase de dominio, contrato o persistencia nueva; sin cambio de UML/DER académico.
+
+Único código ampliado: cuatro casos parametrizados de PagosStripeTest, ambos proveedores, CSRF/origen y throttle/Retry-After/replay sin efectos duplicados. Backend351 pruebas/3988 aserciones y frontend1905/43 correctos/códigos0; catorce carreras PostgreSQL existentes reejecutadas. Chrome conectado20 escenarios/56 layouts/14 axe sin violaciones automáticas/cero excepciones, captura por Enter, respuesta perdida tras commit/misma clave/cuerpo e impago con llegada/atención por ejecutores reales. Build/Pint/sintaxis correctos; warning chunk>500kB conservado. Esquemas propios retirados/inventarios idénticos, ajeno preservado, flags habituales false/false/false. Incidencias y seguridad Symfony pendientes. Entradas inferiores conservan historia; esperar revisión F8 local, no activar ni recorrer proveedores externos automáticamente.
+
+<a id="pagos-frontend-fase7"></a>
+## Pagos — Fase 7 React y capacidades de presentación aprobadas (2026-11-06)
+
+[Detalle técnico, archivos y evidencia](pagos-fase7-frontend.md). Frontend implementado/verificado con transportes simulados, no activado ni cierre integral. Se conserva backend F1–F6; ampliación aditiva explícitamente aprobada de dos Resources: disponibilidad de reserva declara incorporación/monto requerido sin alterar reprogramación; obligación enumera proveedores elegibles mediante Services existentes, sin red ni nuevas reglas/persistencia. Test puro4/41 sin Laravel/SQL/red. No clases de dominio PHP nuevas ni actualización de UML/DER académico autorizada.
+
+| Participante de frontera React | Responsabilidad y colaboración |
+| --- | --- |
+| PagosPage / RetornoPagoPage | Consulta propia o Admin por ficha seleccionada; filtros/paginación/detalle y retorno local seguro, sin éxito por parámetros externos ni captura al montar. PatientsPage y guards existentes reutilizados. |
+| pago.service / pagoFormat / pagoError | Axios común/CSRF/época; whitelists/contratos, importes textuales históricos sin reconvertir, errores seguros y acciones HTTPS corroboradas; no decisiones financieras autoritativas. |
+| usePagoQuery / useOperacionPago | Secuencias/abort/identidad, limpieza de sesión/pagehide; exclusión UI, clave UUIDv4 estable para recuperación en memoria,202/Retry-After, sin polling/persistencia financiera. Backend sigue resolviendo idempotencia/conciliación. |
+| PrecioPago / HistorialPagos / OperacionPago | Presentación compartida de precio/cobros/devoluciones/incidencias; revisión explícita de inicio/captura/cierre solo titular; Admin lectura, sin resolución manual. |
+| FinanzasCita / AsignarMonto | Resumen mínimo y propuesta/revisión/confirmación de monto dentro del detalle existente; reserva administrativa e historial ampliados sin otra gestión de citas. |
+
+Diseño/tokens/layout originales preservados. Médico mantiene proyección anterior y Recepción no accede a historial financiero. Dirigida1839/39 correcta; complementos focales97/2 y89/2 solapados/no sumados. Chrome simulado88 layouts/22 axe sin violaciones automáticas/cinco POST ficticios, capturas revisadas y captura PayPal por Enter; build correcto con warning previo de tamaño. No PostgreSQL, integración Stripe/PayPal real, dependencias ni activación. F8/revisión pendientes; incidencias y refund terminal/sin ID sin nuevas acciones. Entradas siguientes conservan historia.
+
+<a id="pagos-backend-fase6"></a>
+## Pagos — Fase 6 coordinación backend verificada localmente (2026-11-06)
+
+[Detalle técnico/archivos/protocolo/límites](pagos-fase6-coordinacion.md). **343 pruebas/3887 aserciones correctas**, código nativo0,154,018s/148MB; seis carreras nuevas con procesos PostgreSQL y ocho anteriores, proveedores/OAuth/postback simulados. Sintaxis20/Pint/autoload sin scripts correctos. PostgreSQL18.6 aislado revalidado antes/después tras inicio personal del usuario; public vacío/esquemas propios0/esquema ajeno conservado. La cifra324/3616 inferior es F5. No integración externa/activación ni F7–8; detenerse para revisión.
+
+| Participante nuevo | Responsabilidad |
+| --- | --- |
+| SeguridadInicioPagoService | disponible(string):bool; ausencia de cobro/slot/escritura incompatible y prueba durable del cierre de todo el historial; revalidación bajo lock en Services de inicio. |
+| ProcesamientoEventoPagoService | reclamar(EventoPago):?EventoPago/finalizar(...):void; lease/token del inbox existente, recuperación y rechazo del dueño atrasado. |
+| CoordinacionCobroPagoService | coordinar(ObligacionPago):void; evidencia aplicada tardía retira nuevas oportunidades de cobro del otro intento mediante procedimientos específicos, sin compensar el adicional. |
+| ConciliacionPagosService | lote(int):array; coordinación acotada de los dos inbox/recuperadores, apagado independiente y contadores seguros. |
+
+Seis Models/DDL intactos; vencimiento/reprogramación/cancelación/devolución del aplicado previos reutilizados. Decisión confirmada: incidencias pendientes sin nueva resolución/éxito manual/reintento refund terminal. No dependencias/migraciones, React, activación ni diagramas académicos. Ver relevo antes de continuar.
+
+<a id="pagos-backend-fase5"></a>
+## Pagos — Fase 5 PayPal y coordinación mínima autorizada (2026-11-06)
+
+Soporte backend implementado/verificado **solo localmente con simulaciones**, incorporación/Stripe/PayPal apagados. [Contratos, archivos, garantías y límites](pagos-fase5-paypal.md). Sin dependencias/migraciones nuevas, RF/RN ni diagramas académicos modificados. Entradas F1–F4 inferiores son históricas.
+
+| Participante efectivo | Responsabilidad/colaboración |
+| --- | --- |
+| ConfiguracionPayPal | Gate Sandbox/local/testing, app OAuth esperada/merchant/webhook/retorno; contexto app+merchant sin secreto. |
+| PayPalGateway | HTTP Laravel/OAuth/Orders/Capture/Refund/postback; hosts fijos, sin redirects/retry financiero/red bajo SQL; bytes originales del evento. |
+| PayPalPagoService | Titular/precio histórico/revisión/exclusión/replay; preparación durable y permiso local; presentación mínima y coordinación específica de cancelación. |
+| RecuperacionPayPalService | Claim/lease, red fuera de transacciones, última autorización de captura y aplicación bajo lock; captura/refund inciertos y ventanas separadas; comando/scheduler específico. |
+| EvidenciaPayPalService | GET Order/Capture/Refund autenticados, USD bruto/vínculos/payee/contexto/resultado; una aplicación, adicional no aplicado, auditoría atómica y no degradación. Payee de Order, no campo inventado obligatorio de Capture. |
+| EventoPayPalService | Postback satisfactorio antes de inbox/acuse; dedupe/huella/contexto, pistas y consultas verificadas; APPROVED no captura, REVERSED queda Cuarentena. |
+| PayPalPagoRepository / StripePagoRepository | Queries Sandbox específicas y métodos comunes de persistencia/locks/replay/slots; esquema F2 reutilizado sin BaseRepository. |
+| DevolucionCancelacionService / BitacoraRepository.pago | Preparación lógica total compartida del aplicado contra CambioCita, sin red; auditoría segura. stripe() conserva entrada anterior. |
+| CoordinacionFinancieraCitaService | Conserva exigibilidad/reprogramación/cancelación y delega procedimientos específicos Stripe/PayPal; revoca nuevas capturas y conserva recuperación/refund tardío, sin efectos externos bajo lock. |
+| OperacionPagoService / PagoController / IntentoPagoRequest | Despacho mínimo por proveedor real en rutas compartidas, sustituyen nombres HTTP Stripe específicos; no cambio de proveedor ni conciliador genérico. Nuevo WebhookPayPalController aislado de grupos humanos. |
+
+Final dirigida324/3616 correcta, código nativo0; PostgreSQL18.6 aislado, ocho escenarios multiproceso (PayPal/Stripe/seis previos), HTTP/OAuth/postback simulados. Refund sin ID tras handoff perdido permanece Incierto hasta referencia verificada; no repetir POST por ventana inventada. No integración Sandbox real/activación habitual/React/resto F6–8. Detenerse para revisión independiente.
+
+<a id="pagos-backend-fase4"></a>
+## Pagos — Fase 4 Stripe y coordinación indispensable (2026-11-06)
+
+Backend implementado/verificado localmente con simulaciones, **Stripe/incorporación apagados**. [Contrato, archivos, transacciones, evidencia y límites](pagos-fase4-stripe.md). SDK oficial22.1.0 autorizado/instalado; sin migración ni diagrama nuevo por instrucción expresa, RF/RN intactos. Entradas inferiores conservan historia de fases previas.
+
+| Participante efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| ConfiguracionStripe | Gate test/local/testing/cuenta/secreto/API/retorno HTTPS permitido; no reemplaza comprobación de cuenta/objetos externos. |
+| StripePagoService | Titular/revisión/precio histórico/exclusión/replay; prepara intentos y operaciones durables; resultado mínimo autorizado y coordinación local de cierre/devolución única del aplicado. Usa autenticación, ImportePago, StripePagoRepository y BitacoraRepository; sin red bajo su transacción. |
+| StripeGateway | Única frontera SDK oficial: cuenta propia, Session/PI/Charge, expire/Refund/consultas y firma sobre bytes originales. Sin retries automáticos/URLs arbitrarias/red SQL; pruebas sustituyen su transporte. |
+| RecuperacionStripeService | Reclama operación con token/lease, llama Gateway fuera de SQL y aplica en otra transacción; ventana de clave, incertidumbre y localizadores. Lotes/scheduler exclusivos Stripe, no conciliador multiproveedor. |
+| EvidenciaStripeService | Coteja test/contexto/importes/monedas/referencias/estados; registra cobro único aplicado, conserva adicional no aplicado, verifica refund separado. Auditoría atómica y no degradación de éxitos. |
+| EventoStripeService | Firma SDK/inbox durable/deduplicación/huella; pista de correlación no concede permiso ni crea obligación. Consulta autoritativa posterior, pendiente de vínculo recuperable; no acuse antes de commit. |
+| StripePagoRepository | Persistencia Eloquent, orden Cita→obligación y queries específicas, advisory lock de recepción; reutiliza seis Models/DDL F2. Sin reglas clínicas ni cliente externo. |
+| CoordinacionFinancieraCitaService | Mantiene cancelación/reprogramación y delega preparación Stripe de cierre/refund, también del aplicado tardío; fallo del proveedor nunca revierte cancelación. |
+| Fronteras HTTP/configuración | StripePagoController/WebhookStripeController/IntentoStripeRequest; rutas humanas protegidas y receptor separado de api/web, Resources mínimos, errores centralizados, limiter y comando propios. |
+
+Verificación final281/3150, PostgreSQL aislado/commits reales/carrera Stripe+seis previas y SDK simulado. Sin Stripe real test/credenciales/producción/PayPal/React/activación habitual ni resto Fase6. No nuevos permisos ni estados asistenciales. Pendiente revisión antes de continuar.
+
+<a id="pagos-backend-fase3"></a>
+## Pagos — Fase 3 backend: reserva, asignación y consultas (2026-11-06)
+
+**Implementado/verificado localmente; incorporación apagada y CU-32/proveedores excluidos.** Detalle contractual/técnico y límites en [Fase3](pagos-fase3-backend.md), que actualiza el estado previsto en F1/F2 sin alterar RF/RN. Coordinación local de CU-15/16 inferior conservada.
+
+| Participante efectivo | Responsabilidad/colaboraciones |
+| --- | --- |
+| ReservaService/PropuestaReserva | Propuestas v2 con incorporación/precio cifrados al habilitar; corte revalidado solo antes de insertar, después de resolver replay. Reserva administrativa Cita+obligación+auditoría atómicas; propia sin obligación. PrecioCitaService colabora sin llamadas externas. |
+| PrecioCitaService (nuevo) | proponer(string,string):array; confirmar(string,string,array):array; emitir(Cita,Usuario,ImportePago,string,array):ObligacionPago interno; exigirHabilitacion():void. Usa autenticación/continuidad/planificación/CitaRepository/ObligacionPagoRepository/BitacoraRepository/PropuestaMonto. Cita→obligación y UUID de propuesta como PK/idempotencia, precio histórico único. |
+| ConsultaPagosService (nuevo) | consultar(string,array):array; autorización y vínculo propio/selección administrativa; Repository filtra recurso antes de cargarlo. Congela calculado_at, vencimiento derivado, colecciones reales. |
+| ResumenFinancieroCitaService (nuevo) | proyectar(array,string):array; proyección autorizada de situación/precio, sin datos a Médico ni permisos de pago. Historial/ConsultaCitaService y ReservaService reutilizan. |
+| ObligacionPagoRepository | Extiende consultas/listar/detalle/historial/devoluciones/paraRespuesta/crear/disponible y conserva métodos de coordinación. Con Eloquent, relaciones, paginación y filtros UTC6; no decisiones asistenciales ni proveedores. |
+| AgendaRepository | Joins financieros solo en historial y detalle autorizados; conserva proyección médica y CTE de snapshot/paginación. Compatibilidad sin esquema financiero cuando apagado. |
+| MontoCitaController/ConsultaPagosController (nuevos) | Frontera HTTP mínima; Requests cerrados y Resources explícitos, sesión/origen/CSRF/rol/throttle existentes. Sin Controllers de proveedores/webhook. |
+| DTOs/utils/config | MontoCitaRequest/ConsultaPagosRequest y Resources de obligación/intento/devolución; ImportePagoRule, PropuestaMonto, ImportePago.precio, config/pagos.php y excepción de trim monto_bob. Auxiliares, no Models ni clases de dominio React. |
+| BitacoraRepository | obligacionEmitida(Cita,ObligacionPago,Usuario,array):void; referencias locales/ejecutor real dentro de transacción. No tokens/importes clínicos/evidencia externa. |
+
+No nuevas entidades/tablas/DER ni migraciones. Precio/conversión/restricciones F2 intactos. Sin asignación a legado/canceladas ni precio libre al confirmar; tardía Atendida/Inasistencia permitida sin tocar estado. Consultas no crean hechos ni deuda; puede_iniciar_pago=false/revision_pago=null. Pruebas finales247/2799 correctas, incluidas seis carreras reales y rollback; primera dirigida detectó seis expectativas antiguas actualizadas por contrato. PostgreSQL aislado/public vacío y flagfalse; esquema antiguo ajeno conservado. Sintaxis47/Pint/autoload correctos. Sin render, integración externa/React/producción ni cierre del módulo financiero. Esperar revisión/Fase4 no iniciada.
+
+<a id="pagos-coordinacion-local-citas"></a>
+## Pagos — Coordinación local autorizada con CU-15/CU-16 (2026-11-05)
+
+**Adelanto local expresamente autorizado; no cierre de Fase3 ni resto de Fase6.** Emisión/asignación/consultas siguen pendientes. Sin nuevas rutas/tablas/migraciones, activación, proveedores o React.
+
+| Participante efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| GestionCitaService | Conserva autorización/disponibilidad/optimismo/locks. Captura CambioCita real y coordina finanzas antes de invalidar avisos/auditar en la misma transacción. Respuestas HTTP intactas. |
+| CoordinacionFinancieraCitaService (nuevo) | Constructor(ObligacionPagoRepository); coordinar(Cita,CambioCita): ?array. Exige transacción y correspondencia cambio/cita/estado. Omite legado; bloquea obligación después de Cita. Cancela exigibilidad con cambio/fecha real; reprograma vencimiento solo exigible/impagada. No toca precio ni cobros. |
+| ObligacionPagoRepository (nuevo) | porCitaBloqueada(string): ?ObligacionPago; tieneLiquidacion(ObligacionPago): bool; guardar(ObligacionPago): void. Eloquent/lockForUpdate y Cobro.aplicado, sin decisión de negocio ni emisión. |
+| BitacoraRepository | citaReprogramada/citaCancelada añaden ?array $finanzas=null. Evento existente persiste cambios_seguros.coordinacion_financiera: UUID local, CambioCita y antes/después de exigibilidad/vencimiento; ejecutor real. Sin precio ni contenido clínico. Proyección HTTP conserva lista permitida anterior; no expone automáticamente este bloque. |
+
+**Protocolo:** locks previos de gestión → Cita → obligación → avisos → auditoría → commit. Asignación futura debe bloquear Cita y revalidar no Cancelada; aplicadores futuros de cobro deben bloquear obligación antes de insertar aplicado. No se garantiza coordinación con escritores que eludan el protocolo. Sin obligación no crea deuda; sin incorporación ni consulta finanzas. Repeticiones PATCH conservan conflicto optimista, sin duplicar. Fallos de persistencia/auditoría revierten cita/cambio/obligación/avisos juntos. Cancelar conserva cobro preexistente y referencia para devolución futura, **sin crear devolución ni procesar pagos**.
+
+**Verificación:** batería dirigida única ImportePagoTest/PagosPersistenciaTest/ReservaIntegracionTest/GestionCitaIntegracionTest: **83 pruebas/1079 aserciones correctas**,17,314s/66MB, PHP8.5.11/PHPUnit12.5.40. Nueve casos nuevos: ambos roles × liquidada/no liquidada, incorporada sin obligación y cuatro fallos de auditoría/persistencia con rollback; regresión legada verifica ausencia de consultas financieras. FOR UPDATE observado en transacción PostgreSQL; sin carrera financiera multiproceso ni asignación todavía inexistente. PostgreSQL18.6 aislado comprobado pre/post, public0 tablas y migraciones solo bajo rollback. PowerShell devolvió1 por diagnóstico stderr de medición de reservas, pero PHPUnit informó OK. Sintaxis5/Pint/autoload sin scripts correctos; logs Temp/opencode/pagos-coordinacion-*. Sin render, cambios DER ni cierre global.
+
+<a id="pagos-backend-fase2"></a>
+## Pagos — Backend Fase 2: persistencia y aritmética exacta (2026-11-05)
+
+**Infraestructura implementada, no ejecución de CU-31–34 ni ampliación operativa de CU-14–16.** Fases 0–1 documentales conservadas; [diccionario y garantías](pagos-fase2-modelo.md), especificación y contratos son la referencia. Sin endpoints/Services/Repositories/adaptadores nuevos ni modificación de autenticación/React.
+
+| Participante efectivo | Responsabilidad y colaboración |
+| --- | --- |
+| Migración000040/Cita | Seis tablas financieras, incorporación default false e inmutable, integridad por contexto/obligación/importe y protección de evidencia. Cita.obligacionPago enlaza una obligación opcional; ocultar marca/relación evita exposición genérica. No crea deuda ni incorpora reservas actuales. |
+| ObligacionPago | Cita única, emisor real, precio/tasa/USD históricos, exigibilidad/vencimiento independientes y referencia de anulación. Relaciones a Cita/Usuario/CambioCita/Intento/Cobro; liquidacion filtra aplicado, no almacena un segundo indicador. |
+| IntentoPago/CobroPago | Intento enlaza iniciador/contexto/referencias/operaciones/eventos. Cobro conserva hechos múltiples, con aplicación única e incidencia de no aplicado; sin retorno del navegador ni autorización local que finja pago. |
+| DevolucionPago/OperacionPago | Devolución lógica única y total del aplicado; operaciones externas recuperables e idempotencia humana/SISTEMA, claves distintas y estados/leases durables. Relaciones coherentes con cobro/intento y referencia de cancelación; no dispatcher ni refund real. |
+| EventoPago | Recepción contextual deduplicada, huella/referencias originales inmutables, vínculo opcional, evidencia mínima cifrada y recuperación representable. No receptor/firma/acuse implementados. |
+| ImportePago | Valor puro readonly, entrada string exacta, rango/centavos BOB, 7:1 HALF_UP una vez, snapshot histórico y formatos Stripe integer/PayPal string sin float. InvalidArgumentException local; futura adaptación 422 pendiente. |
+
+Los seis Models son guarded, visibles solo por ID local y con casts explícitos; datos opcionales de solicitud/evidencia encrypted:array. El contexto se repite donde se necesita una UQ/FK compuesta, no como fuente monetaria independiente. No nuevas clases de dominio React ni tablas de tarifas/liquidaciones/incidencias genéricas. Bitacora/CambioCita siguen como colaboraciones futuras para eventos financieros atómicos; no se inventan métodos de auditoría operativos.
+
+**Límite de garantía:** SQL asegura UQ/FK/CHECK/slots y snapshots, pero no comprueba titularidad, firma, destinatario externo, cierre irreversible, cancelación asistencial válida de una devolución, transición coherente entre tablas ni trabajo efectivo tras una caída. Las futuras transacciones/Services y conciliación son obligatorias, con red fuera de locks; detalle en F2 §4. Cita anterior y reserva actual permanecen excluidas hasta activación autorizada posterior; true sin obligación representa pendiente de precio, no un sexto estado.
+
+**Verificación real:** batería dirigida única **74 pruebas/728 aserciones correctas**,13,232s/96MB, PHP8.5.11/PHPUnit12.5.40/PostgreSQL18.6. Dos archivos nuevos de pruebas + regresión ReservaIntegracion/GestionCitaIntegracion. Recorre699301 centavos BOB posibles, formatos/snapshots, restricciones SQL, legado previo al DDL, doble cobro, devoluciones/deduplicación/leases/idempotencia/cifrado/relaciones; reserva/replay/gestión existentes compatibles. `php -l`11 archivos/Pint/autoload sin scripts correctos; logs Temp/opencode. Entorno aislado local/propietario no privilegiado comprobado; public vacío pre/post, funciones propias ausentes al final y extensión preexistente conservada tras rollback. No base habitual migrada, down destructivo, multiproceso financiero, proveedor/webhooks/worker/frontend ni CU completo acreditados. DER/UML incremental actualizados; detenerse para revisión/autorización de Fase3.
+
 <a id="recordatorios-backend-fase3"></a>
 ## CU-28 — Backend Fase3: generación y preparación recuperable de despachos (2026-10-31)
 

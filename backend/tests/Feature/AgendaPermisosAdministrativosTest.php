@@ -105,7 +105,7 @@ class AgendaPermisosAdministrativosTest extends TestCase
             'Paciente' => ['citas.motivo_breve'],
             default => ['citas.motivo_breve', 'p.documento_identidad as paciente_documento_identidad', 'p.telefono as paciente_telefono'],
         };
-        $this->datos->shouldReceive('detalle')->once()->with('9223372036854775807', $ambito, $campos)->andReturn($this->fila);
+        $this->datos->shouldReceive('detalle')->once()->with('9223372036854775807', $ambito, $campos, $rol !== 'Médico')->andReturn($this->fila);
         $respuesta = $this->getJson('/api/citas/9223372036854775807')->assertOk()
             ->assertJsonPath('data.motivo_breve', 'Motivo ficticio')->assertJsonPath('data.id_cita', '9223372036854775807')
             ->assertDontSee('NO-EXPONER');

@@ -95,9 +95,17 @@ class AgendaRepository
             return $query->selectRaw('false AS incorporada_finanzas');
         }
 
-        return $query->leftJoin('obligaciones_pago as op', 'op.id_cita', '=', 'citas.id_cita')
+        $query->leftJoin('obligaciones_pago as op', 'op.id_cita', '=', 'citas.id_cita')
+            ->leftJoin('cobros_pago as cp', fn ($join) => $join->on('cp.id_obligacion', '=', 'op.id_obligacion')->where('cp.aplicado', true))
+            ->leftJoin('devoluciones_pago as dp', 'dp.id_cobro', '=', 'cp.id_cobro')
             ->addSelect(['citas.incorporada_finanzas', 'op.id_obligacion', 'op.centavos_bob', 'op.centavos_usd',
-                'op.tasa_numerador', 'op.tasa_denominador']);
+                'op.tasa_numerador', 'op.tasa_denominador', 'op.exigible', 'op.vencimiento_at',
+                'cp.id_cobro', 'cp.proveedor as proveedor_cobro', 'dp.estado as estado_devolucion']);
+        if (Schema::hasTable('recibos_academicos_pago')) {
+            $query->leftJoin('recibos_academicos_pago as rp', 'rp.id_cobro', '=', 'cp.id_cobro')->addSelect('rp.numero as numero_recibo');
+        }
+
+        return $query;
     }
 
     private function citasProyectadas(): EloquentBuilder

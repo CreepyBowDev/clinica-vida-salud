@@ -9,6 +9,22 @@ const exigir = condition => { if (!condition) throw new Error('No se pudo verifi
 const texto = value => typeof value === 'string' && value.length > 0;
 const instante = value => texto(value) && /Z$/.test(value) && Number.isFinite(Date.parse(value));
 const uuid = value => { exigir(esUuid(value)); return value; };
+export function reciboAcademico(v) {
+  if (v === null || v === undefined) return null;
+  exigir(typeof v.numero === 'string' && /^REC-ACA-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(v.numero));
+  return { numero: v.numero };
+}
+function situacionFinanciera(v) {
+  if (v === null) return null;
+  exigir(v && ['exigible', 'liquidada', 'vencida'].every(k => typeof v[k] === 'boolean')
+    && [null, 'Simulado', 'Externo'].includes(v.origen_liquidacion)
+    && [null, 'Pendiente', 'Procesando', 'Exitosa', 'Fallida', 'Incierta'].includes(v.devolucion)
+    && (v.liquidada === (v.origen_liquidacion !== null)) && (!v.vencida || (v.exigible && !v.liquidada)));
+  const recibo = reciboAcademico(v.recibo_academico);
+  exigir(!recibo || (v.liquidada && v.origen_liquidacion === 'Simulado'));
+  return { exigible: v.exigible, liquidada: v.liquidada, vencida: v.vencida,
+    origen_liquidacion: v.origen_liquidacion, devolucion: v.devolucion, recibo_academico: recibo };
+}
 export function precioPago(p) {
   exigir(p && ['monto_bob', 'monto_usd', 'tasa_bob_por_usd'].every(k => typeof p[k] === 'string' && /^(0|[1-9]\d*)\.\d{2}$/.test(p[k]))
     && p.moneda_original === 'BOB' && p.moneda_cobro === 'USD' && Number.isSafeInteger(p.centavos_bob) && Number.isSafeInteger(p.centavos_usd));
@@ -23,6 +39,7 @@ export function resumenFinanciero(v) {
     && typeof v.puede_asignar_monto === 'boolean' && (v.obligacion_id === null || esUuid(v.obligacion_id)));
   exigir(v.situacion_precio === 'Asignado' ? v.incorporada_finanzas && esUuid(v.obligacion_id) && v.precio : v.obligacion_id === null && v.precio === null);
   return { incorporada_finanzas: v.incorporada_finanzas, situacion_precio: v.situacion_precio,
+    ...(v.situacion_financiera !== undefined ? { situacion_financiera: situacionFinanciera(v.situacion_financiera) } : {}),
     puede_asignar_monto: v.puede_asignar_monto, obligacion_id: v.obligacion_id, precio: v.precio ? precioPago(v.precio) : null };
 }
 function devolucion(v) {
@@ -50,10 +67,13 @@ function obligacion(v, rol) {
    if (v.intento_actual !== null) exigir(esUuid(v.intento_actual?.id) && ['stripe', 'paypal', 'simulado'].includes(v.intento_actual.proveedor) && ESTADOS_INTENTO.includes(v.intento_actual.estado));
    if (v.simulacion) exigir(typeof v.simulacion.habilitada === 'boolean' && typeof v.simulacion.puede_iniciar === 'boolean'
      && (v.simulacion.revision === null || texto(v.simulacion.revision)));
-   if (v.intento_actual?.proveedor === 'simulado') exigir(['stripe', 'paypal'].includes(v.intento_actual.modalidad)
-     && ['completado', 'pendiente'].includes(v.intento_actual.escenario) && typeof v.intento_actual.aprobada === 'boolean');
+    if (v.intento_actual?.proveedor === 'simulado') exigir(['stripe', 'paypal'].includes(v.intento_actual.modalidad)
+      && ['completado', 'pendiente'].includes(v.intento_actual.escenario) && typeof v.intento_actual.aprobada === 'boolean');
+    const recibo = reciboAcademico(v.recibo_academico);
+    exigir(!recibo || (v.liquidada && v.origen_liquidacion === 'Simulado'));
    return { ...(v.simulacion ? { simulacion: rol === ROLES.PACIENTE ? v.simulacion : { habilitada: false, puede_iniciar: false, revision: null } } : {}),
-     ...(v.origen_liquidacion ? { origen_liquidacion: v.origen_liquidacion } : {}),
+      ...(v.origen_liquidacion ? { origen_liquidacion: v.origen_liquidacion } : {}),
+      recibo_academico: recibo,
      id: v.id, cita: { id_cita: v.cita.id_cita, codigo_cita: v.cita.codigo_cita, inicio_at: v.cita.inicio_at, estado: v.cita.estado },
     precio: precioPago(v.precio), emitida_at: v.emitida_at, vencimiento_at: v.vencimiento_at, exigible: v.exigible, liquidada: v.liquidada,
     vencida: v.vencida, operacion_en_verificacion: v.operacion_en_verificacion,
@@ -87,6 +107,34 @@ export async function consultarPagos({ tipo = 'obligaciones', id, rol, id_pacien
   if (tipo !== 'detalle') return pagina(v, tipo === 'historial' ? intento : x => obligacion(x, rol));
   const o = obligacion(v?.data, rol); exigir(o.id === id);
   return { ...o, intentos: pagina(v.data.intentos, intento), devoluciones: pagina(v.data.devoluciones, devolucion), calculado_at: v.meta?.calculado_at };
+}
+export async function descargarRecibo({ id, rol, id_paciente, numero }, signal) {
+  const params = ambito({ rol, id_paciente }), epoch = obtenerEpocaSesion();
+  reciboAcademico({ numero });
+  const vigente = () => { if (signal?.aborted || epoch !== obtenerEpocaSesion()) throw Object.assign(new Error('Descarga interrumpida.'), { code: 'SESSION_SUPERSEDED' }); };
+  let response;
+  try {
+    response = await api.get(`/pagos/obligaciones/${uuid(id)}/recibo`, { params, signal, responseType: 'blob',
+      sessionBound: true, sessionEpochExpected: epoch });
+  } catch (error) {
+    vigente();
+    // Axios entrega también los errores JSON como blob: nunca interpretar HTML o mostrar cuerpos técnicos.
+    const body = error.response?.data;
+    if (body instanceof Blob && body.size <= 16384 && body.type.includes('application/json')) {
+      try {
+        const parsed = JSON.parse(await body.text());
+        if (typeof parsed.error?.code === 'string') error.response.data = { error: { code: parsed.error.code } };
+      } catch { /* La interfaz usa siempre un mensaje seguro. */ }
+    }
+    vigente(); throw error;
+  }
+  vigente();
+  const blob = response.data;
+  exigir(response.status === 200 && blob instanceof Blob && blob.type.split(';')[0] === 'application/pdf'
+    && blob.size >= 100 && blob.size <= 2097152);
+  const cabecera = await blob.slice(0, 5).text();
+  vigente(); exigir(cabecera === '%PDF-');
+  return { blob, nombre: `${numero}.pdf`, epoch };
 }
 async function post(path, payload, headers = {}) {
   const epoch = obtenerEpocaSesion(), options = { sessionBound: true, sessionEpochExpected: epoch };

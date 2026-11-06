@@ -17,17 +17,17 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/** Recorrido académico local. No depende de gateways ni de evidencia de proveedores. */
+/** Recorrido académico sin gateways ni evidencia de proveedores. */
 class SimulacionPagoService
 {
     public function __construct(private StripePagoRepository $repo, private SimulacionPagoRepository $academico,
         private SeguridadInicioPagoService $seguridad, private AutenticacionService $auth,
-        private BitacoraRepository $bitacora, private DevolucionCancelacionService $devoluciones) {}
+        private BitacoraRepository $bitacora, private DevolucionCancelacionService $devoluciones,
+        private HabilitacionAcademicaService $habilitacion, private ReciboAcademicoService $recibos) {}
 
     public function habilitada(): bool
     {
-        return config('pagos.simulacion_habilitada') === true && app()->environment(['local', 'testing'])
-            && $this->academico->disponible();
+        return $this->habilitacion->permite() && $this->academico->disponible();
     }
 
     private function exigir(): void
@@ -99,7 +99,7 @@ class SimulacionPagoService
             $ahora = CarbonImmutable::now('UTC');
             $this->repo->guardar($i, ['id_intento' => (string) Str::uuid(), 'id_obligacion' => $o->getKey(),
                 'iniciado_por' => $actor->getKey(), 'origen' => 'Simulado', 'proveedor' => 'simulado',
-                'entorno' => 'local', 'cuenta_contexto' => 'academico', 'modalidad' => $d['modalidad'],
+                'entorno' => app()->environment('academic') ? 'academic' : 'local', 'cuenta_contexto' => 'academico', 'modalidad' => $d['modalidad'],
                 'escenario' => $d['escenario'], 'estado' => 'RequiereAccion', 'creado_en' => $ahora, 'actualizado_en' => $ahora]);
             $this->operacion($i, 'Crear', $actor, $d['clave'], $huella);
 
@@ -152,9 +152,10 @@ class SimulacionPagoService
                     $c = new CobroPago;
                     $uuid = (string) Str::uuid();
                     $this->repo->guardar($c, ['id_cobro' => $uuid, 'id_intento' => $i->getKey(), 'id_obligacion' => $o->getKey(),
-                        'proveedor' => 'simulado', 'entorno' => 'local', 'cuenta_contexto' => 'academico',
+                        'proveedor' => 'simulado', 'entorno' => $i->entorno, 'cuenta_contexto' => 'academico',
                         'referencia_cobro' => 'SIM-'.$uuid, 'centavos_usd' => $o->centavos_usd, 'aplicado' => true,
                         'confirmado_en' => $ahora, 'registrado_en' => $ahora]);
+                    $this->recibos->emitir($o, $i, $c);
                     $this->repo->guardar($i, ['estado' => 'Exitoso', 'actualizado_en' => $ahora]);
                 }
             }
@@ -169,7 +170,7 @@ class SimulacionPagoService
         $ahora = CarbonImmutable::now('UTC');
         $op = new OperacionPago;
         $this->repo->guardar($op, ['id_operacion' => (string) Str::uuid(), 'id_intento' => $i->getKey(),
-            'id_obligacion' => $i->id_obligacion, 'proveedor' => 'simulado', 'entorno' => 'local', 'cuenta_contexto' => 'academico',
+            'id_obligacion' => $i->id_obligacion, 'proveedor' => 'simulado', 'entorno' => $i->entorno, 'cuenta_contexto' => 'academico',
             'tipo' => $tipo, 'solicitada_por' => $actor->getKey(), 'clave_solicitud' => $clave, 'huella_solicitud' => $huella,
             'estado' => 'Exitosa', 'resultado_codigo' => $tipo === 'Cerrar' ? 'CIERRE_SIN_COBRO_VERIFICADO' : 'SIMULACION_LOCAL_REGISTRADA',
             'proxima_ejecucion_en' => $ahora, 'creada_en' => $ahora, 'actualizada_en' => $ahora]);

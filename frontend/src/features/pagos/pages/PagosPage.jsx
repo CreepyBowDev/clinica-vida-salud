@@ -21,6 +21,7 @@ import { esUuid, ESTADOS_INTENTO, PROVEEDORES, decimalVisible, situacionObligaci
 import PrecioPago from '../components/PrecioPago';
 import HistorialPagos, { DevolucionPago } from '../components/HistorialPagos';
 import OperacionPago from '../components/OperacionPago';
+import DescargarRecibo from '../components/DescargarRecibo';
 import '../../../styles/catalogs.css';
 import '../styles/pagos.css';
 
@@ -94,7 +95,8 @@ function Detalle({ scope, id, base }) {
     <PageHeading title="Detalle de obligación" description="Importes históricos y resultados registrados por el servidor. Pagar no confirma llegada ni atención." />
     {query.loading ? <QueryMessage loading title="Consultando obligación…" /> : query.failure ? <Alert><p>{query.failure.message}</p></Alert> : o && <>
       <section className="catalog-panel"><h2>Cita {o.cita.codigo_cita}</h2><p>Estado asistencial: {o.cita.estado}. Inicio: {formatearInstanteCita(o.cita.inicio_at)}.</p>
-        <p>Situación financiera: <strong>{situacionObligacion(o)}</strong>.</p><PrecioPago precio={o.precio} />
+         <p>Situación financiera: <strong>{situacionObligacion(o)}</strong>.</p><PrecioPago precio={o.precio} />
+         {o.recibo_academico && <DescargarRecibo id={o.id} {...scope} recibo={o.recibo_academico} />}
         <p>Emitida: {formatearInstanteCita(o.emitida_at)}. Vencimiento: {formatearInstanteCita(o.vencimiento_at)}.</p>
         {o.vencida && <p>Puede regularizarse sin recargos ni bloqueo asistencial, si el servidor habilita el pago.</p>}
         {o.operacion_en_verificacion && <Alert variant="warning"><p>Hay una operación en verificación. No inicies otro pago para despejarla.</p></Alert>}

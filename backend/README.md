@@ -1,5 +1,11 @@
 # Backend — Clínica Vida Salud
 
+## Instalación académica publicada y recibo PDF (2026-11-06)
+
+[Contrato/seguridad/instantánea/pruebas y operaciones propuestas](../docs/ai/pagos-academico-publicado-recibo.md). Nuevo entorno dedicado `academic` con declaración explícita/HTTPS/cookies seguras/proveedores apagados; **production sigue rechazado**. Defaults nuevos apagados, `.env` intacto. Migración42 creada, no aplicada habitualmente/remoto: permite contexto académico nuevo y recibos inmutables, atómicos con el cobro aplicado. Dompdf3.1.6 autorizado/lock actualizado, sin recursos remotos. GET/HEAD `/api/pagos/obligaciones/{uuid}/recibo`, titular/Administrador autorizado también al entregar PDF; no factura fiscal ni recibo retroactivo desde ficha mutable. Cancelación conserva original/devolución separada.
+
+Detalle real de cita proyecta liquidación/origen/recibo para titular/Administrador, sin nuevos permisos de Recepción/Médico. Verificación de esta entrega: backend182/2288/código0, inventarios aislados idénticos, qpdf0 sobre PDF sintético. Auditoría mantiene siete avisos Symfony previos, no resueltos fuera de alcance. **No sitio publicado verificado/corregido ni migración/activación/despliegue ejecutados.** Apartados siguientes conservan entregas anteriores y no revierten la ampliación.
+
 ## Pago académico simulado persistente (2026-11-06)
 
 Implementado para obligaciones elegibles de citas creadas por el sistema; no depende de `DEMO-CITA-001`. Contexto `simulado/local`, origen histórico explícito, referencia local SIM, mismos cobros/liquidación/consultas para titular y Administrador. Rutas académicas exclusivas del Paciente; transacción/idempotencia, aprobación PayPal sin cobro y captura humana separada, cierre sin cobro/devolución simulada al cancelar. Sin proveedores/mocks en código funcional ni éxito administrativo arbitrario.

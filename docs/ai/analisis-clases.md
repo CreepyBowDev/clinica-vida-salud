@@ -1,5 +1,13 @@
 # Análisis de clases — Clínica Vida Salud
 
+## Pagos — Instalación académica publicada y recibo PDF (2026-11-06)
+
+`HabilitacionAcademicaService` añade política explícita y cerrada para `academic`/HTTPS/cookies seguras/proveedores apagados; `production` nunca permite simulación. `SimulacionPagoService` conserva el libro financiero y emite mediante `ReciboAcademicoService`/`ReciboAcademicoRepository` la instantánea histórica mínima junto al cobro aplicado, dentro de la misma transacción. `ReciboAcademicoPago` y migración42 protegen unicidad por cobro, origen/aplicación, conversión y no modificación/borrado; no reclasifican historia. Identidad copiada al pagar, nunca inferida retrospectivamente de ficha mutable; pagos anteriores sin instantánea no reciben backfill.
+
+`ReciboAcademicoController`/`ReciboAcademicoRequest` sirven GET/HEAD privado; Service reutiliza autorización de `ConsultaPagosService` antes de entregar datos al renderer `ReciboAcademicoPdf` (Dompdf3.1.6 autorizado, fuentes/HTML locales, sin PHP/JS/red). `AgendaRepository`/`ResumenFinancieroCitaService` proyectan cobro/origen/devolución/recibo solo para titular/Administrador. Fronteras React `FinanzasCita`, `PagosPage` y `DescargarRecibo` muestran estado autoritativo y descargan blob autorizado con control de sesión/revocación; sin estado asistencial nuevo, pago delegado ni web storage.
+
+Backend dirigido182/2288/código0 e inventarios aislados idénticos; frontend438 con437 correctos/un fallo de ruta del arnés Admin corregido, revalidación17/17 correcta; build0, qpdf existente valida PDF sintético del renderer/código0. No sumar evidencia anterior ni afirmar aceptación remota/Chrome. [Contratos, archivos, pruebas, autorizaciones y publicación pendiente](pagos-academico-publicado-recibo.md). Sin cambios RF/RN/Word/PDF académicos/UML/DER por límite expreso del usuario.
+
 ## Pagos — Simulación académica persistente aprobada (2026-11-06)
 
 `SimulacionPagoController`/`SimulacionPagoRequest` delimitan JSON/rutas/idempotency key y delegan en `SimulacionPagoService`. Este exige entorno académico habilitado/sesión/titular/revisión de precio y estados; coordina inicio, aprobación, captura/confirmación y cierre sin cobro mediante transacciones/locks y bitácora. `SimulacionPagoRepository` consulta instalación/solicitudes; reutiliza primitivas comunes de `StripePagoRepository`, `SeguridadInicioPagoService`, Models financieros y `DevolucionCancelacionService`, sin gateways ni falsificar evidencia externa. `CoordinacionFinancieraCitaService` integra cierre/devolución simulada de cancelaciones reales; `CoordinacionCobroPagoService` no despacha intentos simulados como Stripe. Despacho externo con lista explícita.

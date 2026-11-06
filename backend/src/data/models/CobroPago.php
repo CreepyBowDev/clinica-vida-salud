@@ -44,4 +44,9 @@ class CobroPago extends Model
     {
         return $this->hasOne(DevolucionPago::class, 'id_cobro', 'id_cobro');
     }
+
+    public function recibo(): HasOne
+    {
+        return $this->hasOne(ReciboAcademicoPago::class, 'id_cobro', 'id_cobro');
+    }
 }

@@ -21,7 +21,9 @@ class ObligacionPagoRepository
 
     private function consulta(): Builder
     {
-        return ObligacionPago::query()->with(['cita', 'liquidacion', 'intentos' => fn ($q) => $q->whereIn('estado', self::ACTIVOS)
+        return ObligacionPago::query()->with(['cita', 'liquidacion',
+            ...(Schema::hasTable('recibos_academicos_pago') ? ['liquidacion.recibo'] : []),
+            'intentos' => fn ($q) => $q->whereIn('estado', self::ACTIVOS)
             ->orderByDesc('creado_en')->orderByDesc('id_intento')->limit(1)])
             ->withExists(['liquidacion as liquidada', 'intentos as operacion_en_verificacion' => fn ($q) => $q
                 ->where(fn ($i) => $i->whereIn('estado', self::ACTIVOS)

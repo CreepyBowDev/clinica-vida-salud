@@ -319,8 +319,152 @@ class PagosSimulacionTest extends TestCase
             }
             $this->assertSame(1, DB::table('cobros_pago')->count());
             $this->assertSame(1, DB::table('operaciones_pago')->where('tipo', 'Confirmar')->count());
+            $this->assertSame(1, DB::table('recibos_academicos_pago')->count());
         } finally {
             foreach ($processes as [$p, $pipes]) { foreach ($pipes as $pipe) { fclose($pipe); } proc_close($p); }
         }
+    }
+
+    private function recibo(array &$cookies, string $query = ''): \Illuminate\Testing\TestResponse
+    {
+        return $this->navegador($cookies, 'GET', '/api/pagos/obligaciones/'.$this->o.'/recibo'.$query);
+    }
+
+    public function test_receipt_is_atomic_historical_and_shared_with_appointment_and_admin(): void
+    {
+        $this->recibo($this->cookies)->assertNotFound();
+        $this->assertSame(0, DB::table('recibos_academicos_pago')->count());
+        $i = $this->iniciar()->assertCreated()->json('data.id');
+        $this->recibo($this->cookies)->assertNotFound();
+        $key = (string) Str::uuid();
+        $this->accion($i, 'confirmar', $key)->assertOk();
+        $this->accion($i, 'confirmar', $key)->assertOk();
+        $snapshot = (array) DB::table('recibos_academicos_pago')->first();
+        $numero = $snapshot['numero'];
+        $this->assertSame('REC-ACA-'.DB::table('cobros_pago')->value('id_cobro'), $numero);
+        $this->assertSame(704, $snapshot['centavos_bob']); $this->assertSame(101, $snapshot['centavos_usd']);
+        $this->assertSame(7, $snapshot['tasa_numerador']);
+        $this->assertSame('stripe', $snapshot['modalidad']);
+        $this->detalle()->assertOk()->assertJsonPath('data.recibo_academico.numero', $numero);
+        $this->navegador($this->cookies, 'GET', '/api/citas/'.$this->cita)->assertOk()
+            ->assertJsonPath('data.situacion_financiera.liquidada', true)
+            ->assertJsonPath('data.situacion_financiera.origen_liquidacion', 'Simulado')
+            ->assertJsonPath('data.situacion_financiera.recibo_academico.numero', $numero)
+            ->assertJsonPath('data.estado', 'Programada');
+        DB::table('pacientes')->where('id_paciente', $this->resources['patient'])->update(['nombres' => 'Nombre posterior ficticio']);
+        CarbonImmutable::setTestNow('2026-11-01T11:05:00Z');
+        $cookies = $this->csrfAuth(); $this->loginAuth($cookies, $this->usuario)->assertOk();
+        $pdf = $this->recibo($cookies)->assertOk()->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'attachment; filename="'.$numero.'.pdf"')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->assertStringContainsString('no-store', $pdf->headers->get('Cache-Control'));
+        $bytes = $pdf->getContent();
+        $this->assertStringStartsWith('%PDF-', $bytes);
+        $this->assertMatchesRegularExpression('/startxref\s+([0-9]+)\s+%%EOF\s*$/', $bytes);
+        preg_match('/startxref\s+([0-9]+)\s+%%EOF/', $bytes, $xref);
+        $this->assertSame('xref', substr($bytes, (int) $xref[1], 4));
+        $this->assertGreaterThan(1000, strlen($bytes));
+        $this->recibo($cookies)->assertOk();
+        $admin = $this->usuarioAuth(); $adminCookies = $this->csrfAuth(); $this->loginAuth($adminCookies, $admin)->assertOk();
+        $this->recibo($adminCookies)->assertUnprocessable();
+        $this->recibo($adminCookies, '?id_paciente='.$this->resources['patient'])->assertOk();
+        $this->recibo($adminCookies, '?id_paciente=9223372036854775807')->assertNotFound();
+        $this->navegador($adminCookies, 'GET', '/api/citas/'.$this->cita)->assertOk()
+            ->assertJsonPath('data.situacion_financiera.recibo_academico.numero', $numero);
+        $this->assertSame($snapshot, (array) DB::table('recibos_academicos_pago')->first());
+        $this->assertSame(1, DB::table('cobros_pago')->count());
+        $this->assertSame(1, DB::table('recibos_academicos_pago')->count());
+    }
+
+    #[DataProvider('roles')]
+    public function test_receipt_download_checks_role_resource_and_closed_input(string $rol): void
+    {
+        $i = $this->iniciar()->assertCreated()->json('data.id'); $this->accion($i, 'confirmar')->assertOk();
+        $this->recibo($this->cookies, '?id_paciente='.$this->resources['patient'])->assertUnprocessable();
+        $this->recibo($this->cookies, '?extra=1')->assertUnprocessable();
+        $other = $this->usuarioAuth($rol); $cookies = $this->csrfAuth(); $this->loginAuth($cookies, $other)->assertOk();
+        $status = match ($rol) { 'Paciente' => 404, 'Administrador' => 200, default => 403 };
+        $this->recibo($cookies, $rol === 'Administrador' ? '?id_paciente='.$this->resources['patient'] : '')->assertStatus($status);
+        if ($rol === 'Recepcionista') {
+            $r = $this->navegador($cookies, 'GET', '/api/citas/'.$this->cita)->assertOk();
+            $this->assertArrayNotHasKey('situacion_financiera', $r->json('data'));
+        }
+    }
+
+    public function test_failed_receipt_write_rolls_back_payment_and_can_be_recovered(): void
+    {
+        $i = $this->iniciar()->assertCreated()->json('data.id');
+        $repo = \Mockery::mock(\Clinica\data\repositories\pagos\ReciboAcademicoRepository::class)->makePartial();
+        $repo->shouldReceive('crear')->once()->andThrow(new \RuntimeException('Fallo ficticio de almacenamiento'));
+        $this->app->instance(\Clinica\data\repositories\pagos\ReciboAcademicoRepository::class, $repo);
+        $key = (string) Str::uuid();
+        $this->accion($i, 'confirmar', $key)->assertStatus(500);
+        $this->assertSame(0, DB::table('cobros_pago')->count());
+        $this->assertSame(0, DB::table('recibos_academicos_pago')->count());
+        $this->detalle()->assertOk()->assertJsonPath('data.liquidada', false);
+        $this->app->forgetInstance(\Clinica\data\repositories\pagos\ReciboAcademicoRepository::class);
+        $this->accion($i, 'confirmar', $key)->assertOk()->assertJsonPath('data.liquidada', true);
+        $this->assertSame(1, DB::table('recibos_academicos_pago')->count());
+    }
+
+    public function test_receipt_is_immutable_and_cancellation_preserves_original_with_separate_refund(): void
+    {
+        $i = $this->iniciar('paypal')->assertCreated()->json('data.id');
+        $this->accion($i, 'aprobar')->assertOk();
+        $this->recibo($this->cookies)->assertNotFound();
+        $this->accion($i, 'capturar')->assertOk();
+        $snapshot = (array) DB::table('recibos_academicos_pago')->first();
+        foreach (['update', 'delete'] as $action) {
+            try {
+                DB::transaction(fn () => $action === 'delete' ? DB::table('recibos_academicos_pago')->delete()
+                    : DB::table('recibos_academicos_pago')->update(['nombre_titular' => 'Otro ficticio']));
+                $this->fail('El recibo debe ser inmutable.');
+            } catch (\Illuminate\Database\QueryException $e) { $this->assertSame('23514', $e->errorInfo[0]); }
+        }
+        $admin = $this->usuarioAuth(); $cookies = $this->csrfAuth(); $this->loginAuth($cookies, $admin)->assertOk();
+        $vista = $this->navegador($cookies, 'GET', '/api/citas/'.$this->cita.'/gestion')->assertOk()->json('data');
+        $this->navegador($cookies, 'PATCH', '/api/citas/'.$this->cita.'/cancelacion',
+            ['version_programacion_original' => $vista['version_programacion'], 'actualizada_en_original' => $vista['actualizada_en'],
+                'motivo' => 'Cancelación ficticia'])->assertOk();
+        $this->navegador($cookies, 'GET', '/api/citas/'.$this->cita)->assertOk()
+            ->assertJsonPath('data.situacion_financiera.exigible', false)
+            ->assertJsonPath('data.situacion_financiera.devolucion', 'Exitosa')
+            ->assertJsonPath('data.situacion_financiera.recibo_academico.numero', $snapshot['numero']);
+        config(['pagos.simulacion_habilitada' => false]);
+        $this->recibo($this->cookies)->assertOk(); // Leer historia no depende de habilitar nuevos pagos.
+        $this->assertSame($snapshot, (array) DB::table('recibos_academicos_pago')->first());
+    }
+
+    public function test_academic_installation_is_explicit_fails_closed_and_production_never_allows_it(): void
+    {
+        $this->app['env'] = 'academic';
+        $service = app(SimulacionPagoService::class);
+        $this->assertFalse($service->habilitada());
+        $config = ['pagos.academico.instalacion' => true, 'pagos.academico.origen' => 'https://academico.example.test',
+            'cors.allowed_origins' => ['https://academico.example.test'], 'app.debug' => false,
+            'session.secure' => true, 'session.http_only' => true, 'pagos.stripe.habilitado' => false, 'pagos.paypal.habilitado' => false];
+        config($config); $this->assertTrue($service->habilitada());
+        foreach (['pagos.academico.instalacion' => false, 'pagos.academico.origen' => 'http://academico.example.test',
+            'cors.allowed_origins' => [], 'app.debug' => true, 'session.secure' => false, 'session.http_only' => false,
+            'pagos.stripe.habilitado' => true, 'pagos.paypal.habilitado' => true, 'pagos.simulacion_habilitada' => false] as $key => $value) {
+            config([$key => $value]); $this->assertFalse($service->habilitada(), $key);
+            config([...$config, 'pagos.simulacion_habilitada' => true]);
+        }
+        foreach (['production', 'staging', 'preview'] as $env) {
+            $this->app['env'] = $env; $this->assertFalse($service->habilitada(), $env);
+        }
+        $this->app['env'] = 'academic';
+        $auth = \Mockery::mock(\Clinica\business\services\usuarios\AutenticacionService::class);
+        $auth->shouldReceive('exigirSesionNormal')->andReturn($this->usuario);
+        $this->app->instance(\Clinica\business\services\usuarios\AutenticacionService::class, $auth);
+        $service = app(SimulacionPagoService::class);
+        $revision = $service->elegibilidad(ObligacionPago::findOrFail($this->o), (string) $this->usuario->getKey())['revision'];
+        $i = $service->iniciar(['objetivo' => $this->o, 'clave' => (string) Str::uuid(), 'revision' => $revision,
+            'modalidad' => 'stripe', 'escenario' => 'completado']);
+        $service->actuar(['objetivo' => $i['id'], 'clave' => (string) Str::uuid()], 'confirmar');
+        $this->assertSame('academic', DB::table('intentos_pago')->value('entorno'));
+        $this->assertSame('academic', DB::table('cobros_pago')->value('entorno'));
+        $this->assertSame(['academic'], DB::table('operaciones_pago')->distinct()->pluck('entorno')->all());
+        $this->assertSame(1, DB::table('recibos_academicos_pago')->count());
     }
 }

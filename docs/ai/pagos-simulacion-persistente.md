@@ -1,5 +1,7 @@
 # Pagos académicos simulados con persistencia — 2026-11-06
 
+**Ampliación posterior aprobada:** [sitio académico dedicado y recibo PDF](pagos-academico-publicado-recibo.md). El código admite `academic` con declaración explícita/HTTPS/cookies seguras/proveedores apagados, manteniendo rechazo incondicional de `production`; exige también migración42/recibos. Dompdf autorizado; instantánea y recibo atómicos con el cobro aplicado, detalle real de cita con situación financiera. No migración/activación habitual o remota ni despliegue ejecutados; estado del esquema publicado desconocido. Las restricciones local/testing y evidencias inferiores conservan la entrega anterior, no limitan esta decisión posterior.
+
 ## Decisión y límites
 
 Ampliación académica expresamente aprobada por el usuario, no exigencia del examen. Sustituye la opción A y la restricción exclusivamente visual para las obligaciones elegibles de citas creadas mediante el sistema. No sustituye los proveedores externos ni acredita Stripe/PayPal. La fixture `DEMO-CITA-001` permanece exclusivamente en `/pagos/demostracion`; el nuevo recorrido no utiliza su código ni importe.

@@ -43,6 +43,8 @@ class ObligacionPagoResource extends JsonResource
             'exigible' => $o->exigible, 'liquidada' => $liquidada,
             'origen_liquidacion' => $o->relationLoaded('liquidacion') && $o->liquidacion ? ($o->liquidacion->proveedor === 'simulado' ? 'Simulado' : 'Externo') : null,
             'simulacion' => $simulacion,
+            'recibo_academico' => $o->relationLoaded('liquidacion') && $o->liquidacion?->relationLoaded('recibo')
+                && $o->liquidacion->recibo ? ['numero' => $o->liquidacion->recibo->numero] : null,
             'vencida' => $o->exigible && ! $liquidada && $ahora->greaterThanOrEqualTo($o->vencimiento_at),
             'operacion_en_verificacion' => (bool) ($o->operacion_en_verificacion ?? false),
             ...$elegibilidad,

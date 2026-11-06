@@ -3,6 +3,11 @@
 return [
     // Requiere autorización de activación independiente; nunca habilita producción.
     'simulacion_habilitada' => env('PAGOS_SIMULACION_HABILITADA', false),
+    // Declaración de instalación dedicada; no convierte production en un entorno académico.
+    'academico' => [
+        'instalacion' => env('PAGOS_ACADEMICO_INSTALACION', false),
+        'origen' => env('PAGOS_ACADEMICO_ORIGEN'),
+    ],
     // Solo afecta propuestas/reservas nuevas. Nunca reclasifica citas existentes.
     'incorporacion_habilitada' => env('PAGOS_INCORPORACION_HABILITADA', false),
     'paypal' => [

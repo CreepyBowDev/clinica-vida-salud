@@ -4,6 +4,7 @@ use Clinica\presentation\controllers\pagos\ConsultaPagosController;
 use Clinica\presentation\controllers\pagos\MontoCitaController;
 use Clinica\presentation\controllers\pagos\PagoController;
 use Clinica\presentation\controllers\pagos\SimulacionPagoController;
+use Clinica\presentation\controllers\pagos\ReciboAcademicoController;
 use Clinica\presentation\middlewares\ExigirRol;
 use Clinica\presentation\middlewares\ExigirSesionNormal;
 use Clinica\presentation\middlewares\VerificarCuentaHabilitada;
@@ -30,5 +31,6 @@ Route::middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesio
     ExigirRol::class.':Administrador,Paciente', 'throttle:60,1'])->group(function (): void {
         Route::get('pagos/obligaciones', [ConsultaPagosController::class, 'obligaciones']);
         Route::get('pagos/obligaciones/{obligacion}', [ConsultaPagosController::class, 'detalle']);
+        Route::get('pagos/obligaciones/{obligacion}/recibo', [ReciboAcademicoController::class, 'descargar']);
         Route::get('pagos/historial', [ConsultaPagosController::class, 'historial']);
     });

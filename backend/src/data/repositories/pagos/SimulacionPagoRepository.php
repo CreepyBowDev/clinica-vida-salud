@@ -9,7 +9,8 @@ class SimulacionPagoRepository
 {
     public function disponible(): bool
     {
-        return Schema::hasColumn('intentos_pago', 'origen');
+        return Schema::hasColumns('intentos_pago', ['origen', 'modalidad', 'escenario', 'aprobada_en'])
+            && Schema::hasTable('recibos_academicos_pago');
     }
 
     public function solicitud(string $intento, string $actor, string $clave): ?OperacionPago

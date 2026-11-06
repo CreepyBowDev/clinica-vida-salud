@@ -1,5 +1,11 @@
 # Frontend — Clínica Vida Salud
 
+## Situación financiera de cita y recibo académico PDF (2026-11-06)
+
+`FinanzasCita` muestra en el detalle real «Pagada — simulación académica» solo a partir del cobro aplicado informado por API, con origen y devolución separados. Titular y Administrador autorizado descargan el mismo recibo desde cita u obligación mediante `DescargarRecibo`; blob/nombre seguro/control de sesión/revocación/errores JSON binarios. Médico/Recepción sin descarga ni nuevos permisos financieros. Sin rediseño ni cambios a Pagar/formularios/Source Sans3/tokens/MainLayout, sin web storage.
+
+[Backend42/Dompdf/configuración académica dedicada/pruebas y publicación pendiente](../docs/ai/pagos-academico-publicado-recibo.md). Frontend dirigido438:437 correctos/un fallo de arnés Admin que abría Mis citas; corregido al detalle compartido y revalidado el archivo17/17/código0. Build0/chunk>500kB previo. Sin nueva aceptación Chrome ni sitio publicado inspeccionado. Backend/API/esquema/configuración compatibles y operaciones autorizadas son imprescindibles; **no basta desplegar frontend**. Se conserva rechazo de producción real; no se ejecutó migración/configuración/despliegue. Evidencias inferiores son históricas.
+
 ## Pagar — simulación académica persistente (2026-11-06)
 
 Nueva `/pagos/obligaciones/:id/pagar`, solo titular: carga precio/obligación desde Laravel, formularios representativos precargados/editables, etiquetas naturales, validación/foco/revisión, aviso visible de simulación/no datos reales. No Checkout/autenticación auténticos; tarjeta/clave/correo ficticios no se envían. Inicio persistido, retorno sin éxito, confirmación local explícita; PayPal aprobación distinta de captura humana revisada. Pendiente sin polling/cierre sin cobro. «Pagada — simulación académica» solo tras reconsulta del backend; recuperación tras recarga y consulta compartida con Administrador de solo lectura, historial con origen explícito.

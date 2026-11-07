@@ -1,14 +1,16 @@
 # Diagrama entidad-relación — Clínica Vida Salud
 
-## Incremento Pagos Fase 2 — Infraestructura (2026-11-05)
+## Incremento Pagos — Persistencia acumulada 000040–000042 (2026-11-07)
 
-Migración propia **000040**: seis tablas financieras nuevas, `citas.incorporada_finanzas` y claves/índices/funciones de integridad. Aplicada solo en transacciones PostgreSQL aisladas con rollback; base habitual sin migrar. Diccionario exacto, nulabilidad, contextos, índices y límites: [pagos-fase2-modelo.md](pagos-fase2-modelo.md) §§1–4 y DDL. No tarifas, tabla de liquidaciones ni estado Vencida; Paciente deriva de Cita. Los censos gráficos inferiores conservan sus fechas, no describen este incremento.
+**Esquema definido por el código, no inspección de una base desplegada:** contraste estático de las 42 migraciones propias en `backend/src/data/database/migrations/` y los 36 modelos de `backend/src/data/models/` (sessions usa el manejador nativo). Acumulado: **37 tablas, 386 columnas y 70 FK SQL**, incluidas las compuestas como una restricción cada una. Se conserva el alcance técnico anterior: sessions, controles de acceso, bitácora y outboxes sí; repositorio Artisan `migrations` y fixture `infrastructure_probe` no. No tablas de tarifas, liquidaciones, historia clínica ni reportes; no estado persistido Vencida ni columnas calculadas del API.
+
+**000040** crea seis tablas financieras, añade `citas.incorporada_finanzas` y UQ de soporte en citas/cambios_cita. **000041** añade origen/modalidad/escenario/aprobación de intentos y modifica restricciones de simulación/operaciones/cobros. **000042** amplía el contexto simulado a local/academic, añade UQ compuesta en cobros y crea recibos académicos inmutables. Diccionario integrado en §§3.31–3.37; FK exactas en §4. Las cifras inferiores fechadas son antecedentes, no censos vigentes. [pagos-fase2-modelo.md](pagos-fase2-modelo.md) conserva el detalle histórico de 000040, no sustituye las dos migraciones posteriores.
 
 ```mermaid
 erDiagram
     citas ||--o| obligaciones_pago : "incorporada true, FK compuesta"
     usuarios ||--o{ obligaciones_pago : emite
-    cambios_cita o|--o{ obligaciones_pago : anulacion_misma_cita
+    cambios_cita o|--o| obligaciones_pago : anulacion_misma_cita
     obligaciones_pago ||--o{ intentos_pago : admite
     usuarios ||--o{ intentos_pago : inicia
     intentos_pago ||--o{ cobros_pago : registra
@@ -20,11 +22,13 @@ erDiagram
     cobros_pago o|--o{ operaciones_pago : vinculo_devolucion
     usuarios o|--o{ operaciones_pago : solicita_o_sistema
     intentos_pago o|--o{ eventos_pago : vinculo_opcional
+    cobros_pago ||--o| recibos_academicos_pago : "aplicado simulado, FK compuesta"
+    pacientes ||--o{ recibos_academicos_pago : titular_capturado
 ```
 
-Marca default false e inmutable: cita anterior y reserva actual sin activación quedan NoIncorporada; true sin obligación sería PendienteAsignacion. UQ obligación/cita; FK compuesta exige incorporación. Precio/tasa/autoría históricos inmutables; centavos/tasa 7:1/monedas validados en SQL. Slots parciales de intento y operación por obligación; UQ contextual de referencias/eventos; una liquidación aplicada admite otros cobros con incidencia; devolución total única del aplicado. Contextos cruzados rechazados por FK compuestas; recepción original/cobros y evidencia de las seis tablas protegidos frente a mutación/borrado según DDL. Nada de esto acredita firma, cierre seguro, autorización, aplicación transaccional ni recuperación externa: ver límites técnicos §4. Los estados asistenciales existentes permanecen intactos.
+Marca default false e inmutable: NoIncorporada y PendienteAsignacion son proyecciones, no columnas. UQ obligación/cita; FK compuesta exige incorporación true, pero una cita incorporada puede no tener obligación. Precio/tasa/autoría históricos inmutables; centavos/tasa 7:1/monedas validados en SQL. Slots parciales de intento y operación por obligación; UQ contextual de referencias/eventos; un cobro aplicado admite otros con incidencia; devolución total única del aplicado. El extremo 0..1 de obligación por cambio de anulación deriva de la FK a la misma cita más UQ(id_cita), no de una UQ aislada en id_cambio_anulacion. El dibujo agrupa FK coincidentes entre tablas; §4 cuenta cada restricción real. Los estados asistenciales permanecen intactos. La persistencia no acredita por sí sola autorización, firma ni entrega/recuperación externa.
 
-Verificación dirigida: **74 pruebas/728 aserciones**, incluyendo importe, persistencia y regresión de reserva/gestión. Esquema public inicial/final vacío, funciones propias retiradas por rollback, extensión preexistente conservada. Sin down destructivo, render gráfico, prueba financiera multiproceso ni migración habitual/remota acreditados. Fase 3 requiere autorización independiente.
+**Evidencia histórica de Fase 2:** 74 pruebas/728 aserciones, según el cierre anterior; no reejecutadas en esta revisión documental ni extrapoladas a 000041/000042. Esta actualización no ejecuta migraciones, pruebas con base de datos ni operaciones de proveedores, y no acredita aplicación habitual/remota.
 
 **CU-28 Fase3 (2026-10-31), sin cambio de esquema:** generación usa Recordatorio/UQ(cita,version_programacion) y prepara envios_recordatorio_push/UQ(aviso,suscripción) de000039; conserva destinatario/versiones capturados y estado Pendiente/intentos0 sin inferir entrega. Cambios de estado/preferencia/vigencia/programación invalidan aviso o descartan Pendientes según reglas, sin borrar historia/reabrir terminales. Solo se relaciona cita/ubicación vigente, no se agregan columnas clínicas/snapshots de ubicación ni tabla jobs. Aviso/auditoría/outbox inicial atómicos; barrido recupera faltantes autorizados. Continúa30 entidades/272 atributos/51 FK, fuentes gráficas/000038/000039 intactas;79/950 dirigidas con SQL aislado/inventario pre/post idéntico, contexto §17.186/README/análisis. No base habitual migrada, dispatcher o entrega acreditados.
 
@@ -47,13 +51,13 @@ Verificación dirigida: **74 pruebas/728 aserciones**, incluyendo importe, persi
 > **Proyecto:** Sistema Web para la Gestión de Citas Médicas para la Clínica Vida Salud  
 > **Fuente estructural primaria:** `DER_Clinica_Vida_Salud_Reorganizado_Corregido(2).drawio` (archivo recibido, **dos pestañas**, **28 entidades**, **239 atributos** y **43 relaciones gráficas**)  
 > **Referencia académica:** `Clinica_Vida_Salud_Coherencia_Actualizada(2).pdf` (117 páginas) y enunciado oficial del Segundo Parcial de Ingeniería de Requisitos  
-> **Alcance:** especificación del modelo lógico, diseño físico y guía para modelos Eloquent, migraciones, seeders y validaciones. **El diagrama por sí solo no acredita implementación:** los avances comprobados se registran por fase en §6.6–§6.22. Esquema con migración 000035: **28 entidades, 244 atributos y 43 relaciones**; la fuente original de 239 atributos se conserva como antecedente.
+> **Alcance vigente:** persistencia implementada en las definiciones acumuladas de migraciones hasta 000042, contrastada con Eloquent. Inventario/diccionario/FK de §§2–4 describen ese código; las guías y evidencias fechadas de §§5–7 se conservan como antecedentes y no añaden entidades previstas al esquema. **No acredita aplicación ni inspección de una base desplegada.** La fuente Draw.io de 28 entidades/239 atributos/43 conectores se conserva como antecedente, no como censo actual.
 
 > **Incremento de laboratorio Fase 2 (2026-10-30, §6.23):** migración aditiva 000036 diseñada/implementada para autor de solicitud: **28 entidades, 245 atributos y 44 FK** contando la nueva creada_por → Usuario. Aplicación/verificación solo en tests aislados; no se afirma migrada la base habitual. Las cifras anteriores conservan su referencia histórica a 000035.
 
 ## 1. Propósito, precedencia y reglas de uso
 
-Este documento permite que OpenCode traduzca el **DER corregido** a la base de datos PostgreSQL y a la capa de datos Laravel **sin inventar requisitos**. Contiene un inventario fiel de los atributos que figuran en Draw.io, sus nulabilidades, claves y catálogos, además de las reglas recogidas en la segunda pestaña del mismo archivo. La ampliación posterior aprobada de `TokenAcceso.proposito` se distingue expresamente en §§3.4 y 6.15. Las guías de implementación pendientes se distinguen de los avances verificados por fase.
+Este documento conserva la organización del **DER corregido** y representa el esquema físico acumulado definido en el software, sin inventar requisitos. El diccionario integra las adiciones efectivas y precisa las unicidades normalizadas, nulabilidades y FK de las migraciones; los tipos lógicos originales se concretan en los apartados físicos de §6. Las guías históricas no prueban ejecución actual ni incorporan persistencia futura. La ampliación de `TokenAcceso.proposito` se distingue en §§3.4 y 6.15.
 
 **Orden de autoridad:** (1) enunciado oficial del examen para RF01–RF13 y RN01–RN14; (2) decisiones funcionales aprobadas más recientes; (3) documento académico vigente; (4) DER corregido para el esquema lógico; (5) documentación técnica interna; (6) implementación existente, que es evidencia del estado del código, pero no autoriza cambiar los requisitos. Las decisiones aprobadas recogidas en los documentos funcionales `docs/ai/` conservan la prioridad de su fuente; no quedan subordinadas al DER por su ubicación. Ante una contradicción, **detener el cambio afectado, documentar el conflicto y pedir una decisión**. No inventar tablas, relaciones, reglas ni permisos para solucionarlo unilateralmente.
 
@@ -61,39 +65,38 @@ Esta revisión consolida las aclaraciones del modelo lógico sin aprobar decisio
 
 El examen requiere PHP y PostgreSQL, con conexión por PDO/`pdo_pgsql` o equivalente aprobado. La solución del proyecto utilizará Laravel (Eloquent y migraciones), React y notificaciones internas. **No se permite añadir nuevos roles, estados de citas, RF/RN oficiales ni CU.** Los módulos de consulta clínica, laboratorio, seguridad ampliada y recordatorios son decisiones aprobadas del proyecto, no nuevos requisitos literales del enunciado.
 
-**Alcance excluido:** pagos reales/producción, farmacia, inventario, telemedicina, múltiples sedes y recordatorios por correo, SMS o WhatsApp. **Excepción aprobada el 2026-11-05:** Pagos académicos CU-31–34, Stripe test/PayPal Sandbox; incremento físico Fase 2 superior, sin activación operativa. **Excepción aprobada el 2026-10-30:** CU-28 añade Web Push opcional en dispositivos compatibles autorizados, conservando el aviso interno; no app nativa ni garantía de encender pantalla. La clínica atiende presencialmente en una sede con varios consultorios.
+**Alcance excluido:** pagos reales/producción, farmacia, inventario, telemedicina, múltiples sedes y recordatorios por correo, SMS o WhatsApp. **Ampliaciones aprobadas:** Pagos académicos CU-31–34 (2026-11-05), simulación persistente e instalación academic/recibo (2026-11-06; `pasarela-pagos.md`, notas iniciales), con persistencia 000040–000042; Web Push opcional CU-28 (2026-10-30), con persistencia 000038/000039. No se acredita activación operativa por documentar tablas. La clínica atiende presencialmente en una sede con varios consultorios.
 
-**Impacto de CU-28/Web Push pendiente de diseño (§17.183):** las suscripciones por dispositivo, su vinculación/revocación y el seguimiento seguro de intentos necesitan diseño antes de implementar. **No se agregan tablas/atributos/FK ni se afirma soporte Web Push con el DER actual**; no se modifica ninguna fuente gráfica o migración por esta aprobación. El aviso Recordatorio persistido no equivale a suscripción ni a prueba de recepción push. Conserva esquema efectivo previo000037/28 entidades/246 atributos/45 FK; la ampliación física futura debe aprobarse y contrastarse con migraciones reales.
-
-**Diseño lógico F1 backend CU-28 (§17.184), todavía no migrado:** conservar Recordatorio/UQ(id_cita,version_programacion). Proponer **suscripciones_push** (PK propia, instalación lógica resumida única, endpoint resumido único/cifrado y claves cifradas, FK Usuario/Paciente restrictivas, versión de autorización positiva y fechas de alta/revocación/caducidad) y **envios_recordatorio_push** (FK Recordatorio/SuscripcionPush y Usuario/Paciente destinatarios capturados, versión autorizada original, UQ aviso/suscripción, estado técnico/intentos/próxima ejecución/lease/token/resultado seguro y fechas). No almacenar sesión en claro o payload clínico. La cookie de instalación no autentica; al cambiar titular/versionar suscripción no reinterpretar envíos históricos como del nuevo usuario. Los índices/constraints exactos se verificarán al crear migración aditiva F2; no modificar esquema previo ni afirmar que ya existen30 entidades. Los estados del outbox no son estados de Cita/laboratorio. Lectura de avisos no modifica leido_en. Frecuencia cada minuto/corte push al inicio/default interno habilitado sin fila y logout local son decisiones aprobadas, no columnas implementadas por documentarlas.
+**CU-28/Web Push, persistencia efectiva:** `suscripciones_push` y `envios_recordatorio_push` están definidos por 000038/000039; §§3.29–3.30 y §4 integran sus columnas/FK. Sustituyen las notas de diseño pendiente de F1. Recordatorio no equivale a suscripción ni a recepción push; los estados del outbox no son estados de Cita/laboratorio. La cookie de instalación no autentica. No se modelan como columnas el scheduler, el consentimiento de interfaz ni la entrega al dispositivo.
 
 ### 1.1. Convenciones
 
 - **PK** = clave primaria; **FK** = clave foránea; **UQ** = unicidad; **IDX** = índice. Una marca compuesta significa ambas propiedades; donde un par constituye la FK o UQ, se indica explícitamente.
-- **Obligatorio** = metadato `nullable=false` en la fila original; **Sí** en la columna «NULL» significa `nullable=true`. **El hecho de admitir `NULL` no elimina condiciones funcionales de obligatoriedad por estado o rol.**
+- **Obligatorio / NULL No** = NOT NULL en las migraciones acumuladas; **NULL Sí** admite NULL. **Admitir NULL no elimina condiciones de CHECK o de aplicación por estado/rol.** Una UQ parcial no convierte una relación histórica N en 1.
 - Los nombres de entidades y atributos se copian del DER, incluidos `inicio_at`, `fin_at`, `password_hash`, `id_version_actual` y `id_revision_publicada`. No renombrarlos silenciosamente para ajustarlos a convenciones Laravel.
 - `String`, `Text`, `BigInt`, `TimestampTZ`, `Date`, `Time`, `Integer`, `Boolean`, `JSONB` representan tipos lógicos del DER. Sus conversiones concretas a columnas PostgreSQL y longitudes no indicadas deben acordarse en el **diseño físico**. Los tipos nativos explícitos (`VARCHAR(120)`, `INET`, `UUID`, `SMALLINT`, `TIMESTAMPTZ`, etc.) sí son parte del modelo indicado.
 - Campos temporales: almacenar instantes con referencia inequívoca y presentarlos en **`America/La_Paz`**. En especial, no reemplazar `TIMESTAMPTZ` por fechas locales ambiguas.
 - Los estados y listas de valores del DER son **listas cerradas** cuando así se expresan. No crear categorías adicionales por conveniencia de implementación.
 - Ninguna FK, CHECK o índice representa automáticamente las autorizaciones de rol, consistencia entre múltiples tablas, vigencias de códigos o concurrencia. Se requerirán validaciones de servidor, transacciones y restricciones de PostgreSQL específicas.
 
-## 2. Inventario completo (28 entidades)
+## 2. Inventario completo (37 tablas)
 
 | Área | Entidades del DER |
 |---|---|
 | Acceso y seguridad | `Rol`, `Usuario`, `Sesion`, `TokenAcceso`, `ControlIntentos` |
 | Pacientes y activación | `Paciente`, `ContactoEmergencia`, `PreferenciaPaciente`, `CodigoActivacionPaciente`, `RegistroPacientePendiente`, `VerificacionCorreo` |
 | Organización médica | `Consultorio`, `Medico`, `Especialidad`, `MedicoEspecialidad`, `HorarioAtencion`, `ConfiguracionClinica` |
-| Citas y seguimiento | `Cita`, `CambioCita`, `Recordatorio` |
+| Citas y seguimiento | `Cita`, `CambioCita`, `Recordatorio`, `SuscripcionPush`, `EnvioRecordatorioPush` |
 | Registro clínico | `ConsultaMedica`, `VersionConsulta`, `VersionAntecedente` |
 | Laboratorio digital | `SolicitudLaboratorio`, `VersionResultado`, `DocumentoLaboratorio`, `RevisionResultado` |
 | Auditoría transversal | `Bitacora` |
+| Pagos académicos | `ObligacionPago`, `IntentoPago`, `CobroPago`, `DevolucionPago`, `OperacionPago`, `EventoPago`, `ReciboAcademicoPago` |
 
 **Importante:** no crear una entidad `HistoriaClinica` duplicada ni una tabla de reportes por defecto. La historia clínica se obtiene mediante Paciente, antecedentes versionados, consultas y laboratorio; los reportes RF13 se calculan a partir de las tablas pertinentes.
 
 ## 3. Diccionario de datos exacto del DER
 
-Los siguientes nombres, tipos lógicos, nulabilidades, referencias, listas cerradas y restricciones de unicidad se extraen de los **metadatos editables de las tablas Draw.io**, no se infieren únicamente del dibujo. El nombre físico de cada tabla, **excepto `sessions` y `bitacora`**, debe definirse coherentemente en las migraciones y reflejarse en el mapeo de modelos. Si alguna fila no especifica una longitud, no se presenta una longitud inventada como requisito.
+El diccionario original se conserva y se completa con las migraciones implementadas. Las 28 correspondencias físicas están en §6.6.1; las nueve nuevas usan su nombre físico en §§3.29–3.37. `String`, `TimestampTZ`, etc. conservan la notación original, con longitudes/defaults físicos en §§6.6–6.13 y ampliaciones posteriores; no son propiedades del API. PK/FK/UQ y NULL se contrastan con DDL, no solo con relaciones Eloquent. Una marca UQ compuesta/parcial se desarrolla en el texto, sin afirmar unicidad individual de sus componentes.
 
 ### 3.1. `Rol`
 
@@ -112,13 +115,13 @@ Contraseña NULL solo durante invitación pendiente; obligatoria para una cuenta
 
 **Equivalencia de estado:** el valor persistido `Pendiente` de `Usuario.estado_cuenta` corresponde a la condición funcional **Pendiente de verificación**. Es la misma condición, no un estado adicional ni una autorización de acceso protegido; se conserva la lista cerrada del diccionario.
 
-**Restricciones únicas declaradas:** `(correo_acceso)`.
+**Unicidad física:** índice `usuarios_correo_normalizado_uq` sobre `lower(btrim(correo_acceso))` (000006), no una UQ simple de columna.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
 | PK | `id_usuario` | `BigInt` | No | — | — |
 | FK | `id_rol` | `BigInt` | No | `Rol` | — |
-| UQ | `correo_acceso` | `String` | No | — | Único tras normalización uniforme, también ante escrituras simultáneas; estrategia física a definir. |
+| UQ | `correo_acceso` | `String` | No | — | Índice único sobre lower(btrim(correo_acceso)); VARCHAR(254). |
 | — | `password_hash` | `String` | Sí | — | — |
 | — | `estado_cuenta` | `String` | No | — | Valores: `Pendiente`, `Activa`, `Desactivada` |
 | — | `correo_verificado_en` | `TimestampTZ` | Sí | — | — |
@@ -188,9 +191,9 @@ Sin credenciales. CI único cuando exista; cuenta opcional y como máximo una.
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
 | PK | `id_paciente` | `BigInt` | No | — | — |
-| FK/UQ | `id_usuario` | `BigInt` | Sí | `Usuario` | UQ condicionada: NOT NULL |
+| FK/UQ | `id_usuario` | `BigInt` | Sí | `Usuario` | UNIQUE ordinario con NULL distintos, no índice parcial. |
 | UQ | `codigo_paciente` | `String` | No | — | — |
-| UQ | `documento_identidad` | `String` | Sí | — | UQ condicionada: NOT NULL; CI único cuando se proporciona; varios NULL autorizados. No se sustituyen por CI ficticios. |
+| UQ | `documento_identidad` | `String` | Sí | — | Índice único parcial sobre btrim(documento_identidad) WHERE documento_identidad IS NOT NULL; varios NULL permitidos. |
 | — | `nombres` | `String` | No | — | — |
 | — | `apellidos` | `String` | No | — | — |
 | — | `fecha_nacimiento` | `Date` | No | — | — |
@@ -248,7 +251,7 @@ Preferencias internas ya definidas; no alteran roles ni autorizaciones clínicas
 
 Reserva temporal de activación; no constituye una segunda cuenta ni una segunda ficha.
 
-**Exclusividad del proceso:** los reintentos reanudan el mismo proceso válido mediante un contexto protegido. No pueden coexistir procesos independientes vigentes para el mismo Paciente o código de Recepción, ni para el mismo CI cuando exista o correo propuesto normalizados. Reserva, vencimientos y confirmación atómica en §5.3; índices únicos parciales implementados en §6.8. Nuevo implementado en fase 7A y Vinculacion en fase 7B (contexto §§17.24–17.25; análisis vigente CU-04 y emisión parcial CU-07).
+**Exclusividad física (000014, §6.9):** cuatro índices únicos parciales sobre id_paciente, id_codigo_activacion, btrim(documento_identidad) y lower(btrim(correo_propuesto)), WHERE completado_en IS NULL AND invalidado_en IS NULL; los tres primeros excluyen además NULL. No son UQ globales: cada Paciente/código puede tener muchos procesos históricos y a lo sumo uno abierto. El vencimiento no libera el índice por el mero paso del tiempo; el servidor invalida el proceso. Los reintentos autorizados reutilizan contexto protegido; §5.3 conserva el contrato funcional.
 
 **Implementación Nuevo sin cambios estructurales:** `datos_registro` contiene solo los datos administrativos validados y `_contexto_hash`, HMAC de un secreto aleatorio de 256 bits guardado únicamente en cookie cifrada/HttpOnly de 24 horas. No es un atributo adicional de la entidad ni una credencial de sesión normal. El código de correo de seis dígitos se almacena en VerificacionCorreo como HMAC ligado al identificador del proceso. Inicio/reintento/reenvío/completado coordinan la llave PostgreSQL `(736202, 1)` antes de bloquear proceso/código; vinculación de 7B reutiliza esa llave y las futuras altas administrativas deberán compartirla para coordinar reservas, sin sustituir las UQ finales de CI/correo/cuenta. Al completar o invalidar se borran hash temporal y datos_registro; se conservan fechas/relaciones/metadatos y no se eliminan fichas/historia. No se crean Usuario o Paciente definitivos antes de verificar. Sin columnas, tablas o migraciones nuevas: 28 entidades, 239 atributos y 43 relaciones.
 
@@ -308,7 +311,7 @@ Alta sin consultorio permitida. Un consultorio fijo válido es obligatorio para 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
 | PK | `id_medico` | `BigInt` | No | — | — |
-| FK/UQ | `id_usuario` | `BigInt` | Sí | `Usuario` | UQ condicionada: NOT NULL |
+| FK/UQ | `id_usuario` | `BigInt` | Sí | `Usuario` | UNIQUE ordinario con NULL distintos, no índice parcial. |
 | FK | `id_consultorio` | `BigInt` | Sí | `Consultorio` | Obligatorio cuando: Antes de configurar horarios reservables o registrar nuevas citas; Opcional al registrar el Médico por CU-10; asignación fija mediante CU-11. |
 | UQ | `codigo_medico` | `String` | No | — | — |
 | — | `registro_profesional` | `String` | No | — | — |
@@ -326,7 +329,7 @@ Alta sin consultorio permitida. Un consultorio fijo válido es obligatorio para 
 
 ### 3.14. `Especialidad`
 
-**Restricciones únicas declaradas:** `(nombre)`.
+**Unicidad física:** índice `especialidades_nombre_normalizado_uq` sobre `lower(btrim(nombre))` (000004), no una UQ simple de columna.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
@@ -394,11 +397,9 @@ Una sola sede y una configuración vigente; no incorpora administración de múl
 
 FK compuesta (id_medico,id_especialidad) hacia MedicoEspecialidad. Duración y ubicación conservadas por atención.
 
-**Restricciones únicas declaradas:** `(codigo_cita)` y `(id_propuesta_reserva)` cuando se informa; UUID nullable, múltiples NULL permitidos.
+**Unicidades físicas:** codigo_cita; id_propuesta_reserva (UNIQUE ordinario nullable, varios NULL); par (id_cita, incorporada_finanzas), añadido por 000040 para la FK financiera. No unicidad individual de incorporada_finanzas.
 
-**Diseño CU-13/CU-14 fase 1, 2026-10-22 — aún no aplicado al esquema ni a la tabla siguiente:** se prevé añadir `citas.id_propuesta_reserva UUID NULL UNIQUE` para reconocer una confirmación propia ya persistida sin duplicar cita/evento; UUID de propuesta generado por servidor, las filas anteriores conservan NULL. No se crea entidad de turnos ni tabla de reservas pendientes. En fase 4 se prevé exclusión GiST de `id_paciente` y `tstzrange(inicio_at,fin_at,'[)')` **solo para estados Programada/Confirmada**, permitiendo contiguos; las exclusiones no Canceladas del Médico y consultorio se conservan. Prevalidar conflictos existentes y detener la migración si aparecen, sin borrar/alterar estados por automatismo. No `now()` en el predicado. Columna/UQ y exclusión requieren migraciones aditivas futuras en `src/data/database/migrations/`; no existen todavía. La tabla de atributos, cantidades vigentes y representación del esquema implementado permanecen sin cambios en esta fase. Diseño completo/locks/idempotencia en backend README, análisis y contexto §17.87; actualizar representación efectiva cuando se implementen las migraciones.
-
-**Actualización efectiva fase 3, 2026-10-22:** UUID/UQ implementados mediante 000034 y probados en PostgreSQL aislado (§6.20); la tabla siguiente ya los incorpora. La nota anterior conserva el diseño histórico de fase 1. Sigue **pendiente** la exclusión GiST del Paciente de fase 4, sin cambiar las exclusiones existentes de Médico/sala.
+**Persistencia efectiva CU-13/CU-14:** UUID/UQ implementados por 000034 (§6.20); no tabla de turnos ni reservas pendientes. La propuesta no guardada no ocupa una fila. Las exclusiones de Médico/consultorio de 000019 se conservan y 000035 añade la de Paciente.
 
 **Actualización efectiva fase 4, 2026-10-22:** exclusión `citas_paciente_no_solapado_excl` implementada por 000035, por Paciente e intersección de `tstzrange(inicio_at,fin_at,'[)')` solo en Programada/Confirmada (§6.21). La indicación pendiente anterior describe el estado histórico de fase 3. Médico/sala conservan sus exclusiones no Canceladas. Instalación verifica conflictos previos bajo lock exclusivo y aborta sin corregir datos. No atributos/relaciones nuevos ni aplicación a base habitual/Railway.
 
@@ -423,10 +424,11 @@ FK compuesta (id_medico,id_especialidad) hacia MedicoEspecialidad. Duración y u
 | — | `version_programacion` | `Integer` | No | — | — |
 | — | `creada_en` | `TimestampTZ` | No | — | — |
 | — | `actualizada_en` | `TimestampTZ` | No | — | — |
+| — | `incorporada_finanzas` | `BOOLEAN` | No | — | 000040; DEFAULT false; trigger impide cambiar la marca en UPDATE. UQ compuesta (id_cita, incorporada_finanzas); no obliga a emitir obligación. |
 
 ### 3.19. `CambioCita`
 
-Historial administrativo inmutable: programación, intervalos, duración, ubicación y estados; sin contenido clínico.
+Historial administrativo inmutable: programación, intervalos, duración, ubicación y estados; sin contenido clínico. 000040 añade UQ(id_cambio_cita, id_cita) para la FK de anulación de obligaciones; no añade columnas ni una UQ individual de id_cita.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
@@ -553,15 +555,16 @@ Paciente y Médico solicitante se derivan de ConsultaMedica y Cita. Los dos punt
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
-| PK | `id_solicitud` | `BigInt` | No | — | — |
+| PK/FK | `id_solicitud` | `BigInt` | No | `VersionResultado(id_solicitud,id_version_resultado)` | Parte de FK compuesta con id_version_actual; MATCH SIMPLE permite el puntero NULL. |
 | FK | `id_consulta` | `BigInt` | No | `ConsultaMedica` | — |
 | — | `estudio_solicitado` | `String` | No | — | — |
 | — | `solicitada_en` | `TimestampTZ` | No | — | — |
 | — | `estado_interno` | `String` | No | — | Valores: `Pendiente`, `En revisión`, `Disponible` |
-| FK/UQ | `id_version_actual` | `BigInt` | Sí | `VersionResultado(id_solicitud,id_version_resultado)` | UQ condicionada: NOT NULL |
-| FK/UQ | `id_revision_publicada` | `BigInt` | Sí | `RevisionResultado(id_revision,id_version_resultado)` | UQ condicionada: NOT NULL |
+| FK/UQ | `id_version_actual` | `BigInt` | Sí | `VersionResultado`, `RevisionResultado` | UNIQUE ordinario con NULL distintos; participa en ambas FK compuestas. |
+| FK/UQ | `id_revision_publicada` | `BigInt` | Sí | `RevisionResultado(id_revision,id_version_resultado)` | UNIQUE ordinario con NULL distintos; FK con id_version_actual. |
+| FK | `creada_por` | `BIGINT` | Sí | `usuarios(id_usuario)` | 000036; creador ejecutor acreditado, no Médico responsable; índice propio. |
 
-**Adición posterior al Draw.io, Fase 2 CU-24:** `creada_por BIGINT NULL` → Usuario(id_usuario), FK `solicitudes_laboratorio_creador_fk` ON DELETE/UPDATE RESTRICT e índice `solicitudes_laboratorio_creador_idx`, migración `2026_10_29_000036_add_creada_por_to_solicitudes_laboratorio.php`. Una solicitud tiene 0..1 Usuario creador acreditado y Usuario 0..* solicitudes creadas; NULL conserva legado desconocido. El API de alta exige actor autenticado real para toda nueva solicitud; la columna nullable por compatibilidad no certifica autoría de escrituras SQL externas. No derivar autor de Médico/cuenta vinculada actual ni actualizar solicitudes Disponible. Médico/Paciente responsables continúan derivados de ConsultaMedica→Cita. No nueva columna de revisión hasta F4.
+**Adición posterior al Draw.io, Fase 2 CU-24:** FK `solicitudes_laboratorio_creador_fk` ON DELETE/UPDATE RESTRICT e índice `solicitudes_laboratorio_creador_idx` (000036). Una solicitud tiene 0..1 Usuario creador acreditado y Usuario 0..* solicitudes creadas; NULL conserva legado desconocido. El API de alta exige actor autenticado real; la nulabilidad no acredita autoría de SQL externo. No derivar autor de Médico/cuenta vinculada actual ni actualizar solicitudes Disponible. Médico/Paciente responsables siguen derivados de ConsultaMedica→Cita; 000037 añade separadamente el revisor ejecutor.
 
 ### 3.26. `VersionResultado`
 
@@ -611,10 +614,231 @@ La decisión es un acto de revisión, no un cuarto estado de laboratorio. Devolv
 | — | `decision` | `String` | No | — | Valores: `Autorizar`, `Devolver` |
 | — | `motivo` | `Text` | Sí | — | — |
 | — | `revisada_en` | `TimestampTZ` | No | — | — |
+| FK | `revisada_por` | `BIGINT` | Sí | `usuarios(id_usuario)` | 000037; ejecutor real opcional para legado, separado de id_medico; índice propio. |
 
-## 4. Relaciones gráficas y claves foráneas (43)
+### 3.29. `SuscripcionPush` — `suscripciones_push`
 
-Cada fila corresponde a un conector real de la primera pestaña del `.drawio`. Se listan **entidad principal**, **entidad dependiente**, y columna(s) de la FK. Las cardinalidades se determinan conjuntamente con NULL/UQ de la sección 3 y las reglas de la sección 5: no basta con dibujar una línea para imponerlas en PostgreSQL.
+Fuente: 000038; modelo SuscripcionPush. Doce columnas; PK BIGSERIAL, sin timestamps convencionales. UQ individuales de instalacion_hash y endpoint_hash. Dos FK RESTRICT en ambas acciones.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_suscripcion` | `BIGINT` | No | — | Secuencia. |
+| UQ | `instalacion_hash` | `VARCHAR(64)` | No | — | Hexadecimal minúsculo de 64 caracteres. |
+| UQ | `endpoint_hash` | `VARCHAR(64)` | No | — | Hexadecimal minúsculo de 64 caracteres. |
+| — | `datos_cifrados` | `TEXT` | No | — | Cast encrypted:array; endpoint/keys no son columnas separadas. |
+| FK | `id_usuario` | `BIGINT` | No | `usuarios(id_usuario)` | — |
+| FK | `id_paciente` | `BIGINT` | No | `pacientes(id_paciente)` | — |
+| — | `version_autorizacion` | `INTEGER` | No | — | > 0. |
+| — | `huella_cuenta` | `VARCHAR(64)` | No | — | Hexadecimal minúsculo de 64 caracteres. |
+| — | `autorizada_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `actualizada_en` | `TIMESTAMPTZ(6)` | No | — | >= autorizada_en. |
+| — | `revocada_en` | `TIMESTAMPTZ(6)` | Sí | — | NULL o >= autorizada_en. |
+| — | `expira_en` | `TIMESTAMPTZ(6)` | No | — | > autorizada_en. |
+
+### 3.30. `EnvioRecordatorioPush` — `envios_recordatorio_push`
+
+Fuente: 000039; modelo EnvioRecordatorioPush. Catorce columnas; UQ(id_recordatorio, id_suscripcion). Cuatro FK RESTRICT; ninguna FK individual es única. Destinatario y versión capturados no cambian de titular por reasignar una suscripción.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_envio` | `BIGINT` | No | — | Secuencia. |
+| FK | `id_recordatorio` | `BIGINT` | No | `recordatorios(id_recordatorio)` | Parte de UQ compuesta. |
+| FK | `id_suscripcion` | `BIGINT` | No | `suscripciones_push(id_suscripcion)` | Parte de UQ compuesta. |
+| FK | `id_usuario` | `BIGINT` | No | `usuarios(id_usuario)` | Destinatario capturado. |
+| FK | `id_paciente` | `BIGINT` | No | `pacientes(id_paciente)` | Destinatario capturado. |
+| — | `version_autorizacion` | `INTEGER` | No | — | > 0. |
+| — | `estado` | `VARCHAR(16)` | No | — | DEFAULT Pendiente; Pendiente/Procesando/Aceptado/Descartado/Fallido/Incierto. |
+| — | `intentos` | `INTEGER` | No | — | DEFAULT 0; 0–3. |
+| — | `proximo_intento_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `reclamado_hasta` | `TIMESTAMPTZ(6)` | Sí | — | Lease. |
+| — | `codigo_reclamo` | `UUID` | Sí | — | Token técnico, no UQ. |
+| — | `resultado_seguro` | `VARCHAR(64)` | Sí | — | — |
+| — | `creado_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `actualizado_en` | `TIMESTAMPTZ(6)` | No | — | >= creado_en. |
+
+CHECK exige lease/token presentes e intentos > 0 solo en Procesando; en los demás estados ambos NULL. No prueba entrega al dispositivo. Índices efectivos de ambas tablas detallados en el incremento CU-28 superior.
+
+### 3.31. `ObligacionPago` — `obligaciones_pago`
+
+Fuente: 000040; modelo ObligacionPago. Quince columnas. PK UUID sin default SQL/secuencia; regla común a los siete identificadores financieros, incluido id_cobro del recibo. Todas las FK financieras usan UPDATE/DELETE RESTRICT, MATCH SIMPLE inmediato. UQ(id_cita) y UQ(id_obligacion, centavos_usd).
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_obligacion` | `UUID` | No | — | Asignado por el servidor. |
+| FK/UQ | `id_cita` | `BIGINT` | No | `citas(id_cita,incorporada_finanzas)` | FK compuesta con incorporada_finanzas. |
+| FK | `incorporada_finanzas` | `BOOLEAN` | No | `citas(id_cita,incorporada_finanzas)` | DEFAULT true; CHECK true. |
+| — | `centavos_bob` | `INTEGER` | No | — | 700–700000. |
+| — | `centavos_usd` | `INTEGER` | No | — | 100–100000; parte de UQ compuesta. |
+| — | `tasa_numerador` | `INTEGER` | No | — | DEFAULT 7; CHECK = 7. |
+| — | `tasa_denominador` | `INTEGER` | No | — | DEFAULT 1; CHECK = 1. |
+| — | `moneda_original` | `VARCHAR(3)` | No | — | DEFAULT BOB; CHECK = BOB. |
+| — | `moneda_cobro` | `VARCHAR(3)` | No | — | DEFAULT USD; CHECK = USD. |
+| FK | `emitida_por` | `BIGINT` | No | `usuarios(id_usuario)` | Ejecutor real. |
+| — | `emitida_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `vencimiento_at` | `TIMESTAMPTZ(6)` | No | — | Persistido; Vencida no es columna/estado SQL. |
+| — | `exigible` | `BOOLEAN` | No | — | DEFAULT true. |
+| — | `anulada_en` | `TIMESTAMPTZ(6)` | Sí | — | Si no exigible, obligatoria y >= emitida_en. |
+| FK | `id_cambio_anulacion` | `BIGINT` | Sí | `cambios_cita(id_cambio_cita,id_cita)` | FK compuesta con id_cita; obligatoria si no exigible. |
+
+CHECK de conversión entera HALF_UP: centavos_usd = (2 * centavos_bob + 7) / 14. Exigible exige ambos datos de anulación NULL; no exigible exige ambos presentes. Trigger preserva ID/cita/incorporación/precio/tasa/monedas/emisor/emisión; vencimiento y exigibilidad no se declaran inmutables. La FK de anulación exige la misma cita, no comprueba por sí sola operacion/estado Cancelada del cambio.
+
+### 3.32. `IntentoPago` — `intentos_pago`
+
+Fuentes: 000040, 000041 y reemplazo de intentos_contexto_ck en 000042; modelo IntentoPago. Dieciocho columnas.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_intento` | `UUID` | No | — | Sin default. |
+| FK | `id_obligacion` | `UUID` | No | `obligaciones_pago(id_obligacion)` | UQ parcial de intento activo, no global. |
+| FK | `iniciado_por` | `BIGINT` | No | `usuarios(id_usuario)` | — |
+| — | `proveedor` | `VARCHAR(8)` | No | — | stripe/paypal/simulado según contexto. |
+| — | `entorno` | `VARCHAR(8)` | No | — | test/sandbox/local/academic según contexto. |
+| — | `cuenta_contexto` | `VARCHAR(128)` | No | — | btrim no vacío. |
+| — | `estado` | `VARCHAR(20)` | No | — | DEFAULT Preparando; Preparando/RequiereAccion/Procesando/Exitoso/Fallido/Cerrado/Incierto. |
+| — | `captura_permitida` | `BOOLEAN` | No | — | DEFAULT false. True solo paypal y estado Preparando/RequiereAccion/Procesando/Incierto. |
+| — | `referencia_inicio` | `VARCHAR(255)` | Sí | — | Si presente, btrim no vacío; UQ contextual. |
+| — | `referencia_pago` | `VARCHAR(255)` | Sí | — | Si presente, btrim no vacío; UQ contextual. |
+| — | `creado_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `actualizado_en` | `TIMESTAMPTZ(6)` | No | — | >= creado_en. |
+| — | `proxima_revision_en` | `TIMESTAMPTZ(6)` | Sí | — | — |
+| — | `revisado_en` | `TIMESTAMPTZ(6)` | Sí | — | — |
+| — | `origen` | `VARCHAR(16)` | No | — | 000041; DEFAULT Externo; Externo/Simulado. |
+| — | `modalidad` | `VARCHAR(8)` | Sí | — | 000041; stripe/paypal en Simulado, NULL en Externo. |
+| — | `escenario` | `VARCHAR(16)` | Sí | — | 000041; completado/pendiente en Simulado, NULL en Externo. |
+| — | `aprobada_en` | `TIMESTAMPTZ(6)` | Sí | — | 000041; si presente, Simulado/paypal y >= creado_en. |
+
+Contexto final: Externo admite stripe/test o paypal/sandbox, con modalidad/escenario/aprobada_en NULL. Simulado exige simulado, entorno local o academic, cuenta_contexto academico, modalidad/escenario presentes, referencias NULL y captura_permitida false. Trigger preserva origen/modalidad/escenario/proveedor/entorno/cuenta y una aprobación ya informada; no se atribuye esa inmovilidad a las demás columnas.
+
+UQ de soporte (id_intento,id_obligacion) y (id_intento,proveedor,entorno,cuenta_contexto); UQ de (proveedor,entorno,cuenta_contexto,referencia_inicio) y análoga referencia_pago, con NULL distintos. Índice único parcial id_obligacion WHERE estado IN (Preparando,RequiereAccion,Procesando,Incierto): muchos intentos históricos, máximo uno activo.
+
+### 3.33. `CobroPago` — `cobros_pago`
+
+Fuentes: 000040; CHECK simulado de 000041 y UQ de soporte del recibo en 000042; modelo CobroPago. Trece columnas. No tabla aparte de liquidación: aplicado es una marca persistida de cobro.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_cobro` | `UUID` | No | — | Sin default. |
+| FK | `id_intento` | `UUID` | No | `intentos_pago` | Dos FK compuestas: obligación y contexto (§4). |
+| FK | `id_obligacion` | `UUID` | No | `intentos_pago`, `obligaciones_pago` | FK con id_intento y FK de importe. |
+| FK | `proveedor` | `VARCHAR(8)` | No | `intentos_pago` | Parte de FK de contexto. |
+| FK | `entorno` | `VARCHAR(8)` | No | `intentos_pago` | Parte de FK de contexto. |
+| FK | `cuenta_contexto` | `VARCHAR(128)` | No | `intentos_pago` | Parte de FK de contexto. |
+| — | `referencia_cobro` | `VARCHAR(255)` | No | — | btrim no vacío; simulado exige 'SIM-' || id_cobro::text. |
+| FK | `centavos_usd` | `INTEGER` | No | `obligaciones_pago(id_obligacion,centavos_usd)` | Mismo importe de obligación. |
+| — | `moneda` | `VARCHAR(3)` | No | — | DEFAULT USD; CHECK = USD. |
+| — | `aplicado` | `BOOLEAN` | No | — | Sin default; unicidad parcial por obligación si true. |
+| — | `incidencia_codigo` | `VARCHAR(64)` | Sí | — | Aplicado exige NULL; no aplicado exige código ^[A-Z][A-Z0-9_]{0,63}$. |
+| — | `confirmado_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `registrado_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+
+UQ(proveedor,entorno,cuenta_contexto,referencia_cobro); UQ de soporte (id_cobro,aplicado), (id_cobro,centavos_usd), (id_cobro,id_intento) y, desde 000042, (id_cobro,aplicado,proveedor,id_obligacion,centavos_usd). Índice único parcial id_obligacion WHERE aplicado: máximo un aplicado, no máximo un cobro histórico. Trigger rechaza cualquier UPDATE de cobros.
+
+### 3.34. `DevolucionPago` — `devoluciones_pago`
+
+Fuente: 000040; modelo DevolucionPago. Nueve columnas. UQ(id_cobro) y UQ de soporte (id_devolucion,id_cobro). Las dos FK hacia cobros exigen aplicado true y el total exacto, sin duplicar proveedor/obligación.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_devolucion` | `UUID` | No | — | Sin default. |
+| FK/UQ | `id_cobro` | `UUID` | No | `cobros_pago` | Parte de ambas FK compuestas. |
+| FK | `cobro_aplicado` | `BOOLEAN` | No | `cobros_pago(id_cobro,aplicado)` | DEFAULT true; CHECK true. |
+| FK | `centavos_usd` | `INTEGER` | No | `cobros_pago(id_cobro,centavos_usd)` | Total del cobro, no devolución parcial. |
+| FK | `id_cambio_cancelacion` | `BIGINT` | No | `cambios_cita(id_cambio_cita)` | FK simple; SQL no demuestra misma cita ni tipo Cancelacion. |
+| — | `motivo` | `VARCHAR(32)` | No | — | DEFAULT Cancelacion; CHECK = Cancelacion. |
+| — | `estado` | `VARCHAR(16)` | No | — | DEFAULT Pendiente; Pendiente/Procesando/Exitosa/Fallida/Incierta. |
+| — | `creada_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `actualizada_en` | `TIMESTAMPTZ(6)` | No | — | >= creada_en. |
+
+### 3.35. `OperacionPago` — `operaciones_pago`
+
+Fuentes: 000040 y sustitución de CHECK tipo/clave externa en 000041; modelo OperacionPago. Veintitrés columnas. No FK directa a obligaciones: la pertenencia se garantiza por el par del intento (§4).
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_operacion` | `UUID` | No | — | Sin default. |
+| FK | `id_intento` | `UUID` | No | `intentos_pago` | Contexto y obligación mediante dos FK. |
+| FK | `id_obligacion` | `UUID` | No | `intentos_pago(id_intento,id_obligacion)` | Índice parcial de exclusión de escritura. |
+| FK | `id_devolucion` | `UUID` | Sí | `devoluciones_pago(id_devolucion,id_cobro)` | Presente exclusivamente para Devolver. |
+| FK | `id_cobro` | `UUID` | Sí | `devoluciones_pago`, `cobros_pago` | Devolución y pertenencia al intento. |
+| FK | `proveedor` | `VARCHAR(8)` | No | `intentos_pago` | Contexto. |
+| FK | `entorno` | `VARCHAR(8)` | No | `intentos_pago` | Contexto. |
+| FK | `cuenta_contexto` | `VARCHAR(128)` | No | `intentos_pago` | Contexto. |
+| — | `tipo` | `VARCHAR(16)` | No | — | Crear/Capturar/Cerrar/Consultar/Devolver/Aprobar/Confirmar. |
+| FK | `solicitada_por` | `BIGINT` | Sí | `usuarios(id_usuario)` | Usuario o sistema. |
+| — | `clave_solicitud` | `UUID` | Sí | — | NULL si y solo si solicitada_por NULL. |
+| — | `huella_solicitud` | `VARCHAR(64)` | No | — | Hexadecimal minúsculo de 64 caracteres. |
+| — | `datos_solicitud_cifrados` | `TEXT` | Sí | — | Cast encrypted:array, no columnas por clave del JSON. |
+| UQ | `clave_externa` | `UUID` | Sí | — | UNIQUE ordinario con NULL distintos. |
+| — | `referencia_externa` | `VARCHAR(255)` | Sí | — | Si presente, btrim no vacío; UQ contextual. |
+| — | `estado` | `VARCHAR(16)` | No | — | DEFAULT Pendiente; Pendiente/Procesando/Exitosa/Fallida/Incierta. |
+| — | `ejecuciones` | `INTEGER` | No | — | DEFAULT 0; >= 0. |
+| — | `proxima_ejecucion_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `reclamado_hasta` | `TIMESTAMPTZ(6)` | Sí | — | Lease. |
+| — | `codigo_reclamo` | `UUID` | Sí | — | No UQ. |
+| — | `resultado_codigo` | `VARCHAR(64)` | Sí | — | NULL o código ^[A-Z][A-Z0-9_]{0,63}$. |
+| — | `creada_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `actualizada_en` | `TIMESTAMPTZ(6)` | No | — | >= creada_en. |
+
+CHECK: Devolver exige ambos vínculos a devolución/cobro presentes; los demás tipos, ambos NULL. Procesando exige lease/token y ejecuciones > 0; otros estados, ambos NULL. Contexto simulado exige claves/referencias externas NULL; contexto stripe/paypal permite solo los cinco tipos externos y exige clave_externa salvo Consultar.
+
+UQ(solicitada_por,tipo,id_intento,clave_solicitud) y UQ(proveedor,entorno,cuenta_contexto,tipo,referencia_externa), ambas con NULL distintos. Índices únicos parciales: id_obligacion WHERE tipo <> Consultar AND estado IN (Pendiente,Procesando,Incierta); (solicitada_por,id_obligacion,clave_solicitud) WHERE tipo = Crear; id_devolucion WHERE tipo = Devolver AND estado = Exitosa. No se deduce de ellos una sola operación histórica por intento/devolución/cobro.
+
+### 3.36. `EventoPago` — `eventos_pago`
+
+Fuente: 000040; modelo EventoPago. Dieciocho columnas. UQ(proveedor,entorno,cuenta_contexto,id_externo); id_externo no es único globalmente. Conserva solo contexto externo stripe/test o paypal/sandbox: 000041/000042 no amplían eventos a simulado.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK | `id_evento` | `UUID` | No | — | Sin default; distinto de bitacora.id_evento BIGINT. |
+| FK | `proveedor` | `VARCHAR(8)` | No | `intentos_pago` | Parte de FK opcional compuesta. |
+| FK | `entorno` | `VARCHAR(8)` | No | `intentos_pago` | Parte de FK opcional compuesta. |
+| FK | `cuenta_contexto` | `VARCHAR(128)` | No | `intentos_pago` | btrim no vacío. |
+| — | `id_externo` | `VARCHAR(255)` | No | — | btrim no vacío. |
+| — | `tipo` | `VARCHAR(128)` | No | — | btrim no vacío; no catálogo de tipos SQL. |
+| — | `huella_contenido` | `VARCHAR(64)` | No | — | Hexadecimal minúsculo de 64 caracteres. |
+| — | `referencias` | `JSONB` | No | — | CHECK objeto; no son FK universales. |
+| FK | `id_intento` | `UUID` | Sí | `intentos_pago(id_intento,proveedor,entorno,cuenta_contexto)` | MATCH SIMPLE permite evento aún sin vínculo. |
+| — | `evidencia_cifrada` | `TEXT` | Sí | — | Cast encrypted:array. |
+| — | `estado` | `VARCHAR(20)` | No | — | DEFAULT Pendiente; Pendiente/PendienteVinculo/Procesando/Aplicado/Ignorado/Cuarentena/Incierto. |
+| — | `recepcion_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `procesado_en` | `TIMESTAMPTZ(6)` | Sí | — | — |
+| — | `proxima_ejecucion_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `ejecuciones` | `INTEGER` | No | — | DEFAULT 0; >= 0. |
+| — | `reclamado_hasta` | `TIMESTAMPTZ(6)` | Sí | — | Lease. |
+| — | `codigo_reclamo` | `UUID` | Sí | — | No UQ. |
+| — | `incidencia_codigo` | `VARCHAR(64)` | Sí | — | NULL o código ^[A-Z][A-Z0-9_]{0,63}$. |
+
+Procesando exige lease/token y ejecuciones > 0; demás estados, ambos NULL. Trigger preserva recepción original: ID/contexto/identidad/tipo/huella/referencias/evidencia/recepcion_en; permite vincular intento y actualizar procesamiento. Las seis tablas de 000040 rechazan DELETE y TRUNCATE; no se afirma que todas rechacen cualquier UPDATE.
+
+### 3.37. `ReciboAcademicoPago` — `recibos_academicos_pago`
+
+Fuente: 000042; modelo ReciboAcademicoPago, sin relaciones Eloquent propias; CobroPago.recibo es lectura hasOne. Diecisiete columnas. FK compuesta al cobro aplicado simulado y FK simple al Paciente; no FK directa adicional a obligación/cita. Recibo opcional por cobro: PK compartida no obliga a emitir uno para cada cobro.
+
+| Marca | Atributo exacto | Tipo físico | NULL | Referencia | Condición / valores / notas |
+|---|---|---|---|---|---|
+| PK/FK | `id_cobro` | `UUID` | No | `cobros_pago` | PK compartida; parte de FK de cinco columnas. |
+| UQ | `numero` | `VARCHAR(44)` | No | — | CHECK = 'REC-ACA-' || id_cobro::text. |
+| FK | `aplicado` | `BOOLEAN` | No | `cobros_pago` | DEFAULT true; CHECK true. |
+| FK | `proveedor` | `VARCHAR(8)` | No | `cobros_pago` | DEFAULT simulado; CHECK = simulado. |
+| FK | `id_obligacion` | `UUID` | No | `cobros_pago` | Snapshot coherente con cobro, no FK directa a obligaciones. |
+| FK | `centavos_usd` | `INTEGER` | No | `cobros_pago` | Snapshot coherente con cobro. |
+| — | `centavos_bob` | `INTEGER` | No | — | 700–700000; conversión entera (2 * centavos_bob + 7) / 14 = centavos_usd. |
+| — | `tasa_numerador` | `INTEGER` | No | — | CHECK = 7; sin default. |
+| — | `tasa_denominador` | `INTEGER` | No | — | CHECK = 1; sin default. |
+| FK | `id_paciente` | `BIGINT` | No | `pacientes(id_paciente)` | FK independiente; no prueba titularidad respecto de la cita. |
+| — | `codigo_paciente` | `VARCHAR(100)` | No | — | Snapshot, no UQ ni FK de código. |
+| — | `nombre_titular` | `TEXT` | No | — | Longitud de btrim 1–500. |
+| — | `codigo_cita` | `VARCHAR(100)` | No | — | Snapshot, no UQ ni FK de código. |
+| — | `modalidad` | `VARCHAR(8)` | No | — | stripe/paypal; no modalidad asistencial. |
+| — | `pagado_en` | `TIMESTAMPTZ(6)` | No | — | Sin default. |
+| — | `emitido_en` | `TIMESTAMPTZ(6)` | No | — | CHECK = pagado_en. |
+| — | `version_formato` | `SMALLINT` | No | — | DEFAULT 1; CHECK = 1. |
+
+Trigger rechaza UPDATE/DELETE de recibos; 000042 no instala trigger contra TRUNCATE en esta tabla. No ruta PDF, bytes, MIME ni hash de archivo persistidos: el PDF se genera desde el snapshot. SQL no compara por sí solo nombre/códigos/importe BOB/tasa/modalidad/fechas con las tablas de origen; esa coherencia adicional corresponde al servidor. No se inventan FK para suplirla.
+
+## 4. Relaciones gráficas y claves foráneas (70 FK implementadas)
+
+Las filas 1–43 conservan orden y correspondencias del Draw.io y coinciden con las FK de 000001–000028; 44–70 integran adiciones efectivas. Cada fila es una FK SQL, incluidas las compuestas como una sola restricción. Nombres lógicos originales se resuelven con §6.6.1; las adiciones usan nombres físicos. Cardinalidades derivadas de NOT NULL, PK/UQ, predicados y MATCH SIMPLE, no de métodos Eloquent ni de mínimos funcionales. Todas usan ON UPDATE/DELETE RESTRICT y no son diferidas.
 
 | Nº | Entidad referida | Entidad con FK | Atributo(s) del lado dependiente | Condición especial |
 |---:|---|---|---|---|
@@ -661,8 +885,37 @@ Cada fila corresponde a un conector real de la primera pestaña del `.drawio`. S
 | 41 | `Usuario` | `Bitacora` | `id_usuario_objetivo` | — |
 | 42 | `Bitacora` | `Bitacora` | `id_evento_relacionado` | Un evento tiene 0..1 evento anterior; un evento previo puede ser referido por 0..* eventos posteriores. Vínculo inmutable, sin ciclos. |
 | 43 | `ConsultaMedica` | `VersionAntecedente` | `id_consulta_origen` | Cada versión deriva de una ConsultaMedica; una consulta origina cero o muchas versiones de antecedentes. |
+| 44 | `usuarios` | `solicitudes_laboratorio` | `creada_por` | 000036; solicitudes_laboratorio_creador_fk; opcional/N. |
+| 45 | `usuarios` | `revisiones_resultado` | `revisada_por` | 000037; revisiones_resultado_revisor_fk; opcional/N. |
+| 46 | `usuarios` | `suscripciones_push` | `id_usuario` | 000038; suscripciones_push_usuario_fk; obligatorio/N. |
+| 47 | `pacientes` | `suscripciones_push` | `id_paciente` | 000038; suscripciones_push_paciente_fk; obligatorio/N. |
+| 48 | `recordatorios` | `envios_recordatorio_push` | `id_recordatorio` | 000039; envios_push_recordatorio_fk; obligatorio/N. |
+| 49 | `suscripciones_push` | `envios_recordatorio_push` | `id_suscripcion` | 000039; envios_push_suscripcion_fk; obligatorio/N. |
+| 50 | `usuarios` | `envios_recordatorio_push` | `id_usuario` | 000039; envios_push_usuario_fk; obligatorio/N. |
+| 51 | `pacientes` | `envios_recordatorio_push` | `id_paciente` | 000039; envios_push_paciente_fk; obligatorio/N. |
+| 52 | `usuarios` | `obligaciones_pago` | `emitida_por` | 000040; FK inline; obligatorio/N. |
+| 53 | `citas` | `obligaciones_pago` | `id_cita,incorporada_finanzas` | obligaciones_cita_fk; obligatorio/0..1 por UQ(id_cita), CHECK incorporación true. |
+| 54 | `cambios_cita` | `obligaciones_pago` | `id_cambio_anulacion,id_cita` | obligaciones_anulacion_fk; opcional/0..1 por misma cita y UQ(id_cita). |
+| 55 | `obligaciones_pago` | `intentos_pago` | `id_obligacion` | 000040; FK inline; obligatorio/N histórico, máximo un activo por índice parcial. |
+| 56 | `usuarios` | `intentos_pago` | `iniciado_por` | 000040; FK inline; obligatorio/N. |
+| 57 | `intentos_pago` | `cobros_pago` | `id_intento,id_obligacion` | cobros_intento_fk; obligatorio/N. |
+| 58 | `intentos_pago` | `cobros_pago` | `id_intento,proveedor,entorno,cuenta_contexto` | cobros_contexto_fk; obligatorio/N; mismo intento que fila 57. |
+| 59 | `obligaciones_pago` | `cobros_pago` | `id_obligacion,centavos_usd` | cobros_importe_fk; obligatorio/N, máximo un aplicado por índice parcial. |
+| 60 | `cambios_cita` | `devoluciones_pago` | `id_cambio_cancelacion` | 000040; FK inline; obligatorio/N; no compuesta con cita. |
+| 61 | `cobros_pago` | `devoluciones_pago` | `id_cobro,cobro_aplicado` | devoluciones_aplicado_fk; obligatorio/0..1 por UQ(id_cobro), CHECK aplicado true. |
+| 62 | `cobros_pago` | `devoluciones_pago` | `id_cobro,centavos_usd` | devoluciones_total_fk; obligatorio/0..1; mismo cobro que fila 61. |
+| 63 | `usuarios` | `operaciones_pago` | `solicitada_por` | 000040; FK inline; opcional/N. |
+| 64 | `intentos_pago` | `operaciones_pago` | `id_intento,proveedor,entorno,cuenta_contexto` | operaciones_contexto_fk; obligatorio/N. |
+| 65 | `intentos_pago` | `operaciones_pago` | `id_intento,id_obligacion` | operaciones_obligacion_fk; obligatorio/N; mismo intento que fila 64, no FK directa a obligación. |
+| 66 | `devoluciones_pago` | `operaciones_pago` | `id_devolucion,id_cobro` | operaciones_devolucion_fk; opcional/N; presentes solo para tipo Devolver. |
+| 67 | `cobros_pago` | `operaciones_pago` | `id_cobro,id_intento` | operaciones_cobro_fk; opcional/N, mismo intento del cobro. |
+| 68 | `intentos_pago` | `eventos_pago` | `id_intento,proveedor,entorno,cuenta_contexto` | eventos_intento_fk; opcional/N por MATCH SIMPLE con id_intento NULL. |
+| 69 | `pacientes` | `recibos_academicos_pago` | `id_paciente` | 000042; FK inline; obligatorio/N. |
+| 70 | `cobros_pago` | `recibos_academicos_pago` | `id_cobro,aplicado,proveedor,id_obligacion,centavos_usd` | recibo_cobro_fk; obligatorio/0..1 por PK(id_cobro); CHECK aplicado true/proveedor simulado. |
 
 ### 4.1. Cardinalidades y restricciones especialmente sensibles
+
+- **Lectura de todos los extremos:** en filas 1–43, cada dependiente tiene exactamente un padre salvo 2, 4, 9, 10, 11, 12, 13, 14, 25, 32, 33, 36, 41 y 42, que permiten 0..1. Cada padre admite 0..N dependientes salvo 4, 5, 6, 13, 26, 32 y 33, limitadas a 0..1 por PK/UQ. En 9/10 el índice parcial solo limita procesos abiertos, no todo el historial. En 32/33 las FK compuestas MATCH SIMPLE son opcionales por sus punteros NULL. Los CHECK de estado pueden exigirlos conjuntamente; ningún padre está obligado a tener hijos por estas FK. Para filas 44–70, obligatorio/opcional se refiere al padre de cada dependiente y N/0..1 al máximo de hijos del padre (mínimo siempre cero).
 
 - `Paciente.id_usuario` y `Medico.id_usuario`: FK opcionales y UQ. Un Paciente o Médico puede existir sin cuenta web; una cuenta vinculada no puede relacionarse con dos fichas del mismo tipo. Verificar además compatibilidad del **rol** con la entidad (no se deduce de una FK).
 - `ContactoEmergencia.id_paciente` y `PreferenciaPaciente.id_paciente`: FK y UQ; máximo un registro de cada clase por Paciente.
@@ -672,10 +925,11 @@ Cada fila corresponde a un conector real de la primera pestaña del `.drawio`. S
 - `Recordatorio`: UQ (`id_cita`, `version_programacion`), no una fila por Paciente/cuenta. El destinatario se deriva de `Cita.id_paciente`.
 - `SolicitudLaboratorio`: mantener las referencias circulares **opcionales** `id_version_actual` e `id_revision_publicada`, resolviendo la pertenencia con **dos FK compuestas** y unicidades respaldadas: `VersionResultado(id_solicitud, id_version_resultado)` y `RevisionResultado(id_revision, id_version_resultado)`.
 - `Bitacora`: dos FK diferentes hacia `Usuario`: actor responsable y cuenta objetivo. Ambas son opcionales; otra FK opcional refiere un evento anterior de la propia `Bitacora`.
+- **Diferencias de representación Eloquent/DDL:** las relaciones de lectura simples de Cita→Medico/Especialidad no son dos FK SQL adicionales: la FK real es el par a medico_especialidad. SolicitudLaboratorio y los modelos financieros leen por IDs simples, pero la escritura queda restringida por todas las columnas de las FK compuestas anteriores. ReciboAcademicoPago no declara métodos de relación propios; sus dos FK existen igualmente. Casts encrypted:array persisten TEXT, no columnas JSON adicionales. No se halló discrepancia de nombre de tabla/PK entre esos mapeos y migraciones; el pivote declara primaryKey null en Eloquent pero conserva PK compuesta SQL. Las reglas de titularidad de recibo y cancelación de devolución no están completas en las FK: no se inventa una restricción para presentarlas como garantizadas por SQL.
 
 ## 5. Reglas de integridad y funcionamiento extraídas de la segunda pestaña
 
-Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»**. Están divididas por tema. Se han omitido solamente repeticiones introductorias ya cubiertas en §1; donde Draw.io apunta a una sección inexistente, esta guía desarrolla la regla directamente, sin reproducir esa referencia rota.
+Se conserva el antecedente de la pestaña **«Reglas de integridad»**, dividido por tema, sin reproducir referencias rotas. No es un inventario de columnas adicionales ni una certificación de reglas de aplicación. Los permisos y avances funcionales fechados pueden estar superados por decisiones posteriores; para esta revisión de persistencia mandan las definiciones acumuladas reflejadas en §§2–4. No se modifican RF/RN ni se resuelven discrepancias funcionales inventando DDL.
 
 ### 5.1. ALCANCE DEL MODELO Y CONVENCIONES
 
@@ -685,13 +939,13 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Los tipos lógicos se conservan; los campos nativos de Sesion y los tipos PostgreSQL indicados son decisiones de diseño. Longitudes restantes y migraciones se precisarán en el diseño físico.
 - Los campos no marcados como opcionales en sus metadatos son obligatorios. Las unicidades opcionales admiten varios NULL y evitan repetir valores presentes.
 - Las tablas de códigos, procesos pendientes, sesiones y límites son soporte técnico de los casos de uso existentes; no incorporan nuevas funciones.
-- Una sede, varios consultorios y modalidad Presencial. No se incluyen pagos, telemedicina, farmacia, inventario ni administración de múltiples sedes.
+- Una sede, varios consultorios y modalidad Presencial. Pagos académicos se incorpora por ampliaciones aprobadas de noviembre y 000040–000042; siguen excluidos pagos reales, telemedicina, farmacia, inventario y múltiples sedes.
 - RF01–RF13 y RN01–RN14 se conservan. Los módulos clínico, documental y de seguridad adicionales corresponden a decisiones propias del proyecto.
 
 ### 5.2. USUARIOS, IDENTIDAD Y ROLES FIJOS
 
 - Rol contiene únicamente Administrador, Recepcionista, Médico y Paciente. Los permisos se definen en el código; no existen tablas ni pantallas para configurarlos.
-- Usuario.correo_acceso es único tras normalización uniforme, sin duplicados por mayúsculas/minúsculas; la estrategia física se definirá en PostgreSQL. El correo de contacto no autentica ni cambia el de acceso.
+- Usuario.correo_acceso tiene índice único lower(btrim(correo_acceso)) en 000006, sin columna normalizada auxiliar. El correo de contacto no autentica ni cambia el de acceso.
 - Paciente.id_usuario es FK opcional y única: cada paciente tiene cero o una cuenta y una cuenta vinculada identifica un solo paciente. Su rol debe ser Paciente.
 - Medico.id_usuario es FK opcional y única. El acceso profesional exige una cuenta habilitada con rol Médico y vinculación al registro profesional correspondiente.
 - CU-03 conserva el vínculo histórico Medico–Usuario al retirar el rol Médico; ese vínculo no concede acceso clínico con otro rol. Administrador ↔ Recepcionista y paso a Médico con identidad profesional legítima se rigen por VS-AUT-25/26. Retirar Médico exige resolver citas futuras/obligaciones incompatibles; si el modelo no permite comprobar su resolución, rechazar e informar, sin inventar cierre clínico. Rol, cuenta y actividad profesional son independientes; la inactivación necesaria se realiza expresamente por CU-10 y se coordina con nuevas reservas. No trasladar citas ni reasignar identidades/historia.
@@ -740,11 +994,11 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 ### 5.4. ORGANIZACIÓN MÉDICA Y CONFIGURACIÓN
 
 - MedicoEspecialidad tiene PK compuesta (id_medico, id_especialidad). Una especialidad puede relacionarse con varios médicos; cada Médico se registra con una o más especialidades.
-- Conservar las asociaciones referidas por citas históricas. La política de retiro del par Médico–Especialidad está aprobada según §3.15/VS-MED-07; su soporte de persistencia y API sigue previsto, no implementado. No borrar el par ni confundir su habilitación con la actividad del Médico o del catálogo.
+- Conservar asociaciones referidas por citas históricas. Su habilitación independiente está persistida en medico_especialidad.habilitada desde 000032 (§3.15); no elimina el par ni equivale a actividad del Médico/catálogo. La FK no impone por sí sola comprobar la habilitación.
 - Especialidad.nombre es único tras normalización; se incluyen inicialmente Pediatría, Medicina General y Geriatría. Su inactivación conserva las relaciones históricas.
 - Medico.id_consultorio admite NULL durante el alta por CU-10. CU-11 asigna un consultorio fijo válido antes de horarios reservables o nuevas citas. Varios Médicos pueden compartirlo solo con horarios compatibles.
 - HorarioAtencion admite varios intervalos por Médico; dia_semana utiliza 1=lunes a 7=domingo y hora_fin debe ser posterior a hora_inicio.
-- ConfiguracionClinica tiene una sola fila (id_configuracion=1), zona America/La_Paz y duración inicial de quince minutos, configurable y siempre positiva.
+- ConfiguracionClinica permite como máximo una fila por PK y CHECK(id_configuracion=1); SQL no exige que exista. Zona America/La_Paz y duración default quince minutos, siempre positiva; existencia inicial depende del seeder.
 - **Concreción aprobada 2026-10-21 (CU-11/CU-12):** Medico.activo y HorarioAtencion.activo son independientes. Inactivar al profesional no altera horarios; cada horario activo sigue reservando franja administrativa hasta modificación/desactivación expresa compatible con citas vigentes. Desactivarlo no libera ocupación de citas existentes; reactivar al Médico no reactiva horarios. Desactivar Consultorio se rechaza con Médicos asignados u obligaciones futuras. La duración global debe caber en todos los intervalos activos, sin exigir múltiplo exacto y sin cambiar citas existentes. Reglas a implementar en Services/transacciones; las columnas booleanas existentes no garantizan su cumplimiento.
 - **Persistencia CU-11/CU-12:** consultorios.actualizado_en TIMESTAMPTZ(6) NOT NULL implementado en fase 2 mediante migración aditiva 000033 con inicialización de existentes (§6.19). Horarios/asignaciones usarán medicos.actualizado_en y duración usará configuracion_clinica.actualizado_en ya existentes. No se añade versión a cada horario ni se duplica consultorio en él. El inventario con 000033 tiene 28 entidades/243 atributos/43 relaciones.
 - No se inventa una dirección física: direccion_sede es opcional hasta contar con información real. No existe un catálogo de sedes múltiples.
@@ -766,11 +1020,11 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - La reprogramación confirma el nuevo intervalo y libera el anterior atómicamente. La validación del servidor se coordina con protección de concurrencia en PostgreSQL.
 - No se permiten intervalos superpuestos para un mismo Médico o consultorio, incluso con solicitudes simultáneas. Los intervalos contiguos sí son compatibles.
 - Cancelada no ocupa disponibilidad. Los registros Atendida e Inasistencia no se reutilizan para reservar su intervalo; no se elimina ni altera su atención histórica.
-- Diseño físico: transacciones coordinadas y restricciones para RF07/RN07/RN13; una consulta previa o transacción sin coordinación no basta. Se evaluarán exclusiones de rangos temporales por Médico y consultorio, con intervalos [inicio,fin).
+- Exclusiones implementadas: Médico/consultorio para estado <> Cancelada (000019) y Paciente para Programada/Confirmada (000035), con rangos [inicio,fin). No sustituyen validación/coordinación transaccional del servidor.
 - CambioCita conserva autor, fecha, operación, estados y valores administrativos anteriores/nuevos. No guarda diagnósticos ni sustituye las versiones clínicas.
 - **Implementado en CU-11 fase 3 (2026-10-21):** el traslado de ubicación actualiza id_consultorio/consultorio_atencion/actualizada_en de citas elegibles y añade CambioCita sin cambiar sus tiempos/estado. Conserva version_programacion en este cambio exclusivamente de ubicación; Recordatorio referencia Cita sin texto materializado de ubicación, por lo que el lector obtiene ubicación vigente desde esa relación, sin duplicar avisos. Contrato y revalidación concurrente en backend/README.md; esquema sin cambios adicionales.
 - No se eliminan pacientes, médicos, especialidades, consultorios ni horarios referidos por historia; se desactivan y se restringen eliminaciones en cascada.
-- Las restricciones de exclusión, si se adoptan, usarán tipos y operadores compatibles con PostgreSQL y excluirán Cancelada de la ocupación. Horario completo, vigencia de catálogos y cambios concurrentes requieren coordinación adicional; no se declaran implementadas.
+- Las tres exclusiones usan GiST/btree_gist; no hay columna de rango persistida ni predicado now(). Horario completo, vigencia de catálogos y autorización no se deducen de ellas.
 
 ### 5.6. CINCO ESTADOS Y CONTROL DE ASISTENCIA
 
@@ -815,11 +1069,11 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - Estados internos exclusivos: Pendiente, En revisión y Disponible. Autorizar/Devolver son decisiones de revisión y no agregan estados.
 - DocumentoLaboratorio contiene metadatos del archivo privado; VersionResultado conserva su asociación, número de versión, autor, fecha, origen y motivo de cambio.
 - Cada nueva asociación o sustitución agrega una versión inmutable. Los documentos anteriores permanecen protegidos; nunca se sobrescribe el archivo para ocultar el cambio.
-- FK compuesta propuesta: SolicitudLaboratorio(id_solicitud,id_version_actual) → VersionResultado(id_solicitud,id_version_resultado), con UQ del par referenciado. La versión actual pertenece necesariamente a la misma solicitud; admite NULL antes de la carga.
+- FK compuesta implementada en 000028: SolicitudLaboratorio(id_solicitud,id_version_actual) → VersionResultado(id_solicitud,id_version_resultado), con UQ del par referenciado. La versión actual pertenece necesariamente a la misma solicitud; admite NULL antes de la carga.
 - Una corrección de asociación previa a publicación conserva la versión de origen, crea la asociación corregida y actualiza las solicitudes afectadas en una transacción trazable, revalidando que ninguna esté Disponible. No reasigna ni altera resultados publicados.
 - La solicitud devuelta permanece En revisión durante la corrección. El documento incorrecto no se publica ni queda disponible al Paciente.
 - RevisionResultado siempre refiere una versión exacta. Solo el Médico solicitante puede Autorizar o Devolver un resultado En revisión; Devolver exige motivo, autor y fecha y mantiene En revisión, sin retirar publicaciones existentes.
-- FK compuesta propuesta: SolicitudLaboratorio(id_revision_publicada,id_version_actual) → RevisionResultado(id_revision,id_version_resultado), con UQ del par. La revisión publicada corresponde a la versión actual y, por la otra FK, a la misma solicitud.
+- FK compuesta implementada en 000028: SolicitudLaboratorio(id_revision_publicada,id_version_actual) → RevisionResultado(id_revision,id_version_resultado), con UQ del par. La revisión publicada corresponde a la versión actual y, por la otra FK, a la misma solicitud.
 - La publicación revalida simultáneamente versión, estado y autorización; si la versión cambió desde la revisión, se rechaza y exige revisar la nueva.
 - El Administrador carga inicialmente en Pendiente o corrige asociaciones o sustituye documentos devueltos en En revisión, pero no interpreta, modifica contenido clínico ni autoriza la publicación; CU-25 no le permite modificar un resultado Disponible.
 - La corrección de un documento devuelto no autoriza automáticamente su publicación. El Médico debe revisar nuevamente la versión corregida.
@@ -838,7 +1092,7 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 - La reprogramación aumenta version_programacion, invalida el aviso anterior y recalcula el nuevo. El cambio autorizado de consultorio actualiza el mismo aviso.
 - Cancelación, Atendida, Inasistencia o fin del turno retiran el aviso de próximas atenciones, conservando registros históricos. Solo se muestran avisos vigentes y pertinentes.
 - PreferenciaPaciente controla recordatorios internos; su ausencia utiliza el valor predeterminado definido en la aplicación. Deshabilitar impide nuevas emisiones.
-- Al habilitar de nuevo solo se consideran citas futuras pertinentes y se respeta la unicidad. No hay recordatorios por correo, WhatsApp o SMS; Web Push opcional se aprobó el 2026-10-30 como canal adicional con consentimiento/suscripción vigente, no representado todavía en este esquema. La unicidad del aviso interno no modela por sí sola los intentos de envío por dispositivo ni certifica recepción. Ver CU-28/VS-NOT-07–11/contexto §17.183.
+- Al habilitar de nuevo solo se consideran citas futuras pertinentes y se respeta la unicidad. No hay recordatorios por correo, WhatsApp o SMS; Web Push opcional tiene suscripciones/outbox persistidos por 000038/000039 (§§3.29–3.30). La UQ del aviso y la UQ aviso/suscripción evitan sus respectivos duplicados, sin certificar recepción.
 - Los reportes RF13, agenda e historial se obtienen mediante consultas de las tablas existentes; no se duplican resultados en tablas de reportes o historial de citas.
 - Bitacora registra automáticamente eventos de los módulos existentes. Se conserva una sola entidad, ampliada para CU-30, sin nuevos RF, RN, casos de uso ni roles.
 - id_usuario se renombra a id_usuario_responsable. USUARIO exige responsable autenticado; SISTEMA y ANONIMO lo dejan NULL. Cuenta objetivo es una segunda FK independiente.
@@ -849,7 +1103,7 @@ Se conservan las decisiones expresadas en la pestaña **«Reglas de integridad»
 
 ## 6. Contrato para el diseño físico PostgreSQL
 
-Las secciones 6.1–6.5 son **guía de ejecución**; §6.6 registra las decisiones técnicas concretadas durante la fase 0. No incorporan entidades ni atributos adicionales al DER. Antes de generar código, leer los tres `AGENTS.md`, `docs/ai/contexto-maestro.md`, `docs/ai/requerimientos.md`, `docs/ai/reglas-negocio.md` y `docs/ai/casos-de-us.md`. El DER tiene prioridad sobre decisiones improvisadas de nombres y relaciones.
+Las secciones 6.1–6.5 son **guía histórica de ejecución**, no persistencia prevista que deba agregarse al inventario; §6.6 registra decisiones de fase 0 y las siguientes su materialización fechada. Los nombres y restricciones ya concretados en §§2–4 no siguen pendientes por conservar esa guía. Antes de generar código, consultar fuentes aplicables mediante búsquedas y fragmentos según AGENTS.md, nunca leer íntegros los documentos extensos. Esta revisión no crea código ni certifica las ejecuciones históricas narradas.
 
 ### 6.1. Convenciones y decisiones a documentar antes de migrar
 
@@ -927,7 +1181,7 @@ Probar que volver a ejecutar los seeders no duplique catálogos ni altere claves
 
 **Estado al cerrar fase 0:** preparación técnica verificada, todavía sin tablas ni modelos de dominio. Las convenciones siguientes concretan el diseño lógico para el desarrollo por fases; son decisiones técnicas de este trabajo, no nuevas exigencias del examen. Las longitudes aquí indicadas se aplican al primer bloque; las de los bloques restantes se precisarán antes de sus migraciones. La implementación posterior del primer bloque se registra en §6.7.
 
-#### 6.6.1. Mapeo de las 28 entidades a tablas físicas
+#### 6.6.1. Mapeo de las 37 entidades a tablas físicas
 
 Nombres explícitos en minúsculas, sin tildes y con palabras separadas por guion bajo. Los modelos declararán `$table` y `$primaryKey`; no dependerán de la pluralización automática en inglés. Se mantienen las excepciones `sessions` y `bitacora`, el pivote `medico_especialidad` y la configuración única `configuracion_clinica`.
 
@@ -961,12 +1215,21 @@ Nombres explícitos en minúsculas, sin tildes y con palabras separadas por guio
 | `DocumentoLaboratorio` | `documentos_laboratorio` | 7 |
 | `VersionResultado` | `versiones_resultado` | 7 |
 | `RevisionResultado` | `revisiones_resultado` | 7 |
+| `SuscripcionPush` | `suscripciones_push` | CU-28, 000038 |
+| `EnvioRecordatorioPush` | `envios_recordatorio_push` | CU-28, 000039 |
+| `ObligacionPago` | `obligaciones_pago` | Pagos, 000040 |
+| `IntentoPago` | `intentos_pago` | Pagos, 000040/000041/000042 |
+| `CobroPago` | `cobros_pago` | Pagos, 000040/000041/000042 |
+| `DevolucionPago` | `devoluciones_pago` | Pagos, 000040 |
+| `OperacionPago` | `operaciones_pago` | Pagos, 000040/000041 |
+| `EventoPago` | `eventos_pago` | Pagos, 000040 |
+| `ReciboAcademicoPago` | `recibos_academicos_pago` | Pagos, 000042 |
 
 `migrations` es el repositorio de infraestructura de Artisan, no una entidad adicional del dominio. La auditoría puede crearse en fase 2 porque sus únicas dependencias externas son Usuario; su existencia no implementa los eventos de otros módulos.
 
 #### 6.6.2. Convenciones comunes para las migraciones y modelos
 
-- **Identificadores:** PK simples `BigInt` generadas por PostgreSQL mediante `$table->bigIncrements(...)` (`BIGSERIAL` en la versión instalada de Laravel). FK correspondientes con `BIGINT`, sin `UNSIGNED`. Se conserva la PK compuesta del pivote, el ID textual de `sessions` y el ID `INTEGER` fijo de ConfiguracionClinica. No asignar IDs de roles por posición ni calcular `MAX(id)+1`.
+- **Identificadores:** PK simples `BigInt` generadas por PostgreSQL mediante `$table->bigIncrements(...)` (`BIGSERIAL` en Laravel). FK correspondientes con `BIGINT`, sin `UNSIGNED`. Excepciones: PK compuesta del pivote, ID textual de sessions, INTEGER fijo sin secuencia de configuracion_clinica y siete PK financieras UUID sin default SQL/secuencia (recibo comparte id_cobro). No asignar IDs de roles por posición ni calcular MAX(id)+1.
 - **Tipos:** `Text` → `TEXT`, `Integer` → `INTEGER`, `Boolean` → `BOOLEAN`, `Date` → `DATE`, `Time` → `TIME(0)`, `JSONB` → `JSONB`. `String` se concretará como `VARCHAR(n)` por bloque; no se aplica silenciosamente un límite global de 255. Se mantienen los tipos y longitudes nativos ya explícitos en el diccionario.
 - **Instantes:** `TimestampTZ` → `TIMESTAMPTZ(6)`; conservar los tipos nativos `TIMESTAMPTZ`. La conexión PostgreSQL usa zona `UTC`; las reglas y presentación locales mantienen `America/La_Paz`. Al escribir instantes desde Eloquent, conservar el desplazamiento y la precisión, por ejemplo con `$dateFormat = 'Y-m-d H:i:s.uP'`; no enviar una hora local sin zona como si fuera UTC.
 - **Timestamps de modelos:** declarar los nombres propios mediante `CREATED_AT` / `UPDATED_AT`; usar `null` para el timestamp inexistente o `$timestamps = false` para registros controlados explícitamente. No crear `created_at`, `updated_at` ni `deleted_at` adicionales. Las versiones y eventos inmutables no adquieren una fecha de actualización automática.
@@ -1448,6 +1711,22 @@ Migración aditiva **2026_10_30_000037_add_revisada_por_to_revisiones_resultado.
 
 Relaciones Eloquent `RevisionResultado.revisadaPor`/`Usuario.revisionesResultados`. La migración añade columna sin UPDATE/backfill ni desactivar inmutabilidad; la prueba prepara revisión/publicación antigua, retira/reaplica solo 000037 y coteja atributos/punteros, FK restrictiva y rechazo de UPDATE/DELETE/TRUNCATE. Autor inexistente rechazado por PostgreSQL; legado desconocido no se atribuye desde vínculo profesional actual. Aplicación/reversión solo en esquema de tests exclusivo, no base habitual/remota. Verificación dirigida/resultados en contexto §17.174/README/P58. Lectura binaria ampliada sigue F5; autor NULL por sí solo no reescribe ni revoca metadatos de publicación legada que superan controles existentes.
 
+### 6.25. Persistencia financiera acumulada — contraste estático 2026-11-07
+
+000040–000042, diccionario §§3.31–3.37 y FK 52–70 son la fuente del incremento financiero vigente. Además de columnas, FK y unicidades ya descritas, estos son los índices ordinarios de 000040; 000041 no añade índices y 000042 solo añade los respaldos de sus PK/UQ. No se declara un índice adicional por cada método Eloquent.
+
+| Tabla | Índices ordinarios efectivos |
+|---|---|
+| `obligaciones_pago` | obligaciones_vencimiento_idx(vencimiento_at,id_obligacion) WHERE exigible; obligaciones_emision_idx(emitida_en,id_obligacion); obligaciones_emisor_idx(emitida_por); obligaciones_anulacion_idx(id_cambio_anulacion,id_cita). |
+| `intentos_pago` | intentos_historial_idx(id_obligacion,creado_en,id_intento); intentos_iniciador_idx(iniciado_por); intentos_revision_idx(proxima_revision_en,id_intento) WHERE proxima_revision_en IS NOT NULL. |
+| `cobros_pago` | cobros_intento_idx(id_intento,id_obligacion). |
+| `devoluciones_pago` | devoluciones_cancelacion_idx(id_cambio_cancelacion). |
+| `operaciones_pago` | operaciones_recuperacion_idx(estado,proxima_ejecucion_en,id_operacion); operaciones_devolucion_idx(id_devolucion,id_cobro); operaciones_cobro_idx(id_cobro,id_intento). |
+| `eventos_pago` | eventos_recuperacion_idx(estado,proxima_ejecucion_en,id_evento); eventos_intento_idx(id_intento). |
+| `recibos_academicos_pago` | Ninguno adicional a PK/UQ en 000042. |
+
+Las siete PK financieras conservan los nombres PostgreSQL generados `_pkey`; no se renombraron a `_pk` como en el bloque inicial. Las FK inline y UQ sin nombre explícito también usan nombres generados; las restricciones compuestas nombradas se conservan exactamente. Los triggers financieros no se equiparan a los clínicos: recibos rechaza UPDATE/DELETE, no TRUNCATE; las seis tablas de 000040 rechazan DELETE/TRUNCATE, cobros además cualquier UPDATE, y obligaciones/intentos/eventos preservan solo los campos históricos especificados. Las migraciones 000041/000042 rechazan down automático mediante LogicException; no se ejecutó ninguna reversión ni se altera esa política desde este documento.
+
 ## 7. Validaciones de aceptación antes de implementar casos de uso
 
 **Cierre integrado definitivo Fase 6 laboratorio (2026-10-30):** global única **4088 pruebas/58 622 aserciones correctas**, código 0, 27 min 10,105 s/580 MB; inventario PostgreSQL final idéntico al inicial y sin raíces temporales propias pendientes. Módulo backend cerrado localmente, esquema permanece 000037/28 entidades/246 atributos/45 FK, sin nueva migración o aplicación habitual/remota. Notas de verificación pendiente siguientes son historia superada por contexto §17.176/README/análisis F6/UML §22; fuentes físicas/Draw.io e historial preservados.
@@ -1510,13 +1789,15 @@ Esta matriz sirve para revisar **migraciones**, **modelos**, **servicios** y **p
 | CU-22–CU-23 — Historia y consulta | `ConsultaMedica`, `VersionConsulta`, `VersionAntecedente` | Médico responsable, una consulta por Cita, versiones protegidas. |
 | CU-24–CU-27 — Laboratorio | `SolicitudLaboratorio`, `VersionResultado`, `DocumentoLaboratorio`, `RevisionResultado` | Autoriza el Médico; los documentos no publicados no se exponen. |
 | CU-28 — Recordatorios | `Recordatorio`, `Cita`, `PreferenciaPaciente` | 24 horas o tras reserva cercana persistida; notificaciones internas. |
+| Ampliación CU-28 — Web Push | `SuscripcionPush`, `EnvioRecordatorioPush` | Consentimiento/contexto y outbox persistidos; no prueba entrega. |
 | CU-29–CU-30 — Reportes y auditoría | Tablas de negocio y `Bitacora` | Reportes agregados; bitácora consultable solo por Administrador. |
+| Ampliación CU-31–CU-34 — Pagos académicos | `ObligacionPago`, `IntentoPago`, `CobroPago`, `DevolucionPago`, `OperacionPago`, `EventoPago`, `ReciboAcademicoPago` | Persistencia 000040–000042; simulación separada de evidencia externa, sin dinero real. No nuevos RF/RN oficiales. |
 
 RN01–RN14 permanecen como reglas **oficiales**, sin renumeración; las demás precisiones corresponden al diseño aprobado de la clínica. **No modificar el enunciado para acomodarlo a una migración existente.**
 
 ## 9. Flujo de trabajo obligatorio para OpenCode
 
-1. Leer este `.md` completo y localizar el archivo `.drawio` de referencia. Leer también las reglas funcionales y los `AGENTS.md` antes de crear una migración.
+1. Inspeccionar este documento por fragmentos y localizar las fuentes pertinentes mediante búsquedas, respetando AGENTS.md. No afirmar contraste con Draw.io si el archivo no está disponible. Consultar reglas funcionales antes de crear una migración.
 2. Comprobar el estado real del backend Laravel/PostgreSQL: esquema existente, migraciones aplicadas, tablas estándar, rutas configuradas y convenciones. **No afirmar que una tabla está creada por aparecer en un diagrama.**
 3. Proponer una fase pequeña con lista de entidades afectadas, columnas exactas, PK/FK/UQ/IDX, restricciones de servidor, riesgo de migración y pruebas.
 4. Resolver y registrar decisiones físicas pendientes (nombres de tablas, longitudes de tipos lógicos, cascadas, índices, estrategia de concurrencia) con aprobación cuando afecten reglas o integridad histórica.
@@ -1528,8 +1809,10 @@ RN01–RN14 permanecen como reglas **oficiales**, sin renumeración; las demás 
 
 ## 10. Control de integridad final de esta documentación
 
-- **28 entidades**, **239 atributos originales** y **43 conectores** descritos a partir del DER corregido; ninguna entidad inventada. Las extensiones técnicas CU-09/CU-10 (§§3.13–3.15 y 6.16–6.18) agregan actualizado_en a Especialidad/Medico y habilitada al pivote (242 atributos con 000030–000032). CU-11 fase 2 (§§3.12/6.19) agrega actualizado_en a Consultorio: 243 atributos con 000033. CU-14 fase 3 (§§3.18/6.20) añade id_propuesta_reserva a Cita: **244 atributos con 000034**, sin nuevas entidades/relaciones.
+- **Censo estático vigente hasta 000042: 37 tablas, 386 columnas, 70 FK SQL.** Base original 28/239/43; 000030–000034 añaden cinco columnas (244); 000036/000037 añaden dos columnas y dos FK (246/45); 000038/000039, dos tablas/26 columnas/seis FK (30/272/51); 000040, seis tablas/93 columnas —incluida incorporada_finanzas en citas— y 17 FK (36/365/68); 000041, cuatro columnas de intento (369); 000042, una tabla/17 columnas/dos FK (37/386/70). Las cifras se contrastan con las definiciones, no con una base desplegada.
 - Se conservan todos los identificadores, FK simples y compuestas, restricciones UQ y atributos opcionales indicados en el Draw.io. Las listas cerradas se conservan salvo la ampliación expresamente aprobada de `TokenAcceso.proposito` con `CredencialTemporal`, identificada en §§3.4 y 6.15; no se presenta como parte del original.
-- La documentación distingue los datos fuente de las **orientaciones propuestas para Laravel/PostgreSQL**.
+- La documentación distingue esquema vigente definido por código, fuente gráfica histórica y guías/evidencias fechadas. Los mínimos de autorización o negocio no se convierten en cardinalidades SQL. No se incorporan columnas de Resources/React, métodos Eloquent, estados calculados ni tablas conceptuales.
+- **Método de contraste de esta revisión:** lectura de los up completos de 000001–000042 y de sus ALTER/CHECK/índices/triggers; cotejo de cada columna del diccionario (nombre, tipo lógico/físico, NULL y marcas PK/FK), de las 70 tuplas FK y de los mapeos de tabla/PK de los 36 modelos. Las UQ ordinarias, normalizadas y parciales se revisan con sus expresiones/predicados, no por mera existencia de nombres. Comprobación automatizada estática complementaria del inventario, atributos y FK; no introspección SQL ni ejecución de pruebas de integración. Las evidencias antiguas no se presentan como pruebas reejecutadas.
+- **Mermaid:** se conserva un único bloque erDiagram con 16 enlaces entre nombres físicos; agrupa FK múltiples del mismo vínculo. Revisión de sintaxis de esta notación restringida y de extremos contra las restricciones descritas; no parser oficial ni renderizado acreditados, al no disponer de Mermaid CLI/librería instalada. No se instalaron dependencias ni se enviaron diagramas a servicios externos.
 - La elaboración inicial del diccionario no generó código ni migraciones. La infraestructura de fase 0 (§6.6.5) y las migraciones verificadas de fases 1–7 (§6.7–§6.13) completan la preparación de datos, diferenciada de los CU/módulos funcionales pendientes.
 - Si futuras modificaciones cambian el `.drawio`, actualizar conjuntamente este diccionario y su trazabilidad; nunca dejar descripciones contradictorias.

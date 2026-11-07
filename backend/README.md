@@ -1,5 +1,15 @@
 # Backend — Clínica Vida Salud
 
+## CU-29 — aceptación integrada PDF Fase 3 (2026-11-07)
+
+F3 aceptada localmente: siete recorridos React/Axios→Laravel HTTP→PostgreSQL exclusivo→descarga Chrome→lectura Windows.Data.Pdf, siete vacíos, filtros/totales/orden,500 inclusive/501 sin parcial, agregado504,21 rechazos403 y sesión revocada401.429/Retry-After/espera real revalidados con FileStore efectivo desde bootstrap. qpdf valida21 descargados;19 útiles para aceptación y dos escenarios fallidos del arnés preservados sin acreditarlos. No cambios PHP/contratos/dependencias/migraciones versionadas ni nueva suite PHPUnit; usuario autorizó ejecutar migraciones existentes solo en esquema de pruebas propio, excluidos Pagos/recibos. [Aislamiento, matriz, comandos, incidencias y límites](../docs/ai/cu29-aceptacion-pdf.md). No producción ni garantía de rendimiento; entrada F1 inferior histórica.
+
+## CU-29 — PDF Fase 1 backend (2026-11-07)
+
+Ampliación opcional solicitada: siete GET `/api/reportes/{recurso}/pdf`, mismos filtros/órdenes del JSON **sin `page`/`per_page`**. Descarga PDF privada/no-store, solo Administrador/sesión normal/cuenta habilitada y revalidación después del render. Conjunto completo hasta500 filas, no página visible; exceso422 `VALIDACION_ERROR`/`details.exportacion`, vacío200 con total0. Cantidades conserva agregado completo aunque cuente más de500 citas. HTML2MiB/PDF8MiB, throttle6/min por usuario, A4 horizontal/páginas numeradas y Dompdf3.1.6 instalado; sin dependencias ni persistencia nuevas.
+
+Contrato completo/nombres/cabeceras/criterios: [`cu29-contratos-api.md` §8](../docs/ai/cu29-contratos-api.md#8-exportación-pdf--fase-1-2026-11-07). `ReportePdfController → ReporteExportacionService → ReporteService → consultas existentes`; `ReportePdf` independiente de recibos. Pruebas dirigidas nuevas en `ReportesPdfTest`, resultados y evidencias reales en [`estado-fase.md`](../docs/ai/estado-fase.md). No React, Pagos/recibos ni inicio de Fases2–3. Las exclusiones PDF inferiores conservan su carácter histórico.
+
 ## Instalación académica publicada y recibo PDF (2026-11-06)
 
 [Contrato/seguridad/instantánea/pruebas y operaciones propuestas](../docs/ai/pagos-academico-publicado-recibo.md). Nuevo entorno dedicado `academic` con declaración explícita/HTTPS/cookies seguras/proveedores apagados; **production sigue rechazado**. Defaults nuevos apagados, `.env` intacto. Migración42 creada, no aplicada habitualmente/remoto: permite contexto académico nuevo y recibos inmutables, atómicos con el cobro aplicado. Dompdf3.1.6 autorizado/lock actualizado, sin recursos remotos. GET/HEAD `/api/pagos/obligaciones/{uuid}/recibo`, titular/Administrador autorizado también al entregar PDF; no factura fiscal ni recibo retroactivo desde ficha mutable. Cancelación conserva original/devolución separada.

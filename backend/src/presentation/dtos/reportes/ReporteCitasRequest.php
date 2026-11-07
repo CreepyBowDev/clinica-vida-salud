@@ -27,6 +27,6 @@ class ReporteCitasRequest extends ReportePeriodoRequest
                 Rule::in(['Programada', 'Confirmada', 'Atendida', 'Cancelada', 'Inasistencia'])];
         }
 
-        return $rules;
+        return $this->reglasListado($rules);
     }
 }

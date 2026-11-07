@@ -140,9 +140,70 @@ Listado y detalle consultan `BitacoraService.php`, exclusivo del Administrador y
 
 Se omiten `BitacoraWorkspace.jsx`, filtros, tabla visual, hooks, servicios HTTP, controlador, `BitacoraRepository.php` y modelo `Bitacora`. Los demás módulos registran eventos mediante el repositorio compartido, no mediante estas páginas lectoras; se omiten esos enlaces y la autenticación. La consulta presenta metadatos y referencias seguras, no documentos, credenciales ni contenido clínico.
 
+### P14. Pagos académicos
+
+**Estado: Implementado en código (CU-31–CU-34 y ampliaciones de precio/coordinación de citas, simulación persistente y recibo académico), verificado por inspección estática; configuración efectiva, esquema instalado y operación externa no verificados. Ampliación aprobada, no exigencia del examen.**
+
+El documento existente utiliza SVG enlazados, no bloques Mermaid. Para incorporar únicamente este paquete sin crear otro archivo, su representación se incluye en Mermaid editable: conserva el recuadro del paquete, las tres filas, las cajas verdes y la selección de enlaces continuos de comunicación y discontinuos de persistencia. No se modifica el diseño de P1–P13.
+
+```mermaid
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Arial, Helvetica, sans-serif","fontSize":"13px","primaryColor":"#e2f0d9","primaryTextColor":"#233123","primaryBorderColor":"#6c9652","lineColor":"#384238","clusterBkg":"#ffffff","clusterBorder":"#6c9652"},"flowchart":{"htmlLabels":true,"curve":"stepAfter","nodeSpacing":24,"rankSpacing":70}}}%%
+flowchart TB
+    subgraph P14["P14. PAGOS ACADÉMICOS"]
+        direction TB
+        I1["«Interface»<br/>AsignarMonto.jsx"]
+        I2["«Interface»<br/>PagosPage.jsx"]
+        I3["«Interface»<br/>OperacionPago.jsx"]
+        I4["«Interface»<br/>PagarPage.jsx"]
+        I5["«Interface»<br/>DescargarRecibo.jsx"]
+
+        C1["«Class»<br/>PrecioCitaService.php"]
+        C2["«Class»<br/>ConsultaPagosService.php"]
+        C3["«Class»<br/>OperacionPagoService.php"]
+        C4["«Class»<br/>SimulacionPagoService.php"]
+        C5["«Class»<br/>ReciboAcademicoService.php"]
+
+        T1["«Table»<br/>obligaciones_pago"]
+        T2["«Table»<br/>intentos_pago"]
+        T3["«Table»<br/>operaciones_pago"]
+        T4["«Table»<br/>cobros_pago"]
+        T5["«Table»<br/>recibos_academicos_pago"]
+
+        I1 --- C1
+        I2 --- C2
+        I3 --- C3
+        I4 --- C4
+        I5 --- C5
+        C1 -.-> T1
+        C2 -.-> T2
+        C3 -.-> T3
+        C4 -.-> T4
+        C5 -.-> T5
+    end
+    classDef elemento fill:#e2f0d9,stroke:#6c9652,color:#233123,stroke-width:1px;
+    class I1,I2,I3,I4,I5,C1,C2,C3,C4,C5,T1,T2,T3,T4,T5 elemento;
+    style P14 fill:#ffffff,stroke:#6c9652,color:#233123
+```
+
+La selección cubre asignación posterior del monto, obligaciones/detalle/historial compartidos, operaciones con proveedores de prueba, pago académico persistente y descarga de recibo. `PagosPage.jsx` incorpora `HistorialPagos.jsx`, `OperacionPago.jsx` y `DescargarRecibo.jsx`; `RetornoPagoPage.jsx` reutiliza las operaciones externas sin acreditar éxito por volver al portal. Solo el Paciente titular inicia, consulta resultados operativos, captura o cierra sus intentos. El Administrador consulta por Paciente seleccionado y descarga el recibo autorizado, sin pagar por él; Administrador y Recepción asignan precio, no cobran por el titular. Médico no recibe permisos financieros. Emisor del precio, iniciador del pago, ejecutor de la cancelación, Paciente afectado y Médico responsable conservan sus identidades; consultar o pagar no atribuye autoría asistencial.
+
+Se selecciona una dependencia de persistencia por Service, no todas: precio crea `obligaciones_pago`; consulta lee `intentos_pago` y también obligaciones, cobros y devoluciones; operaciones externas preparan `operaciones_pago` mediante `StripePagoService.php`/`PayPalPagoService.php` y sus repositorios; simulación registra `cobros_pago`, además de intentos y operaciones; recibos consulta `recibos_academicos_pago` mediante su repositorio y reutiliza la autorización de la obligación. `SimulacionPagoService.php` invoca la emisión del recibo en la misma transacción del cobro simulado aplicado; se omite ese enlace interno para conservar las tres filas. Se reutiliza persistencia común, no un segundo libro financiero ni evidencia externa ficticia. Aprobar PayPal no liquida; tampoco lo hacen un retorno, un formulario o una descarga.
+
+`AsignarMonto.jsx` y `DescargarRecibo.jsx` se integran también en el detalle de cita mediante `FinanzasCita.jsx`. La integración con P5 pasa por `ReservaService.php` y `PrecioCitaService.php`: al habilitar incorporación, la reserva administrativa emite obligación con precio histórico y la propia queda sin precio hasta asignación autorizada. Con P6, `GestionCitaService.php` invoca `CoordinacionFinancieraCitaService.php`: reprogramar conserva precio/cobro y ajusta vencimiento si exigible y no liquidada; cancelar retira exigibilidad y coordina devolución del cobro aplicado, simulada localmente si ese fue su origen. No se alteran P5/P6 para repetir esos enlaces. La proyección financiera autorizada de detalle/historial de citas se reutiliza con P8; no amplía la respuesta del Médico ni el acceso de Recepción al historial financiero general. Vencimiento financiero no es un sexto estado de cita y el impago no bloquea atención.
+
+Se omiten filtros, formularios, hooks, servicios HTTP, controladores, DTOs, Repositories/Eloquent intermediarios, autenticación, bitácora y tablas compartidas de citas/identidades. También se omiten las cajas de gateways, recepción de eventos, recuperadores y devoluciones externas: existen implementaciones separadas Stripe test/PayPal Sandbox, y `pagos:conciliar` invoca cada minuto `ConciliacionPagosService.php` para los proveedores habilitados, sin llamada React al scheduler. La demostración visual `DemostracionPagosPage.jsx` no persiste pagos y no se conecta a tablas en este diagrama. El PDF se genera desde la instantánea mediante `ReciboAcademicoPdf.php`/Dompdf y se entrega con sesión y autorización del recurso; no es un archivo público ni una factura fiscal. Descargar no emite ni reescribe recibos; una cancelación conserva el original y muestra la devolución aparte.
+
+**Fuentes contrastadas:**
+
+- **Interfaces y comunicación:** `frontend/src/features/pagos/{pages,components,hooks}/`, `services/pago.service.js` (`consultarPagos`, `operarPago`, `operarSimulacion`, `proponerMonto`, `confirmarMonto`, `descargarRecibo`); `frontend/src/app/router.jsx`; rutas de `backend/src/presentation/routes/pagos.php` y controladores del módulo `pagos`. Estas cadenas sustentan los cinco enlaces superiores; no son llamadas PHP directas desde React.
+- **Servicios y persistencia:** `backend/src/business/services/pagos/{PrecioCitaService,ConsultaPagosService,OperacionPagoService,StripePagoService,PayPalPagoService,SimulacionPagoService,ReciboAcademicoService}.php`; `backend/src/data/repositories/pagos/{ObligacionPagoRepository,StripePagoRepository,SimulacionPagoRepository,ReciboAcademicoRepository}.php` y modelos correspondientes. Los cinco enlaces inferiores resumen esas delegaciones, incluido el despacho de operaciones a los servicios concretos; no indican SQL directo.
+- **Tablas y ampliaciones:** migraciones `2026_11_05_000040_create_pagos_persistence.php`, `2026_11_06_000041_add_simulacion_academica_to_pagos.php` y `2026_11_06_000042_create_recibos_academicos_pago.php`, en `backend/src/data/database/migrations/`. Definen las tablas seleccionadas, separación del origen simulado e instantánea histórica; su existencia en código no demuestra aplicación en una base habitual/remota.
+- **Integración y límites:** `ReservaService.php`, `GestionCitaService.php`, `CoordinacionFinancieraCitaService.php`, `ResumenFinancieroCitaService.php`, `ConciliacionPagosService.php`, `backend/routes/console.php`, `backend/config/pagos.php`, `HabilitacionAcademicaService.php`, `ReciboAcademicoController.php` y `ReciboAcademicoPdf.php`. La simulación exige habilitación y esquema; permite local/testing o instalación dedicada `academic` bajo condiciones adicionales, nunca `production`. Los proveedores externos siguen separados de la simulación y apagados por defecto en la configuración versionada; no se inspeccionan secretos ni configuración efectiva.
+- **Decisiones vigentes:** `pasarela-pagos.md`, `pagos-simulacion-persistente.md`, `pagos-academico-publicado-recibo.md` y CU-31–CU-34 de `casos-de-us.md`, §4.14; CU-33 es consulta del historial propio. Las notas antiguas de «no implementado» en AGENTS y estados históricos de esas fuentes no describen el código actual; las decisiones posteriores aprobadas y las cadenas inspeccionadas sustentan P14, no una certificación operativa.
+
 ## Resumen de los paquetes inspeccionados
 
-- **Implementados en código:** P1–P13; P1 conserva su calificación local aprobada y P2–P13 se contrastaron estáticamente en sus respectivas revisiones. No equivale a certificación funcional o de producción.
+- **Implementados en código:** P1–P14; P1 conserva su calificación local aprobada y P2–P13 se contrastaron estáticamente en sus respectivas revisiones. P14 se contrastó estáticamente con las decisiones posteriores de Pagos, incluida simulación persistente y recibos. No equivale a certificación funcional o de producción.
 - **Parciales o pendientes de implementación:** ninguno identificado en las piezas principales representadas. P11 incluye transporte, dispatcher y frontend push existentes; su configuración efectiva, operación del scheduler y entrega real quedan sin verificar, no se confunden con piezas futuras. P12 no incluye la exportación opcional.
-- **Cobertura y coherencia documental:** trece paquetes en orden cubren CU-01–CU-30; disponibilidad se comparte entre P4/P5 y CU-13. Nombres y enlaces de los trece SVG revisados; componentes, servicios y tablas compartidos representan reutilización sobre una única PostgreSQL, no software duplicado. Se conservan los cinco estados de cita, `Confirmada` como llegada y estados de laboratorio separados; los estados del outbox no son estados de cita.
-- **Límite de la revisión:** P1–P10 permanecen intactos; revisión global documental, no nueva auditoría funcional exhaustiva. Fase 4 terminada documentalmente, pendiente de aprobación del usuario; la entrega completa no se declara aprobada.
+- **Cobertura y coherencia documental:** catorce paquetes en orden cubren CU-01–CU-34; disponibilidad se comparte entre P4/P5 y CU-13. Se conservan los trece SVG de las revisiones anteriores; P14 incorpora Mermaid en este archivo, sin añadir recursos externos. Componentes, servicios y tablas compartidos representan reutilización sobre una única PostgreSQL, no software duplicado. Se conservan los cinco estados de cita, `Confirmada` como llegada y estados de laboratorio separados; los estados del outbox y la situación financiera no son estados de cita.
+- **Límite de la revisión:** P1–P13 permanecen intactos; la revisión actual se limita a P14 y su integración documental, no constituye auditoría funcional exhaustiva ni nueva validación de los paquetes anteriores. No se verifican esquema/configuración efectivos, scheduler operativo, proveedores externos ni despliegue de Pagos. Se conserva como antecedente la Fase 4 documental pendiente de aprobación; esta ampliación no declara aprobada la entrega completa.

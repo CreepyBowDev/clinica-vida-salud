@@ -16,6 +16,9 @@
 .reports-page .report-patients th:first-child { width: 24%; }
 .reports-page .agenda-state { padding: 4px 8px; border-radius: 4px; font-size: .875rem; }
 .reports-page .report-counts { margin-top: 24px; }
+.reports-page .report-export { margin-block: 16px; }
+.reports-page .report-export p { max-width: 80ch; overflow-wrap: anywhere; margin-top: 12px; }
+.reports-page .report-export > p:first-of-type { color: var(--color-muted); font-size: .875rem; }
 .reports-page .report-counts h2 { font-size: 1.125rem; }
 .reports-page .report-counts dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin-top: 20px; }
 .reports-page .report-counts dl > div { padding: 16px 0; border-bottom: 0; border-top: 1px solid var(--color-border); min-width: 0; }

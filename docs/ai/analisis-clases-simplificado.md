@@ -5102,6 +5102,8 @@ Administrador y Recepcionista programan para una ficha seleccionada activa; el P
 
 `proponerReserva()` entrega selección, revisión del turno y motivo opcional. El servidor vuelve a calcular disponibilidad, exige ficha activa y coincidencia de revisión, y devuelve resumen y propuesta cifrada autenticada vinculada al actor, ficha, selección y motivo. No crea Cita, CambioCita ni aviso; las citas existentes solo participan como ocupación. `inicioEsperado` es comprobación local, no un campo HTTP. La propuesta permanece en memoria de la ruta y cambiar criterios o motivo exige nueva revisión.
 
+La ampliación aprobada de Pagos añade `monto_bob` a la propuesta administrativa cuando la incorporación financiera está habilitada: Bs 7,00–7.000,00, máximo dos decimales. `ImportePago.desdeBob()` calcula en enteros USD a tasa histórica 7:1 con HALF_UP; precio e incorporación quedan ligados a la propuesta revisada. El Paciente no fija monto: su reserva incorporada queda pendiente de asignación, sin obligación ni deuda de importe cero. Cambiar el monto administrativo exige otra propuesta; React muestra el precio devuelto, no calcula el importe autoritativo.
+
 ```mermaid
 classDiagram
     direction LR
@@ -5117,6 +5119,7 @@ classDiagram
         hora_inicio
         revision_turno
         motivo_breve
+        monto_bob
         +proponerReserva()
     }
     class ControlP30["Búsqueda y reserva de citas"] {
@@ -5134,6 +5137,7 @@ classDiagram
         +candidatos() [validator]
         +emitir() [util]
         +motivo() [util]
+        +desdeBob() [util]
     }
     class Usuario {
         <<entity>>
@@ -5244,6 +5248,8 @@ classDiagram
 
 `confirmarReserva()` envía exclusivamente propuesta y motivo revisados, después de preparar CSRF; `pacienteEsperado` no viaja al servidor. Sin cita previa para el UUID, el servidor revalida sesión, ficha activa, revisión, resumen, recursos, habilitación, horario, duración, inicio futuro y ocupación de Médico, consultorio y Paciente. Crea Cita Programada/Presencial y bitácora en una transacción, con duración y ubicación efectivas, ejecutor auténtico y Médico responsable separados. Los locks y exclusiones PostgreSQL impiden solapamientos concurrentes; un conflicto conserva lo anterior y exige revisar información vigente. Esta operación no genera avisos ni registra llegada. Un fallo de red posterior al envío no demuestra rollback: la interfaz requiere P32, sin reenvío automático.
 
+Si la propuesta incorpora finanzas, la reserva administrativa llama a `PrecioCitaService.emitir()` y confirma Cita, ObligacionPago y auditoría en la misma transacción. El precio procede de la propuesta autenticada, no de un nuevo monto enviado al confirmar. La obligación es única por cita y vence en `inicio_at`; conserva BOB, USD, tasa y ejecutor históricos. La reserva propia incorporada guarda `incorporada_finanzas=true` sin obligación hasta la asignación del personal. Las citas anteriores no incorporadas permanecen excluidas; reconciliar una propuesta ya registrada no emite otra obligación ni modifica el precio existente.
+
 ```mermaid
 classDiagram
     direction LR
@@ -5271,6 +5277,8 @@ classDiagram
         +ocupacion() [repository]
         +crear() [repository]
         +citaProgramada() [repository]
+        +emitir() [service]
+        +obligacionEmitida() [repository]
     }
     class Usuario {
         <<entity>>
@@ -5348,6 +5356,7 @@ classDiagram
         id_especialidad
         id_consultorio
         creada_por
+        incorporada_finanzas
         inicio_at
         fin_at
         duracion_minutos
@@ -5378,6 +5387,21 @@ classDiagram
         referencias
         cambios_seguros
     }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        tasa_numerador
+        tasa_denominador
+        moneda_original
+        moneda_cobro
+        emitida_por
+        emitida_en
+        vencimiento_at
+        exigible
+    }
     Actor --> InterfazP31Alta : confirma expresamente resumen revisado
     InterfazP31Alta ..> ControlP31Alta : solicita registro sin reintento automático
     ControlP31Alta ..> Usuario : revalida ejecutor y sesión
@@ -5391,9 +5415,11 @@ classDiagram
     ControlP31Alta ..> ConfiguracionClinica : compara duración y sede revisadas
     ControlP31Alta ..> Cita : comprueba ocupación y crea una sola cita
     ControlP31Alta ..> Bitacora : registra origen y referencias sin motivo privado
+    ControlP31Alta ..> ObligacionPago : emite precio único solo en reserva administrativa incorporada
     style Actor fill:#fff7ed,stroke:#9a3412
     style InterfazP31Alta fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlP31Alta fill:#dbeafe,stroke:#1d4ed8
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
     style Usuario fill:#dcfce7,stroke:#15803d
     style Rol fill:#dcfce7,stroke:#15803d
     style Paciente fill:#dcfce7,stroke:#15803d
@@ -5563,6 +5589,103 @@ classDiagram
     style Rol fill:#dcfce7,stroke:#15803d
     style Paciente fill:#dcfce7,stroke:#15803d
     style Cita fill:#dcfce7,stroke:#15803d
+```
+
+## Asignar una sola vez el monto de una cita incorporada
+
+Es ampliación de CU-14, no otro CU. `FinanzasCita` ofrece `AsignarMonto` exclusivamente con la capacidad autorizada de Administrador/Recepcionista. `proponerMonto()` envía `monto_bob`; `PrecioCitaService.proponer()` bloquea la cita, exige incorporación y ausencia de precio, rechaza Cancelada y devuelve precio y propuesta autenticada ligada al ejecutor, rol, cita y revisión. No emite obligación al revisar. `confirmarMonto()` envía únicamente la propuesta; `confirmar()` revalida y `emitir()` persiste obligación y auditoría atómicamente. Admite asignación después del inicio si no está cancelada, sin bloqueo asistencial ni recargos. La misma propuesta ya aplicada recupera el resultado; otra asignación entra en conflicto. No hay edición posterior ni incorporación retroactiva de citas antiguas. Ante incertidumbre se conserva la propuesta original en memoria, sin preparar otra ni reenviar automáticamente.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazMonto["Búsqueda y reserva de citas · monto individual"] {
+        <<boundary>>
+        id
+        monto_bob
+        propuesta
+        +proponerMonto()
+        +confirmarMonto()
+    }
+    class ControlMonto["Pagos académicos · asignación de precio"] {
+        <<control>>
+        +proponer() [controller]
+        +confirmar() [controller]
+        +rules() [validator]
+        +proponer() [service]
+        +confirmar() [service]
+        +emitir() [service]
+        +exigirHabilitacion() [service]
+        +exigirSesionNormal() [service]
+        +porId() [repository]
+        +porCitaBloqueada() [repository]
+        +crear() [repository]
+        +paraRespuesta() [repository]
+        +obligacionEmitida() [repository]
+        +desdeBob() [util]
+        +emitir() [util]
+        +abrir() [util]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+        incorporada_finanzas
+        estado
+        inicio_at
+        version_programacion
+        actualizada_en
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        tasa_numerador
+        tasa_denominador
+        moneda_original
+        moneda_cobro
+        emitida_por
+        emitida_en
+        vencimiento_at
+        exigible
+    }
+    class Bitacora {
+        <<entity>>
+        tipo_evento
+        id_usuario_responsable
+        rol_responsable
+        referencias
+        cambios_seguros
+        ocurrido_en
+    }
+    Actor --> InterfazMonto : revisa importe y confirma propuesta
+    InterfazMonto ..> ControlMonto : propone o confirma sin fijar estados
+    ControlMonto ..> Usuario : revalida ejecutor real
+    ControlMonto ..> Rol : exige Administrador o Recepcionista
+    ControlMonto ..> Cita : bloquea y verifica incorporación y revisión
+    ControlMonto ..> ObligacionPago : comprueba unicidad y emite precio histórico
+    ControlMonto ..> Bitacora : registra emisión en la misma transacción
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazMonto fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlMonto fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style Bitacora fill:#dcfce7,stroke:#15803d
 ```
 
 # CU-15 — Reprogramar una cita
@@ -5995,6 +6118,8 @@ classDiagram
 
 Superadas las comprobaciones de la vista anterior, `reprogramar()` actualiza la misma fila con intervalo, duración y ubicación revisados, estado Programada, versión de programación incrementada y timestamp creciente. Conserva identidad, Médico, especialidad, creación, UUID y motivo original. Guarda CambioCita con ejecutor real, invalida avisos previos y registra bitácora segura en la misma transacción; no genera ni envía avisos desde esta escritura. Las exclusiones PostgreSQL protegen los intervalos de Médico, consultorio y Paciente; un fallo revierte también historial y efectos. Una repetición con originales obsoletos recibe conflicto, no replay. Un resultado incierto requiere la consulta P42, sin reintentar el PATCH automáticamente.
 
+En citas incorporadas, `CoordinacionFinancieraCitaService.coordinar()` obtiene la obligación bajo bloqueo después de la cita. Conserva identidad, precio histórico e intentos/cobros; solo ajusta `vencimiento_at` al nuevo inicio cuando sigue exigible y sin liquidación. Si no hay obligación o la cita es anterior a la incorporación, no la crea. No devuelve ni vuelve a cobrar por reprogramar; la situación financiera no altera las precondiciones asistenciales de P43.
+
 ```mermaid
 classDiagram
     direction LR
@@ -6022,6 +6147,9 @@ classDiagram
         +invalidarPorCita() [repository]
         +citaReprogramada() [repository]
         +ultimoCambio() [repository]
+        +coordinar() [service]
+        +porCitaBloqueada() [repository]
+        +tieneLiquidacion() [repository]
     }
     class Usuario {
         <<entity>>
@@ -6087,6 +6215,15 @@ classDiagram
         referencias
         cambios_seguros
     }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        vencimiento_at
+        exigible
+    }
     Actor --> InterfazP43Guardar : espera resultado del cambio confirmado
     InterfazP43Guardar ..> ControlP43Guardar : mismo PATCH de la revisión anterior
     ControlP43Guardar ..> Usuario : conserva ejecutor auténtico
@@ -6095,9 +6232,11 @@ classDiagram
     ControlP43Guardar ..> CambioCita : registra instantáneas anterior y nueva
     ControlP43Guardar ..> Recordatorio : invalida avisos sin generar otros
     ControlP43Guardar ..> Bitacora : registra referencias y estados sin clínica
+    ControlP43Guardar ..> ObligacionPago : conserva precio y pago y ajusta vencimiento si impagada exigible
     style Actor fill:#fff7ed,stroke:#9a3412
     style InterfazP43Guardar fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
     style ControlP43Guardar fill:#dbeafe,stroke:#1d4ed8
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
     style Usuario fill:#dcfce7,stroke:#15803d
     style Rol fill:#dcfce7,stroke:#15803d
     style Cita fill:#dcfce7,stroke:#15803d
@@ -6230,6 +6369,120 @@ classDiagram
     style ConsultaMedica fill:#dcfce7,stroke:#15803d
     style CambioCita fill:#dcfce7,stroke:#15803d
     style Recordatorio fill:#dcfce7,stroke:#15803d
+    style Bitacora fill:#dcfce7,stroke:#15803d
+```
+
+## Coordinar anulación financiera y devolución por cancelación
+
+Es efecto de la cancelación real de P44, no una acción de pago del personal. Dentro de su transacción y con bloqueo Cita → ObligacionPago, `CoordinacionFinancieraCitaService.coordinar()` retira exigibilidad y vincula `anulada_en`/`id_cambio_anulacion` al CambioCita auténtico. No borra precio, intentos ni cobros, no incorpora citas antiguas ni crea obligaciones ausentes. Delega `coordinarCancelacion()` en los servicios Stripe, PayPal y simulación para impedir nuevos pagos y coordinar cierre o verificación de operaciones previas.
+
+`DevolucionCancelacionService.preparar()` conserva una devolución total única del cobro aplicado, incluso si se confirma después de cancelar. La simulación la completa localmente con origen académico; la externa se despacha fuera de SQL y solo resulta Exitosa con evidencia verificada del proveedor, según el apoyo automático de CU-32. Fallida/Incierta no deshacen la cancelación ni autorizan éxito manual. Un segundo cobro excepcional se conserva como incidencia, sin devolución adicional automática. Inasistencia no utiliza este circuito; reprogramar conserva precio y pago.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Administrador · Recepcionista"] {
+        <<actor>>
+    }
+    class InterfazAnulacion["Reprogramación y cancelación"] {
+        <<boundary>>
+        id
+        version_programacion_original
+        actualizada_en_original
+        motivo
+        +cancelarCita()
+    }
+    class ControlAnulacion["Pagos académicos · efectos de cancelación"] {
+        <<control>>
+        +cancelar() [controller]
+        +cancelar() [service]
+        +coordinar() [service]
+        +coordinarCancelacion() [service]
+        +preparar() [service]
+        +porCitaBloqueada() [repository]
+        +activo() [repository]
+        +cobro() [repository]
+        +devolucion() [repository]
+        +guardar() [repository]
+        +pago() [repository]
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        incorporada_finanzas
+        estado
+    }
+    class CambioCita {
+        <<entity>>
+        id_cambio_cita
+        id_cita
+        id_actor
+        operacion
+        realizado_en
+        estado_nuevo
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        exigible
+        anulada_en
+        id_cambio_anulacion
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        proveedor
+        origen
+        estado
+        captura_permitida
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        id_obligacion
+        proveedor
+        centavos_usd
+        aplicado
+    }
+    class DevolucionPago {
+        <<entity>>
+        id_devolucion
+        id_cobro
+        centavos_usd
+        id_cambio_cancelacion
+        estado
+        creada_en
+        actualizada_en
+    }
+    class Bitacora {
+        <<entity>>
+        tipo_evento
+        tipo_actor
+        id_usuario_responsable
+        referencias
+        ocurrido_en
+    }
+    Actor --> InterfazAnulacion : confirma la cancelación asistencial autorizada
+    InterfazAnulacion ..> ControlAnulacion : mismo proceso de P44 sin devolución manual
+    ControlAnulacion ..> Cita : conserva Cancelada e historial
+    ControlAnulacion ..> CambioCita : vincula anulación con cambio auténtico
+    ControlAnulacion ..> ObligacionPago : retira exigibilidad bajo bloqueo
+    ControlAnulacion ..> IntentoPago : coordina cierre o verificación según origen
+    ControlAnulacion ..> CobroPago : identifica solo liquidación aplicada
+    ControlAnulacion ..> DevolucionPago : prepara total único o completa simulación local
+    ControlAnulacion ..> Bitacora : registra efectos sin fingir éxito externo
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazAnulacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlAnulacion fill:#dbeafe,stroke:#1d4ed8
+    style Cita fill:#dcfce7,stroke:#15803d
+    style CambioCita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+    style DevolucionPago fill:#dcfce7,stroke:#15803d
     style Bitacora fill:#dcfce7,stroke:#15803d
 ```
 
@@ -11053,4 +11306,1009 @@ classDiagram
     style Usuario fill:#dcfce7,stroke:#15803d
     style Rol fill:#dcfce7,stroke:#15803d
     style Bitacora fill:#dcfce7,stroke:#15803d
+```
+
+# CU-31 — Consultar obligaciones de pago propias
+
+Ampliación académica aprobada, separada de los treinta CU originales del examen. El Paciente con sesión normal consulta exclusivamente obligaciones de su ficha vinculada. La implementación incluye consultas, simulación persistente, integración externa y recibo académico; describir sus clases no acredita configuración privada vigente, aceptación integrada ni pagos externos verificados en esta actualización documental. No hay dinero real ni nuevos roles. Las referencias históricas a fases pendientes no sustituyen el código actual descrito aquí.
+
+## Consultar y filtrar las obligaciones propias
+
+`PagosPage` utiliza `usePagoQuery` y `consultarPagos()` con `tipo='obligaciones'` para `GET /api/pagos/obligaciones`. `ConsultaPagosRequest` valida fechas civiles, indicadores y paginación, rechaza campos extra y cuerpo GET. `ConsultaPagosService.consultar()` exige sesión normal y deriva la ficha del vínculo del usuario; el Paciente no envía `id_paciente`. `ObligacionPagoRepository.listar()` restringe por esa ficha y devuelve precio histórico, cita, liquidación y operación en verificación. Fechas civiles se convierten desde America/La_Paz; `calculado_at` describe el cálculo actual, no un snapshot histórico.
+
+`exigible`, `liquidada`, `vencida` y `operacion_en_verificacion` no son nuevos estados de Cita: vencida se calcula al inicio si sigue exigible e impagada, sin impedir regularización ni atención. `PrecioPago` muestra BOB, USD y tasa del servidor. El listado no crea obligaciones para citas sin precio ni antiguas excluidas; `PendienteAsignacion`/`NoIncorporada` se distinguen en el resumen financiero de la cita. Vacío no es deuda cero. Solo se ofrecen acciones de CU-32 cuando las capacidades autoritativas las permiten.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Paciente"] {
+        <<actor>>
+    }
+    class InterfazObligaciones["Pagos académicos · obligaciones propias"] {
+        <<boundary>>
+        fecha_desde
+        fecha_hasta
+        exigible
+        liquidada
+        vencida
+        operacion_en_verificacion
+        page
+        per_page
+        +consultarPagos()
+    }
+    class ControlObligaciones["Pagos académicos · consulta"] {
+        <<control>>
+        +obligaciones() [controller]
+        +rules() [validator]
+        +withValidator() [validator]
+        +consultar() [service]
+        +exigirSesionNormal() [service]
+        +disponible() [repository]
+        +listar() [repository]
+        +toArray() [resource]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+        codigo_cita
+        inicio_at
+        estado
+        incorporada_finanzas
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        tasa_numerador
+        tasa_denominador
+        moneda_original
+        moneda_cobro
+        emitida_en
+        vencimiento_at
+        exigible
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        proveedor
+        estado
+    }
+    class OperacionPago {
+        <<entity>>
+        id_operacion
+        id_intento
+        estado
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_obligacion
+        proveedor
+        aplicado
+    }
+    Actor --> InterfazObligaciones : aplica filtros y abre una obligación
+    InterfazObligaciones ..> ControlObligaciones : consulta sin seleccionar otra ficha
+    ControlObligaciones ..> Usuario : revalida sesión actual
+    ControlObligaciones ..> Rol : exige Paciente en este recorrido
+    ControlObligaciones ..> Paciente : deriva titularidad del vínculo real
+    ControlObligaciones ..> Cita : delimita ficha y proyecta cita mínima
+    ControlObligaciones ..> ObligacionPago : filtra y pagina precio histórico
+    ControlObligaciones ..> IntentoPago : identifica intento activo
+    ControlObligaciones ..> OperacionPago : detecta verificación pendiente
+    ControlObligaciones ..> CobroPago : calcula liquidación sin modificar registros
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazObligaciones fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlObligaciones fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style OperacionPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+```
+
+## Abrir el detalle y consultar intentos y devoluciones
+
+`consultarPagos()` con `tipo='detalle'` consume `GET /api/pagos/obligaciones/{obligacion}` con páginas independientes `intentos_page` y `devoluciones_page`. El UUID procede de la ruta; se revalida titularidad en cada lectura y se devuelve 404 si no pertenece al ámbito autorizado. `detalle()` utiliza `ConsultaPagosService.consultar()` y `detalle()`, `historial()` y `devoluciones()` del repositorio. La respuesta separa precio, situación financiera, capacidades, intento actual, cobros e incidencias; no expone claves idempotentes, credenciales, evidencia cifrada ni clínica. `HistorialPagos`, `DevolucionPago` y `DescargarRecibo` presentan las proyecciones autorizadas; la descarga compartida se detalla en CU-33.
+
+Devolución Pendiente/Procesando/Fallida/Incierta no es devolución completada; intento Exitoso no prueba por sí solo cobro aplicado. Capacidad ausente no permite inventar su causa. Carga, vacío parcial, error, espera e incertidumbre conservan esas diferencias. El GET no ejecuta recuperación externa ni fuerza resultados.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Paciente"] {
+        <<actor>>
+    }
+    class InterfazDetallePago["Pagos académicos · detalle de obligación"] {
+        <<boundary>>
+        id
+        intentos_page
+        devoluciones_page
+        +consultarPagos()
+    }
+    class ControlDetallePago["Pagos académicos · detalle autorizado"] {
+        <<control>>
+        +detalle() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +exigirSesionNormal() [service]
+        +detalle() [repository]
+        +historial() [repository]
+        +devoluciones() [repository]
+        +toArray() [resource]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+        codigo_cita
+        inicio_at
+        estado
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        tasa_numerador
+        tasa_denominador
+        emitida_en
+        vencimiento_at
+        exigible
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        proveedor
+        origen
+        modalidad
+        estado
+        creado_en
+        actualizado_en
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        id_obligacion
+        referencia_cobro
+        centavos_usd
+        aplicado
+        incidencia_codigo
+        confirmado_en
+    }
+    class DevolucionPago {
+        <<entity>>
+        id_devolucion
+        id_cobro
+        centavos_usd
+        estado
+    }
+    Actor --> InterfazDetallePago : abre referencia y pagina su historia
+    InterfazDetallePago ..> ControlDetallePago : solicita obligación dentro del ámbito propio
+    ControlDetallePago ..> Usuario : revalida lector actual
+    ControlDetallePago ..> Rol : comprueba permiso de consulta
+    ControlDetallePago ..> Paciente : verifica vínculo titular
+    ControlDetallePago ..> Cita : comprueba pertenencia de la obligación
+    ControlDetallePago ..> ObligacionPago : lee precio y situación sin cambios
+    ControlDetallePago ..> IntentoPago : pagina intentos autorizados
+    ControlDetallePago ..> CobroPago : distingue aplicado e incidencia
+    ControlDetallePago ..> DevolucionPago : pagina resultados separados del cobro original
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazDetallePago fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlDetallePago fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+    style DevolucionPago fill:#dcfce7,stroke:#15803d
+```
+
+# CU-32 — Pagar una cita
+
+Solo el Paciente titular inicia y continúa pagos de sus obligaciones, sin precio editable ni pago delegado. Debe existir obligación exigible, sin liquidación ni otra operación cobrable o incierta; estar vencida no impide regularizar. Autorización, revisiones, idempotencia y bloqueos del servidor prevalecen sobre botones y parámetros del navegador. Pagar no cambia el estado asistencial de Cita. Administrador, Recepcionista y Médico no ejecutan este CU.
+
+## Revisar y ejecutar el pago académico persistente
+
+`PagarPage` consulta el detalle y revisa precio histórico, modalidad representativa `stripe`/`paypal` y escenario `completado`/`pendiente`. `FormularioPagoDemo` valida datos ficticios solo en la interfaz: tarjeta, clave y demás campos representativos no se envían a la API ni al libro financiero. `operarSimulacion()` envía modalidad, escenario y revisión al iniciar; después acciones explícitas con `Idempotency-Key`. `SimulacionPagoController.iniciar()/actuar()` delega a `SimulacionPagoService`, que exige habilitación académica, titularidad, revisión vigente, exigibilidad y exclusión entre canales bajo transacción. Usa primitivas comunes de `StripePagoRepository` y `SimulacionPagoRepository.solicitud()` para reconocer acciones registradas; el nombre del repositorio no implica llamar a Stripe.
+
+Iniciar crea IntentoPago de proveedor `simulado`/origen `Simulado`, no CobroPago. La modalidad Stripe requiere `confirmar`; PayPal requiere `aprobar`, revisar y `capturar`, y aprobar no liquida. Solo escenario completado confirmado/capturado registra cobro aplicado, marca intento Exitoso y emite ReciboAcademicoPago en la misma transacción. Pendiente conserva intento sin cobro, sin polling ni éxito supuesto. `cerrar` cierra intento sin cancelar Cita. Repeticiones con la misma clave y datos recuperan la operación; reutilizar clave con otra acción da conflicto. Ante respuesta perdida se preservan solicitud y clave en memoria para recuperación humana, nunca en web storage ni con reenvío automático. Cancelar utiliza el circuito de CU-16.
+
+`DemostracionPagosPage` es distinta: reutiliza formulario y precio ficticios solo en memoria, sin API financiera, obligación, cobro ni proveedor. No acredita este CU ni genera recibo persistente. La simulación no opera en producción ni representa dinero real.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Paciente"] {
+        <<actor>>
+    }
+    class InterfazSimulacion["Pagos académicos · Pagar"] {
+        <<boundary>>
+        id
+        modalidad
+        escenario
+        revision
+        clave
+        tipo
+        +operarSimulacion()
+        +consultarPagos()
+    }
+    class ControlSimulacion["Pagos académicos · simulación persistente"] {
+        <<control>>
+        +iniciar() [controller]
+        +actuar() [controller]
+        +rules() [validator]
+        +iniciar() [service]
+        +actuar() [service]
+        +exigirSesionNormal() [service]
+        +disponible() [service]
+        +emitir() [service]
+        +obligacion() [repository]
+        +bloquear() [repository]
+        +replay() [repository]
+        +solicitud() [repository]
+        +guardar() [repository]
+        +crear() [repository]
+        +pago() [repository]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+        estado
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        exigible
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        iniciado_por
+        origen
+        proveedor
+        entorno
+        modalidad
+        escenario
+        estado
+        aprobada_en
+        creado_en
+        actualizado_en
+    }
+    class OperacionPago {
+        <<entity>>
+        id_operacion
+        id_intento
+        id_obligacion
+        tipo
+        solicitada_por
+        clave_solicitud
+        huella_solicitud
+        estado
+        resultado_codigo
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        id_obligacion
+        proveedor
+        referencia_cobro
+        centavos_usd
+        aplicado
+        confirmado_en
+    }
+    class ReciboAcademicoPago {
+        <<entity>>
+        id_cobro
+        numero
+        id_obligacion
+        nombre_titular
+        codigo_cita
+        centavos_bob
+        centavos_usd
+        modalidad
+        pagado_en
+        emitido_en
+    }
+    class Bitacora {
+        <<entity>>
+        tipo_evento
+        id_usuario_responsable
+        referencias
+        ocurrido_en
+    }
+    Actor --> InterfazSimulacion : revisa y actúa explícitamente
+    InterfazSimulacion ..> ControlSimulacion : entrega operación sin campos ficticios del formulario
+    ControlSimulacion ..> Usuario : identifica ejecutor real
+    ControlSimulacion ..> Rol : exige Paciente
+    ControlSimulacion ..> Paciente : deriva ficha propia
+    ControlSimulacion ..> Cita : valida titularidad sin cambiar asistencia
+    ControlSimulacion ..> ObligacionPago : bloquea y comprueba elegibilidad y precio
+    ControlSimulacion ..> IntentoPago : crea y avanza recorrido simulado
+    ControlSimulacion ..> OperacionPago : conserva idempotencia y trazabilidad
+    ControlSimulacion ..> CobroPago : aplica uno tras confirmación o captura completada
+    ControlSimulacion ..> ReciboAcademicoPago : emite snapshot junto al cobro aplicado
+    ControlSimulacion ..> Bitacora : registra origen académico y ejecutor
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazSimulacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlSimulacion fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style OperacionPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+    style ReciboAcademicoPago fill:#dcfce7,stroke:#15803d
+    style Bitacora fill:#dcfce7,stroke:#15803d
+```
+
+## Iniciar y continuar Stripe Checkout test o PayPal Sandbox
+
+`OperacionPago`, `RetornoPagoPage` y `useOperacionPago` usan `operarPago()` para inicio, resultado, captura PayPal o cierre. Revisión y proveedor se envían al crear; las acciones siguientes usan intento y clave idempotente, no precio ni ficha libre. CSRF y sesión preceden cada POST. `PagoController.operar()` delega a `OperacionPagoService.operar()`, que obtiene el proveedor real del intento y despacha a `StripePagoService` o `PayPalPagoService`, sin cambiarlo ni tratar simulados como externos. Los servicios reservan operación bajo bloqueos y autorización del titular; `RecuperacionStripeService.ejecutar()` o `RecuperacionPayPalService.ejecutar()` transporta fuera de SQL mediante el gateway específico.
+
+Stripe crea Checkout test y verifica resultado; PayPal crea orden Sandbox y separa aprobación de captura explícita. Retornar, abrir URL, `cancel_url` o aprobar no prueban liquidación. Consultar resultado solicita verificación; 202 es pendiente, no éxito. Solo evidencia validada de importe, moneda, contexto y referencias permite aplicar cobro. Cerrar exige verificar ausencia de cobro y no cancela Cita. Incertidumbre bloquea nuevos intentos cobrables; cambiar proveedor exige cierre seguro previo. Claves y solicitudes quedan en memoria, sin polling ni reintentos automáticos; un error no prueba rollback. Capacidad ausente no permite deducir una causa no informada. La existencia del código no certifica activación externa actual.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Paciente"] {
+        <<actor>>
+    }
+    class Proveedores["Stripe Checkout test · PayPal Sandbox"] {
+        <<actor>>
+    }
+    class InterfazOperacion["Pagos académicos · operación externa y retorno"] {
+        <<boundary>>
+        id
+        proveedor
+        revision_pago
+        clave
+        tipo
+        +operarPago()
+    }
+    class ControlOperacion["Pagos académicos · integración externa"] {
+        <<control>>
+        +operar() [controller]
+        +rules() [validator]
+        +operar() [service]
+        +iniciar() [service]
+        +solicitar() [service]
+        +ejecutar() [service]
+        +respuesta() [service]
+        +exigirSesionNormal() [service]
+        +obligacion() [repository]
+        +bloquear() [repository]
+        +intento() [repository]
+        +replay() [repository]
+        +guardar() [repository]
+        +crear() [gateway]
+        +sesion() [gateway]
+        +orden() [gateway]
+        +capturar() [gateway]
+        +cerrar() [gateway]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+        estado
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_usd
+        moneda_cobro
+        exigible
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        iniciado_por
+        proveedor
+        entorno
+        cuenta_contexto
+        estado
+        captura_permitida
+        referencia_inicio
+        referencia_pago
+    }
+    class OperacionPago {
+        <<entity>>
+        id_operacion
+        id_intento
+        id_obligacion
+        tipo
+        solicitada_por
+        clave_solicitud
+        huella_solicitud
+        clave_externa
+        estado
+        proxima_ejecucion_en
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        id_obligacion
+        referencia_cobro
+        aplicado
+        incidencia_codigo
+    }
+    Actor --> InterfazOperacion : revisa y solicita inicio o continuación
+    InterfazOperacion ..> ControlOperacion : envía acción idempotente autorizada
+    ControlOperacion ..> Usuario : revalida ejecutor actual
+    ControlOperacion ..> Rol : exige Paciente sin pago delegado
+    ControlOperacion ..> Paciente : deriva titularidad
+    ControlOperacion ..> Cita : comprueba ficha sin modificar asistencia
+    ControlOperacion ..> ObligacionPago : bloquea importe y exigibilidad
+    ControlOperacion ..> IntentoPago : mantiene proveedor y exclusión de cobro
+    ControlOperacion ..> OperacionPago : prepara y recupera operación durable
+    ControlOperacion ..> CobroPago : consulta o aplica resultado verificado
+    ControlOperacion ..> Proveedores : transporta fuera de SQL mediante gateway específico
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style Proveedores fill:#fff7ed,stroke:#9a3412
+    style InterfazOperacion fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlOperacion fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style OperacionPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+```
+
+## Verificar eventos, recuperar operaciones y coordinar devoluciones externas
+
+Es apoyo automático de CU-32 y del efecto financiero de CU-16, no un CU humano ni un rol nuevo. `WebhookStripeController.recibir()` y `WebhookPayPalController.recibir()` delegan a `EventoStripeService`/`EventoPayPalService`: verifican firma y contexto mediante gateway, conservan EventoPago durable y deduplican por proveedor, entorno, cuenta e ID externo. Repetición con contenido distinto no es éxito. Sus métodos `lote()` y los recuperadores específicos procesan pendientes sin depender de pestaña ni sesión del Paciente. Existencia del código no acredita scheduler desplegado.
+
+`EvidenciaStripeService.sesion()/devolucion()` y `EvidenciaPayPalService.orden()/devolucion()` validan evidencia autoritativa. Bajo bloqueo Cita/obligación se conserva cada cobro único y se aplica como máximo una liquidación; otro cobro confirmado queda no aplicado con incidencia, sin devolución adicional automática. Cancelación no se revierte por cobro tardío ni fallo de devolución: el aplicado cancelado utiliza `DevolucionCancelacionService.preparar()` y coordinación específica prepara `Devolver`. El gateway devuelve al medio original de pruebas fuera de SQL; solo evidencia válida completa la devolución. Incertidumbre conserva estados recuperables, no admite éxito manual. Bitácora registra referencias y metadatos seguros, nunca firmas, claves, cuerpos externos ni clínica. El recibo académico de CU-33 pertenece al cobro simulado, no se emite por recibir cualquier webhook.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Stripe test · PayPal Sandbox · Sistema programador"] {
+        <<actor>>
+    }
+    class InterfazEventos["Pagos académicos · webhooks y recuperación"] {
+        <<boundary>>
+        lote
+    }
+    class ControlEventos["Pagos académicos · evidencia y recuperación"] {
+        <<control>>
+        +recibir() [controller]
+        +recibir() [service]
+        +lote() [service]
+        +ejecutar() [service]
+        +sesion() [service]
+        +orden() [service]
+        +devolucion() [service]
+        +coordinar() [service]
+        +coordinarCancelacion() [service]
+        +preparar() [service]
+        +reclamar() [service]
+        +finalizar() [service]
+        +bloquear() [repository]
+        +guardar() [repository]
+        +pago() [repository]
+        +firma() [gateway]
+        +devolver() [gateway]
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        estado
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_usd
+        moneda_cobro
+        exigible
+        id_cambio_anulacion
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        proveedor
+        entorno
+        cuenta_contexto
+        estado
+        referencia_inicio
+        referencia_pago
+    }
+    class EventoPago {
+        <<entity>>
+        id_evento
+        proveedor
+        entorno
+        cuenta_contexto
+        id_externo
+        tipo
+        huella_contenido
+        referencias
+        id_intento
+        estado
+        incidencia_codigo
+        recepcion_en
+        procesado_en
+    }
+    class OperacionPago {
+        <<entity>>
+        id_operacion
+        id_intento
+        id_obligacion
+        id_devolucion
+        id_cobro
+        tipo
+        clave_externa
+        estado
+        ejecuciones
+        proxima_ejecucion_en
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        id_obligacion
+        referencia_cobro
+        centavos_usd
+        moneda
+        aplicado
+        incidencia_codigo
+        confirmado_en
+    }
+    class DevolucionPago {
+        <<entity>>
+        id_devolucion
+        id_cobro
+        centavos_usd
+        id_cambio_cancelacion
+        estado
+    }
+    class Bitacora {
+        <<entity>>
+        tipo_evento
+        tipo_actor
+        referencias
+        ocurrido_en
+    }
+    Actor --> InterfazEventos : entrega evento o ejecuta lote
+    InterfazEventos ..> ControlEventos : recibe o recupera sin atribuir sesión humana
+    ControlEventos ..> Cita : preserva cancelación y estado asistencial
+    ControlEventos ..> ObligacionPago : bloquea y verifica precio y exigibilidad
+    ControlEventos ..> IntentoPago : vincula contexto y actualiza con evidencia
+    ControlEventos ..> EventoPago : deduplica y procesa recepción durable
+    ControlEventos ..> OperacionPago : recupera consultas y devoluciones sin duplicarlas
+    ControlEventos ..> CobroPago : registra todos y aplica uno como máximo
+    ControlEventos ..> DevolucionPago : verifica total del aplicado cancelado
+    ControlEventos ..> Bitacora : registra resultados seguros como SISTEMA
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazEventos fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlEventos fill:#dbeafe,stroke:#1d4ed8
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style EventoPago fill:#dcfce7,stroke:#15803d
+    style OperacionPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+    style DevolucionPago fill:#dcfce7,stroke:#15803d
+    style Bitacora fill:#dcfce7,stroke:#15803d
+```
+
+# CU-33 — Consultar historial de pagos propio
+
+El Paciente consulta intentos, cobros, incidencias y devoluciones de su ficha, sin modificar resultados ni eliminar historia. Comparte `PagosPage`, `HistorialPagos`, servicios y detalle con CU-31; no crea otra ficha financiera ni concede pago de citas ajenas.
+
+## Filtrar y paginar el historial propio
+
+`consultarPagos()` con `tipo='historial'` consume `GET /api/pagos/historial`. Admite `fecha_desde`, `fecha_hasta`, `proveedor`, `resultado`, `page` y `per_page`; proveedor incluye `stripe`, `paypal` y `simulado`; resultado filtra estado de IntentoPago, no asistencial. Fechas filtran creación del intento, no fecha de cita ni devolución. `ConsultaPagosService.consultar()` resuelve el ámbito propio y `ObligacionPagoRepository.historial()` pagina intentos con obligación y cobros/devoluciones relacionados, por creación/ID descendentes. Se muestran fechas, referencia, importe histórico, aplicado/no aplicado e incidencia. Aprobación o intento Exitoso no sustituyen liquidación aplicada. La historia conserva el cobro aunque se devuelva; error de lectura no prueba pérdida del pago ni inicia otro cobro. Vacío es válido.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Paciente"] {
+        <<actor>>
+    }
+    class InterfazHistorialPago["Pagos académicos · historial propio"] {
+        <<boundary>>
+        fecha_desde
+        fecha_hasta
+        proveedor
+        resultado
+        page
+        per_page
+        +consultarPagos()
+    }
+    class ControlHistorialPago["Pagos académicos · historial autorizado"] {
+        <<control>>
+        +historial() [controller]
+        +rules() [validator]
+        +withValidator() [validator]
+        +consultar() [service]
+        +exigirSesionNormal() [service]
+        +historial() [repository]
+        +toArray() [resource]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_usd
+        moneda_cobro
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        proveedor
+        origen
+        modalidad
+        estado
+        creado_en
+        actualizado_en
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        referencia_cobro
+        centavos_usd
+        aplicado
+        incidencia_codigo
+        confirmado_en
+    }
+    class DevolucionPago {
+        <<entity>>
+        id_devolucion
+        id_cobro
+        centavos_usd
+        estado
+    }
+    Actor --> InterfazHistorialPago : aplica período y filtros o abre obligación
+    InterfazHistorialPago ..> ControlHistorialPago : consulta páginas sin cuerpo ni otra ficha
+    ControlHistorialPago ..> Usuario : revalida lector actual
+    ControlHistorialPago ..> Rol : exige Paciente en consulta propia
+    ControlHistorialPago ..> Paciente : deriva ámbito del vínculo real
+    ControlHistorialPago ..> Cita : restringe pertenencia de obligaciones
+    ControlHistorialPago ..> ObligacionPago : referencia obligación del intento
+    ControlHistorialPago ..> IntentoPago : filtra y pagina historia
+    ControlHistorialPago ..> CobroPago : distingue liquidación e incidencia
+    ControlHistorialPago ..> DevolucionPago : presenta devolución sin borrar cobro original
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazHistorialPago fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlHistorialPago fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+    style DevolucionPago fill:#dcfce7,stroke:#15803d
+```
+
+## Descargar el recibo académico disponible — lectura compartida con CU-31 y CU-34
+
+`DescargarRecibo.descargar()` llama a `descargarRecibo()` cuando la API informa número disponible. `GET /api/pagos/obligaciones/{obligacion}/recibo` revalida sesión, rol y recurso también al entregar bytes: `ReciboAcademicoService.consultar()` reutiliza el detalle autorizado de `ConsultaPagosService` y `ReciboAcademicoRepository.porObligacion()` obtiene la instantánea. Paciente no selecciona otra ficha; Administrador accede mediante ámbito explícito de CU-34. Recepción y Médico no descargan el recibo financiero.
+
+`ReciboAcademicoPdf.generar()` presenta número `REC-ACA-{id_cobro}`, titular, cita, precio/tasa y modalidad históricos. Solo existe por cobro simulado aplicado emitido transaccionalmente en CU-32; GET no crea registros ni hace backfill, no acredita cobro externo ni es comprobante fiscal. Devolución posterior no reescribe el original. Respuesta privada/no-store sin ruta pública; el cliente valida MIME, tamaño y firma PDF, descarta sesión obsoleta y revoca URL temporal. La acción solicita guardar al navegador, no garantiza que el usuario guarde el archivo. Ausencia no se convierte en recibo ficticio ni éxito de descarga.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Paciente · Administrador"] {
+        <<actor>>
+    }
+    class InterfazRecibo["Pagos académicos · recibo disponible"] {
+        <<boundary>>
+        id
+        id_paciente
+        numero
+        +descargar()
+        +descargarRecibo()
+    }
+    class ControlRecibo["Pagos académicos · entrega protegida del recibo"] {
+        <<control>>
+        +descargar() [controller]
+        +rules() [validator]
+        +consultar() [service]
+        +exigirSesionNormal() [service]
+        +detalle() [repository]
+        +porObligacion() [repository]
+        +generar() [util]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+    }
+    class ReciboAcademicoPago {
+        <<entity>>
+        id_cobro
+        numero
+        id_obligacion
+        id_paciente
+        codigo_paciente
+        nombre_titular
+        codigo_cita
+        centavos_bob
+        centavos_usd
+        tasa_numerador
+        tasa_denominador
+        modalidad
+        pagado_en
+        emitido_en
+    }
+    Actor --> InterfazRecibo : solicita descarga del recibo existente
+    InterfazRecibo ..> ControlRecibo : envía ficha solo en ámbito administrativo
+    ControlRecibo ..> Usuario : revalida sesión antes de entregar bytes
+    ControlRecibo ..> Rol : exige Paciente titular o Administrador
+    ControlRecibo ..> Paciente : deriva o verifica ficha autorizada
+    ControlRecibo ..> Cita : delimita pertenencia de la obligación
+    ControlRecibo ..> ObligacionPago : autoriza detalle del recurso concreto
+    ControlRecibo ..> ReciboAcademicoPago : lee snapshot y genera PDF sin mutarlo
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazRecibo fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlRecibo fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style ReciboAcademicoPago fill:#dcfce7,stroke:#15803d
+```
+
+# CU-34 — Consultar historial financiero de un Paciente
+
+Solo Administrador con sesión normal consulta finanzas de una ficha seleccionada, incluso sin cuenta web. Es lectura administrativa, no pago delegado ni ampliación de permisos clínicos. Recepcionista y Médico no acceden a este CU: poder asignar monto por CU-14 no concede historial financiero completo.
+
+## Consultar obligaciones, detalle e historial por ficha seleccionada
+
+`PagosPage` reutiliza el selector administrativo existente de `PatientsPage` y componentes de CU-31/CU-33. `consultarPagos()` añade `id_paciente` obligatorio a obligaciones, detalle e historial; cambiar ficha invalida el contexto anterior. `ConsultaPagosController.obligaciones()/detalle()/historial()` y `ConsultaPagosService.consultar()` son los mismos, sin endpoints duplicados por rol. El servicio exige Administrador, comprueba existencia con `AgendaRepository.paciente()` y restringe consultas a esa ficha; seleccionarla no hace accesible una obligación ajena. No exige cuenta web ni crea vínculos.
+
+Filtros/paginación y fechas son los de CU-31/CU-33; detalle mantiene páginas separadas de intentos y devoluciones. Administrador ve precio histórico, liquidación, origen, aplicado/no aplicado e incidencias, y descarga recibo existente mediante el procedimiento compartido de CU-33. No inicia simulación ni proveedor externo, no captura, cierra o regulariza por el titular, no edita precio emitido ni marca pagos/devoluciones exitosos. Referencia o capacidad visual no sustituyen autorización del servidor. La consulta no modifica libro financiero ni carga clínica; vacío, ficha inexistente, recurso ajeno y error utilizan respuestas seguras existentes.
+
+```mermaid
+classDiagram
+    direction LR
+    class Actor["Administrador"] {
+        <<actor>>
+    }
+    class InterfazFinanzasPaciente["Pagos académicos · consulta por Paciente"] {
+        <<boundary>>
+        id_paciente
+        id
+        fecha_desde
+        fecha_hasta
+        exigible
+        liquidada
+        vencida
+        operacion_en_verificacion
+        proveedor
+        resultado
+        page
+        per_page
+        intentos_page
+        devoluciones_page
+        +consultarPagos()
+    }
+    class ControlFinanzasPaciente["Pagos académicos · lectura administrativa"] {
+        <<control>>
+        +obligaciones() [controller]
+        +detalle() [controller]
+        +historial() [controller]
+        +rules() [validator]
+        +withValidator() [validator]
+        +consultar() [service]
+        +exigirSesionNormal() [service]
+        +paciente() [repository]
+        +listar() [repository]
+        +detalle() [repository]
+        +historial() [repository]
+        +devoluciones() [repository]
+        +toArray() [resource]
+    }
+    class Usuario {
+        <<entity>>
+        id_usuario
+        id_rol
+    }
+    class Rol {
+        <<entity>>
+        nombre
+    }
+    class Paciente {
+        <<entity>>
+        id_paciente
+        id_usuario
+    }
+    class Cita {
+        <<entity>>
+        id_cita
+        id_paciente
+        codigo_cita
+        inicio_at
+        estado
+    }
+    class ObligacionPago {
+        <<entity>>
+        id_obligacion
+        id_cita
+        centavos_bob
+        centavos_usd
+        tasa_numerador
+        tasa_denominador
+        emitida_en
+        vencimiento_at
+        exigible
+    }
+    class IntentoPago {
+        <<entity>>
+        id_intento
+        id_obligacion
+        proveedor
+        origen
+        modalidad
+        estado
+        creado_en
+        actualizado_en
+    }
+    class CobroPago {
+        <<entity>>
+        id_cobro
+        id_intento
+        id_obligacion
+        centavos_usd
+        aplicado
+        incidencia_codigo
+        referencia_cobro
+        confirmado_en
+    }
+    class DevolucionPago {
+        <<entity>>
+        id_devolucion
+        id_cobro
+        centavos_usd
+        estado
+    }
+    Actor --> InterfazFinanzasPaciente : selecciona ficha y consulta sin pagar
+    InterfazFinanzasPaciente ..> ControlFinanzasPaciente : envía filtros aplicables y ficha explícita
+    ControlFinanzasPaciente ..> Usuario : revalida ejecutor de lectura
+    ControlFinanzasPaciente ..> Rol : exige Administrador
+    ControlFinanzasPaciente ..> Paciente : comprueba ficha aun sin cuenta
+    ControlFinanzasPaciente ..> Cita : restringe ámbito sin lectura clínica
+    ControlFinanzasPaciente ..> ObligacionPago : lista o detalla precios históricos
+    ControlFinanzasPaciente ..> IntentoPago : filtra y pagina resultados
+    ControlFinanzasPaciente ..> CobroPago : consulta liquidación e incidencias
+    ControlFinanzasPaciente ..> DevolucionPago : consulta resultado sin resolverlo manualmente
+    style Actor fill:#fff7ed,stroke:#9a3412
+    style InterfazFinanzasPaciente fill:#fef9c3,stroke:#a16207,stroke-dasharray:5 5
+    style ControlFinanzasPaciente fill:#dbeafe,stroke:#1d4ed8
+    style Usuario fill:#dcfce7,stroke:#15803d
+    style Rol fill:#dcfce7,stroke:#15803d
+    style Paciente fill:#dcfce7,stroke:#15803d
+    style Cita fill:#dcfce7,stroke:#15803d
+    style ObligacionPago fill:#dcfce7,stroke:#15803d
+    style IntentoPago fill:#dcfce7,stroke:#15803d
+    style CobroPago fill:#dcfce7,stroke:#15803d
+    style DevolucionPago fill:#dcfce7,stroke:#15803d
 ```

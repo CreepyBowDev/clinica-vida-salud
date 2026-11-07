@@ -16,6 +16,7 @@ import FiltroHistorico from '../components/FiltroHistorico';
 import CitasReporteTable from '../components/CitasReporteTable';
 import PacientesRegistradosTable from '../components/PacientesRegistradosTable';
 import CantidadesReporte from '../components/CantidadesReporte';
+import DescargarReportePdf from '../components/DescargarReportePdf';
 import '../../agenda/styles/agenda.css';
 import '../../../styles/administrative-query.css';
 import '../styles/reportes.css';
@@ -133,6 +134,7 @@ function ConsultaReporte({ tipo, onTipo, focusType }) {
           ? `Actividad: ${filters.activo === undefined ? 'Todas las fichas' : filters.activo === '1' ? 'Activos' : 'Inactivos'}.`
           : `Médico: ${labels.medico}.${agenda ? '' : ` Especialidad: ${labels.especialidad}.`} ${cantidades ? 'Estados: Atendida, Cancelada e Inasistencia.' : `Estado: ${programadas ? 'Programada' : (filters.estado || 'Todos')}.`}`}</p>
         <ActionGroup><Button variant="secondary" disabled={query.loading || query.remaining > 0} onClick={() => { query.reload(); results.current?.focus(); }}>Actualizar reporte</Button></ActionGroup>
+        {query.data && <DescargarReportePdf tipo={tipo} filtros={filters} />}
         {query.data && <p className="query-server-summary" role="status">{!cantidades && <>Total del servidor: {query.data.meta.total} {pacientes ? 'pacientes registrados' : programadas ? 'citas Programadas' : 'citas'}. </>}Consulta: {formatearInstanteCita(query.data.meta.consultado_en)}.</p>}
         {cantidades ? <CantidadesReporte query={query} /> : <CatalogResults query={query} label={pacientes ? 'pacientes' : 'citas'} loadingLabel="Consultando reporte…" emptyTitle={pacientes
           ? 'No hay pacientes registrados para estos filtros' : programadas ? 'No hay citas Programadas para estos filtros' : 'No hay citas para estos filtros'}

@@ -22,6 +22,11 @@ class ReporteService
         }
     }
 
+    public function autorizarEntrega(): void
+    {
+        DB::transaction(fn () => $this->exigirAdministrador());
+    }
+
     private function periodo(array $datos, string $referencia, string $criterio): array
     {
         $ahora = CarbonImmutable::now('UTC');

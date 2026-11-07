@@ -8,6 +8,15 @@ use Illuminate\Validation\Validator;
 
 abstract class ReportePeriodoRequest extends FormRequest
 {
+    protected function reglasListado(array $rules): array
+    {
+        if ($this->route('exportar_pdf')) {
+            unset($rules['page'], $rules['per_page']);
+        }
+
+        return $rules;
+    }
+
     public function authorize(): bool
     {
         return true;

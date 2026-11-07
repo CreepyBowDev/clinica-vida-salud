@@ -493,6 +493,22 @@ ReporteController → ReporteService: exigir Administrador, validar tipo/filtros
 
 Rangos vacíos producen lista vacía/total cero cuando corresponda. Las firmas de operaciones/filtros se especifican en §9; el contrato exacto de período deberá distinguir fecha de atención de fecha de registro/evento según reporte antes de implementar, sin asumir columnas o definiciones no aprobadas. No se crea entidad/tabla Reporte ni se vuelve obligatoria la exportación CSV/PDF; esta fase no diseña clases adicionales para esa mejora opcional.
 
+### 8.7.1. Incremento implementado — PDF Fase 1 (2026-11-07)
+
+La descripción original de §8.7 se conserva como antecedente de diseño. Contrato real acumulado en `cu29-contratos-api.md` §8; verificación vigente en `estado-fase.md`. Se añaden tres clases técnicas, no Models/tablas ni relaciones de persistencia:
+
+```mermaid
+classDiagram
+    ReportePdfController --> ReporteExportacionService : generar(tipo, filtros)
+    ReporteExportacionService --> ReporteService : consulta existente y autorizarEntrega()
+    ReporteExportacionService --> ReportePdf : generar(documento)
+    ReporteService --> ReporteRepository : listados y cantidades existentes
+    ReporteService --> AgendaService : agendaDiaria existente
+    AgendaService --> AgendaRepository : intersección diaria existente
+```
+
+Controller: FormRequests compartidos/HTTP privado. ExportacionService: límite500 filas, conjunto completo, generación y nueva autorización antes de entregar. ReportePdf: columnas administrativas/escape/Dompdf local/A4 horizontal, HTML2MiB/PDF8MiB. ReportePeriodoRequest agrega `reglasListado()` para rechazar paginación solo en exportación; no nuevo Request por reporte ni repositorio genérico. Sin relación con recibos de Pagos/React. Este incremento no recensa ni reclasifica retrospectivamente todas las vistas históricas del documento.
+
 ### 8.8. Reutilizaciones transversales y límites conservados
 
 | Participante E | Uso previsto / ampliación P, sin duplicar clase |

@@ -1,5 +1,15 @@
 # Frontend — Clínica Vida Salud
 
+## Reportes PDF — aceptación integrada local Fase 3 (2026-11-07)
+
+Siete reportes y siete vacíos descargados realmente con Chrome desde React/Axios→Laravel→PostgreSQL exclusivo y leídos con Windows.Data.Pdf;500 inclusive, exceso501 sin parcial, agregado504, filtros aplicados frente a borrador/página2, totales/orden, permisos/sesión/cancelación/429 y URL revocada contrastados. Visual1440/390px, Enter/foco y muestras PDF multipágina revisadas; qpdf valida21 descargados,19 útiles para aceptación.419/500/PDF inválido se probaron mediante inyección CDP, no errores espontáneos Laravel. Sin cambios funcionales ni build nuevo; fallos del arnés y revalidaciones focales conservados. [Matriz/comandos/evidencias/límites](../docs/ai/cu29-aceptacion-pdf.md). F3 aceptada **solo en local**, sin certificar producción, otros navegadores/lectores ni lector de pantalla. La entrada F2 siguiente es histórica.
+
+## Reportes administrativos — descarga PDF Fase 2 (2026-11-07)
+
+Los siete reportes del Administrador permiten «Descargar PDF» tras consulta válida, incluidos vacíos. Se exportan filtros **aplicados**, no borrador ni página visible; Axios compartido con sesión/época y sin tokens en storage. `DescargarReportePdf` y `reportePdf.service.js` gestionan Blob/JSON, carga/espera429/cancelación, controles básicos del PDF/nombre seguro y URL temporal revocada. Se informa nueva lectura del servidor/posibles diferencias, máximo500 filas sin parcial y cantidades completas. No cambia backend/Pagos/recibos/tablas/permisos ni dependencias.
+
+Dirigida `pnpm test src/features/reportes/tests --reporter=verbose`:305 correctos/5 fallos de selector ambiguo «Siguiente»; corregido el arnés, revalidados solo esos5/código0 (310 casos únicos cubiertos, no pase único verde). `pnpm build` correcto/aviso chunk>500kB. Teclado/foco jsdom y CSS responsive revisados, **sin inspección visual real ni descarga Laravel→navegador**. [Contrato §§8–9](../docs/ai/cu29-contratos-api.md) y [evidencia/relevo](../docs/ai/estado-fase.md). Fase3 de integración/aceptación pendiente de autorización en sesión nueva.
+
 ## Situación financiera de cita y recibo académico PDF (2026-11-06)
 
 `FinanzasCita` muestra en el detalle real «Pagada — simulación académica» solo a partir del cobro aplicado informado por API, con origen y devolución separados. Titular y Administrador autorizado descargan el mismo recibo desde cita u obligación mediante `DescargarRecibo`; blob/nombre seguro/control de sesión/revocación/errores JSON binarios. Médico/Recepción sin descarga ni nuevos permisos financieros. Sin rediseño ni cambios a Pagar/formularios/Source Sans3/tokens/MainLayout, sin web storage.

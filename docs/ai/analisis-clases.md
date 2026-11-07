@@ -1,5 +1,13 @@
 # Análisis de clases — Clínica Vida Salud
 
+## CU-28 — Próxima cita y recordatorio manual administrativo (2026-11-07)
+
+Ampliación autorizada, no requisito literal del examen ni RF/RN nuevo. Sin clases de dominio o entidades nuevas: `Recordatorio` incorpora origen, Administrador solicitante, operación UUID, revisión y resultado técnico inicial Push; FK opcional a Usuario, campos manuales ocultos en serialización. 000050 separa unicidad por cita/programación/origen y UUID; down se niega a perder manuales.
+
+`RecordatorioController → ListarRecordatoriosRequest → RecordatorioService → Repositories existentes`: GET próxima cita directo de Cita (inicio futuro, Programada/Confirmada, inicio/ID), resumen y HMAC de revisión; POST Admin compara selección/revisión bajo continuidad/Usuario/planificación/Paciente, respeta preferencia y límite compartido entre Admin. Repetición exacta devuelve el resultado persistido con permisos actuales; otro cuerpo/actor/Paciente con UUID usado rechaza. Generación común `generarParaCita` admite contexto Manual, reutiliza preparación outbox sin red y no mezcla pendientes entre orígenes. Automático conserva ventana de24h y recuperación propia. Aviso/manual/auditoría con ejecutor real/outbox atómicos; dispatcher conserva preflight/consentimiento/TTL/leases y solo omite ventana24h para Manual. Auditoría técnica terminal distingue ejecutor SISTEMA y Admin solicitante referenciado.
+
+Frontera React en `RecordatoriosPage.jsx` existente: sección `ProximaCita` y modal existentes, misma Source Sans3/tokens/bordes/espaciado, campana con texto accesible, sin acciones en filas. Carga/vacío/confirmación/envío/error/409/429/resultado incierto; servicio existente captura época/AbortSignal desde CSRF, no reintenta escrituras y consulta UUID explícitamente ante incertidumbre. Selección/sesión/pagehide/desmontaje retiran contexto; filtros/paginación y pantalla del Paciente conservados. Tests añadidos a archivos existentes, sin duplicar transporte. Resultados/limitaciones en `estado-fase.md`; nunca equiparar generación/aceptación con recepción al teléfono.
+
 ## CU-13 / CU-14 — Horario semanal visible al seleccionar médico (2026-11-07)
 
 Mejora de usabilidad autorizada, no nueva exigencia del examen ni ampliación de permisos administrativos. `DisponibilidadRepository::medicos()` carga anticipadamente la relación `Medico::horarios()` filtrada por actividad y ordenada; proyecta exclusivamente día ISO/inicio/fin en el campo aditivo `horarios` de cada médico del catálogo de reserva. No reutiliza `horarios()` del cálculo de ocupación, que incluye otros médicos del consultorio. Sin clases de dominio, tablas, relaciones ni migraciones nuevas.

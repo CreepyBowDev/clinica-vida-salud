@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('recordatorios', [RecordatorioController::class, 'listar'])->middleware(['auth:sanctum',
     VerificarCuentaHabilitada::class, ExigirSesionNormal::class, ExigirRol::class.':Administrador,Paciente'])->name('recordatorios.lista');
 
+Route::middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class,
+    ExigirRol::class.':Administrador', 'throttle:60,1'])->group(function (): void {
+        Route::get('recordatorios/proxima-cita', [RecordatorioController::class, 'proxima'])->name('recordatorios.proxima');
+        Route::post('recordatorios/manual', [RecordatorioController::class, 'manual'])->name('recordatorios.manual');
+    });
+
 Route::prefix('push')->middleware(['auth:sanctum', VerificarCuentaHabilitada::class, ExigirSesionNormal::class,
     ExigirRol::class.':Paciente', 'throttle:60,1'])->group(function (): void {
         Route::get('configuracion', [SuscripcionPushController::class, 'configuracion'])->name('push.configuracion');

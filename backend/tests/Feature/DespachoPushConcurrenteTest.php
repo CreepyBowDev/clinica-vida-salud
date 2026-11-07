@@ -81,9 +81,23 @@ class DespachoPushConcurrenteTest extends TestCase
         $this->assertTrue($p->isSuccessful(), $p->getOutput().$p->getErrorOutput());
     }
 
-    public function test_two_dispatchers_compete_then_only_one_invokes_transport_without_sql_locks(): void
+    private function convertirManual(array $f): void
     {
-        $this->envioDespacho();
+        $admin = $this->usuarioAuth('Administrador');
+        DB::table('recordatorios')->where('id_recordatorio', $f['aviso'])->update(['origen' => 'Manual',
+            'id_administrador' => $admin->getKey(), 'operacion_manual' => (string) Str::uuid(),
+            'revision_manual' => str_repeat('a', 64), 'resultado_push' => 'Pendiente']);
+        $inicio = CarbonImmutable::now('UTC')->addDays(2);
+        DB::table('citas')->where('id_cita', $f['cita'])->update(['inicio_at' => $inicio, 'fin_at' => $inicio->addMinutes(15)]);
+    }
+
+    #[DataProvider('origenes')]
+    public function test_two_dispatchers_compete_then_only_one_invokes_transport_without_sql_locks(bool $manual): void
+    {
+        $f = $this->envioDespacho();
+        if ($manual) {
+            $this->convertirManual($f);
+        }
         DB::beginTransaction();
         app(ContinuidadAdministrativaService::class)->coordinar();
         [$a, $ia] = $this->worker('transport');
@@ -123,12 +137,26 @@ class DespachoPushConcurrenteTest extends TestCase
         $this->terminarWorker($emisor, $emisor === $a ? $ia : $ib);
         $this->assertSame('Aceptado', DB::table('envios_recordatorio_push')->value('estado'));
         $this->assertSame(1, DB::table('envios_recordatorio_push')->value('intentos'));
+        if ($manual) {
+            $evento = DB::table('bitacora')->where('tipo_evento', 'RECORDATORIO_MANUAL_DESPACHO')->sole();
+            $this->assertSame('SISTEMA', $evento->tipo_actor);
+            $this->assertStringContainsString('Aceptado', $evento->cambios_seguros);
+            $this->assertStringContainsString('id_administrador_solicitante', $evento->referencias);
+        }
+    }
+
+    public static function origenes(): array
+    {
+        return [[false], [true]];
     }
 
     #[DataProvider('cambios')]
-    public function test_committed_change_between_claim_and_preflight_prevents_transport(string $caso): void
+    public function test_committed_change_between_claim_and_preflight_prevents_transport(string $caso, bool $manual): void
     {
         $f = $this->envioDespacho();
+        if ($manual) {
+            $this->convertirManual($f);
+        }
         [$p, $input] = $this->worker('claim');
         $this->assertSame(0, $this->esperar($p, 'claimed')['tx']);
         DB::transaction(function () use ($caso, $f): void {
@@ -151,7 +179,14 @@ class DespachoPushConcurrenteTest extends TestCase
 
     public static function cambios(): array
     {
-        return array_map(fn ($c) => [$c], ['cuenta', 'vinculo', 'cita', 'programacion', 'preferencia', 'consentimiento']);
+        $casos = [];
+        foreach (['cuenta', 'vinculo', 'cita', 'programacion', 'preferencia', 'consentimiento'] as $caso) {
+            foreach ([false, true] as $manual) {
+                $casos[] = [$caso, $manual];
+            }
+        }
+
+        return $casos;
     }
 
     public function test_expired_lease_is_uncertain_and_late_accepted_result_cannot_overwrite_or_replay(): void

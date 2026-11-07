@@ -445,9 +445,9 @@ Historial administrativo inmutable: programación, intervalos, duración, ubicac
 
 ### 3.20. `Recordatorio`
 
-Destinatario derivado de Cita.id_paciente, incluso sin cuenta. Un aviso por cita y versión de programación.
+Destinatario derivado de Cita.id_paciente, incluso sin cuenta. Ampliación aprobada 2026-11-07/000050: un automático y como máximo un manual por cita/versión. No nueva entidad: cinco atributos y una FK opcional adicionales. Aplicación autorizada solo en pruebas aisladas; cifras/notas históricas conservan su fecha.
 
-**Restricciones únicas declaradas:** `(id_cita, version_programacion)`.
+**Restricciones únicas declaradas:** `(id_cita, version_programacion, origen)` y `operacion_manual` nullable/única. CHECK exige metadatos manuales completos solo para Manual y nulos para Automatico. La UQ del outbox `(id_recordatorio,id_suscripcion)` no cambia.
 
 | Marca | Atributo exacto | Tipo del DER | NULL | Referencia | Condición / valores / notas |
 |---|---|---|---|---|---|
@@ -457,6 +457,11 @@ Destinatario derivado de Cita.id_paciente, incluso sin cuenta. Un aviso por cita
 | — | `generado_en` | `TimestampTZ` | No | — | — |
 | — | `leido_en` | `TimestampTZ` | Sí | — | — |
 | — | `invalidado_en` | `TimestampTZ` | Sí | — | — |
+| — | `origen` | `VARCHAR(12)` | No | — | Automatico por defecto; Manual. |
+| FK | `id_administrador` | `BIGINT` | Sí | `Usuario.id_usuario` | N:1, RESTRICT; obligatorio en Manual, rol verificado en servidor. |
+| UQ | `operacion_manual` | `UUID` | Sí | — | Identificador idempotente, obligatorio en Manual. |
+| — | `revision_manual` | `CHAR(64)` | Sí | — | HMAC de revisión, obligatorio en Manual. |
+| — | `resultado_push` | `VARCHAR(32)` | Sí | — | Resultado inicial: Pendiente/Sin_dispositivos/No_disponible; no entrega. |
 
 ### 3.21. `Bitacora`
 
@@ -922,7 +927,7 @@ Las filas 1–43 conservan orden y correspondencias del Draw.io y coinciden con 
 - `MedicoEspecialidad`: N:M con PK compuesta (`id_medico`, `id_especialidad`). `Cita` referencia **ambos campos a la vez**, evitando seleccionar una especialidad ajena al Médico.
 - `ConsultaMedica.id_cita`: FK/UQ; cada Cita tiene **0..1 consulta**. Una consulta puede dar origen a varias versiones clínicas y varias solicitudes de laboratorio.
 - `VersionConsulta`: UQ (`id_consulta`, `numero_version`). `VersionAntecedente`: UQ (`id_paciente`, `numero_version`) y `id_consulta_origen` obligatorio.
-- `Recordatorio`: UQ (`id_cita`, `version_programacion`), no una fila por Paciente/cuenta. El destinatario se deriva de `Cita.id_paciente`.
+- `Recordatorio`: UQ (`id_cita`, `version_programacion`, `origen`) desde000050; un automático y un manual como máximo, no una fila por Paciente/cuenta. El destinatario se deriva de `Cita.id_paciente`; Administrador solicitante opcional→Usuario, separado del titular.
 - `SolicitudLaboratorio`: mantener las referencias circulares **opcionales** `id_version_actual` e `id_revision_publicada`, resolviendo la pertenencia con **dos FK compuestas** y unicidades respaldadas: `VersionResultado(id_solicitud, id_version_resultado)` y `RevisionResultado(id_revision, id_version_resultado)`.
 - `Bitacora`: dos FK diferentes hacia `Usuario`: actor responsable y cuenta objetivo. Ambas son opcionales; otra FK opcional refiere un evento anterior de la propia `Bitacora`.
 - **Diferencias de representación Eloquent/DDL:** las relaciones de lectura simples de Cita→Medico/Especialidad no son dos FK SQL adicionales: la FK real es el par a medico_especialidad. SolicitudLaboratorio y los modelos financieros leen por IDs simples, pero la escritura queda restringida por todas las columnas de las FK compuestas anteriores. ReciboAcademicoPago no declara métodos de relación propios; sus dos FK existen igualmente. Casts encrypted:array persisten TEXT, no columnas JSON adicionales. No se halló discrepancia de nombre de tabla/PK entre esos mapeos y migraciones; el pivote declara primaryKey null en Eloquent pero conserva PK compuesta SQL. Las reglas de titularidad de recibo y cancelación de devolución no están completas en las FK: no se inventa una restricción para presentarlas como garantizadas por SQL.

@@ -120,7 +120,8 @@ class DespachoPushService
                 && $aviso->invalidado_en === null && $aviso->version_programacion === $cita->version_programacion
                 && $aviso->generado_en->lessThanOrEqualTo($ahora)
                 && in_array($cita->estado, ['Programada', 'Confirmada'], true)
-                && $ahora->greaterThanOrEqualTo($cita->inicio_at->subHours(24)) && $ahora->isBefore($cita->inicio_at)
+                && ($aviso->origen === 'Manual' || $ahora->greaterThanOrEqualTo($cita->inicio_at->subHours(24)))
+                && $ahora->isBefore($cita->inicio_at)
                 && ($paciente->preferencia?->recordatorios_habilitados ?? true)
                 && (string) $s->id_usuario === (string) $e->id_usuario && (string) $s->id_paciente === (string) $e->id_paciente
                 && $s->version_autorizacion === $e->version_autorizacion && $s->revocada_en === null
@@ -211,5 +212,9 @@ class DespachoPushService
     {
         $this->envios->guardar($e, ['estado' => $estado, 'resultado_seguro' => $resultado,
             'codigo_reclamo' => null, 'reclamado_hasta' => null], $ahora);
+        $contexto = $this->envios->localizar((string) $e->getKey());
+        if ($contexto?->id_administrador !== null) {
+            $this->bitacora->despachoManualFinalizado($contexto, $estado, $resultado, $ahora);
+        }
     }
 }

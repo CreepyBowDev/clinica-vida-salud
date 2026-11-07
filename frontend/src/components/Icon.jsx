@@ -1,4 +1,5 @@
 const paths = {
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
   chevron: <path d="m6 9 6 6 6-6" />,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18m-12 4h.01M12 15h.01M16 15h.01" /></>,
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,

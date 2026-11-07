@@ -86,6 +86,231 @@ class GeneracionRecordatoriosTest extends TestCase
         return app(RecordatorioService::class)->generar($lote);
     }
 
+    private function administradorManual(): array
+    {
+        config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
+        $this->app['env'] = 'local';
+        $admin = $this->usuarioAuth('Administrador');
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $admin)->assertOk();
+
+        return [$cookies, $admin];
+    }
+
+    private function revisionManual(array &$cookies, string $paciente): array
+    {
+        return $this->navegador($cookies, 'GET', '/api/recordatorios/proxima-cita?id_paciente='.$paciente)
+            ->assertOk()->json('data.cita');
+    }
+
+    private function datosManual(array &$cookies, string $paciente): array
+    {
+        $cita = $this->revisionManual($cookies, $paciente);
+
+        return ['id_paciente' => $paciente, 'id_cita' => $cita['id_cita'], 'revision' => $cita['revision'], 'operacion' => (string) Str::uuid()];
+    }
+
+    #[DataProvider('ordenManual')]
+    public function test_manual_and_automatic_are_independent_idempotent_and_audited(bool $automaticoPrimero): void
+    {
+        [$id, $r] = $this->cita($automaticoPrimero ? 60 : 2880);
+        $this->suscribir($r);
+        [$cookies, $admin] = $this->administradorManual();
+        if ($automaticoPrimero) {
+            $this->generar();
+        }
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        $citasAntes = DB::table('citas')->get()->toJson();
+        $primero = $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk()
+            ->assertJsonPath('data.push', 'Pendiente')->json('data');
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk()->assertJsonPath('data', $primero);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', [...$datos, 'operacion' => (string) Str::uuid()])
+            ->assertStatus(409)->assertJsonPath('error.code', 'RECORDATORIO_MANUAL_EXISTENTE');
+        $this->navegador($cookies, 'GET', '/api/recordatorios/proxima-cita?id_paciente='.$r['patient'].'&operacion='.$datos['operacion'])
+            ->assertOk()->assertJsonPath('data.operacion', $primero)->assertJsonPath('data.cita.manual_generado', true);
+        $this->assertSame($citasAntes, DB::table('citas')->get()->toJson());
+        if (! $automaticoPrimero) {
+            $this->assertSame(0, $this->generar()['avisos_creados']);
+            $this->assertSame(1, DB::table('envios_recordatorio_push')->where('estado', 'Pendiente')->count());
+            // El manual a >24 h ya aparece en la consulta del titular/administrador.
+            $this->navegador($cookies, 'GET', '/api/recordatorios?id_paciente='.$r['patient'])->assertOk()->assertJsonPath('meta.total', 1);
+            CarbonImmutable::setTestNow(CarbonImmutable::now()->addDay());
+            Carbon::setTestNow(CarbonImmutable::now());
+            $this->assertSame(1, $this->generar()['avisos_creados']);
+        }
+        $this->assertSame(2, DB::table('recordatorios')->where('id_cita', $id)->count());
+        $this->assertSame(2, DB::table('envios_recordatorio_push')->where('estado', 'Pendiente')->count());
+        $this->assertSame(0, $this->generar()['avisos_creados']);
+        $evento = DB::table('bitacora')->where('tipo_evento', 'RECORDATORIO_GENERADO')->where('tipo_actor', 'USUARIO')->sole();
+        $this->assertSame((string) $admin->getKey(), (string) $evento->id_usuario_responsable);
+        $this->assertStringContainsString('resultado_push', $evento->cambios_seguros);
+        Http::assertNothingSent();
+        Mail::assertNothingSent();
+    }
+
+    public static function ordenManual(): array
+    {
+        return [[true], [false]];
+    }
+
+    public function test_next_appointment_is_selected_without_notices_and_never_substituted_on_send(): void
+    {
+        [$id, $r] = $this->cita(2880);
+        [$cookies] = $this->administradorManual();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        $this->assertSame($id, $datos['id_cita']);
+        $inicio = CarbonImmutable::now('UTC')->addHour();
+        $nuevo = DB::table('citas')->insertGetId($this->citaRow($r, ['inicio_at' => $inicio, 'fin_at' => $inicio->addMinutes(15)]), 'id_cita');
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertStatus(409)
+            ->assertJsonPath('error.code', 'RECORDATORIO_REVISION_OBSOLETA');
+        $this->assertSame((string) $nuevo, $this->revisionManual($cookies, (string) $r['patient'])['id_cita']);
+        $this->assertSame(0, DB::table('recordatorios')->count());
+        DB::table('citas')->where('id_cita', $nuevo)->update(['estado' => 'Cancelada']);
+        $this->assertSame($id, $this->revisionManual($cookies, (string) $r['patient'])['id_cita']);
+    }
+
+    #[DataProvider('cambiosRevisionManual')]
+    public function test_manual_rejects_changes_since_review(array $cambios): void
+    {
+        [$id, $r] = $this->cita(60);
+        [$cookies] = $this->administradorManual();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        if (isset($cambios['iniciada'])) {
+            CarbonImmutable::setTestNow(CarbonImmutable::now()->addHour());
+        } else {
+            DB::table('citas')->where('id_cita', $id)->update($cambios);
+        }
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertStatus(409);
+        $this->assertSame(0, DB::table('recordatorios')->count());
+    }
+
+    public static function cambiosRevisionManual(): array
+    {
+        return [[['estado' => 'Cancelada']], [['estado' => 'Atendida']], [['estado' => 'Inasistencia']],
+            [['estado' => 'Confirmada']], [['version_programacion' => 2]], [['consultorio_atencion' => 'Ubicación corregida']],
+            [['actualizada_en' => '2026-11-08T12:00:00.000001Z']], [['iniciada' => true]]];
+    }
+
+    public function test_manual_respects_preferences_no_devices_disabled_channel_and_strict_input(): void
+    {
+        [, $r] = $this->cita(2880);
+        [$cookies] = $this->administradorManual();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        DB::table('preferencias_paciente')->insert(['id_paciente' => $r['patient'], 'recordatorios_habilitados' => false, 'preferencias_privacidad' => '{}']);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertStatus(409)
+            ->assertJsonPath('error.code', 'RECORDATORIO_PREFERENCIA_DESHABILITADA');
+        $this->assertSame(0, DB::table('recordatorios')->count());
+        DB::table('preferencias_paciente')->where('id_paciente', $r['patient'])->update(['recordatorios_habilitados' => true]);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', [...$datos, 'estado' => 'Programada'])->assertStatus(422);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos, csrf: false)->assertStatus(419);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk()->assertJsonPath('data.push', 'Sin_dispositivos');
+        [, $otro] = $this->cita(2880);
+        $this->suscribir($otro);
+        $datos = $this->datosManual($cookies, (string) $otro['patient']);
+        config(['push.habilitado' => false]);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk()->assertJsonPath('data.push', 'No_disponible');
+        $this->assertSame(0, DB::table('envios_recordatorio_push')->count());
+        Http::assertNothingSent();
+    }
+
+    #[DataProvider('rolesSinManual')]
+    public function test_manual_and_next_appointment_are_admin_only(string $rol): void
+    {
+        [, $r] = $this->cita();
+        config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
+        $this->app['env'] = 'local';
+        $cookies = $this->csrfAuth();
+        $this->loginAuth($cookies, $this->usuarioAuth($rol))->assertOk();
+        $this->navegador($cookies, 'GET', '/api/recordatorios/proxima-cita?id_paciente='.$r['patient'])->assertForbidden();
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', [])->assertForbidden();
+    }
+
+    public static function rolesSinManual(): array
+    {
+        return [['Paciente'], ['Recepcionista'], ['Médico']];
+    }
+
+    public function test_manual_rollback_keeps_notice_audit_and_outbox_atomic(): void
+    {
+        [, $r] = $this->cita(2880);
+        $this->suscribir($r);
+        [$cookies] = $this->administradorManual();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        $bitacora = Mockery::mock(BitacoraRepository::class)->makePartial();
+        $bitacora->shouldReceive('recordatorioGenerado')->once()->andThrow(new RuntimeException('Fallo ficticio de auditoría'));
+        $this->app->instance(BitacoraRepository::class, $bitacora);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertStatus(500);
+        $this->assertSame(0, DB::table('recordatorios')->count());
+        $this->assertSame(0, DB::table('envios_recordatorio_push')->count());
+        $this->assertSame(0, DB::table('bitacora')->where('tipo_evento', 'RECORDATORIO_GENERADO')->count());
+    }
+
+    public function test_manual_patient_binding_empty_state_and_idempotency_conflicts(): void
+    {
+        [, $r] = $this->cita(2880);
+        [$idOtro, $otro] = $this->cita(2880, 'Cancelada');
+        [$cookies] = $this->administradorManual();
+        $this->navegador($cookies, 'GET', '/api/recordatorios/proxima-cita?id_paciente='.$otro['patient'])
+            ->assertOk()->assertJsonPath('data.cita', null);
+        $this->navegador($cookies, 'GET', '/api/recordatorios/proxima-cita?id_paciente=9223372036854775807')->assertNotFound();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', [...$datos, 'id_cita' => $idOtro])->assertStatus(409);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk();
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', [...$datos, 'id_paciente' => (string) $otro['patient']])
+            ->assertStatus(409)->assertJsonPath('error.code', 'RECORDATORIO_OPERACION_CONFLICTO');
+        $this->assertSame(1, DB::table('recordatorios')->count());
+    }
+
+    public function test_manual_migration_never_erases_notices_on_rollback(): void
+    {
+        [, $r] = $this->cita(2880);
+        [$cookies] = $this->administradorManual();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk();
+        try {
+            (require base_path('src/data/database/migrations/2026_11_07_000050_ampliar_recordatorios_manuales.php'))->down();
+            $this->fail('No debe eliminar datos manuales para revertir el esquema.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('No se puede revertir', $e->getMessage());
+        }
+        $this->assertSame(1, DB::table('recordatorios')->where('origen', 'Manual')->count());
+    }
+
+    public function test_manual_migration_preserves_automatic_notice_and_outbox_on_down_up(): void
+    {
+        [, $r] = $this->cita();
+        $this->suscribir($r);
+        $this->generar();
+        $antes = DB::table('envios_recordatorio_push')->get()->toJson();
+        $id = DB::table('recordatorios')->value('id_recordatorio');
+        $migracion = require base_path('src/data/database/migrations/2026_11_07_000050_ampliar_recordatorios_manuales.php');
+        $migracion->down();
+        $migracion->up();
+        $this->assertSame($antes, DB::table('envios_recordatorio_push')->get()->toJson());
+        $aviso = DB::table('recordatorios')->sole();
+        $this->assertSame((string) $id, (string) $aviso->id_recordatorio);
+        $this->assertSame('Automatico', $aviso->origen);
+        $this->assertNull($aviso->operacion_manual);
+        $this->assertNull($aviso->id_administrador);
+    }
+
+    public function test_manual_is_invalidated_on_rescheduling_and_new_version_has_its_own_limit(): void
+    {
+        [$id, $r] = $this->cita(2880);
+        [$cookies] = $this->administradorManual();
+        $datos = $this->datosManual($cookies, (string) $r['patient']);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $datos)->assertOk();
+        DB::transaction(function () use ($id): void {
+            app(RecordatorioService::class)->invalidarPorCita($id, CarbonImmutable::now('UTC'));
+            DB::table('citas')->where('id_cita', $id)->update(['version_programacion' => 2]);
+        });
+        $nuevo = $this->datosManual($cookies, (string) $r['patient']);
+        $this->assertNotSame($datos['revision'], $nuevo['revision']);
+        $this->navegador($cookies, 'POST', '/api/recordatorios/manual', $nuevo)->assertOk();
+        $this->assertSame(1, DB::table('recordatorios')->whereNotNull('invalidado_en')->count());
+        $this->assertSame(1, DB::table('recordatorios')->whereNull('invalidado_en')->count());
+    }
+
     #[DataProvider('ventanas')]
     public function test_exact_windows_internal_until_end_and_push_only_before_start(int $minutos, string $estado, int $avisos, int $envios): void
     {

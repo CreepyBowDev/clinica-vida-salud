@@ -1,5 +1,21 @@
 # Diagrama global de clases — Clínica Vida Salud
 
+## Incremento CU-28 — Manual administrativo (2026-11-07)
+
+Sin nuevas entidades/clases productivas; se amplían las existentes. `Recordatorio` añade origen/operación/revisión/Administrador/resultado inicial Push y relación `administrador(): BelongsTo`. `RecordatorioController` añade `proxima`/`manual`; `RecordatorioService` añade `proxima`/`enviarManual`, comparte generación automática/manual y consulta idempotente; repositorios existentes amplían selección/unicidad/auditoría. No censo global ni render académico nuevo acreditados.
+
+```mermaid
+classDiagram
+    RecordatorioController --> RecordatorioService : proxima / enviarManual
+    RecordatorioService --> RecordatorioRepository : proxima / manual / porOperacion
+    RecordatorioService --> EnvioRecordatorioPushRepository : preparar
+    RecordatorioService --> BitacoraRepository : recordatorioGenerado con actor real
+    Recordatorio --> Usuario : administrador opcional
+    DespachoPushService --> RecordatorioRepository : vigencia por origen
+    DespachoPushService --> TransportePush : transporte existente
+    DespachoPushService --> BitacoraRepository : despachoManualFinalizado
+```
+
 ## Incremento Pagos — Fase 3 backend efectiva (2026-11-06)
 
 Se integran tres Services/dos Controllers nuevos con las clases financieras F2 y la coordinación previa, sin Models/tablas/DER adicionales. Firmas/detalle: análisis [Fase3](analisis-clases.md#pagos-backend-fase3) y [contrato técnico](pagos-fase3-backend.md). Sin censo global recalculado/render ni cierre del módulo.

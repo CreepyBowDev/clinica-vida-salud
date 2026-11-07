@@ -10,6 +10,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PacienteRepository
 {
+    public function consultarSinBloqueo(string $id): ?Paciente
+    {
+        return Paciente::query()->whereKey($id)->first();
+    }
+
     public function listar(array $filtros): LengthAwarePaginator
     {
         $query = Paciente::query()->select(['id_paciente', 'codigo_paciente', 'documento_identidad', 'nombres', 'apellidos', 'activo']);

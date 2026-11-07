@@ -180,9 +180,10 @@ Contrato de error: `{"success":false,"error":{"code","message","details?"}}`. É
 
 ## 16. Recordatorios internos y Web Push (CU-28)
 
+- **Ampliación aprobada 2026-11-07:** manual exclusivo Admin para la próxima cita futura Programada/Confirmada, previa confirmación y comparación de revisión en servidor. Un manual por cita/programación compartido entre Admin, separado del automático mediante origen; UUID durable, aviso/auditoría/outbox atómicos y dispatcher/transporte existentes. Se permite >24h solo al manual; preferencias/opt-in/corte de inicio intactos. 000050 solo autorizada en esquema aislado; nunca editar migraciones anteriores. Las menciones históricas inferiores a fases pendientes no describen la presencia actual del transporte/dispatcher/SW; tampoco acreditan configuración ni entrega real.
 - Generación automática por scheduler cada minuto (`recordatorios:generar`, lote 1–1000), sin sesión de Paciente ni pestaña abierta; `withoutOverlapping` es apoyo, la unicidad y las transacciones son la protección real.
 - Ventana `inicio_at − 24 h ≤ ahora < fin_at`, estados `Programada`/`Confirmada`, preferencia habilitada (ausencia de fila = habilitada, sin crear fila). Ventana en UTC con microsegundos, sin redondeos.
-- Un aviso por cita y programación; la reejecución es idempotente y recupera huecos sin duplicar. Reprogramar invalida los avisos anteriores; nunca se resucita un aviso invalidado.
+- Un automático y, opcionalmente, un manual por cita y programación; la reejecución del generador es idempotente y recupera huecos automáticos sin duplicar ni descartar manuales por su origen. Reprogramar invalida los avisos anteriores; nunca se resucita un aviso invalidado.
 - El aviso interno no exige cuenta web, ficha activa ni Médico activo. Web Push exige consentimiento explícito, cuenta activa vinculada, autorización vigente y `ahora < inicio_at`; canal deshabilitado o clave pública inválida no impide el aviso interno.
 - Payload push genérico sin datos clínicos; suscripciones y claves en almacenamiento protegido, nunca en logs ni URLs.
 - Lo devuelto/transmitido no puede retirarse con garantía; no confundir aceptación del servicio con entrega o lectura.

@@ -1,4 +1,4 @@
-import { api, obtenerEpocaSesion } from '../../../api/api';
+import { api, csrfURL, obtenerEpocaSesion } from '../../../api/api';
 import { ROLES } from '../../../constants/roles';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { esFechaCivil, esInstanteCita, ZONA_CLINICA } from '../../agenda/utils/agendaFormat';
@@ -6,6 +6,45 @@ import { esFechaCivil, esInstanteCita, ZONA_CLINICA } from '../../agenda/utils/a
 const objeto = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const texto = v => typeof v === 'string' && v.trim().length > 0;
 function exigir(value) { if (!value) throw new Error('No se pudo verificar la consulta de recordatorios.'); }
+function resultadoManual(v) {
+  exigir(objeto(v) && esIdentificador(v.id_recordatorio) && esIdentificador(v.id_cita)
+    && v.aviso_interno === 'Generado' && ['Pendiente', 'Sin_dispositivos', 'No_disponible'].includes(v.push));
+  return { id_recordatorio: v.id_recordatorio, id_cita: v.id_cita, aviso_interno: v.aviso_interno, push: v.push };
+}
+function comprobarContexto(options) {
+  if (options.signal?.aborted || options.sessionEpochExpected !== obtenerEpocaSesion()) {
+    throw Object.assign(new Error('El contexto de sesión cambió.'), { code: 'SESSION_SUPERSEDED' });
+  }
+}
+
+export async function consultarProximaCita(idPaciente, operacion, signal) {
+  exigir(esIdentificador(idPaciente));
+  const options = { signal, sessionBound: true, sessionEpochExpected: obtenerEpocaSesion() };
+  const response = await api.get('/recordatorios/proxima-cita', { ...options,
+    params: { id_paciente: idPaciente, ...(operacion ? { operacion } : {}) } });
+  comprobarContexto(options);
+  const data = response.data?.data, c = data?.cita;
+  exigir(response.status === 200 && objeto(data) && (c === null || (objeto(c) && esIdentificador(c.id_cita)
+    && /^[a-f0-9]{64}$/.test(c.revision) && esInstanteCita(c.inicio_at) && texto(c.medico) && texto(c.consultorio)
+    && typeof c.manual_generado === 'boolean' && typeof c.preferencia_habilitada === 'boolean')));
+  return { cita: c === null ? null : { id_cita: c.id_cita, revision: c.revision, inicio_at: c.inicio_at,
+    medico: c.medico, consultorio: c.consultorio, manual_generado: c.manual_generado, preferencia_habilitada: c.preferencia_habilitada },
+  operacion: data.operacion === null ? null : resultadoManual(data.operacion) };
+}
+
+export async function enviarRecordatorioManual(idPaciente, cita, operacion, signal) {
+  exigir(esIdentificador(idPaciente) && esIdentificador(cita?.id_cita) && /^[a-f0-9]{64}$/.test(cita?.revision));
+  const options = { signal, sessionBound: true, sessionEpochExpected: obtenerEpocaSesion() };
+  try { comprobarContexto(options); await api.get(csrfURL, options); comprobarContexto(options); }
+  catch (error) { error.recordatorioEnviado = false; throw error; }
+  try {
+    const response = await api.post('/recordatorios/manual', { id_paciente: idPaciente, id_cita: cita.id_cita,
+      revision: cita.revision, operacion }, options);
+    comprobarContexto(options);
+    exigir(response.status === 200 && response.data?.data?.id_cita === cita.id_cita);
+    return resultadoManual(response.data.data);
+  } catch (error) { error.recordatorioEnviado = true; throw error; }
+}
 function proyectarAviso(v) {
   const c = v?.cita;
   exigir(objeto(v) && esIdentificador(v.id_recordatorio) && esIdentificador(v.id_cita)

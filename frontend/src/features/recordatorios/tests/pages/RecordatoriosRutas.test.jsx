@@ -25,7 +25,8 @@ beforeEach(() => {
     if (fail) throw new AxiosError('SECRETO', undefined, config, null, { config, status: 401, headers: {}, data: {} });
     return { config, status: 200, headers: {}, data: config.url === '/push/suscripciones'
       ? { data: [], meta: { current_page: 1, per_page: 20, total: 0, last_page: 1 } }
-      : config.url === '/pacientes' ? pacientes() : listado(rows) };
+      : config.url === '/recordatorios/proxima-cita' ? { data: { cita: null, operacion: null } }
+        : config.url === '/pacientes' ? pacientes() : listado(rows) };
   };
 });
 afterEach(() => { api.defaults.adapter = original; vi.restoreAllMocks(); });
@@ -49,8 +50,9 @@ it('Administrador accede desde la misma ruta y navegación; solo consulta al sel
   await userEvent.click(await screen.findByRole('button', { name: 'Seleccionar paciente Paciente De prueba' }));
   await screen.findByText('CITA-FICTICIA');
   expect(calls.filter(c => c.url === '/recordatorios')).toHaveLength(1);
-  expect(calls.at(-1)).toMatchObject({ url: '/recordatorios', method: 'get', params: { id_paciente: '21' } });
-  expect(calls.every(c => c.method === 'get' && ['/pacientes', '/recordatorios'].includes(c.url))).toBe(true);
+  expect(calls.find(c => c.url === '/recordatorios')).toMatchObject({ method: 'get', params: { id_paciente: '21' } });
+  expect(calls.find(c => c.url === '/recordatorios/proxima-cita')).toMatchObject({ method: 'get', params: { id_paciente: '21' } });
+  expect(calls.every(c => c.method === 'get' && ['/pacientes', '/recordatorios', '/recordatorios/proxima-cita'].includes(c.url))).toBe(true);
   expect(screen.queryByRole('button', { name: /preferencias|push|dispositivo/i })).not.toBeInTheDocument();
 });
 it('sin sesión va a login sin pedir avisos', async () => {

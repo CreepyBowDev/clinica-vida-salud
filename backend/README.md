@@ -1,5 +1,12 @@
 # Backend — Clínica Vida Salud
 
+## CU-28 — Próxima cita y manual Admin (2026-11-07)
+
+- `GET /api/recordatorios/proxima-cita?id_paciente=...&operacion=UUID_opcional`: solo Admin; `data.cita` nullable con id_cita/revision/inicio_at/medico/consultorio/manual_generado/preferencia_habilitada y `data.operacion` nullable para recuperar resultado de su propia operación. Citas estrictamente futuras Programada/Confirmada, inicio/ID, sin depender de avisos ni ventana24h/filtros del listado.
+- `POST /api/recordatorios/manual`: cuerpo cerrado `{id_paciente,id_cita,revision,operacion}`; sesión/rol Admin/CSRF/throttle existentes. `200 data: {id_recordatorio,id_cita,aviso_interno:"Generado",push:"Pendiente"|"Sin_dispositivos"|"No_disponible"}`. Push es resultado técnico inicial, no recepción/lectura. Repetición exacta autorizada devuelve mismo resultado; UUID ajeno/cuerpo distinto→409. Cambio de próxima/revisión/preferencias o manual ya generado→409; actualizar y confirmar, sin sustitución/replay automático.
+- Aprobado un manual por cita/programación entre todos los Admin, sin reenvíos; independiente del automático24h, incluso >24h. Transacción común/bitácora/outbox/dispatcher/transporte existentes; ningún envío HTTP síncrono ni cambio de Cita/preferencias/dispositivos. Terminales Push manuales auditados por SISTEMA con Admin solicitante referenciado.
+- Nueva000050 añade cinco columnas/FK a Recordatorio, UQ por cita/programación/origen y UUID; metadatos obligatorios solo para Manual, existentes Automatico. Down bloquea y se niega a perder manuales. **Solo autorizada/aplicada en esquemas desechables de testing, no base habitual/remota**; requiere instalación separada autorizada para uso real. Sin nuevas entidades/dependencias/configuración privada. [Evidencia y límites](../docs/ai/estado-fase.md).
+
 ## CU-13 — Horario semanal en el catálogo de reserva (2026-11-07)
 
 Mejora de usabilidad autorizada: `GET /api/reservas/medicos` añade `horarios: [{dia_semana, hora_inicio, hora_fin}]` por médico. Día ISO entero 1–7 y horas locales `HH:mm:ss` de America/La_Paz; solo intervalos activos, ordenados por día/inicio/fin. Carga anticipada conjunta para la página, sin N+1. No expone identificadores/estado/versiones de horarios, ocupación ni datos administrativos adicionales. Conserva roles Administrador/Recepcionista/Paciente y filtros/paginación; `/api/medicos/{id}/horarios` sigue siendo administrativo. El horario habitual no garantiza cupos y no sustituye la revalidación de disponibilidad/reserva. Sin cambios de persistencia.

@@ -7,8 +7,10 @@ use Carbon\CarbonImmutable;
 use Clinica\business\services\usuarios\ContinuidadAdministrativaService;
 use Clinica\business\validators\AutorizacionPushValidator;
 use Clinica\data\models\SuscripcionPush;
+use Clinica\data\repositories\recordatorios\RecordatorioRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\Fixtures\AutenticacionFixtures;
 use Tests\Fixtures\CitasFixtures;
@@ -18,7 +20,8 @@ class GeneracionRecordatoriosConcurrenteTest extends TestCase
 {
     use AutenticacionFixtures, CitasFixtures;
 
-    public function test_two_real_generators_wait_then_commit_one_notice_and_one_outbox_row(): void
+    #[DataProvider('operaciones')]
+    public function test_two_real_generators_wait_then_commit_one_notice_and_one_outbox_row(bool $manual, bool $distintas): void
     {
         $schema = 'prueba_recordatorio_'.strtolower(Str::random(16));
         $previous = DB::selectOne('SHOW search_path')->search_path;
@@ -43,10 +46,21 @@ class GeneracionRecordatoriosConcurrenteTest extends TestCase
                 'datos_cifrados' => ['endpoint' => 'https://fcm.googleapis.com/fcm/send/ficticio'], 'id_usuario' => $u->getKey(), 'id_paciente' => $r['patient'],
                 'version_autorizacion' => 1, 'huella_cuenta' => app(AutorizacionPushValidator::class)->huella($u),
                 'autorizada_en' => now(), 'actualizada_en' => now(), 'expira_en' => now()->addDay()])->saveOrFail();
+            $admin = $manual ? $this->usuarioAuth('Administrador') : null;
+            $segundo = $manual && $distintas ? $this->usuarioAuth('Administrador') : $admin;
+            $proxima = app(RecordatorioRepository::class)->proxima((string) $r['patient'], CarbonImmutable::now('UTC'));
+            $datos = ['id_paciente' => (string) $r['patient'], 'id_cita' => (string) $proxima->id_cita,
+                'revision' => hash_hmac('sha256', json_encode($proxima, JSON_THROW_ON_ERROR), (string) config('app.key')),
+                'operacion' => (string) Str::uuid()];
             DB::beginTransaction();
             app(ContinuidadAdministrativaService::class)->coordinar();
             for ($i = 0; $i < 2; $i++) {
-                $p = new Process([PHP_BINARY, base_path('tests/Fixtures/recordatorios-worker.php'), $schema], base_path());
+                $args = [PHP_BINARY, base_path('tests/Fixtures/recordatorios-worker.php'), $schema];
+                if ($manual) {
+                    $args[] = (string) ($i === 0 ? $admin : $segundo)->getKey();
+                    $args[] = base64_encode(json_encode($distintas ? [...$datos, 'operacion' => (string) Str::uuid()] : $datos));
+                }
+                $p = new Process($args, base_path());
                 $p->setTimeout(20);
                 $p->start();
                 $workers[] = $p;
@@ -71,16 +85,24 @@ class GeneracionRecordatoriosConcurrenteTest extends TestCase
                 implode("\n", array_map(fn ($w) => $w->getOutput().$w->getErrorOutput(), $workers)));
             DB::commit();
             $created = $outbox = 0;
+            $resultados = [];
             foreach ($workers as $w) {
                 $w->wait();
                 $this->assertTrue($w->isSuccessful(), $w->getErrorOutput().$w->getOutput());
                 $lines = array_values(array_filter(explode("\n", trim($w->getOutput()))));
                 $r = json_decode(end($lines), true)['result'];
-                $created += $r['avisos_creados'];
-                $outbox += $r['envios_preparados'];
+                $resultados[] = $r;
+                $created += $r['avisos_creados'] ?? 0;
+                $outbox += $r['envios_preparados'] ?? 0;
             }
-            $this->assertSame(1, $created);
-            $this->assertSame(1, $outbox);
+            if (! $manual) {
+                $this->assertSame(1, $created);
+                $this->assertSame(1, $outbox);
+            } elseif ($distintas) {
+                $this->assertCount(1, array_filter($resultados, fn ($r) => ($r['conflicto'] ?? null) === 'RECORDATORIO_MANUAL_EXISTENTE'));
+            } else {
+                $this->assertSame($resultados[0], $resultados[1]);
+            }
             $this->assertSame(1, DB::table('recordatorios')->count());
             $this->assertSame(1, DB::table('envios_recordatorio_push')->where('estado', 'Pendiente')->where('intentos', 0)->count());
             $this->assertSame(1, DB::table('bitacora')->where('tipo_evento', 'RECORDATORIO_GENERADO')->count());
@@ -98,5 +120,10 @@ class GeneracionRecordatoriosConcurrenteTest extends TestCase
             CarbonImmutable::setTestNow();
             Carbon::setTestNow();
         }
+    }
+
+    public static function operaciones(): array
+    {
+        return [[false, false], [true, false], [true, true]];
     }
 }

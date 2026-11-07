@@ -56,7 +56,34 @@ class RecordatorioRepository
     public function porProgramacion(Cita $cita): ?Recordatorio
     {
         return Recordatorio::query()->where('id_cita', $cita->getKey())
-            ->where('version_programacion', $cita->version_programacion)->lockForUpdate()->first();
+            ->where('version_programacion', $cita->version_programacion)->where('origen', 'Automatico')->lockForUpdate()->first();
+    }
+
+    public function proxima(string $paciente, CarbonImmutable $ahora): ?object
+    {
+        return DB::table('citas as c')->join('medicos as m', 'm.id_medico', '=', 'c.id_medico')
+            ->where('c.id_paciente', $paciente)->whereIn('c.estado', ['Programada', 'Confirmada'])
+            ->where('c.inicio_at', '>', $ahora->format('Y-m-d H:i:s.uP'))
+            ->orderBy('c.inicio_at')->orderBy('c.id_cita')
+            ->select(['c.id_cita', 'c.id_paciente', 'c.version_programacion', 'c.actualizada_en', 'c.inicio_at', 'c.fin_at', 'c.estado',
+                'c.id_medico', 'c.id_consultorio', 'c.consultorio_atencion', 'c.sede_atencion',
+                'm.nombres as medico_nombres', 'm.apellidos as medico_apellidos'])->first();
+    }
+
+    public function manual(string $cita, int $version): ?Recordatorio
+    {
+        return Recordatorio::query()->where('id_cita', $cita)->where('version_programacion', $version)
+            ->where('origen', 'Manual')->lockForUpdate()->first();
+    }
+
+    public function porOperacion(string $operacion): ?Recordatorio
+    {
+        return Recordatorio::query()->where('operacion_manual', $operacion)->lockForUpdate()->first();
+    }
+
+    public function guardarResultadoManual(Recordatorio $aviso, string $resultado): void
+    {
+        $aviso->forceFill(['resultado_push' => $resultado])->saveOrFail();
     }
 
     public function porId(string $id): ?Recordatorio
@@ -64,11 +91,11 @@ class RecordatorioRepository
         return Recordatorio::query()->whereKey($id)->lockForUpdate()->first();
     }
 
-    public function crear(Cita $cita, CarbonImmutable $ahora): Recordatorio
+    public function crear(Cita $cita, CarbonImmutable $ahora, array $manual = []): Recordatorio
     {
         $r = new Recordatorio;
         $r->forceFill(['id_cita' => $cita->getKey(), 'version_programacion' => $cita->version_programacion,
-            'generado_en' => $ahora])->saveOrFail();
+            'generado_en' => $ahora, ...$manual])->saveOrFail();
 
         return $r;
     }
@@ -88,7 +115,8 @@ class RecordatorioRepository
             ->where('c.id_paciente', $paciente)->whereColumn('r.version_programacion', 'c.version_programacion')
             ->whereNull('r.invalidado_en')->where('r.generado_en', '<=', $ahora->format('Y-m-d H:i:s.uP'))
             ->whereIn('c.estado', ['Programada', 'Confirmada'])
-            ->where('c.inicio_at', '<=', $ahora->addHours(24)->format('Y-m-d H:i:s.uP'))
+            ->where(fn ($q) => $q->where('r.origen', 'Manual')
+                ->orWhere('c.inicio_at', '<=', $ahora->addHours(24)->format('Y-m-d H:i:s.uP')))
             ->where('c.fin_at', '>', $ahora->format('Y-m-d H:i:s.uP'))
             ->where(fn ($v) => $v->whereNull('p.id_preferencia')->orWhere('p.recordatorios_habilitados', true))
             ->select(['r.id_recordatorio', 'r.id_cita', 'r.version_programacion', 'r.generado_en',

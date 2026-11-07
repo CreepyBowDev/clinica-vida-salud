@@ -17,6 +17,8 @@ class Recordatorio extends Model
 
     protected $guarded = ['*'];
 
+    protected $hidden = ['operacion_manual', 'revision_manual'];
+
     protected function casts(): array
     {
         return [
@@ -30,5 +32,10 @@ class Recordatorio extends Model
     public function cita(): BelongsTo
     {
         return $this->belongsTo(Cita::class, 'id_cita', 'id_cita');
+    }
+
+    public function administrador(): BelongsTo
+    {
+        return $this->belongsTo(Usuario::class, 'id_administrador', 'id_usuario');
     }
 }

@@ -174,15 +174,17 @@ class BitacoraRepository
                 'estado' => 'Programada', 'duracion_minutos' => $cita->duracion_minutos]])->saveOrFail();
     }
 
-    public function recordatorioGenerado(Cita $cita, Recordatorio $recordatorio, CarbonImmutable $ahora): void
+    public function recordatorioGenerado(Cita $cita, Recordatorio $recordatorio, CarbonImmutable $ahora, ?Usuario $actor = null): void
     {
         $evento = new Bitacora;
-        $evento->forceFill(['tipo_evento' => 'RECORDATORIO_GENERADO', 'tipo_actor' => 'SISTEMA',
+        $evento->forceFill(['tipo_evento' => 'RECORDATORIO_GENERADO', 'tipo_actor' => $actor ? 'USUARIO' : 'SISTEMA',
+            'id_usuario_responsable' => $actor?->getKey(), 'rol_responsable' => $actor?->rol->nombre,
             'modulo' => 'RECORDATORIOS', 'operacion' => 'RECORDATORIO_GENERADO', 'resultado' => 'EXITO',
             'entidad_referida' => 'Recordatorio', 'registro_referido' => (string) $recordatorio->getKey(), 'ocurrido_en' => $ahora,
             'correlacion' => (string) Str::uuid(),
             'referencias' => ['id_cita' => (string) $cita->getKey(), 'id_paciente' => (string) $cita->id_paciente],
-            'cambios_seguros' => ['version_nueva' => $cita->version_programacion]])->saveOrFail();
+            'cambios_seguros' => ['version_nueva' => $cita->version_programacion,
+                ...($actor ? ['origen' => 'Manual', 'resultado_push' => $recordatorio->resultado_push] : [])]])->saveOrFail();
     }
 
     public function suscripcionPushModificada(Usuario $actor, array $contexto, string $id, string $tipo, int $version): void
@@ -194,6 +196,20 @@ class BitacoraRepository
             'entidad_referida' => 'SuscripcionPush', 'registro_referido' => $id, 'ocurrido_en' => CarbonImmutable::now('UTC'),
             'direccion_ip' => $contexto['ip'], 'procedencia_ip' => $contexto['procedencia'], 'correlacion' => $contexto['correlacion'],
             'cambios_seguros' => ['version_nueva' => $version]])->saveOrFail();
+    }
+
+    public function despachoManualFinalizado(object $envio, string $estado, string $resultado, CarbonImmutable $ahora): void
+    {
+        $evento = new Bitacora;
+        // El ejecutor del transporte es SISTEMA; el Administrador solicitante es una referencia, no una sesión simulada.
+        $evento->forceFill(['tipo_evento' => 'RECORDATORIO_MANUAL_DESPACHO', 'tipo_actor' => 'SISTEMA',
+            'modulo' => 'RECORDATORIOS', 'operacion' => 'RECORDATORIO_MANUAL_DESPACHO',
+            'resultado' => $estado === 'Aceptado' ? 'EXITO' : 'FALLO',
+            'entidad_referida' => 'Recordatorio', 'registro_referido' => (string) $envio->id_recordatorio,
+            'ocurrido_en' => $ahora, 'correlacion' => (string) Str::uuid(),
+            'referencias' => ['id_cita' => (string) $envio->id_cita, 'id_paciente' => (string) $envio->id_paciente,
+                'id_administrador_solicitante' => (string) $envio->id_administrador],
+            'cambios_seguros' => ['estado_despacho' => $estado, 'resultado_tecnico' => $resultado]])->saveOrFail();
     }
 
     public function suscripcionPushObsoleta(string $id, int $version, CarbonImmutable $ahora): void

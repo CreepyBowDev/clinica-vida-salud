@@ -113,9 +113,113 @@ class RecordatorioService
         });
     }
 
-    private function generarParaCita(string $id): array
+    public function proxima(string $paciente, ?string $operacion = null): array
     {
-        return DB::transaction(function () use ($id): array {
+        return $this->administrar($paciente, function ($actor, $ficha) use ($paciente, $operacion): array {
+            $cita = $this->recordatorios->proxima($paciente, CarbonImmutable::now('UTC'));
+            $resultado = null;
+            if ($operacion !== null && ($aviso = $this->recordatorios->porOperacion($operacion))) {
+                $vinculo = $this->recordatorios->localizar((string) $aviso->id_cita);
+                if ((string) $aviso->id_administrador === (string) $actor->getKey() && (string) $vinculo?->id_paciente === $paciente) {
+                    $resultado = $this->resultadoManual($aviso);
+                }
+            }
+
+            return ['cita' => $cita === null ? null : [
+                'id_cita' => (string) $cita->id_cita, 'revision' => $this->revision($cita),
+                'inicio_at' => CarbonImmutable::parse($cita->inicio_at)->utc()->format('Y-m-d\TH:i:s.u\Z'),
+                'medico' => trim($cita->medico_nombres.' '.$cita->medico_apellidos),
+                'consultorio' => $cita->consultorio_atencion,
+                'manual_generado' => $this->recordatorios->manual((string) $cita->id_cita, $cita->version_programacion) !== null,
+                'preferencia_habilitada' => $ficha->preferencia?->recordatorios_habilitados ?? true,
+            ], 'operacion' => $resultado];
+        });
+    }
+
+    public function enviarManual(array $datos): array
+    {
+        return $this->administrar((string) $datos['id_paciente'], function ($actor, $ficha) use ($datos): array {
+            // Una repetición exacta devuelve el resultado confirmado, incluso si la cita ya cambió.
+            if ($aviso = $this->recordatorios->porOperacion($datos['operacion'])) {
+                if ((string) $aviso->id_administrador !== (string) $actor->getKey()
+                    || (string) $aviso->id_cita !== (string) $datos['id_cita']
+                    || ! hash_equals($aviso->revision_manual, $datos['revision'])
+                    || (string) $this->recordatorios->localizar((string) $aviso->id_cita)?->id_paciente !== (string) $datos['id_paciente']) {
+                    throw new AppError('RECORDATORIO_OPERACION_CONFLICTO', 'La operación no corresponde a la revisión confirmada.');
+                }
+
+                return $this->resultadoManual($aviso);
+            }
+            $cita = $this->recordatorios->proxima((string) $datos['id_paciente'], CarbonImmutable::now('UTC'));
+            if ($cita === null || (string) $cita->id_cita !== (string) $datos['id_cita']
+                || ! hash_equals($this->revision($cita), $datos['revision'])) {
+                throw new AppError('RECORDATORIO_REVISION_OBSOLETA', 'La próxima cita cambió. Actualiza y confirma nuevamente.');
+            }
+            if ($this->recordatorios->manual((string) $cita->id_cita, $cita->version_programacion)) {
+                throw new AppError('RECORDATORIO_MANUAL_EXISTENTE', 'Esta programación ya tiene un recordatorio manual. Actualiza la consulta.');
+            }
+            if (! ($ficha->preferencia?->recordatorios_habilitados ?? true)) {
+                throw new AppError('RECORDATORIO_PREFERENCIA_DESHABILITADA', 'El Paciente tiene los recordatorios deshabilitados.');
+            }
+            $this->generarParaCita((string) $cita->id_cita, [
+                'origen' => 'Manual', 'id_administrador' => $actor->getKey(),
+                'operacion_manual' => $datos['operacion'], 'revision_manual' => $datos['revision'],
+                'resultado_push' => 'No_disponible',
+            ]);
+            $aviso = $this->recordatorios->porOperacion($datos['operacion']);
+            if ($aviso === null) {
+                throw new AppError('RECORDATORIO_REVISION_OBSOLETA', 'La cita ya no admite el envío. Actualiza y confirma nuevamente.');
+            }
+            $this->bitacora->recordatorioGenerado($this->citas->porId((string) $cita->id_cita, true), $aviso,
+                CarbonImmutable::now('UTC'), $actor);
+
+            return $this->resultadoManual($aviso);
+        });
+    }
+
+    private function administrar(string $id, callable $accion): array
+    {
+        return DB::transaction(function () use ($id, $accion): array {
+            $this->continuidad->coordinar();
+            $actor = $this->autenticacion->exigirSesionNormal(bloquear: true);
+            if ($actor->rol->nombre !== 'Administrador') {
+                throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
+            }
+            // El vínculo no se modifica sin continuidad; Usuario siempre antes de planificación/Paciente.
+            $inicial = $this->pacientes->consultarSinBloqueo($id);
+            if ($inicial?->id_usuario !== null) {
+                $this->usuarios->porId($inicial->id_usuario, true);
+            }
+            $this->planificacion->coordinar();
+            $paciente = $this->pacientes->consultar($id)
+                ?? throw new AppError('RECURSO_NO_ENCONTRADO', 'No se encontró el recurso solicitado.');
+
+            $resultado = $accion($actor, $paciente);
+            // También caducidad natural de sesión tras esperas; cualquier fallo revierte aviso/auditoría/outbox.
+            $actual = $this->autenticacion->exigirSesionNormal(bloquear: true);
+            if ((string) $actual->getKey() !== (string) $actor->getKey() || $actual->rol->nombre !== 'Administrador') {
+                throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
+            }
+
+            return $resultado;
+        });
+    }
+
+    private function revision(object $cita): string
+    {
+        // Vincula todos los datos revisados, no solo el ID: médico, lugar, estado y programación.
+        return hash_hmac('sha256', json_encode($cita, JSON_THROW_ON_ERROR), (string) config('app.key'));
+    }
+
+    private function resultadoManual($aviso): array
+    {
+        return ['id_recordatorio' => (string) $aviso->getKey(), 'id_cita' => (string) $aviso->id_cita,
+            'aviso_interno' => 'Generado', 'push' => $aviso->resultado_push];
+    }
+
+    private function generarParaCita(string $id, array $manual = []): array
+    {
+        return DB::transaction(function () use ($id, $manual): array {
             $r = ['avisos_creados' => 0, 'avisos_invalidados' => 0, 'envios_preparados' => 0, 'envios_descartados' => 0];
             $this->continuidad->coordinar();
             $inicial = $this->recordatorios->localizar($id);
@@ -133,7 +237,7 @@ class RecordatorioService
             $ahora = CarbonImmutable::now('UTC');
             $r['avisos_invalidados'] = $this->recordatorios->retirarObsoletos($cita, $ahora);
             $preferencia = $paciente->preferencia?->recordatorios_habilitados ?? true;
-            $aviso = $this->recordatorios->porProgramacion($cita);
+            $aviso = $manual ? null : $this->recordatorios->porProgramacion($cita);
             $cuenta = $usuario && (string) $paciente->id_usuario === (string) $usuario->getKey()
                 && $this->autorizacion->cuentaHabilitada($usuario, (string) $paciente->getKey());
             $habilitadas = [];
@@ -145,15 +249,18 @@ class RecordatorioService
                     }
                 }
             }
-            $pendientes = $this->envios->pendientesPorCita($id);
+            $pendientes = $this->envios->pendientesPorCita($id, $manual ? 'Manual' : 'Automatico');
             // Fresco después de todas las esperas de autorización/suscripción/envío.
             $ahora = CarbonImmutable::now('UTC');
             $r['avisos_invalidados'] += $this->recordatorios->retirarObsoletos($cita, $ahora);
             $elegible = $preferencia && in_array($cita->estado, ['Programada', 'Confirmada'], true)
-                && $ahora->greaterThanOrEqualTo($cita->inicio_at->subHours(24)) && $ahora->isBefore($cita->fin_at);
+                && ($manual ? $ahora->isBefore($cita->inicio_at)
+                    : $ahora->greaterThanOrEqualTo($cita->inicio_at->subHours(24)) && $ahora->isBefore($cita->fin_at));
             if ($elegible && $aviso === null) {
-                $aviso = $this->recordatorios->crear($cita, $ahora);
-                $this->bitacora->recordatorioGenerado($cita, $aviso, $ahora);
+                $aviso = $this->recordatorios->crear($cita, $ahora, $manual);
+                if (! $manual) {
+                    $this->bitacora->recordatorioGenerado($cita, $aviso, $ahora);
+                }
                 $r['avisos_creados']++;
             }
             $vigente = $elegible && $aviso !== null && $aviso->invalidado_en === null;
@@ -179,6 +286,11 @@ class RecordatorioService
                         'version_autorizacion' => $s->version_autorizacion, 'estado' => 'Pendiente', 'intentos' => 0,
                         'proximo_intento_en' => $ahora, 'creado_en' => $ahora, 'actualizado_en' => $ahora]);
                 }
+            }
+
+            if ($manual && $aviso !== null) {
+                $this->recordatorios->guardarResultadoManual($aviso, $r['envios_preparados'] > 0 ? 'Pendiente'
+                    : ($cuenta && $habilitadas ? 'No_disponible' : 'Sin_dispositivos'));
             }
 
             return $r;

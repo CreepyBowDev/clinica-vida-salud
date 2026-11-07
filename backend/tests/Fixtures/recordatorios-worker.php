@@ -3,6 +3,9 @@
 // Solo procesos de pruebas, esquema explícito y sin HTTP/correo real.
 use Carbon\CarbonImmutable;
 use Clinica\business\services\recordatorios\RecordatorioService;
+use Clinica\business\services\usuarios\AutenticacionService;
+use Clinica\data\models\Usuario;
+use Clinica\shared\errors\AppError;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -33,4 +36,17 @@ CarbonImmutable::setTestNow('2026-10-31T12:00:00Z');
 echo json_encode(['ready' => $identity->pid, 'citas' => DB::table('citas')->count(), 'ahora' => CarbonImmutable::now('UTC')->format('c'),
     'inicio' => DB::table('citas')->value('inicio_at')]), "\n";
 flush();
-echo json_encode(['result' => app(RecordatorioService::class)->generar(1)]), "\n";
+if (isset($argv[2], $argv[3])) {
+    $admin = $argv[2];
+    $datos = json_decode(base64_decode($argv[3], true), true, flags: JSON_THROW_ON_ERROR);
+    $auth = Mockery::mock(AutenticacionService::class);
+    $auth->shouldReceive('exigirSesionNormal')->andReturnUsing(fn () => Usuario::query()->whereKey($admin)->lockForUpdate()->firstOrFail()->load('rol'));
+    $app->instance(AutenticacionService::class, $auth);
+    try {
+        echo json_encode(['result' => app(RecordatorioService::class)->enviarManual($datos)]), "\n";
+    } catch (AppError $e) {
+        echo json_encode(['result' => ['conflicto' => $e->codigo]]), "\n";
+    }
+} else {
+    echo json_encode(['result' => app(RecordatorioService::class)->generar(1)]), "\n";
+}

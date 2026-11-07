@@ -27,7 +27,7 @@ class EnvioRecordatorioPushRepository
     public function localizar(string $id): ?object
     {
         return DB::table('envios_recordatorio_push as e')->join('recordatorios as r', 'r.id_recordatorio', '=', 'e.id_recordatorio')
-            ->where('e.id_envio', $id)->select(['e.*', 'r.id_cita'])->first();
+            ->where('e.id_envio', $id)->select(['e.*', 'r.id_cita', 'r.id_administrador'])->first();
     }
 
     public function bloquear(string $id): ?EnvioRecordatorioPush
@@ -40,10 +40,10 @@ class EnvioRecordatorioPushRepository
         $envio->forceFill($datos + ['actualizado_en' => $ahora->max($envio->actualizado_en)])->saveOrFail();
     }
 
-    public function pendientesPorCita(string $id): Collection
+    public function pendientesPorCita(string $id, string $origen = 'Automatico'): Collection
     {
-        return EnvioRecordatorioPush::query()->whereIn('id_recordatorio', function ($q) use ($id): void {
-            $q->select('id_recordatorio')->from('recordatorios')->where('id_cita', $id);
+        return EnvioRecordatorioPush::query()->whereIn('id_recordatorio', function ($q) use ($id, $origen): void {
+            $q->select('id_recordatorio')->from('recordatorios')->where('id_cita', $id)->where('origen', $origen);
         })->where('estado', 'Pendiente')->orderBy('id_envio')->lockForUpdate()->get();
     }
 

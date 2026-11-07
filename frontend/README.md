@@ -1,5 +1,11 @@
 # Frontend — Clínica Vida Salud
 
+## CU-28 — Próxima cita y campana administrativa (2026-11-07)
+
+Ampliación aprobada: `RecordatoriosPage.jsx` integra sección Próxima cita solo tras seleccionar Paciente, antes de filtros/listado/paginación existentes, sin rediseño ni campanas por fila. Source Sans3, tokens verde#146b68/fondo#f5f8fa/superficie#fff/texto#18333b/muted#526871/borde#d5e0e5, bordes10px/espaciados20–24px y móvil16px existentes; skill frontend-design aplicada priorizando conservar identidad. Se reutilizan Button/Icon/Modal y servicio del módulo; no nuevos archivos frontend ni dependencias.
+
+Confirmación muestra fecha/hora local America/La_Paz/Médico; el backend decide selección, revisión, permisos y límite. Un manual por programación compartido entre Admin, sin reenvíos; automático24h permanece. Carga/vacío/preferencia deshabilitada/manual previo/envío/error/409/429/timeout; consultas obsoletas abortadas y contexto de sesión ligado desde CSRF. Incertidumbre (red/408/5xx/respuesta inválida) exige «Comprobar resultado» por GET, sin repetir POST. Aviso interno generado distinto de Push solicitado/sin dispositivos/no disponible; nunca recepción acreditada. Dispositivos/preferencias siguen exclusivamente personales. [Pruebas y límites](../docs/ai/estado-fase.md).
+
 ## Horario del médico al programar/reservar (2026-11-07)
 
 Mejora autorizada de CU-13/CU-14: al seleccionar médico se muestra su horario semanal activo antes de elegir fecha, tanto para personal como para Paciente. `ReservaHorarioMedico` agrupa los intervalos por día y conserva segundos significativos; aviso explícito de que el horario habitual no garantiza turnos libres. Mantiene estructura, Source Sans 3, tokens y diseño del formulario; skill local `.opencode/skills/frontend-design/SKILL.md` aplicada sin dependencias nuevas. El servicio valida el campo aditivo `horarios`; ante un backend anterior informa su ausencia sin inventar horarios ni impedir consultar por fecha.

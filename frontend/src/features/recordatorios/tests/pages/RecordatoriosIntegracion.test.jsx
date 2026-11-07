@@ -44,6 +44,7 @@ beforeEach(() => {
     if (config.url === '/auth/me') return account ? response(config, { data: account }) : reject(config, 401);
     if (config.url === '/auth/login') { account = sesion(); return response(config, { data: account }); }
     if (config.url === '/pacientes') return response(config, pacientes());
+    if (config.url === '/recordatorios/proxima-cita') return response(config, { data: { cita: null, operacion: null } });
     if (config.url === '/recordatorios') {
       const p = config.params, data = listado(rows.slice((p.page - 1) * p.per_page, p.page * p.per_page), { ...p, total: rows.length });
       if (p.id_paciente) data.meta.paciente.id_paciente = p.id_paciente;

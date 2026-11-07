@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { api, avanzarSesion, obtenerEpocaSesion } from '../../../../api/api';
-import { listarRecordatorios } from '../../services/recordatorio.service';
+import { api, csrfURL, avanzarSesion, obtenerEpocaSesion } from '../../../../api/api';
+import { listarRecordatorios, consultarProximaCita, enviarRecordatorioManual } from '../../services/recordatorio.service';
 import { aviso, listado } from '../utils/recordatorioFixtures';
 
 afterEach(() => vi.restoreAllMocks());
@@ -60,4 +60,38 @@ it('rechaza campos extra del Administrador y respuestas de otro paciente', async
   await expect(listarRecordatorios({ rol: 'Administrador', id_paciente: '21', push: true })).rejects.toThrow();
   expect(get).not.toHaveBeenCalled();
   await expect(listarRecordatorios({ rol: 'Administrador', id_paciente: '22' })).rejects.toThrow();
+});
+
+const proxima = { id_cita: '71', revision: 'a'.repeat(64), inicio_at: '2026-11-10T14:30:00.000000Z',
+  medico: 'Profesional ficticio', consultorio: 'Consultorio 3', manual_generado: false, preferencia_habilitada: true };
+const operacion = 'c6f5b48c-fdd1-4d4d-9b77-34db57794d78';
+const resultado = { id_recordatorio: '91', id_cita: '71', aviso_interno: 'Generado', push: 'Pendiente' };
+it('consulta próxima cita sin depender de avisos y proyecta solo el contrato', async () => {
+  const get = mock({ data: { cita: { ...proxima, secreto: 'NO-CONSERVAR' }, operacion: null } });
+  expect(await consultarProximaCita('21')).toEqual({ cita: proxima, operacion: null });
+  expect(get).toHaveBeenCalledWith('/recordatorios/proxima-cita', expect.objectContaining({ params: { id_paciente: '21' }, sessionBound: true }));
+});
+it('CSRF y POST tienen la misma época, cuerpo cerrado y resultado interno distinto del push', async () => {
+  const get = mock(null), post = vi.spyOn(api, 'post').mockResolvedValue({ status: 200, data: { data: resultado } });
+  expect(await enviarRecordatorioManual('21', proxima, operacion)).toEqual(resultado);
+  expect(get).toHaveBeenCalledWith(csrfURL, expect.objectContaining({ sessionBound: true }));
+  expect(post).toHaveBeenCalledExactlyOnceWith('/recordatorios/manual', { id_paciente: '21', id_cita: '71', revision: proxima.revision, operacion }, get.mock.calls[0][1]);
+});
+it.each(['sesión', 'abort'])('no hace POST si cambia %s durante CSRF', async caso => {
+  const controller = new AbortController();
+  vi.spyOn(api, 'get').mockImplementation(async () => { if (caso === 'sesión') avanzarSesion(); else controller.abort(); return { status: 204 }; });
+  const post = vi.spyOn(api, 'post');
+  await expect(enviarRecordatorioManual('21', proxima, operacion, controller.signal)).rejects.toMatchObject({ recordatorioEnviado: false });
+  expect(post).not.toHaveBeenCalled();
+});
+it('un timeout de escritura es incierto y nunca dispara un segundo POST', async () => {
+  mock(null); const post = vi.spyOn(api, 'post').mockRejectedValue(new Error('timeout'));
+  await expect(enviarRecordatorioManual('21', proxima, operacion)).rejects.toMatchObject({ recordatorioEnviado: true });
+  expect(post).toHaveBeenCalledTimes(1);
+});
+it('rechaza próxima cita o resultado de envío malformados sin afirmar éxito', async () => {
+  mock({ data: { cita: { ...proxima, revision: 'inválida' }, operacion: null } });
+  await expect(consultarProximaCita('21')).rejects.toThrow();
+  vi.spyOn(api, 'post').mockResolvedValue({ status: 200, data: { data: { ...resultado, id_cita: '72' } } });
+  await expect(enviarRecordatorioManual('21', proxima, operacion)).rejects.toMatchObject({ recordatorioEnviado: true });
 });

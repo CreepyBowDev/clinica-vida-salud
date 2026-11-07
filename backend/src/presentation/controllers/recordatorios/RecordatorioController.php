@@ -9,6 +9,20 @@ use Illuminate\Http\JsonResponse;
 
 class RecordatorioController
 {
+    public function proxima(ListarRecordatoriosRequest $request, RecordatorioService $service): JsonResponse
+    {
+        $datos = $request->validated();
+
+        return response()->json(['data' => $service->proxima((string) $datos['id_paciente'], $datos['operacion'] ?? null)])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function manual(ListarRecordatoriosRequest $request, RecordatorioService $service): JsonResponse
+    {
+        return response()->json(['data' => $service->enviarManual($request->validated())])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
     public function listar(ListarRecordatoriosRequest $request, RecordatorioService $service): JsonResponse
     {
         $r = $service->listar($request->validated());

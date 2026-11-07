@@ -18,8 +18,12 @@
 .reminders-page .reminders-devices h3 { font-size: 1.125rem; overflow-wrap: anywhere; }
 .reminders-page .reminders-devices [role="alert"] { color: var(--color-error); }
 .reminders-page .button { white-space: normal; }
+.reminders-page .reminders-next { margin-bottom: 24px; padding: 24px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.reminders-page .reminders-next p { margin-block: 12px; overflow-wrap: anywhere; }
+.reminders-page .reminders-next [role="alert"] { color: var(--color-error); }
+.reminders-page .reminders-next-hint { max-width: 80ch; color: var(--color-muted); font-size: .875rem; }
 @media (max-width: 700px) {
   .reminders-page > .catalog-filters { grid-template-columns: minmax(0, 1fr); padding: 20px 16px; }
-  .reminders-page :is(.reminders-results, .reminders-devices, .reminders-patient) { padding: 20px 16px; }
+  .reminders-page :is(.reminders-results, .reminders-devices, .reminders-patient, .reminders-next) { padding: 20px 16px; }
   .reminders-page .reminders-results-heading { align-items: stretch; flex-direction: column; }
 }

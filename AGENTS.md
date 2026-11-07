@@ -111,6 +111,7 @@ Detalle completo y vigencias en `docs/ai/reglas-negocio.md` y `docs/ai/casos-de-
 **Recordatorios (CU-28)**
 
 - Avisos internos persistentes, automáticos por scheduler cada minuto, 24 h antes, sin depender de sesión del Paciente; un aviso por cita y programación.
+- Ampliación aprobada 2026-11-07: Administrador genera además un manual independiente para la próxima cita estrictamente futura Programada/Confirmada, incluso a más de 24 h; uno por cita/programación entre todos los Administradores, sin reenvíos. Confirmar fecha/hora/Médico y revalidar próxima cita/revisión, preferencias e idempotencia en servidor; no sustituir ni suprimir el automático. No habilitar dispositivos/preferencias ajenos. Nueva migración autorizada solo en pruebas aisladas; base habitual/remota requiere autorización específica.
 - Web Push es opcional, exige consentimiento explícito y solo se despacha antes de `inicio_at`. Nunca correo, SMS, WhatsApp ni Brevo.
 
 **Roles y autorización**

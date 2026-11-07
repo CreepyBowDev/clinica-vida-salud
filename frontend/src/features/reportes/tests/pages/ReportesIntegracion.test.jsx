@@ -72,7 +72,7 @@ async function login() {
 it('recorre los siete tipos con Auth/Router/servicios/Axios reales, mantiene foco y consulta solo cada recurso específico', async () => {
   const { router } = mount(); await screen.findByLabelText('Reporte');
   expect(calls.filter(c => c.url === '/auth/me')).toHaveLength(1);
-  expect(screen.getByRole('link', { name: 'Consultar reportes' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Generar reportes administrativos' })).toHaveAttribute('aria-current', 'page');
   const types = ['programadas', 'por-medico', 'por-especialidad', 'por-estado', 'pacientes-registrados', 'cantidades', 'agenda-diaria'];
   for (const tipo of types) {
     await preparar(tipo); expect(screen.queryByRole('table')).not.toBeInTheDocument(); await consultar();
@@ -105,7 +105,7 @@ it.each([
 ])('%s: error %s conserva sesión/selección sin reenvíos automáticos ni mensajes técnicos', async (tipo, status) => {
   mount(); await screen.findByLabelText('Reporte'); await preparar(tipo); failure = status; await consultar(); await screen.findByRole('alert');
   expect(screen.getByLabelText('Reporte')).toHaveValue(tipo); expect(screen.getByLabelText('Fecha')).toHaveValue('2026-10-31');
-  expect(screen.getByRole('link', { name: 'Consultar reportes' })).toBeInTheDocument(); expect(reportCalls()).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Generar reportes administrativos' })).toBeInTheDocument(); expect(reportCalls()).toHaveLength(1);
   expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(document.body).not.toHaveTextContent(/NO MOSTRAR SQL|CONTENIDO TECNICO PRIVADO|RED PRIVADA/);
   if (status === 429) expect(screen.getByRole('button', { name: 'Volver a consultar' })).toBeDisabled();
   if (status === 419) expect(screen.getByRole('alert')).toHaveTextContent('ha caducado');

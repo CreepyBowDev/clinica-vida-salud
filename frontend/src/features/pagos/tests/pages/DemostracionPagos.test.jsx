@@ -66,7 +66,7 @@ it.each([ROLES.PACIENTE, ROLES.ADMINISTRADOR])('%s tiene acceso propio sin supla
   expect(screen.getByText(/sin suplantar al Paciente/)).toBeInTheDocument();
   expect(screen.getByLabelText('Proveedor simulado')).toHaveValue('stripe');
   expect(screen.getByRole('link', { name: 'Demostración de pagos' })).toHaveAttribute('href', '/pagos/demostracion');
-  expect(screen.getByRole('link', { name: 'Consultar pagos' })).toHaveAttribute('href', '/pagos');
+   expect(screen.getByRole('link', { name: rol === ROLES.ADMINISTRADOR ? 'Consultar historial financiero de un Paciente' : 'Consultar obligaciones de pago propias e historial de pagos propio' })).toHaveAttribute('href', '/pagos');
   expect(destinoSeguro('/pagos/demostracion', rol)).toBe('/pagos/demostracion');
   const fixture = screen.getByRole('region', { name: 'Obligación ficticia' });
   expect(fixture).toHaveTextContent(DEMOSTRACION_PAGO.codigo_cita);
@@ -79,7 +79,7 @@ it.each([ROLES.RECEPCIONISTA, ROLES.MEDICO])('%s conserva denegación y navegaci
   consultarSesion.mockResolvedValue({ id_usuario: '7', nombre_visible: 'Persona ficticia', correo_acceso: 'demo@example.test', rol });
   mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
   expect(screen.queryByRole('link', { name: 'Demostración de pagos' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Consultar pagos' })).not.toBeInTheDocument();
+   expect(screen.queryByRole('link', { name: /Consultar (historial financiero|obligaciones de pago)/ })).not.toBeInTheDocument();
   expect(destinoSeguro('/pagos/demostracion', rol)).toBe('/inicio');
 });
 it('visitante pasa por login conservando destino, sin mostrar fixture', async () => {

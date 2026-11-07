@@ -32,12 +32,12 @@ describe('rutas y navegación CU-30 fase 1', () => {
   it('Administrador abre Bitácora desde el menú, con título, foco y enlace activo', async () => {
     const user = userEvent.setup(); const router = mount('/inicio');
     const navigation = await screen.findByRole('navigation', { name: 'Navegación principal' });
-    await user.click(within(navigation).getByRole('button', { name: 'Reportes y bitácora' }));
-    await user.click(within(navigation).getByRole('link', { name: 'Bitácora del Sistema' }));
+    await user.click(within(navigation).getByRole('button', { name: 'Bitácora del sistema' }));
+    await user.click(within(navigation).getByRole('link', { name: 'Consultar bitácora del sistema' }));
     await screen.findByRole('heading', { name: 'Bitácora del Sistema' });
     expect(router.state.location.pathname).toBe(root);
-    expect(screen.getByRole('link', { name: 'Bitácora del Sistema' })).toHaveAttribute('aria-current', 'page');
-    await waitFor(() => expect(document.title).toBe('Bitácora del Sistema | Clínica Vida Salud'));
+    expect(screen.getByRole('link', { name: 'Consultar bitácora del sistema' })).toHaveAttribute('aria-current', 'page');
+    await waitFor(() => expect(document.title).toBe('Consultar bitácora del sistema | Clínica Vida Salud'));
     expect(screen.getByRole('main')).toHaveFocus();
     await screen.findByRole('heading', { name: 'No hay eventos para estos filtros' });
     expect(calls).toHaveLength(1); expect(calls[0].url).toBe('/bitacora');
@@ -45,7 +45,7 @@ describe('rutas y navegación CU-30 fase 1', () => {
   it('acceso directo al detalle y regreso al listado con el mismo menú activo', async () => {
     const user = userEvent.setup(); const router = mount(detail);
     await screen.findByRole('heading', { name: 'Detalle de evento' });
-    expect(screen.getByRole('link', { name: 'Bitácora del Sistema' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Consultar bitácora del sistema' })).toHaveAttribute('aria-current', 'page');
     await user.click(screen.getByRole('link', { name: 'Volver a Bitácora' }));
     await screen.findByRole('heading', { name: 'Bitácora del Sistema' });
     expect(router.state.location.pathname).toBe(root);
@@ -55,14 +55,14 @@ describe('rutas y navegación CU-30 fase 1', () => {
   it.each(['Recepcionista', 'Médico', 'Paciente'].flatMap(rol => [root, detail].map(path => [rol, path])))('%s no accede a %s ni recibe menú', async (rol, path) => {
     consultarSesion.mockResolvedValue(usuario(rol)); mount(path);
     await screen.findByRole('heading', { name: 'Acceso no permitido' });
-    expect(screen.queryByRole('link', { name: 'Bitácora del Sistema' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Consultar bitácora del sistema' })).not.toBeInTheDocument();
     expect(calls).toHaveLength(0);
   });
   it.each([root, detail])('espera restauración y conserva destino autorizado %s al pedir login', async path => {
     let reject; consultarSesion.mockImplementation(() => new Promise((_, fail) => { reject = fail; }));
     const router = mount(path);
     expect(screen.getByRole('status')).toHaveTextContent('Comprobando tu sesión');
-    expect(screen.queryByRole('link', { name: 'Bitácora del Sistema' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Consultar bitácora del sistema' })).not.toBeInTheDocument();
     await act(async () => reject({ response: { status: 401 } }));
     await screen.findByRole('heading', { name: 'Bienvenido de nuevo' });
     expect(router.state.location.state.from).toBe(path); expect(destinoSeguro(path)).toBe(path);
@@ -72,7 +72,7 @@ describe('rutas y navegación CU-30 fase 1', () => {
     consultarSesion.mockResolvedValue({ acceso: 'cambio_clave', cambio_clave_obligatorio: true });
     const router = mount(detail);
     await waitFor(() => expect(router.state.location.pathname).toBe('/clave-obligatoria'));
-    expect(screen.queryByRole('link', { name: 'Bitácora del Sistema' })).not.toBeInTheDocument(); expect(calls).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: 'Consultar bitácora del sistema' })).not.toBeInTheDocument(); expect(calls).toHaveLength(0);
   });
   it.each(['https://ajeno.example/administracion/bitacora', '//ajeno.example', `${root}/1/editar`, `${root}/1?token=secreto`])('no admite destino de retorno ajeno o de escritura: %s', path => {
     expect(destinoSeguro(path)).toBe('/inicio');

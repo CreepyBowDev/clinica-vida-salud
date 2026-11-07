@@ -57,7 +57,7 @@ describe.each(['Administrador', 'Recepcionista'])('consulta administrativa de pa
     const user = userEvent.setup();
     mount();
     await screen.findByRole('table');
-    expect(screen.getByRole('link', { name: 'Gestionar pacientes' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Gestionar el registro administrativo de pacientes' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     await user.type(screen.getByLabelText('CI'), ' 1234 ');
     await user.type(screen.getByLabelText('Nombres'), ' Persona ');

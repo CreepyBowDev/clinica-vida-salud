@@ -48,8 +48,11 @@ export default function MainLayout() {
   }, [location.pathname, title, usuario.id_usuario, usuario.rol]);
 
   function closeNavigation(event) {
-    setMenu(false);
-    if (event.currentTarget.getAttribute('href') === location.pathname) main.current?.focus({ preventScroll: true });
+    // Los destinos distintos cierran al confirmarse la ruta, no mientras un blocker decide.
+    if (event.currentTarget.getAttribute('href') === location.pathname) {
+      setMenu(false);
+      main.current?.focus({ preventScroll: true });
+    }
   }
 
   return <div className="workspace-shell">

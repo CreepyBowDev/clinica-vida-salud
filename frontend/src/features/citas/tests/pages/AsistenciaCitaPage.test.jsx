@@ -46,7 +46,7 @@ it.each(['Administrador', 'Recepcionista'])('%s lee identidades mínimas, zona, 
   expect(screen.getByRole('main')).not.toHaveTextContent(/70000000|MOTIVO-FICTICIO|fecha_nacimiento/);
   expect(calls).toHaveLength(2); expect(calls.every(c => c.method === 'get' && c.sessionBound)).toBe(true);
   expect(document.title).toBe('Asistencia de la cita | Clínica Vida Salud');
-  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Agenda y citas');
+  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Estados de citas y control de asistencia');
 });
 it('Médico lee propia asistencia sin llegada y prepara atención solo mediante elección explícita', async () => {
   rol = 'Médico'; body = asistencia(rol); body.acciones.marcar_atendida = true; body.impedimentos.marcar_atendida = [];

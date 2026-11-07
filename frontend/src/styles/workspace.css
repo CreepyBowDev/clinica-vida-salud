@@ -15,7 +15,7 @@
 .nav-module-toggle:hover { background: var(--color-background); }
 .nav-module.is-expanded > .nav-module-toggle { background: var(--color-background); font-weight: 600; }
 .nav-module.is-current > .nav-module-toggle { color: var(--color-primary-hover); font-weight: 600; }
-.nav-module[data-module="usuarios"] { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.nav-module[data-module="usuarios"]:not(:first-child) { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--color-border); }
 .nav-module-toggle small, .nav-pending small { display: block; font-size: 13px; font-weight: 400; color: var(--color-muted); margin-top: 4px; }
 .nav-chevron { width: 16px; }
 .is-expanded > .nav-module-toggle .nav-chevron { transform: rotate(180deg); }

@@ -32,8 +32,8 @@ beforeEach(() => {
 afterEach(() => { api.defaults.adapter = original; vi.restoreAllMocks(); });
 it('Paciente tiene ruta y navegación activas con petición propia de solo lectura', async () => {
   mount(); await screen.findByText('CITA-FICTICIA');
-  expect(document.title).toBe('Consultar recordatorios | Clínica Vida Salud');
-  expect(screen.getByRole('link', { name: 'Consultar recordatorios' })).toHaveAttribute('aria-current', 'page');
+  expect(document.title).toBe('Consultar recordatorios de próximas citas y recibir Web Push opcional | Clínica Vida Salud');
+  expect(screen.getByRole('link', { name: 'Consultar recordatorios de próximas citas y recibir Web Push opcional' })).toHaveAttribute('aria-current', 'page');
   expect(calls).toHaveLength(2);
   expect(calls.find(c => c.url === '/recordatorios')).toMatchObject({ method: 'get', sessionBound: true, params: { page: 1, per_page: 20 } });
   expect(calls.find(c => c.url === '/push/suscripciones')).toMatchObject({ method: 'get', sessionBound: true, params: { page: 1, per_page: 20 } });
@@ -41,12 +41,12 @@ it('Paciente tiene ruta y navegación activas con petición propia de solo lectu
 });
 it.each(['Médico', 'Recepcionista'])('%s no accede a recordatorios ni consulta API', async rol => {
   consultarSesion.mockResolvedValue(sesion(rol)); mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
-  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Consultar recordatorios' })).not.toBeInTheDocument();
+  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Consultar recordatorios de próximas citas y recibir Web Push opcional' })).not.toBeInTheDocument();
 });
 it('Administrador accede desde la misma ruta y navegación; solo consulta al seleccionar paciente', async () => {
   consultarSesion.mockResolvedValue(sesion('Administrador')); mount();
   await screen.findByRole('heading', { name: 'Seleccionar paciente para consultar recordatorios' });
-  expect(screen.getByRole('link', { name: 'Consultar recordatorios' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Consultar recordatorios de próximas citas' })).toHaveAttribute('aria-current', 'page');
   await userEvent.click(await screen.findByRole('button', { name: 'Seleccionar paciente Paciente De prueba' }));
   await screen.findByText('CITA-FICTICIA');
   expect(calls.filter(c => c.url === '/recordatorios')).toHaveLength(1);

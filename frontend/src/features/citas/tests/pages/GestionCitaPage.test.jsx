@@ -41,7 +41,7 @@ it.each(['Administrador', 'Recepcionista'])('%s consulta programación y accione
   expect(screen.queryByRole('button', { name: 'Cancelar cita' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Actualizar gestión' })).toBeEnabled();
   expect(document.title).toBe('Gestionar cita | Clínica Vida Salud'); expect(main).toHaveFocus();
-  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Agenda y citas');
+  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Reprogramación y cancelación');
   expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent(role === 'Administrador' ? 'Administración' : 'Recepción');
   expect(calls).toHaveLength(2); expect(calls.every(c => c.method === 'get' && c.sessionBound)).toBe(true);
   expect(localStorage.length).toBe(0); expect(sessionStorage.length).toBe(0);
@@ -53,7 +53,7 @@ it.each(['Médico', 'Paciente'])('%s no consulta gestión ni dispone de acceso e
 });
 it.each(['Médico', 'Paciente'])('%s tampoco puede abrir la selección administrativa de gestión', async role => {
   rol = role; mount('/recepcion/citas/gestion'); await screen.findByRole('heading', { name: 'Acceso no permitido' });
-  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Gestionar citas' })).not.toBeInTheDocument();
+  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Reprogramar una cita o cancelar una cita' })).not.toBeInTheDocument();
 });
 it.each(['Administrador', 'Recepcionista'])('%s: sidebar → ficha inactiva sin CI/cuenta → historial → detalle → gestión → retorno, solo GET', async role => {
   rol = role;
@@ -68,8 +68,8 @@ it.each(['Administrador', 'Recepcionista'])('%s: sidebar → ficha inactiva sin 
     return response(config);
   };
   const router = mount('/inicio'); const user = userEvent.setup();
-  await user.click(await screen.findByRole('button', { name: 'Agenda y citas' }));
-  await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Gestionar citas' }));
+  await user.click(await screen.findByRole('button', { name: 'Reprogramación y cancelación' }));
+  await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Reprogramar una cita o cancelar una cita' }));
   await screen.findByRole('heading', { name: 'Seleccionar paciente para gestionar una cita' });
   expect(screen.queryByRole('link', { name: 'Registrar paciente' })).not.toBeInTheDocument();
   await user.click(await screen.findByRole('link', { name: 'Ver ficha de Paciente De prueba' }));

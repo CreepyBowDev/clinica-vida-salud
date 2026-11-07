@@ -69,11 +69,11 @@ it('Médico consulta su agenda sin selector ni id_medico/fecha del dispositivo',
   expect(calls).toHaveLength(1); expect(agendaCalls()[0].params).toEqual({ page: 1, per_page: 20 });
   expect(screen.queryByLabelText('Nombre, apellidos o código de médico')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Fecha de atención')).toHaveValue('2026-10-31');
-  expect(screen.getByRole('link', { name: 'Consultar agenda médica' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Consultar la agenda médica' })).toHaveAttribute('aria-current', 'page');
 });
 it('Paciente no obtiene agenda ni selector por ruta directa, y no recibe enlace de sidebar', async () => {
   rol = 'Paciente'; mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
-  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Consultar agenda médica' })).not.toBeInTheDocument();
+  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Consultar la agenda médica' })).not.toBeInTheDocument();
 });
 it.each(['guest', 'restricted'])('%s no obtiene datos de agenda', async kind => {
   if (kind === 'guest') consultarSesion.mockRejectedValue({ response: { status: 401 } });
@@ -157,7 +157,7 @@ it.each([403, 404, 419, 422, 500, undefined])('error %s de agenda no deja datos 
   rol = 'Médico'; respond = config => Promise.reject(fail(config, status, { fecha: ['Selecciona una fecha válida.'] })); mount();
   await screen.findByRole('alert'); expect(screen.getByRole('main')).not.toHaveTextContent('SQL-PRIVADO');
   expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(calls).toHaveLength(1);
-  if (status === 422) { expect(screen.getByLabelText('Fecha de atención')).toHaveAccessibleDescription(/Selecciona una fecha válida/); expect(screen.getByLabelText('Fecha de atención')).toHaveFocus(); }
+  if (status === 422) { expect(screen.getByLabelText('Fecha de atención')).toHaveAccessibleDescription(/Selecciona una fecha válida/); await waitFor(() => expect(screen.getByLabelText('Fecha de atención')).toHaveFocus()); }
 });
 it('401 de agenda invalida la sesión existente y retira navegación privada', async () => {
   rol = 'Médico'; respond = config => Promise.reject(fail(config, 401)); mount();

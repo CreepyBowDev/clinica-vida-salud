@@ -93,19 +93,19 @@ it('solo ofrece Reservar cita al Paciente y consulta disponibilidad propia con s
   const user = userEvent.setup(); mount(); await search(user);
   const radio = await screen.findByRole('radio', { name: '08:00:01' }); await user.click(radio);
   expect(radio).toBeChecked(); expect(screen.getByText(/Turno seleccionado: 01\/11\/2026, 08:00:01/)).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Reservar cita' })).toBeInTheDocument(); expect(screen.queryByRole('link', { name: 'Programar cita' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Buscar médicos, consultar disponibilidad y reservar una cita presencial' })).toBeInTheDocument(); expect(screen.queryByRole('link', { name: 'Buscar médicos, consultar disponibilidad y programar una cita presencial' })).not.toBeInTheDocument();
   expect(screen.queryByLabelText('CI (si existe)')).not.toBeInTheDocument(); expect(screen.getByText(/Hora de la sede: America\/La_Paz/)).toBeInTheDocument();
   expect(calls.find(c => c.url.endsWith('/disponibilidad')).params).toEqual({ id_especialidad: '1', id_medico: doctor.id_medico, fecha: '2026-11-01', page: 1, per_page: 12 });
-  expect(calls.every(c => c.method === 'get')).toBe(true); expect(document.title).toBe('Reservar cita | Clínica Vida Salud');
+  expect(calls.every(c => c.method === 'get')).toBe(true); expect(document.title).toBe('Buscar médicos, consultar disponibilidad y reservar una cita presencial | Clínica Vida Salud');
   expect(screen.getByRole('button', { name: 'Revisar cita' })).toBeEnabled();
 });
 it.each(['Administrador', 'Recepcionista'])('%s selecciona ficha sin CI y no necesita cuenta web', async operador => {
   role = operador; const user = userEvent.setup(); mount('/recepcion/citas/nueva'); await search(user);
   await screen.findByRole('radio', { name: '08:00:01' });
-  expect(screen.getByRole('link', { name: 'Programar cita' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Buscar médicos, consultar disponibilidad y programar una cita presencial' })).toBeInTheDocument();
   expect(screen.getByText(/Paciente seleccionado: Paciente Sin documento/)).toBeInTheDocument();
   expect(calls.find(c => c.url.endsWith('/disponibilidad')).params.id_paciente).toBe(id);
-  expect(document.title).toBe('Programar cita | Clínica Vida Salud');
+  expect(document.title).toBe('Buscar médicos, consultar disponibilidad y programar una cita presencial | Clínica Vida Salud');
 });
 it.each(['Administrador', 'Recepcionista'])('%s no consulta especialidades ni turnos hasta seleccionar ficha', async operador => {
   role = operador; mount('/recepcion/citas/nueva'); await screen.findByRole('button', { name: /Paciente Sin documento/ });

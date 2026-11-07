@@ -57,13 +57,13 @@ describe('consulta de Médicos y Especialidades, fase 1', () => {
   it('navega desde menú, actualiza título, muestra estados independientes y no ofrece acciones futuras', async () => {
     const user = userEvent.setup(); mount('/administracion');
     const navigation = await screen.findByRole('navigation', { name: 'Navegación principal' });
-    await user.click(within(navigation).getByRole('button', { name: 'Organización' }));
-    await user.click(within(navigation).getByRole('link', { name: 'Gestionar especialidades' })); await screen.findByRole('table');
-    expect(document.title).toBe('Gestionar especialidades | Clínica Vida Salud');
-    expect(screen.getByRole('link', { name: 'Gestionar especialidades' })).toHaveAttribute('aria-current', 'page');
+    await user.click(within(navigation).getByRole('button', { name: 'Médicos y especialidades' }));
+    await user.click(within(navigation).getByRole('link', { name: 'Gestionar especialidades médicas' })); await screen.findByRole('table');
+    expect(document.title).toBe('Gestionar especialidades médicas | Clínica Vida Salud');
+    expect(screen.getByRole('link', { name: 'Gestionar especialidades médicas' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('Sin descripción')).toBeInTheDocument(); expect(within(screen.getByRole('table')).getByText('Inactiva')).toBeInTheDocument();
-    await user.click(screen.getByRole('link', { name: 'Gestionar médicos' })); await screen.findByRole('table');
-    expect(document.title).toBe('Gestionar médicos | Clínica Vida Salud'); expect(within(screen.getByRole('table')).getByText('Inactivo')).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Gestionar médicos y sus especialidades' })); await screen.findByRole('table');
+    expect(document.title).toBe('Gestionar médicos y sus especialidades | Clínica Vida Salud'); expect(within(screen.getByRole('table')).getByText('Inactivo')).toBeInTheDocument();
     expect(screen.getByText('(catálogo inactivo)')).toBeInTheDocument(); expect(screen.getByText('MED-ficticio')).toBeInTheDocument();
     expect(screen.queryByText('NO MOSTRAR')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /crear|editar|activar|eliminar|reservar/i })).not.toBeInTheDocument();

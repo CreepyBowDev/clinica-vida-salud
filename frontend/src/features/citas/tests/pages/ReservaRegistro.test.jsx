@@ -75,13 +75,13 @@ it('navegación modular conserva selección y revisión sin nuevas peticiones', 
   const user = userEvent.setup(); const router = mount(); await elegir(user, 'Motivo ficticio');
   const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
   const count = calls.length;
-  await user.click(navigation.getByRole('button', { name: role === 'Paciente' ? 'Mis citas' : 'Agenda y citas' }));
-  await user.click(navigation.getByRole('button', { name: 'Mi cuenta' }));
+  await user.click(navigation.getByRole('button', { name: 'Registro y reserva de citas médicas' }));
+  await user.click(navigation.getByRole('button', { name: 'Usuarios y autenticación' }));
   expect(screen.getByRole('radio', { name: '08:00:01' })).toBeChecked();
   expect(screen.getByLabelText('Fecha de atención')).toHaveValue(seleccion.fecha);
   expect(screen.getByLabelText('Motivo breve (opcional)')).toHaveValue('Motivo ficticio'); expect(calls).toHaveLength(count);
   await revisar(user); const reviewCount = calls.length;
-  await user.click(navigation.getByRole('button', { name: role === 'Paciente' ? 'Mis citas' : 'Agenda y citas' }));
+  await user.click(navigation.getByRole('button', { name: 'Registro y reserva de citas médicas' }));
   expect(screen.getByRole('heading', { name: 'Revisar cita' })).toBeInTheDocument();
   expect(calls).toHaveLength(reviewCount); expect(posts('/reservas/propuesta')).toHaveLength(1); expect(posts('/citas')).toHaveLength(0);
   expect([...router.state.blockers.values()].every(blocker => blocker.state === 'unblocked')).toBe(true);
@@ -90,7 +90,7 @@ it('desplegar durante resultado incierto no activa salida ni reenvía la reserva
   confirmTask = config => { throw fail(config, 500); }; const user = userEvent.setup(); const router = mount();
   await elegir(user); await revisar(user); await confirmar(user); await screen.findByRole('button', { name: 'Consultar resultado' });
   const count = calls.length;
-  await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('button', { name: 'Mi cuenta' }));
+  await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('button', { name: 'Usuarios y autenticación' }));
   expect(screen.getByRole('heading', { name: 'Consultar resultado de la reserva' })).toBeInTheDocument();
   expect(calls).toHaveLength(count); expect(posts('/citas')).toHaveLength(1);
   expect([...router.state.blockers.values()].every(blocker => blocker.state === 'unblocked')).toBe(true);

@@ -68,8 +68,8 @@ it('Mis citas inicia Próximas por contrato, sin consultar perfil/actividad ni e
   expect(within(table).getAllByRole('link').map(link => link.textContent)).toEqual(['CIT-1', 'CIT-2']);
   expect(table).toHaveTextContent('Profesional Ficticio'); expect(table).toHaveTextContent('Registro:');
   expect(table).not.toHaveTextContent('NO-LISTAR'); expect(table).not.toHaveTextContent('70000000');
-  expect(screen.getByRole('link', { name: 'Mis citas' })).toHaveAttribute('aria-current', 'page');
-  expect(within(screen.getByRole('navigation', { name: 'Ubicación actual' })).getAllByText('Mis citas')).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Consultar el historial y seguimiento de citas' })).toHaveAttribute('aria-current', 'page');
+  expect(within(screen.getByRole('navigation', { name: 'Ubicación actual' })).getAllByText('Consultar el historial y seguimiento de citas')).toHaveLength(1);
 });
 it('Mis citas conserva el total y período aplicados al editar el borrador, sin acciones de cancelación/reprogramación', async () => {
   mount(); const table = await screen.findByRole('table');

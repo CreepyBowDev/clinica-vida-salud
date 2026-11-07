@@ -39,7 +39,7 @@ describe('seguridad de interfaz y teclado CU-30 fase 4', () => {
     await act(async () => window.dispatchEvent(new Event('focus')));
     await screen.findByRole('heading', { name: 'Bienvenido de nuevo' });
     expect(screen.queryByText(evento.tipo_evento)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Bitácora del Sistema' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Consultar bitácora del sistema' })).not.toBeInTheDocument();
     iniciarSesion.mockResolvedValue(usuario('Administrador'));
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Correo electrónico'), 'persona@example.test');
@@ -55,7 +55,7 @@ describe('seguridad de interfaz y teclado CU-30 fase 4', () => {
     await act(async () => window.dispatchEvent(new Event('focus')));
     await screen.findByRole('heading', { name: 'Acceso no permitido' });
     expect(screen.queryByText(evento.tipo_evento)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Bitácora del Sistema' })).not.toBeInTheDocument(); expect(calls).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: 'Consultar bitácora del sistema' })).not.toBeInTheDocument(); expect(calls).toHaveLength(1);
   });
   it('una revalidación sin conexión oculta el detalle hasta comprobar la sesión', async () => {
     mount(`${root}/${id}`); await screen.findByText(evento.tipo_evento);

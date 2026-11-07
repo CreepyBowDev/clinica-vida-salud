@@ -47,10 +47,10 @@ describe('Mi perfil CU-08', () => {
   });
   it('espera restauración, y ofrece navegación exclusiva del titular', async () => {
     let resolve; consultarSesion.mockImplementation(() => new Promise(done => { resolve = done; })); mount('/paciente');
-    expect(consultarMiPerfil).not.toHaveBeenCalled(); expect(screen.queryByRole('link', { name: 'Mi perfil' })).not.toBeInTheDocument();
+    expect(consultarMiPerfil).not.toHaveBeenCalled(); expect(screen.queryByRole('link', { name: 'Actualizar el perfil personal' })).not.toBeInTheDocument();
     await act(async () => resolve({ id_usuario: '1', nombre_visible: 'Persona', correo_acceso: patient.correo_acceso, rol: 'Paciente' }));
     const user = userEvent.setup(); await user.click(await screen.findByRole('link', { name: 'Consultar mi perfil' })); await screen.findByLabelText('Teléfono');
-    expect(document.title).toBe('Mi perfil | Clínica Vida Salud'); expect(consultarPaciente).not.toHaveBeenCalled();
+    expect(document.title).toBe('Actualizar el perfil personal | Clínica Vida Salud'); expect(consultarPaciente).not.toHaveBeenCalled();
   });
   it('identidad solo lectura, fecha civil y correos separados; no renderiza clínica ni secretos', async () => {
     consultarMiPerfil.mockResolvedValue({ ...patient, antecedentes: 'CLINICA OCULTA', password: 'SECRETO OCULTO' }); mount(); await screen.findByLabelText('Teléfono');

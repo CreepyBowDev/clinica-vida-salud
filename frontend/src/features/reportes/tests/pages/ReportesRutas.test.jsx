@@ -35,8 +35,8 @@ beforeEach(() => {
 afterEach(() => { api.defaults.adapter = original; vi.restoreAllMocks(); });
 it('Administrador usa ruta, sidebar, servicios y Axios reales con API simulada de solo lectura', async () => {
   mount(); await screen.findByRole('heading', { name: 'Reportes administrativos' });
-  expect(screen.getByRole('link', { name: 'Consultar reportes' })).toHaveAttribute('aria-current', 'page');
-  expect(document.title).toBe('Consultar reportes | Clínica Vida Salud');
+  expect(screen.getByRole('link', { name: 'Generar reportes administrativos' })).toHaveAttribute('aria-current', 'page');
+  expect(document.title).toBe('Generar reportes administrativos | Clínica Vida Salud');
   fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-10-31' } });
   await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByText('CITA-1');
   expect(calls.find(c => c.url === '/reportes/citas/programadas')).toMatchObject({ method: 'get', sessionBound: true, params: { fecha: '2026-10-31', orden: 'fecha_asc', page: 1, per_page: 20 } });
@@ -44,7 +44,7 @@ it('Administrador usa ruta, sidebar, servicios y Axios reales con API simulada d
 });
 it.each(['Paciente', 'Médico', 'Recepcionista'])('%s no accede ni solicita reportes/catálogos', async rol => {
   consultarSesion.mockResolvedValue(sesion(rol)); mount(); await screen.findByRole('heading', { name: 'Acceso no permitido' });
-  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Consultar reportes' })).not.toBeInTheDocument();
+  expect(calls).toHaveLength(0); expect(screen.queryByRole('link', { name: 'Generar reportes administrativos' })).not.toBeInTheDocument();
   expect(destinoSeguro('/reportes', rol)).toBe('/inicio');
 });
 it('sin sesión redirige a login sin pedir datos', async () => {
@@ -71,7 +71,7 @@ it.each(['por-medico', 'por-especialidad', 'por-estado'])('%s integra selección
   await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByText('CITA-1');
   expect(calls.find(c => c.url === `/reportes/citas/${tipo}`)).toMatchObject({ method: 'get', sessionBound: true, params: { fecha: '2026-10-31' } });
   expect(calls.filter(c => c.url.startsWith('/reportes/'))).toHaveLength(1);
-  expect(screen.getByRole('link', { name: 'Consultar reportes' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Generar reportes administrativos' })).toHaveAttribute('aria-current', 'page');
 });
 it('pacientes registrados usa el endpoint específico con Auth/Router/Axios y retira datos ante 401', async () => {
   mount(); await screen.findByLabelText('Reporte'); await userEvent.selectOptions(screen.getByLabelText('Reporte'), 'pacientes-registrados');

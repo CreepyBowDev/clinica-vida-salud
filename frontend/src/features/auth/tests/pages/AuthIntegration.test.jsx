@@ -94,7 +94,7 @@ describe('integración HTTP del frontend de autenticación', () => {
     expect(calls.some(c => c.url === '/auth/login')).toBe(false);
     await userEvent.click(screen.getByRole('link', { name: 'Iniciar sesión' }));
     await login(); await screen.findByRole('heading', { name: 'Hola, Persona Ficticia' });
-    await userEvent.click(screen.getByRole('link', { name: 'Cambiar contraseña' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Cambiar contraseña propia' }));
     await screen.findByLabelText('Contraseña actual');
     field('Contraseña actual', password); field('Nueva contraseña', 'Nueva frase ficticia 456!'); field('Confirmar nueva contraseña', 'Nueva frase ficticia 456!');
     fireEvent.submit(screen.getByRole('form'));

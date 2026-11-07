@@ -7,63 +7,83 @@ const all = [A, R, M, P];
 const page = (id, label, to, roles, cases, children = []) => ({ id, label, to, roles, cases, patterns: [to, ...children], kind: 'page' });
 
 export const NAVIGATION = [
-  { id: 'agenda', label: 'Agenda y citas', labels: { [M]: 'Mi agenda', [P]: 'Mis citas' }, icon: 'calendar', items: [
-    page('agenda', 'Consultar agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
-    page('mis-citas', 'Mis citas', '/mis-citas', [P], ['CU-21'], ['/mis-citas/:id']),
-    page('programar', 'Programar cita', '/recepcion/citas/nueva', [A, R], ['CU-13', 'CU-14']),
-    page('reservar', 'Reservar cita', '/reservar-cita', [P], ['CU-13', 'CU-14']),
-    page('gestion-citas', 'Gestionar citas', '/recepcion/citas/gestion', [A, R], ['CU-15', 'CU-16'], ['/citas/:id/gestion']),
-    page('asistencia-citas', 'Gestionar asistencia', '/asistencia', [A, R, M], ['CU-17', 'CU-18', 'CU-19'], ['/citas/:id/asistencia']),
-    page('historial', 'Consultar historial de citas', '/recepcion/historial-citas', [A, R], ['CU-21'], ['/recepcion/pacientes/:id/citas', '/recepcion/historial-citas/:id']),
+  { id: 'usuarios', package: 'P1', label: 'Usuarios y autenticación', icon: 'lock', items: [
+    page('cuentas', 'Administrar cuentas de usuario y su acceso', '/administracion/cuentas', [A], ['CU-03'], ['/administracion/cuentas/nueva', '/administracion/cuentas/:id']),
+    page('contrasena', 'Cambiar contraseña propia', '/mi-cuenta/contrasena', all, ['CU-05']),
   ] },
-  { id: 'pacientes', label: 'Pacientes', icon: 'user', items: [
-    page('pacientes', 'Gestionar pacientes', '/recepcion/pacientes', [A, R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
+  { id: 'pacientes', package: 'P2', label: 'Pacientes y perfil personal', icon: 'user', items: [
+    page('pacientes', 'Gestionar el registro administrativo de pacientes', '/recepcion/pacientes', [A, R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
     page('activacion', 'Activación web', '/recepcion/activacion-web', [A, R], ['CU-07']),
+    page('perfil', 'Actualizar el perfil personal', '/mi-perfil', [P], ['CU-08'], ['/mi-perfil/correo']),
   ] },
-  { id: 'historia', label: 'Atención clínica', labels: { [P]: 'Mi salud' }, icon: 'people', items: [
-    page('historia', 'Consultar historia clínica', '/historia-clinica', [A, M, P], ['CU-22'], ['/historia-clinica/pacientes/:id', '/citas/:id/consulta', '/citas/:id/consulta/versiones', '/historia-clinica/pacientes/:id/antecedentes/versiones']),
-    page('consulta', 'Registrar o corregir consulta', '/registrar-consulta', [A, M], ['CU-23'], ['/citas/:id/consulta/editar']),
-    page('resultados', 'Estudios y resultados', '/laboratorio', [A, M, P], ['CU-27'], ['/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id']),
-    page('solicitar', 'Solicitar estudios', '/laboratorio/solicitar', [A, M], ['CU-24'], ['/citas/:id/consulta/solicitar-estudio']),
+  { id: 'medicos', package: 'P3', label: 'Médicos y especialidades', icon: 'grid', items: [
+    page('especialidades', 'Gestionar especialidades médicas', '/administracion/especialidades', [A], ['CU-09'], ['/administracion/especialidades/nueva', '/administracion/especialidades/:id', '/administracion/especialidades/:id/editar']),
+    page('medicos', 'Gestionar médicos y sus especialidades', '/administracion/medicos', [A], ['CU-10'], ['/administracion/medicos/nuevo', '/administracion/medicos/:id', '/administracion/medicos/:id/editar', '/administracion/medicos/:id/especialidades']),
   ] },
-  { id: 'recordatorios', label: 'Recordatorios', icon: 'calendar', items: [
-    page('avisos', 'Consultar recordatorios', '/recordatorios', [P, A], ['CU-28']),
+  { id: 'consultorios', package: 'P4', label: 'Consultorios, horarios y disponibilidad', icon: 'grid', items: [
+    page('consultorios', 'Gestionar consultorios y su asignación fija', '/administracion/consultorios', [A], ['CU-11'], ['/administracion/consultorios/nuevo', '/administracion/consultorios/:id', '/administracion/consultorios/:id/editar', '/administracion/medicos/:id/consultorio']),
+    page('horarios', 'Configurar horarios y duración de citas', '/administracion/horarios', [A], ['CU-12'], ['/administracion/horarios/configuracion', '/administracion/horarios/medicos/:id']),
   ] },
-  { id: 'pagos', label: 'Pagos', icon: 'info', items: [
-    page('pagos', 'Consultar pagos', '/pagos', [P, A], ['CU-31', 'CU-32', 'CU-33', 'CU-34'], ['/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id', '/pagos/retorno/:proveedor/:intento?']),
+  { id: 'reserva', package: 'P5', label: 'Registro y reserva de citas médicas', icon: 'calendar', items: [
+    page('programar', 'Buscar médicos, consultar disponibilidad y programar una cita presencial', '/recepcion/citas/nueva', [A, R], ['CU-13', 'CU-14']),
+    page('reservar', 'Buscar médicos, consultar disponibilidad y reservar una cita presencial', '/reservar-cita', [P], ['CU-13', 'CU-14']),
+  ] },
+  { id: 'gestion-citas', package: 'P6', label: 'Reprogramación y cancelación', icon: 'calendar', items: [
+    page('gestion-citas', 'Reprogramar una cita o cancelar una cita', '/recepcion/citas/gestion', [A, R], ['CU-15', 'CU-16'], ['/citas/:id/gestion']),
+  ] },
+  { id: 'asistencia', package: 'P7', label: 'Estados de citas y control de asistencia', icon: 'calendar', items: [
+    page('asistencia-citas', 'Confirmar la llegada del Paciente, registrar su inasistencia o marcar una cita como Atendida', '/asistencia', [A, R, M], ['CU-17', 'CU-18', 'CU-19'], ['/citas/:id/asistencia']),
+  ] },
+  { id: 'agenda', package: 'P8', label: 'Agenda e historial de citas', icon: 'calendar', items: [
+    page('agenda', 'Consultar la agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
+    page('historial', 'Consultar el historial y seguimiento de citas', '/recepcion/historial-citas', [A, R], ['CU-21'], ['/recepcion/pacientes/:id/citas', '/recepcion/historial-citas/:id']),
+    page('mis-citas', 'Consultar el historial y seguimiento de citas', '/mis-citas', [P], ['CU-21'], ['/mis-citas/:id']),
+  ] },
+  { id: 'historia', package: 'P9', label: 'Historia clínica y consultas médicas', icon: 'people', items: [
+    page('historia', 'Consultar la historia clínica autorizada', '/historia-clinica', [A, M, P], ['CU-22'], ['/historia-clinica/pacientes/:id', '/citas/:id/consulta', '/citas/:id/consulta/versiones', '/historia-clinica/pacientes/:id/antecedentes/versiones']),
+    page('consulta', 'Registrar o actualizar una consulta médica', '/registrar-consulta', [A, M], ['CU-23'], ['/citas/:id/consulta/editar']),
+  ] },
+  { id: 'laboratorio', package: 'P10', label: 'Laboratorio digital', icon: 'people', items: [
+    page('solicitar', 'Solicitar estudios de laboratorio', '/laboratorio/solicitar', [A, M], ['CU-24'], ['/citas/:id/consulta/solicitar-estudio']),
+    page('resultados', 'Consultar solicitudes y descargar resultados autorizados', '/laboratorio', [A, M, P], ['CU-27'], ['/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id']),
+  ] },
+  { id: 'recordatorios', package: 'P11', label: 'Recordatorios automáticos', icon: 'calendar', items: [
+    page('avisos', 'Consultar recordatorios de próximas citas y recibir Web Push opcional', '/recordatorios', [P, A], ['CU-28']),
+  ] },
+  { id: 'reportes', package: 'P12', label: 'Consultas y reportes administrativos', icon: 'info', items: [
+    page('reportes', 'Generar reportes administrativos', '/reportes', [A], ['CU-29']),
+  ] },
+  { id: 'bitacora', package: 'P13', label: 'Bitácora del sistema', icon: 'info', items: [
+    page('eventos', 'Consultar bitácora del sistema', '/administracion/bitacora', [A], ['CU-30'], ['/administracion/bitacora/:id']),
+  ] },
+  { id: 'pagos', package: 'P14', label: 'Pagos', icon: 'info', items: [
+    page('pagos', 'Consultar obligaciones de pago propias e historial de pagos propio', '/pagos', [P, A], ['CU-31', 'CU-33', 'CU-34'], ['/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id', '/pagos/retorno/:proveedor/:intento?']),
     page('demostracion-pagos', 'Demostración de pagos', '/pagos/demostracion', [P, A], []),
-  ] },
-  { id: 'organizacion', label: 'Organización', icon: 'grid', items: [
-    page('cuentas', 'Administrar cuentas', '/administracion/cuentas', [A], ['CU-03'], ['/administracion/cuentas/nueva', '/administracion/cuentas/:id']),
-    page('especialidades', 'Gestionar especialidades', '/administracion/especialidades', [A], ['CU-09'], ['/administracion/especialidades/nueva', '/administracion/especialidades/:id', '/administracion/especialidades/:id/editar']),
-    page('medicos', 'Gestionar médicos', '/administracion/medicos', [A], ['CU-10'], ['/administracion/medicos/nuevo', '/administracion/medicos/:id', '/administracion/medicos/:id/editar', '/administracion/medicos/:id/especialidades']),
-    page('consultorios', 'Gestionar consultorios', '/administracion/consultorios', [A], ['CU-11'], ['/administracion/consultorios/nuevo', '/administracion/consultorios/:id', '/administracion/consultorios/:id/editar', '/administracion/medicos/:id/consultorio']),
-    page('horarios', 'Configurar horarios', '/administracion/horarios', [A], ['CU-12'], ['/administracion/horarios/configuracion', '/administracion/horarios/medicos/:id']),
-  ] },
-  { id: 'reportes', label: 'Reportes y bitácora', icon: 'info', items: [
-    page('reportes', 'Consultar reportes', '/reportes', [A], ['CU-29']),
-    page('eventos', 'Bitácora del Sistema', '/administracion/bitacora', [A], ['CU-30'], ['/administracion/bitacora/:id']),
-  ] },
-  { id: 'usuarios', label: 'Mi cuenta', icon: 'lock', items: [
-    page('perfil', 'Mi perfil', '/mi-perfil', [P], ['CU-08'], ['/mi-perfil/correo']),
-    page('contrasena', 'Cambiar contraseña', '/mi-cuenta/contrasena', all, ['CU-05']),
   ] },
 ];
 
 // Flujos públicos, acciones existentes o pendientes explícitas; no páginas del sidebar protegido.
 export const ACCESS_FLOWS = [
-  { kind: 'public', cases: ['CU-01'], paths: ['/login'] },
-  { kind: 'action', cases: ['CU-02'], component: 'LogoutButton' },
-  { kind: 'public', cases: ['CU-04'], paths: ['/registro', '/vincular-ficha', '/verificar-registro'] },
-  { kind: 'public', cases: ['CU-06'], paths: ['/olvide-mi-contrasena', '/recuperar-clave'] },
+  { package: 'P1', kind: 'public', roles: all, cases: ['CU-01'], paths: ['/login'] },
+  { package: 'P1', kind: 'action', roles: all, cases: ['CU-02'], component: 'LogoutButton' },
+  { package: 'P1', kind: 'public', roles: [P], cases: ['CU-04'], paths: ['/registro', '/vincular-ficha', '/verificar-registro'] },
+  { package: 'P1', kind: 'public', roles: all, cases: ['CU-06'], paths: ['/olvide-mi-contrasena', '/recuperar-clave'] },
+  { package: 'P1', kind: 'public', roles: [A, R, M], cases: [], paths: ['/activar-personal'] },
+  { package: 'P1', kind: 'account', roles: all, cases: ['CU-05'], paths: ['/mi-cuenta/contrasena', '/clave-obligatoria'] },
+  { package: 'P2', kind: 'account', roles: [P], cases: ['CU-08'], paths: ['/mi-perfil', '/mi-perfil/correo'] },
   // Acciones compartidas del detalle, sin páginas duplicadas por rol.
-  { kind: 'action', cases: ['CU-25'], roles: [A], component: 'GestionDocumentoLaboratorio' },
-  { kind: 'action', cases: ['CU-26'], roles: [A, M], component: 'GestionRevisionResultado' },
+  { package: 'P10', kind: 'action', cases: ['CU-25'], roles: [A], paths: ['/laboratorio/solicitudes/:id'], component: 'GestionDocumentoLaboratorio' },
+  { package: 'P10', kind: 'action', cases: ['CU-26'], roles: [A, M], paths: ['/laboratorio/solicitudes/:id'], component: 'GestionRevisionResultado' },
+  { package: 'P14', kind: 'action', cases: ['CU-32'], roles: [P], paths: ['/pagos/obligaciones/:id/pagar'] },
 ];
 
 export function navigationForRole(role) {
   return NAVIGATION.map(module => ({ ...module, label: module.labels?.[role] ?? module.label, items: module.items.filter(item => item.roles.includes(role)).map(item =>
-    item.id === 'pagos' ? { ...item, cases: role === A ? ['CU-34'] : ['CU-31', 'CU-32', 'CU-33'],
+    item.id === 'avisos' && role === A ? { ...item, label: 'Consultar recordatorios de próximas citas' }
+      : item.id === 'asistencia-citas' ? { ...item,
+      label: role === M ? 'Marcar una cita como Atendida' : role === R ? 'Confirmar la llegada del Paciente o registrar la inasistencia del Paciente' : item.label,
+      cases: role === M ? ['CU-19'] : role === R ? ['CU-17', 'CU-18'] : item.cases }
+      : item.id === 'pagos' ? { ...item, label: role === A ? 'Consultar historial financiero de un Paciente' : item.label, cases: role === A ? ['CU-34'] : ['CU-31', 'CU-33'],
       patterns: role === A ? ['/pagos', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id'] : ['/pagos', '/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/retorno/:proveedor/:intento?'] }
       : item.id === 'historia' && role === P ? { ...item, patterns: ['/historia-clinica', '/citas/:id/consulta'] }
       : item.id === 'resultados' && role !== A ? { ...item, patterns: item.patterns.filter(p => p !== '/laboratorio/pacientes/:id') } : item) }))

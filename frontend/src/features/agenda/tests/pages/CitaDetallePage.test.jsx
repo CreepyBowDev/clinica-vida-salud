@@ -42,10 +42,10 @@ it.each(['Administrador', 'Recepcionista', 'Médico', 'Paciente'])('%s ve solo d
   expect(main.textContent.includes('01/01/1990')).toBe(rol === 'Médico');
   expect(screen.getByRole('region', { name: 'Motivo breve' })).toHaveTextContent('0');
   expect(main).not.toHaveTextContent('NO-SALIR'); expect(within(main).queryByRole('button')).not.toBeInTheDocument();
-  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent(rol === 'Paciente' ? 'Mis citas' : rol === 'Médico' ? 'Mi agenda' : 'Agenda y citas');
+  expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent('Agenda e historial de citas');
   expect(document.title).toBe('Detalle de cita | Clínica Vida Salud'); expect(main).toHaveFocus();
-  expect(screen.queryByRole('link', { name: 'Consultar agenda médica' }) !== null).toBe(rol !== 'Paciente');
-  expect(screen.queryByRole('link', { name: 'Consultar historial de citas' }) !== null).toBe(['Administrador', 'Recepcionista'].includes(rol));
+  expect(screen.queryByRole('link', { name: 'Consultar la agenda médica' }) !== null).toBe(rol !== 'Paciente');
+  expect(screen.queryByRole('link', { name: 'Consultar el historial y seguimiento de citas' }) !== null).toBe(rol !== 'Médico');
   expect(calls).toHaveLength(1); expect(calls[0]).toMatchObject({ method: 'get', sessionBound: true, url: `/citas/${cita.id_cita}` });
   const actions = screen.getByRole('group', { name: 'Acciones disponibles de la cita' });
   expect(within(actions).queryByRole('link', { name: 'Gestionar cita' }) !== null).toBe(['Administrador', 'Recepcionista'].includes(rol));

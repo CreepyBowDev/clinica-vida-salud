@@ -111,7 +111,7 @@ it('cambio de sesión retira revisión/datos y obliga reconsulta antes de prepar
   mount(); await revisar(); act(() => avanzarSesion()); expect(screen.queryByText('Hemograma ficticio')).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Solicitar estudio' })).not.toBeInTheDocument();
 });
 it('bloqueo de navegación advierte pérdida sin borrar por desplegar sidebar', async () => {
-  mount(); await revisar(); await userEvent.click(screen.getByRole('button', { name: 'Atención clínica' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
+  mount(); await revisar(); await userEvent.click(screen.getByRole('button', { name: 'Laboratorio digital' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
   await userEvent.click(screen.getByRole('link', { name: 'Volver a consulta' })); await screen.findByRole('button', { name: 'Permanecer' });
   await userEvent.click(screen.getByRole('button', { name: 'Permanecer' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
 });

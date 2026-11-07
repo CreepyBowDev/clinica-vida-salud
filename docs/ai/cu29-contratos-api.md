@@ -1,6 +1,6 @@
 # CU-29 — contratos backend y criterios de cálculo
 
-**Base histórica:** 2026-10-31, backend REP-1–REP-5. **Ampliación autorizada 2026-11-07:** Fase 1 PDF en Laravel descrita en §8; no modifica los contratos JSON ni acredita React→descarga PDF o producción. Las exclusiones PDF de los cierres anteriores son históricas y quedan superadas únicamente por esta ampliación. Evidencia y estado de verificación actuales en `estado-fase.md`.
+**Base histórica:** 2026-10-31, backend REP-1–REP-5. **PDF opcional 2026-11-07:** Fases 1–3 cerradas localmente (§§8–10); historial en `cu29-pdf-estado-fase-historico.md` y evidencia en `cu29-aceptacion-pdf.md`. **Ampliación estadística independiente:** EST-1 concreta el diseño aditivo de §§11–15, todavía no implementado ni probado funcionalmente. No existe una Fase 4 del plan PDF. Relevo activo en `estado-fase.md`.
 
 ## 1. Fuentes y alcance
 
@@ -123,3 +123,252 @@ Interfaz informa nueva lectura/diferencias, límite y agregado completo; muestra
 ## 10. Aceptación integrada local — Fase 3 (2026-11-07)
 
 La nota F2 anterior conserva su alcance histórico. **F3 aceptada localmente**, sin cambiar §§8–9 ni código funcional: siete reportes/siete vacíos descargados por Chrome desde React/Axios/Laravel/PostgreSQL aislado y abiertos mediante Windows.Data.Pdf; filtros/totales/orden/página2/borrador,500 inclusive/501 sin parcial, agregado504, permisos y sesión contrastados. qpdf valida21 descargados,19 útiles para aceptación; muestras visuales1440/390px y PDF multipágina examinadas.429 real y espera;419/500/PDF inválido mediante inyección CDP explícita. En dos orígenes se utiliza el nombre alternativo seguro de §9 al no exponerse Content-Disposition por CORS. [Matriz, evidencia, incidencias del arnés/revalidaciones y límites](cu29-aceptacion-pdf.md). No certificación productiva, otros lectores ni accesibilidad PDF.
+
+## 11. EST-1 — contrato estadístico previsto (2026-11-07)
+
+**Ampliación opcional aprobada vinculada a RF13/CU-29, no texto oficial del examen.** Alcance C: resumen, tablas estadísticas y gráficos útiles en pantalla y PDF. Especificación para EST-2–EST-5, no respuesta actual del servidor. Prevalece para esta ampliación sobre exclusiones históricas de estadísticas/gráficos; conserva §§2–6 y §§8–10 en todo lo no ampliado. No modifica RF/RN/CU, persistencia, permisos, filtros ni endpoints. Solo Administrador.
+
+### 11.1. Forma común y tipos cerrados
+
+Los siete GET JSON añadirán **`meta.estadisticas`**, sin sustituir `data`, `links`, contexto, paginación, `meta.total` ni las cuatro cantidades existentes. El PDF consumirá el mismo objeto del resultado interno del Service, sin otra consulta para estadísticas. No se añade a `/api/agenda`, `/api/mis-citas` u otros contratos operativos.
+
+| Clave obligatoria de `estadisticas` | Tipo y significado exactos |
+| --- | --- |
+| `version` | Entero literal `1`, versión del bloque, no parámetro HTTP. |
+| `unidad` | Literal `citas` o `fichas`; unidad de todos los campos `cantidad`/`cantidad_total` del bloque. |
+| `estados_incluidos` | Array de estados efectivos en orden canónico; `[]` para fichas. No depende de que existan filas. |
+| `resumen` | Objeto con exactamente `cantidad_total` (entero ≥0) y `duracion_total_minutos` (entero ≥0 solo por Médico/agenda; `null` en los otros cinco reportes). |
+| `series` | Array ordenado según §11.2; siempre presente, incluso sin resultados. |
+
+Cada serie contiene exactamente `id`, `dimension`, `agrupacion`, `porcentajes`, `grafico`, `categorias`:
+
+| Clave de serie | Tipo y regla |
+| --- | --- |
+| `id` / `dimension` | Pares cerrados: `por_medico`/`medico`, `por_estado`/`estado`, `por_actividad`/`actividad`, `por_periodo`/`periodo`. No repetir id dentro de `series`. |
+| `agrupacion` | `diaria` o `mensual` exclusivamente en dimensión `periodo`; `null` en las demás. |
+| `porcentajes` | Solo cantidades: `{ "denominador": entero≥0, "decimales": 1, "redondeo": "HALF_UP" }`. `null` para toda otra serie. |
+| `grafico` | `{ "tipo": "barras_horizontales", "visible": booleano, "motivo_omision": null o literal, "maximo": entero≥0 }`, determinado en Laravel según §13. |
+| `categorias` | Array completo, sin top10, «Otros», paginación estadística ni dependencia del orden del detalle. |
+
+Cada categoría tiene las cinco claves comunes **`id` (string), `etiqueta` (string), `cantidad` (entero≥0), `duracion_minutos` (entero≥0 o null), `porcentaje` (string decimal o null)** y solo la clave adicional de su dimensión:
+
+| Dimensión | Identidad y clave adicional obligatoria |
+| --- | --- |
+| `medico` | `id = "medico:" + id_medico`; `medico: {id_medico,codigo_medico,nombres,apellidos}` con cuatro strings. Etiqueta exacta: `apellidos + ", " + nombres + " — " + codigo_medico`. IDs bigint canónicos como strings; nunca agrupar por nombre. |
+| `estado` | `id = "estado:" + estado`; `estado` string del catálogo de cinco. `etiqueta = estado`. |
+| `actividad` | `id = "actividad:activo"` o `"actividad:inactivo"`; `activo` booleano; etiquetas `Activos`/`Inactivos`. Actividad actual de la ficha. |
+| `periodo` | `id = "dia:YYYY-MM-DD"` o `"mes:YYYY-MM"`; `intervalo: {desde,hasta,inicio_at,fin_exclusivo_at,parcial}`. Fechas civiles strings YYYY-MM-DD, timestamps UTC6, `parcial` booleano. Etiqueta diaria YYYY-MM-DD; mensual YYYY-MM, añadiendo ` (parcial)` cuando corresponda. |
+
+`duracion_minutos` solo es entero en categorías de estado de por Médico/agenda; en toda otra categoría es `null`. `porcentaje` solo es decimal en cantidades con denominador positivo; en los demás casos es `null`. No omitir claves comunes ni sustituir ceros por null. Campos de dimensión distinta están ausentes, no llenos de null. Strings se escapan en presentación; no son HTML autorizado.
+
+Enteros JSON de cantidades/minutos no negativos y representables exactamente en JavaScript (≤9007199254740991); IDs siempre strings. Laravel valida conversiones sin redondear/desbordar: resultado no representable → fallo interno seguro, nunca float aproximado, truncamiento o éxito parcial. No es un nuevo filtro ni un límite de500 para estadísticas JSON.
+
+### 11.2. Siete variantes y conciliación
+
+Orden canónico: `Programada`, `Confirmada`, `Atendida`, `Cancelada`, `Inasistencia`. Sin filtro de estado se incluyen los cinco excepto en programadas/cantidades. Un filtro selecciona solo ese estado efectivo; las categorías de estado mantienen sus cinco filas, las excluidas con cero explícito. No implican estados adicionales incluidos en el conjunto.
+
+| `meta.reporte` | Unidad; resumen | `estados_incluidos`; series en orden exacto |
+| --- | --- | --- |
+| `citas/programadas` | citas; N, null | `[Programada]`; `por_medico` con cantidades, sin minutos ni porcentajes. Solo Programada, nunca Confirmada. |
+| `citas/por-medico` | citas; N, D | Cinco estados o el seleccionado; `por_estado` con cantidad/minutos de cada uno de los cinco estados. |
+| `citas/por-especialidad` | citas; N, null | Cinco estados o el seleccionado; `por_medico` con cantidades. Selección por `citas.id_especialidad`, no asociación vigente del Médico. |
+| `citas/por-estado` | citas; N, null | Solo estado elegido; `por_periodo` con cantidad por inicio programado. |
+| `pacientes/registrados` | fichas; P, null | `[]`; primero `por_actividad` (dos categorías), después `por_periodo` por creación de ficha. |
+| `citas/cantidades` | citas; N finales, null | `[Atendida,Cancelada,Inasistencia]`; `por_estado` con solo esas tres categorías, cantidades/porcentajes, sin minutos. |
+| `agenda-diaria` | citas; N, D | Cinco estados o el seleccionado; `por_estado` con cantidad/minutos de los cinco estados. Intersección diaria intacta. |
+
+- N/P = COUNT de todas las filas filtradas; D = SUM de `citas.duracion_minutos` histórica completa, COALESCE a0. No duración actual del horario ni diferencia de horas redondeada. D incluye Cancelada/Inasistencia si están en el conjunto; no representa trabajo efectivo, ocupación ni tiempo atendido. En agenda no se recorta a medianoche; una cita puede aportar duración completa a dos días: agendas no se suman como citas/minutos únicos.
+- `resumen.cantidad_total = meta.total` en listados; en cantidades = `data.total = atendidas + canceladas + inasistencias`. Cada serie particiona el mismo conjunto: suma de cantidades = resumen; por Médico/agenda, suma de minutos por estado = D. En pacientes cada serie suma P, **no sumar ambas series entre sí**. Nada se calcula desde la página visible.
+- Médicos: solo IDs con al menos una cita filtrada; vacío → `categorias: []`. No introducir todos los Médicos del catálogo ni categoría ficticia para Médico seleccionado sin resultados. Orden `cantidad DESC, id_medico ASC` numérico PostgreSQL; no desempatar por nombres ni convertir IDs a Number. Nombres/códigos actuales, no reconstrucción histórica; homónimos conservan identidades distintas.
+- Estados: orden canónico anterior (o sus tres finales); incluir ceros, incluso al filtrar otro estado. Actividad: siempre Activos, Inactivos, incluso si `activo` excluye uno. Períodos: cronológicos ascendentes, independiente del orden del detalle. IDs únicos; no desempates temporales adicionales.
+- Vacío real: total/cantidades/minutos aplicables0; series de estado/actividad/período presentes con ceros, Médicos vacíos; ningún gráfico. Página fuera de rango con total>0: `data: []`, conserva **todas** las estadísticas reales; mostrar «Esta página no contiene filas» separado de «Sin resultados». No inferir vacío estadístico de `data.length`.
+- Sin pacientes distintos, promedios, tasas asistenciales, ocupación, disponibilidad, comparativas ni indicadores financieros.
+
+### 11.3. Períodos, intervalos vacíos y meses parciales
+
+Reutilizar el período aplicado de §3, máximo366 días civiles inclusivos y zona America/La_Paz. Sin query/control de agrupación nuevo. Días inclusivos entre `desde` y `hasta`:1–31 → `diaria`;32–366 → `mensual`, incluso con pocos datos.
+
+- Diario: una categoría por día civil, `desde = hasta = día`, `parcial: false`; UTC desde medianoche local hasta la siguiente. Mensual: una por mes civil intersectado (pueden ser13 para366 días); `desde = max(inicio_mes, desde_aplicado)`, `hasta = min(fin_mes, hasta_aplicado)`. `parcial: true` si no cubre el mes civil entero; ambos extremos pueden ser parciales. Mes interior completo es false.
+- Ambos: `[inicio_at, fin_exclusivo_at)` a partir de extremos civiles recortados, convirtiendo medianoches locales a UTC6; no truncar por fecha UTC. Intervalos adyacentes sin huecos/solapamientos, primera frontera = `meta.periodo.inicio_at`, última = `meta.periodo.fin_exclusivo_at`. Incluir intervalos vacíos con0; no generar fuera del rango. Bisiestos/cambios de año sujetos a validación existente.
+- Referencia: `citas.inicio_at` para por estado; `pacientes.creado_en` para fichas. No transición de estado, creación de Usuario, incorporación de CI ni vinculación. Cambios posteriores pueden cambiar resultados: no snapshot entre páginas/peticiones/PDF.
+- Ejemplo32 días:2026-01-20 a2026-02-20 → enero20–31 y febrero1–20, ambos parciales; primer intervalo UTC `[2026-01-20T04:00:00.000000Z,2026-02-01T04:00:00.000000Z)`.
+
+### 11.4. Porcentajes de cantidades
+
+Único denominador = total de los tres estados finales, aunque existan Programadas/Confirmadas. Laravel calcula `100 × cantidad / denominador`, HALF_UP a un decimal. Serializar string ASCII con un decimal, sin símbolo: `"0.0"`…`"100.0"`; presentación con coma y `%` (`33,3 %`). No recalcular en React ni renderer. Cálculo racional entero PHP64: cociente/resto de `1000*cantidad / total`, aumentar cociente si `2*resto >= total` y formatear décimas sin float; el límite de §11.1 permite multiplicar por1000 sin desbordar PHP64. Conteos/sumas no tienen denominador.
+
+Denominador0: descriptor presente con `denominador: 0`, tres `porcentaje: null`, mostrar **«No aplica»**, no0%, NaN ni infinito. Denominador positivo/categoría0 → `"0.0"`. Con total positivo mostrar siempre: «Los porcentajes pueden sumar 99,9 % o 100,1 % por redondeo». No ajustar la última categoría para forzar100%; nunca llamarlos tasas de atención/cancelación.
+
+## 12. Lectura coherente — diseño, no implementación
+
+**Contraste estático EST-1:** `ReporteRepository::paginar()` y `AgendaRepository::paginar()` ya usan `WITH filtradas AS MATERIALIZED`, página limitada y COUNT en una sentencia con LEFT JOIN que conserva total sin página. `cantidades()` usa una agregación COUNT FILTER. Los Services envuelven autorización/selecciones/consulta en `DB::transaction`, lo que **no garantiza** igual snapshot para nuevas sentencias separadas bajo READ COMMITTED. No se atribuye otro aislamiento a la configuración real ni se consulta PostgreSQL en EST-1.
+
+**Diseño elegido para EST-2:** mantener una sola sentencia de datos por reporte, alimentando desde la misma CTE filtrada: página con orden/límite, resumen y grupos completos. Devolver un sobre SQL de **una fila**, con total, agregados y array JSON de filas de página (agregación ordenada y COALESCE `[]`). Grupos/total son subconsultas o CTE agregadas, no JOIN de grupos sin agregar contra detalle que multiplique filas. Producir fila exterior aun sin resultados; no confiar solo en COUNT OVER, que desaparece en página fuera de rango. Filtros como bindings; órdenes/dimensiones constantes cerradas.
+
+Reutilizar builders actuales de filtros/proyección, extrayendo métodos privados si hace falta; no replicarlos en otro módulo. Grupos SQL sobre todas las filtradas; Laravel genera intervalos desde el período aplicado y completa ceros al mapear grupos de esa misma lectura. No cargar listado completo en PHP para agrupar. IDs dentro de JSON SQL casteados a texto antes de codificar; decodificar sin convertir bigint a float. Reconstruir paginador desde filas limitadas/total del sobre, sin campos auxiliares en Resources.
+
+`ReporteService` construirá `contexto.estadisticas` desde agregados internos: normalización de enteros, ceros, orden, intervalos, porcentaje exacto y metadatos gráficos. Controller mantiene HTTP y `additional(['meta' => contexto])`; no calcula indicadores. Cantidades conserva exactamente cuatro enteros en `data`, deriva resumen/porcentajes desde su agregación única, sin segunda lectura.
+
+### 12.1. Agenda reutilizada sin alterar otros roles
+
+No consultar agenda dos veces ni reproducir intersección/proyección en ReporteRepository. Entrada **interna nueva prevista** `AgendaService::consultarParaReporte(array $filtros): array`, exclusiva Administrador, comparte con `consultar()` un núcleo privado de resolución/autorización/contexto. `ReporteService::agendaDiaria()` mantiene autorización administrativa previa y delega a esa entrada. `AgendaService::consultar()` conserva permisos/firma/respuesta HTTP operativa.
+
+`AgendaRepository` extraerá de `citas()` el builder privado común de selección/intersección/estado y añadirá `citasConEstadisticas()` para el sobre página+agregados en una sentencia, usando ese builder. `citas()`/`paginar()` operativos siguen entregando LengthAwarePaginator sin estadísticas ni costo agregado nuevo para Recepción/Médico. Dos ramas con criterios compartidos, no dos copias de la consulta de agenda. Sin flag de estadísticas HTTP ni confianza en `reporte`/rol del cliente. Probar equivalencia del conjunto y que no afecta historial/finanzas de AgendaRepository.
+
+La transacción conserva locks actuales de autorización; no cambiar aislamiento ni abrir REPEATABLE READ global para resolver agregados. Garantía de snapshot: **filas/total/estadísticas de la sentencia de datos**; no todas las consultas auxiliares de existencia/contexto, nombres del selector ni otra petición. Sin token de snapshot, congelación ni retiro de bytes enviados. PDF reutiliza mismo resultado interno y autorización final independiente después del render.
+
+### 12.2. Archivos y responsabilidades previstos para fases posteriores
+
+Rutas relativas al repositorio; no autoriza implementación en EST-1:
+
+| Archivo(s) | Cambio posterior previsto |
+| --- | --- |
+| `backend/src/data/repositories/reportes/ReporteRepository.php` | Reutilizar builders/ampliar lectura única de citas/fichas a página+total+grupos; cantidades mantiene agregado único. Retorno interno de listados con paginador/agregados, sin alterar HTTP. |
+| `backend/src/business/services/reportes/ReporteService.php` | Mapear agregados al contrato en contexto, porcentajes/utilidad gráfica; delegación nueva de agenda. Mantener autorización/filtros/período/autorizarEntrega. |
+| `backend/src/business/services/agenda/AgendaService.php`, `backend/src/data/repositories/agenda/AgendaRepository.php` | Entrada interna administrativa y núcleo/builder compartidos de §12.1. Sin finanzas, permisos nuevos ni cambios a historial. |
+| `backend/src/presentation/controllers/reportes/ReporteController.php`, `backend/src/presentation/dtos/{agenda/CitaListadoResource,reportes/PacienteRegistradoResource,reportes/CantidadesCitasResource}.php` | Revisar meta sin ampliar data: `additional` actual puede transportar contexto nuevo sin cambios productivos aquí. No serializar agregados como filas. |
+| `backend/src/business/services/reportes/ReporteExportacionService.php`, `backend/src/shared/utils/ReportePdf.php` | Consumir estadísticas de misma lectura/representar resumen/tablas/barras; conservar límites/autorización final. |
+| `frontend/src/features/reportes/services/reporte.service.js` | Validar siete variantes/invariantes y conservar `meta.estadisticas`: hoy reconstruye meta y lo descartaría. No sumar página para construirlo. |
+| `frontend/src/features/reportes/pages/ReportesPage.jsx`, `components/`, `styles/reportes.css` de la misma feature | Presentación compartida antes del detalle, ligada a filtros aplicados/query; componentes nuevos solo dentro de feature si necesarios, sin módulos/dependencias nuevos. |
+| `frontend/src/features/reportes/components/DescargarReportePdf.jsx`, `services/reportePdf.service.js` | Conservar descarga/avisos/guardas; revisar regresión sin necesidad prevista de cambiar contrato. |
+| `backend/tests/Feature/{ReportesCitasTest,ReportePacientesRegistradosTest,ReportesCantidadesAgendaTest,AgendaTest,ReportesPdfTest,ReportesIntegracionTest}.php`, `frontend/src/features/reportes/tests/` | Pruebas dirigidas posteriores según matriz; no se crean/ejecutan en EST-1. |
+
+No nuevas clases de dominio, modelos, tablas, migraciones, repositorio base ni motor genérico. Sin cambios previstos a FormRequests, rutas, autenticación, dependencias, configuración privada, Pagos/recibos ni DER.
+
+## 13. Representación equivalente React/PDF — prevista
+
+Laravel calcula indicadores, porcentajes, intervalos y utilidad del gráfico. React valida/representa y solo calcula geometría; renderer tampoco agrega filas. Orden: **resumen → gráfico útil y tabla estadística completa → detalle existente**. Fichas: actividad y luego períodos según `series`. Conservar totales/paginación/descarga/columnas, sin segundo total independiente ni sustituir detalle por dashboard.
+
+- `grafico.maximo = max(categorias.cantidad)` o0 sin categorías. `visible = true` solo con al menos dos categorías de cantidad>0; entonces `motivo_omision: null`. Ninguna positiva: false/`sin_datos`; exactamente una: false/`unica_categoria_con_datos`. Conservar resumen/tabla en ambos casos, incluso con muchos intervalos y solo uno positivo. No eliminar categorías0 del contrato/tabla ni topN; con gráfico conservar todas en orden, longitud0 para ceros.
+- Barras horizontales de **cantidades**, origen0 y escala común0–maximo por serie, no escala porcentual de composición ni barras de minutos. Longitud = cantidad/maximo; sin bases recortadas, mínimos decorativos o división por0. Etiqueta/cantidad visibles fuera de barra; eje/leyenda con unidad y extremos0/maximo. Identidad explícita y sin depender de color/tooltips. Minutos/porcentajes aplicables en resumen/tabla, sin cambiar tipo de barra.
+- React: sección titulada, tabla con caption/encabezados/unidades; gráfico visual `aria-hidden` si duplica íntegramente tabla. Texto alternativo «Cantidades por …; datos completos en la tabla siguiente», sin anuncios redundantes por barra. Etiquetas ajustables, códigos de Médico para homónimos y valores sin superponer. Móvil: etiquetas sobre pista/valor si falta ancho; tabla completa en contenedor desplazable etiquetado/accesible por teclado solo si desborda. Escritorio sin recortar etiquetas. Sin interacción nueva que exija ratón; no prometer lector de pantalla/PDF accesible sin comprobar.
+- Vincular a `query.data.meta.estadisticas`/filtros aplicados, **no borrador ni selectores actuales**. Consulta/actualización/página/sesión nuevas usan carga/error/cancelación/obsolescencia existente; no agregados antiguos con filas nuevas. Respuesta inválida → error seguro, sin gráfico fabricado. No polling. Resumen independiente de condición del componente de detalle para conservar estadísticas en página fuera de rango.
+
+### 13.1. Dompdf sin dependencias ni ejecución React
+
+Mecanismo: HTML estático escapado de `ReportePdf`, **una fila por categoría**, celdas para etiqueta/pista/valor. Pista de ancho fijo en pt, idéntico por serie; dentro, tabla anidada ancho100%/`table-layout: fixed`, dos celdas sin bordes/padding con anchos `100*cantidad/maximo` y complemento, relleno solo en primera. Cantidad0: pista vacía, sin celda coloreada mínima; máximo: relleno completo, sin celda restante. Anchos numéricos internos (punto decimal/cuatro decimales porcentuales), nunca CSS HTTP. Son porcentajes **geométricos**, no indicadores nuevos. Etiqueta/valor fuera de pista y origen/máximo/unidad visibles. Sin flex/grid, canvas, SVG externo, imágenes remotas, scripts ni librerías gráficas.
+
+Separar CSS de barras del detalle (renderer actual aplica bordes/padding globales), sin deformar proporciones. No envolver gráfico/sección completos en fila indivisible: permitir saltos entre categorías, encabezados repetidos y filas sin división deliberada; tabla estadística completa después. A4 horizontal, fuente DejaVu Sans local, márgenes/pie vigentes. Etiquetas ajustables; muchas categorías continúan en páginas siguientes, sin corte silencioso. Tabla estadística incluye ceros, minutos/porcentajes aplicables y extremos/meses parciales textuales. Equivalencia de contenido, no identidad de píxeles React/PDF.
+
+Compatibilidad **diseñada, no renderizada en EST-1**: lockfile fija Dompdf3.1.6; renderer real usa HTML/tablas locales sin red/PHP/JS. EST-4 comprobará barras, proporciones, ceros y saltos con renderer real/muestras visuales; firma PDF no basta. Ante incompatibilidad que requiera cambiar alcance/restricciones, detener y solicitar decisión, sin eliminar indicadores/tablas/gráficos útiles ni instalar dependencias unilateralmente.
+
+Conservar500 filas inclusive por listado (lectura interna1/501), HTML2MiB antes de render y PDF8MiB antes de entrega; límites de bytes incluyen **estadísticas/barras/tablas**. Exceso422 `details.exportacion`, sin documento parcial/topN/degradación silenciosa a solo detalle o tabla. Cantidades cuenta cualquier número de citas sin materializar detalle. Alcance compatible por diseño con rechazo por exceso: no promete que todo conjunto≤500 quepa bajo límites de bytes. Médicos de un listado exportable≤500; fechas≤366 generan a lo sumo31 días o13 meses. Sin ampliar límites por gráficos.
+
+Nueva lectura PDF respecto de pantalla, aviso de diferencias y generación conservados. Documento íntegro desde mismo sobre SQL; no consultar durante render. `autorizarEntrega()` después de Dompdf/antes de bytes, throttle6/min, errores privados/no-store y seguridad de recursos vigentes. Sin persistir informes ni tocar recibos.
+
+## 14. Ejemplos JSON exclusivamente ilustrativos
+
+**No son respuestas capturadas, fixtures ejecutadas ni evidencia de pruebas.** Bloques completos `meta.estadisticas`; resto de respuesta según §§5–6. Filtros/períodos mencionados son contexto explicativo externo.
+
+### 14.1. Cantidades: una cita por cada estado final
+
+`data` existente sería `{ "atendidas": 1, "canceladas": 1, "inasistencias": 1, "total": 3 }`. Programada/Confirmada fuera del denominador.
+
+```json
+{
+  "version": 1, "unidad": "citas", "estados_incluidos": ["Atendida", "Cancelada", "Inasistencia"],
+  "resumen": {"cantidad_total": 3, "duracion_total_minutos": null},
+  "series": [{
+    "id": "por_estado", "dimension": "estado", "agrupacion": null,
+    "porcentajes": {"denominador": 3, "decimales": 1, "redondeo": "HALF_UP"},
+    "grafico": {"tipo": "barras_horizontales", "visible": true, "motivo_omision": null, "maximo": 1},
+    "categorias": [
+      {"id": "estado:Atendida", "etiqueta": "Atendida", "cantidad": 1, "duracion_minutos": null, "porcentaje": "33.3", "estado": "Atendida"},
+      {"id": "estado:Cancelada", "etiqueta": "Cancelada", "cantidad": 1, "duracion_minutos": null, "porcentaje": "33.3", "estado": "Cancelada"},
+      {"id": "estado:Inasistencia", "etiqueta": "Inasistencia", "cantidad": 1, "duracion_minutos": null, "porcentaje": "33.3", "estado": "Inasistencia"}
+    ]
+  }]
+}
+```
+
+### 14.2. Agenda o por Médico con Confirmada aplicada
+
+Una cita de40 minutos; agenda podría incluir cruce del día anterior: suma40, no minutos recortados. Misma forma para ambos recursos. Página fuera de rango (`data: []`, `meta.total: 1`) conserva este bloque.
+
+```json
+{
+  "version": 1, "unidad": "citas", "estados_incluidos": ["Confirmada"],
+  "resumen": {"cantidad_total": 1, "duracion_total_minutos": 40},
+  "series": [{
+    "id": "por_estado", "dimension": "estado", "agrupacion": null, "porcentajes": null,
+    "grafico": {"tipo": "barras_horizontales", "visible": false, "motivo_omision": "unica_categoria_con_datos", "maximo": 1},
+    "categorias": [
+      {"id": "estado:Programada", "etiqueta": "Programada", "cantidad": 0, "duracion_minutos": 0, "porcentaje": null, "estado": "Programada"},
+      {"id": "estado:Confirmada", "etiqueta": "Confirmada", "cantidad": 1, "duracion_minutos": 40, "porcentaje": null, "estado": "Confirmada"},
+      {"id": "estado:Atendida", "etiqueta": "Atendida", "cantidad": 0, "duracion_minutos": 0, "porcentaje": null, "estado": "Atendida"},
+      {"id": "estado:Cancelada", "etiqueta": "Cancelada", "cantidad": 0, "duracion_minutos": 0, "porcentaje": null, "estado": "Cancelada"},
+      {"id": "estado:Inasistencia", "etiqueta": "Inasistencia", "cantidad": 0, "duracion_minutos": 0, "porcentaje": null, "estado": "Inasistencia"}
+    ]
+  }]
+}
+```
+
+### 14.3. Programadas por identidad de Médico
+
+Dos homónimos ficticios con cantidades empatadas, desempate ID numérico2 antes de10. Por especialidad usa la misma forma con estados efectivos correspondientes y pertenencia por especialidad de Cita.
+
+```json
+{
+  "version": 1, "unidad": "citas", "estados_incluidos": ["Programada"],
+  "resumen": {"cantidad_total": 2, "duracion_total_minutos": null},
+  "series": [{
+    "id": "por_medico", "dimension": "medico", "agrupacion": null, "porcentajes": null,
+    "grafico": {"tipo": "barras_horizontales", "visible": true, "motivo_omision": null, "maximo": 1},
+    "categorias": [
+      {"id": "medico:2", "etiqueta": "Prueba, Ana — MED-002", "cantidad": 1, "duracion_minutos": null, "porcentaje": null, "medico": {"id_medico": "2", "codigo_medico": "MED-002", "nombres": "Ana", "apellidos": "Prueba"}},
+      {"id": "medico:10", "etiqueta": "Prueba, Ana — MED-010", "cantidad": 1, "duracion_minutos": null, "porcentaje": null, "medico": {"id_medico": "10", "codigo_medico": "MED-010", "nombres": "Ana", "apellidos": "Prueba"}}
+    ]
+  }]
+}
+```
+
+### 14.4. Fichas:32 días, meses parciales y un intervalo vacío
+
+2026-01-20 a2026-02-20; dos fichas activas actuales, ninguna inactiva. Ambos gráficos omitidos porque cada serie tiene solo una categoría positiva, manteniendo tablas completas.
+
+```json
+{
+  "version": 1, "unidad": "fichas", "estados_incluidos": [],
+  "resumen": {"cantidad_total": 2, "duracion_total_minutos": null},
+  "series": [
+    {
+      "id": "por_actividad", "dimension": "actividad", "agrupacion": null, "porcentajes": null,
+      "grafico": {"tipo": "barras_horizontales", "visible": false, "motivo_omision": "unica_categoria_con_datos", "maximo": 2},
+      "categorias": [
+        {"id": "actividad:activo", "etiqueta": "Activos", "cantidad": 2, "duracion_minutos": null, "porcentaje": null, "activo": true},
+        {"id": "actividad:inactivo", "etiqueta": "Inactivos", "cantidad": 0, "duracion_minutos": null, "porcentaje": null, "activo": false}
+      ]
+    },
+    {
+      "id": "por_periodo", "dimension": "periodo", "agrupacion": "mensual", "porcentajes": null,
+      "grafico": {"tipo": "barras_horizontales", "visible": false, "motivo_omision": "unica_categoria_con_datos", "maximo": 2},
+      "categorias": [
+        {"id": "mes:2026-01", "etiqueta": "2026-01 (parcial)", "cantidad": 2, "duracion_minutos": null, "porcentaje": null, "intervalo": {"desde": "2026-01-20", "hasta": "2026-01-31", "inicio_at": "2026-01-20T04:00:00.000000Z", "fin_exclusivo_at": "2026-02-01T04:00:00.000000Z", "parcial": true}},
+        {"id": "mes:2026-02", "etiqueta": "2026-02 (parcial)", "cantidad": 0, "duracion_minutos": null, "porcentaje": null, "intervalo": {"desde": "2026-02-01", "hasta": "2026-02-20", "inicio_at": "2026-02-01T04:00:00.000000Z", "fin_exclusivo_at": "2026-02-21T04:00:00.000000Z", "parcial": true}}
+      ]
+    }
+  ]
+}
+```
+
+### 14.5. Por estado: una fecha sin resultados
+
+Cancelada para2026-11-07, intervalo diario presente aunque vacío. Cantidades vacío conserva tres categorías de14.1 con cantidad0/porcentaje null, denominador0 y gráfico false/`sin_datos`/máximo0. Médicos vacío conserva serie con `categorias: []`.
+
+```json
+{
+  "version": 1, "unidad": "citas", "estados_incluidos": ["Cancelada"],
+  "resumen": {"cantidad_total": 0, "duracion_total_minutos": null},
+  "series": [{
+    "id": "por_periodo", "dimension": "periodo", "agrupacion": "diaria", "porcentajes": null,
+    "grafico": {"tipo": "barras_horizontales", "visible": false, "motivo_omision": "sin_datos", "maximo": 0},
+    "categorias": [
+      {"id": "dia:2026-11-07", "etiqueta": "2026-11-07", "cantidad": 0, "duracion_minutos": null, "porcentaje": null, "intervalo": {"desde": "2026-11-07", "hasta": "2026-11-07", "inicio_at": "2026-11-07T04:00:00.000000Z", "fin_exclusivo_at": "2026-11-08T04:00:00.000000Z", "parcial": false}}
+    ]
+  }]
+}
+```
+
+## 15. Aceptación y estado EST-1
+
+[Matriz estadística EST-2–EST-5](cu29-aceptacion-estadisticas.md): EST-A01–EST-A16, fases y evidencia esperada. No reutiliza aceptación PDF histórica como prueba de estadísticas. EST-1 contrasta estáticamente fuentes/código/contratos/coherencia documental; no ejecuta Laravel, React, Dompdf ni PostgreSQL. No se detecta incompatibilidad esencial pendiente con indicadores/límites aprobados; comportamiento/compatibilidad visual pendientes de fases ejecutables, no verificados. Cierre real/verificaciones estáticas en `estado-fase.md`.

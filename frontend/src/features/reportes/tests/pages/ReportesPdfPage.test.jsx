@@ -76,6 +76,9 @@ it.each(['programadas', 'por-medico', 'por-especialidad', 'por-estado', 'pacient
   total = tipo === 'cantidades' ? 504 : 21;
   mount(); expect(screen.queryByRole('button', { name: 'Descargar PDF' })).toBeNull();
   await preparar(tipo, !['programadas', 'agenda-diaria'].includes(tipo));
+  expect(screen.getByText('El PDF incluye el resumen, las tablas estadísticas completas y los gráficos útiles del conjunto filtrado.')).toBeInTheDocument();
+  expect(screen.getByText(/El PDF procede de una nueva lectura del servidor y puede diferir/)).toBeInTheDocument();
+  expect(screen.queryByText(/El PDF todavía no incluye/)).toBeNull();
   if (tipo !== 'cantidades') {
     await userEvent.click(within(screen.getByRole('region', { name: 'Resultados del reporte' })).getByRole('button', { name: 'Siguiente' }));
     await screen.findByRole('button', { name: 'Descargar PDF' });
@@ -100,7 +103,7 @@ it.each([403, 419, 422, 429, 500])('error PDF Blob %s preserva la consulta, info
   mount(); await preparar(); failure = status;
   await userEvent.click(screen.getByRole('button', { name: 'Descargar PDF' }));
   const alert = await screen.findByRole('alert');
-  expect(screen.getByRole('table')).toBeInTheDocument(); expect(URL.createObjectURL).not.toHaveBeenCalled();
+  expect(screen.getByRole('table', { name: name => !name.startsWith('Cantidades por') })).toBeInTheDocument(); expect(URL.createObjectURL).not.toHaveBeenCalled();
   expect(document.body).not.toHaveTextContent('SQL PRIVADO'); expect(pdfCalls()).toHaveLength(1);
   if (status === 422) expect(alert).toHaveTextContent('No se generó un PDF parcial');
   if (status === 429) expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeDisabled();

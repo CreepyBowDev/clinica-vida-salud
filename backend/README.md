@@ -1,5 +1,27 @@
 # Backend — Clínica Vida Salud
 
+## CU-29 — EST-5 aceptada localmente (2026-11-07)
+
+Sin cambios funcionales nuevos. Autorización SQL específica,esquema propio nuevo/propietario verificado; siete recorridos/vacíos reales React→Axios→Laravel HTTP→PostgreSQL→Dompdf→Chrome,26 PDFs descargados/qpdf/WinRT/texto/muestras. Regresión dirigida75 PHP/4517 aserciones correcta;500/501 en seis listados,cantidades504,sesiones/permisos/no-store/429 y autorización final original tras render real/revocación SQL coordinada. Positivos sin mocks; hooks/dobles,fallos CDP y sincronización externa separados en [matriz EST](../docs/ai/cu29-aceptacion-estadisticas.md).13 grupos Chrome cubiertos entre ejecuciones con fallos/revalidaciones del arnés, no pase único verde.
+
+Esquema`prueba_est5_20261107_887a53b2d885` conservado identificado,namespaces ajenos intactos y servidores propios detenidos; sin nuevos endpoints/migraciones/dependencias/Pagos. [Relevo/comandos/evidencias/límites](../docs/ai/estado-fase.md). No carrera de snapshot,carga productiva ni accesibilidad certificada; umbrales exactos de bytes conservan evidencia sintética EST-4,no generación masiva nueva. Plan PDF anterior cerrado en Fase3. Apartados inferiores históricos.
+
+## CU-29 — EST-4 estadístico PDF implementado (2026-11-07)
+
+`ReportePdf` representa resumen, barras útiles y tablas completas de `contexto.estadisticas` antes del detalle de los siete reportes. Reutiliza el resultado interno sin consultas ni agregados desde filas; porcentajes/intervalos/minutos/utilidad del servidor. HTML estático escapado/Dompdf local, A4 horizontal, encabezados repetidos y pie;500 filas/HTML2MiB/PDF8MiB y autorización final intactos. Sin dependencias, migraciones, endpoints o cambios Pagos/recibos.
+
+Por decisión expresa, **sin SQL**: batería dirigida69 PHP/715 aserciones correctos inicialmente; defecto de encabezado huérfano hallado visualmente y corregido, solo17 casos de render revalidados/446 aserciones correctos.19 PDFs reales de documentos **sintéticos**, qpdf/WinRT/texto y muestras visuales; límites exactos de bytes y exportación/autorización con dobles identificados. No prueba HTTP/PostgreSQL/sesiones reales ni aceptación integrada. [Relevo, comandos, evidencias y pendientes](../docs/ai/estado-fase.md), [matriz EST](../docs/ai/cu29-aceptacion-estadisticas.md). EST-5 no autorizada/iniciada. Apartados inferiores históricos.
+
+## CU-29 — EST-2 estadístico Laravel (2026-11-07)
+
+Implementado `meta.estadisticas` v1 en los siete GET administrativos existentes según [contrato EST-1 §§11–15](../docs/ai/cu29-contratos-api.md#11-est-1--contrato-estadístico-previsto-2026-11-07), sin cambiar data/filtros/paginación/permisos. Página, total y grupos del conjunto completo comparten sentencia SQL/snapshot, incluso fuera de rango. Laravel completa ceros/intervalos diarios o mensuales y calcula porcentajes HALF_UP con enteros/string; duración histórica completa solo Médico/agenda. Agenda comparte núcleo/builder y ofrece entrada interna exclusiva Administrador, sin estadísticas operativas ni cambios de historial/finanzas. Exportador compatible/sin representación estadística PDF todavía; React intacto.
+
+Batería dirigida282 casos:279 correctos/3 fallos de expectativas SQL/JSON; corregidos y revalidados únicamente3/205 aserciones. Entorno local autorizado, esquemas nuevos transaccionales con identidad/propiedad/search_path comprobados y rollback propio; no Pagos/recibos. Sin carrera multiproceso, navegador, build o representación estadística PDF. [Relevo, comandos, evidencias y límites](../docs/ai/estado-fase.md). EST-3–EST-5 no iniciadas; siguiente sesión solo EST-3 con autorización. Nota EST-1 siguiente histórica:
+
+## CU-29 — EST-1 estadístico, solo diseño (2026-11-07)
+
+Contrato aditivo previsto de siete reportes: `meta.estadisticas`, agregados del conjunto completo/filtros aplicados y misma sentencia de datos para filas/total/grupos. Laravel calculará indicadores/porcentajes; PDF consumirá mismo resultado, límites500 filas/HTML2MiB/PDF8MiB y autorización final intactos. [Contrato/mapa de responsabilidades](../docs/ai/cu29-contratos-api.md#11-est-1--contrato-estadístico-previsto-2026-11-07), [matriz EST-2–EST-5](../docs/ai/cu29-aceptacion-estadisticas.md). **EST-1 documental, sin implementación ni pruebas funcionales**; PDF Fases1–3 inferiores conservadas y cerradas, no Fase4. [Relevo](../docs/ai/estado-fase.md); EST-2 no iniciada.
+
 ## CU-29 — aceptación integrada PDF Fase 3 (2026-11-07)
 
 F3 aceptada localmente: siete recorridos React/Axios→Laravel HTTP→PostgreSQL exclusivo→descarga Chrome→lectura Windows.Data.Pdf, siete vacíos, filtros/totales/orden,500 inclusive/501 sin parcial, agregado504,21 rechazos403 y sesión revocada401.429/Retry-After/espera real revalidados con FileStore efectivo desde bootstrap. qpdf valida21 descargados;19 útiles para aceptación y dos escenarios fallidos del arnés preservados sin acreditarlos. No cambios PHP/contratos/dependencias/migraciones versionadas ni nueva suite PHPUnit; usuario autorizó ejecutar migraciones existentes solo en esquema de pruebas propio, excluidos Pagos/recibos. [Aislamiento, matriz, comandos, incidencias y límites](../docs/ai/cu29-aceptacion-pdf.md). No producción ni garantía de rendimiento; entrada F1 inferior histórica.

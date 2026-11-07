@@ -36,34 +36,45 @@ class AgendaService
 
     public function consultar(array $filtros): array
     {
-        return DB::transaction(function () use ($filtros): array {
-            $actor = $this->actor(['Administrador', 'Recepcionista', 'Médico']);
-            if ($actor->rol->nombre === 'Médico') {
-                if (array_key_exists('id_medico', $filtros)) {
-                    throw ValidationException::withMessages(['id_medico' => ['El médico se determina desde tu sesión.']]);
-                }
-                $propio = $actor->medico;
-                if (! $propio || (string) $propio->id_usuario !== (string) $actor->getKey() || $actor->paciente !== null) {
-                    throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
-                }
-                $id = (string) $propio->getKey();
-            } else {
-                $id = (string) ($filtros['id_medico'] ?? '');
-                if ($id === '') {
-                    throw ValidationException::withMessages(['id_medico' => ['Selecciona un médico.']]);
-                }
-            }
-            $medico = $this->agenda->medico($id)
-                ?? throw new AppError('RECURSO_NO_ENCONTRADO', 'No se encontró el recurso solicitado.');
-            $ahora = CarbonImmutable::now('UTC');
-            $fecha = $filtros['fecha'] ?? $ahora->setTimezone('America/La_Paz')->format('Y-m-d');
-            $inicio = CarbonImmutable::createFromFormat('!Y-m-d', $fecha, 'America/La_Paz');
+        return DB::transaction(fn () => $this->consultarNucleo($filtros, false));
+    }
 
-            return ['pagina' => $this->agenda->citas($id, $inicio, $inicio->addDay(), $filtros),
-                'contexto' => ['zona_horaria' => 'America/La_Paz', 'consultado_en' => $ahora->format('Y-m-d\TH:i:s.u\Z'),
-                    'filtros' => ['id_medico' => $id, 'fecha' => $fecha, 'estado' => $filtros['estado'] ?? null],
-                    'medico' => ['id_medico' => (string) $medico['id_medico'], 'codigo_medico' => $medico['codigo_medico'],
-                        'nombres' => $medico['nombres'], 'apellidos' => $medico['apellidos']]]];
-        });
+    public function consultarParaReporte(array $filtros): array
+    {
+        return DB::transaction(fn () => $this->consultarNucleo($filtros, true));
+    }
+
+    private function consultarNucleo(array $filtros, bool $estadisticas): array
+    {
+        $actor = $this->actor($estadisticas ? ['Administrador'] : ['Administrador', 'Recepcionista', 'Médico']);
+        if ($actor->rol->nombre === 'Médico') {
+            if (array_key_exists('id_medico', $filtros)) {
+                throw ValidationException::withMessages(['id_medico' => ['El médico se determina desde tu sesión.']]);
+            }
+            $propio = $actor->medico;
+            if (! $propio || (string) $propio->id_usuario !== (string) $actor->getKey() || $actor->paciente !== null) {
+                throw new AppError('ACCESO_DENEGADO', 'No tienes permiso para realizar esta operación.');
+            }
+            $id = (string) $propio->getKey();
+        } else {
+            $id = (string) ($filtros['id_medico'] ?? '');
+            if ($id === '') {
+                throw ValidationException::withMessages(['id_medico' => ['Selecciona un médico.']]);
+            }
+        }
+        $medico = $this->agenda->medico($id)
+            ?? throw new AppError('RECURSO_NO_ENCONTRADO', 'No se encontró el recurso solicitado.');
+        $ahora = CarbonImmutable::now('UTC');
+        $fecha = $filtros['fecha'] ?? $ahora->setTimezone('America/La_Paz')->format('Y-m-d');
+        $inicio = CarbonImmutable::createFromFormat('!Y-m-d', $fecha, 'America/La_Paz');
+
+        $resultado = $estadisticas ? $this->agenda->citasConEstadisticas($id, $inicio, $inicio->addDay(), $filtros)
+            : ['pagina' => $this->agenda->citas($id, $inicio, $inicio->addDay(), $filtros)];
+
+        return [...$resultado,
+            'contexto' => ['zona_horaria' => 'America/La_Paz', 'consultado_en' => $ahora->format('Y-m-d\TH:i:s.u\Z'),
+                'filtros' => ['id_medico' => $id, 'fecha' => $fecha, 'estado' => $filtros['estado'] ?? null],
+                'medico' => ['id_medico' => (string) $medico['id_medico'], 'codigo_medico' => $medico['codigo_medico'],
+                    'nombres' => $medico['nombres'], 'apellidos' => $medico['apellidos']]]];
     }
 }

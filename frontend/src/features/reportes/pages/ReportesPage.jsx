@@ -17,6 +17,7 @@ import CitasReporteTable from '../components/CitasReporteTable';
 import PacientesRegistradosTable from '../components/PacientesRegistradosTable';
 import CantidadesReporte from '../components/CantidadesReporte';
 import DescargarReportePdf from '../components/DescargarReportePdf';
+import EstadisticasReporte from '../components/EstadisticasReporte';
 import '../../agenda/styles/agenda.css';
 import '../../../styles/administrative-query.css';
 import '../styles/reportes.css';
@@ -134,11 +135,12 @@ function ConsultaReporte({ tipo, onTipo, focusType }) {
           ? `Actividad: ${filters.activo === undefined ? 'Todas las fichas' : filters.activo === '1' ? 'Activos' : 'Inactivos'}.`
           : `Médico: ${labels.medico}.${agenda ? '' : ` Especialidad: ${labels.especialidad}.`} ${cantidades ? 'Estados: Atendida, Cancelada e Inasistencia.' : `Estado: ${programadas ? 'Programada' : (filters.estado || 'Todos')}.`}`}</p>
         <ActionGroup><Button variant="secondary" disabled={query.loading || query.remaining > 0} onClick={() => { query.reload(); results.current?.focus(); }}>Actualizar reporte</Button></ActionGroup>
-        {query.data && <DescargarReportePdf tipo={tipo} filtros={filters} />}
+        {query.data && <><DescargarReportePdf tipo={tipo} filtros={filters} /><p>El PDF incluye el resumen, las tablas estadísticas completas y los gráficos útiles del conjunto filtrado.</p></>}
         {query.data && <p className="query-server-summary" role="status">{!cantidades && <>Total del servidor: {query.data.meta.total} {pacientes ? 'pacientes registrados' : programadas ? 'citas Programadas' : 'citas'}. </>}Consulta: {formatearInstanteCita(query.data.meta.consultado_en)}.</p>}
-        {cantidades ? <CantidadesReporte query={query} /> : <CatalogResults query={query} label={pacientes ? 'pacientes' : 'citas'} loadingLabel="Consultando reporte…" emptyTitle={pacientes
+        {query.data && <EstadisticasReporte meta={query.data.meta} />}
+        {cantidades ? <CantidadesReporte query={query} /> : <CatalogResults query={query} label={pacientes ? 'pacientes' : 'citas'} loadingLabel="Consultando reporte…" emptyTitle={query.data?.meta.total > 0 ? 'Esta página no contiene filas' : pacientes
           ? 'No hay pacientes registrados para estos filtros' : programadas ? 'No hay citas Programadas para estos filtros' : 'No hay citas para estos filtros'}
-          emptyHint={pacientes ? 'Prueba otro período o actividad.' : 'Prueba otra fecha, médico o especialidad.'} onPage={page => { setFilters(v => ({ ...v, page })); results.current?.focus(); }}>
+          emptyHint={query.data?.meta.total > 0 ? 'Las estadísticas corresponden al conjunto completo. Vuelve a una página anterior.' : pacientes ? 'Prueba otro período o actividad.' : 'Prueba otra fecha, médico o especialidad.'} onPage={page => { setFilters(v => ({ ...v, page })); results.current?.focus(); }}>
           {query.data && (pacientes ? <PacientesRegistradosTable pacientes={query.data.data} /> : <CitasReporteTable citas={query.data.data} caption={reporte.label} />)}
         </CatalogResults>}
       </>}

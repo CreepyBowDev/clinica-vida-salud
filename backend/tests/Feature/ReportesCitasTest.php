@@ -11,41 +11,22 @@ use Clinica\data\repositories\reportes\ReporteRepository;
 use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\errors\AppError;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Fixtures\AutenticacionFixtures;
 use Tests\Fixtures\CitasFixtures;
+use Tests\Fixtures\ReportesAisladosFixtures;
 use Tests\TestCase;
 
 class ReportesCitasTest extends TestCase
 {
-    use AutenticacionFixtures, CitasFixtures;
+    use AutenticacionFixtures, CitasFixtures, ReportesAisladosFixtures;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $identity = DB::selectOne('SELECT current_database() AS db, current_user AS usuario');
-        $this->assertSame('clinica_vida_salud_test', $identity->db);
-        $this->assertSame('clinica_vida_salud_test', $identity->usuario);
-        $namespaces = DB::table('pg_namespace')->orderBy('nspname')->pluck('nspname')->all();
-        DB::beginTransaction();
-        $this->beforeApplicationDestroyed(function () use ($namespaces): void {
-            Carbon::setTestNow();
-            CarbonImmutable::setTestNow();
-            while (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-            $this->assertSame($namespaces, DB::table('pg_namespace')->orderBy('nspname')->pluck('nspname')->all());
-        });
-        $schema = 'prueba_reporte_'.strtolower(Str::random(16));
-        DB::statement('CREATE SCHEMA "'.$schema.'"');
-        DB::select('SELECT set_config(?, ?, true)', ['search_path', $schema.', public, pg_temp']);
-        foreach (glob(base_path('src/data/database/migrations/*.php')) as $file) {
-            (require $file)->up();
-        }
-        DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$schema.'", public, pg_temp');
+        $this->aislarReportes();
         config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
         $this->app['env'] = 'local'; // CSRF activo, como el resto de pruebas SPA.
         Carbon::setTestNow('2026-11-02T02:00:00.123456Z');

@@ -10,6 +10,7 @@ use Clinica\data\models\Paciente;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use OverflowException;
 
 class ReporteRepository
 {
@@ -40,7 +41,7 @@ class ReporteRepository
             ['Atendida', 'Cancelada', 'Inasistencia'])->toBase()->first();
     }
 
-    public function pacientesRegistrados(CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): LengthAwarePaginator
+    public function pacientesRegistrados(CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): array
     {
         // Una fila por ficha: sin joins a cuentas, citas, códigos o contenido clínico.
         $query = Paciente::query()->select(['id_paciente', 'codigo_paciente', 'nombres', 'apellidos', 'activo', 'creado_en'])
@@ -55,10 +56,10 @@ class ReporteRepository
             default => 'creado_en ASC, id_paciente ASC',
         };
 
-        return $this->paginar($query->toBase(), $filtros, $orden, 'id_paciente');
+        return $this->paginar($query->toBase(), $filtros, $orden, 'pacientes/registrados', $inicio, $fin);
     }
 
-    public function citas(CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): LengthAwarePaginator
+    public function citas(CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros, string $reporte): array
     {
         // Proyección administrativa cerrada, compatible con CitaListadoResource; sin relaciones clínicas.
         $query = Cita::query()->join('medicos as m', 'm.id_medico', '=', 'citas.id_medico')
@@ -79,29 +80,54 @@ class ReporteRepository
         // Solo constantes internas llegan al ORDER BY; los valores de filtros son bindings.
         $orden = ($filtros['orden'] ?? 'fecha_asc') === 'fecha_desc' ? 'inicio_at DESC, id_cita DESC' : 'inicio_at ASC, id_cita ASC';
 
-        return $this->paginar($query->toBase(), $filtros, $orden, 'id_cita');
+        return $this->paginar($query->toBase(), $filtros, $orden, $reporte, $inicio, $fin);
     }
 
-    private function paginar(Builder $query, array $filtros, string $orden, string $clave): LengthAwarePaginator
+    private function paginar(Builder $query, array $filtros, string $orden, string $reporte, CarbonImmutable $inicio, CarbonImmutable $fin): array
     {
         $page = (int) ($filtros['page'] ?? 1);
         $size = (int) ($filtros['per_page'] ?? 20);
-        // Página y total en un snapshot, incluido cuando la página solicitada está vacía.
-        $rows = DB::select('WITH filtradas AS MATERIALIZED ('.$query->toSql().'),
+        $pacientes = $reporte === 'pacientes/registrados';
+        $temporal = $pacientes || $reporte === 'citas/por-estado';
+        $minutos = $reporte === 'citas/por-medico';
+        $diaria = $inicio->setTimezone('America/La_Paz')->diffInDays($fin->setTimezone('America/La_Paz')) <= 31;
+        // Solo expresiones cerradas; ninguna dimensión, orden o identificador procede de HTTP.
+        if ($temporal) {
+            $campo = $pacientes ? 'creado_en' : 'inicio_at';
+            $formato = $diaria ? 'YYYY-MM-DD' : 'YYYY-MM';
+            $grupos = "SELECT to_char($campo AT TIME ZONE 'America/La_Paz', '$formato') AS periodo,
+                COUNT(*)::text AS cantidad FROM filtradas GROUP BY 1 ORDER BY 1";
+        } elseif ($minutos) {
+            $grupos = 'SELECT estado, COUNT(*)::text AS cantidad, SUM(duracion_minutos)::text AS minutos FROM filtradas GROUP BY estado';
+        } else {
+            $grupos = 'SELECT id_medico::text AS id_medico, codigo_medico, medico_nombres, medico_apellidos,
+                COUNT(*)::text AS cantidad FROM filtradas
+                GROUP BY id_medico, codigo_medico, medico_nombres, medico_apellidos
+                ORDER BY COUNT(*) DESC, filtradas.id_medico ASC';
+        }
+        $ids = $pacientes ? "'id_paciente', pagina.id_paciente::text"
+            : "'id_cita', pagina.id_cita::text, 'id_medico', pagina.id_medico::text,
+                'id_paciente', pagina.id_paciente::text, 'id_especialidad', pagina.id_especialidad::text";
+        $actividad = $pacientes ? '(SELECT json_agg(a) FROM (SELECT activo, COUNT(*)::text AS cantidad FROM filtradas GROUP BY activo) a)'
+            : "'[]'::json";
+        $duracion = $minutos ? 'COALESCE(SUM(duracion_minutos), 0)::text' : 'NULL::text';
+        // Un sobre de una fila: misma sentencia/snapshot, incluso sin página o sin resultados.
+        // IDs y agregados como texto antes de JSON: nunca pasan por un float al decodificar.
+        $row = DB::selectOne('WITH filtradas AS MATERIALIZED ('.$query->toSql().'),
             pagina AS (SELECT * FROM filtradas ORDER BY '.$orden.' LIMIT ? OFFSET ?)
-            SELECT pagina.*, total.total_reporte FROM (SELECT COUNT(*) AS total_reporte FROM filtradas) total
-            LEFT JOIN pagina ON TRUE ORDER BY '.$orden,
+            SELECT COUNT(*)::text AS total_reporte, '.$duracion.' AS minutos,
+                COALESCE((SELECT jsonb_agg(to_jsonb(pagina) || jsonb_build_object('.$ids.') ORDER BY '.$orden.') FROM pagina), \'[]\'::jsonb) AS filas,
+                COALESCE((SELECT json_agg(g) FROM ('.$grupos.') g), \'[]\'::json) AS grupos,
+                COALESCE('.$actividad.', \'[]\'::json) AS actividad FROM filtradas',
             [...$query->getBindings(), $size, ($page - 1) * $size]);
-        $total = (int) $rows[0]->total_reporte;
-        $items = [];
-        foreach ($rows as $row) {
-            if ($row->{$clave} !== null) {
-                $item = (array) $row;
-                unset($item['total_reporte']);
-                $items[] = $item;
-            }
+        $total = $row->total_reporte;
+        if (! ctype_digit($total) || strlen($total) > 16 || (strlen($total) === 16 && strcmp($total, '9007199254740991') > 0)) {
+            throw new OverflowException('Total estadístico no representable.');
         }
 
-        return new LengthAwarePaginator($items, $total, $size, $page);
+        return ['pagina' => new LengthAwarePaginator(json_decode($row->filas, true, 512, JSON_THROW_ON_ERROR), (int) $total, $size, $page),
+            'agregados' => ['total' => $total, 'minutos' => $row->minutos,
+                'grupos' => json_decode($row->grupos, true, 512, JSON_THROW_ON_ERROR),
+                'actividad' => json_decode($row->actividad, true, 512, JSON_THROW_ON_ERROR)]];
     }
 }

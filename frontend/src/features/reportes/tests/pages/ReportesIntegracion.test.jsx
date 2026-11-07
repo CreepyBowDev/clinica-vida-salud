@@ -79,9 +79,10 @@ it('recorre los siete tipos con Auth/Router/servicios/Axios reales, mantiene foc
     if (tipo === 'cantidades') {
       const region = await screen.findByRole('region', { name: 'Cantidades del período' }); expect(region).toHaveAttribute('aria-live', 'polite');
     } else {
-      const table = await screen.findByRole('table'); expect(table).toHaveTextContent('31/10/2026, 22:30');
+      const table = await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') }); expect(table).toHaveTextContent('31/10/2026, 22:30');
     }
     expect(screen.getByRole('region', { name: 'Resultados del reporte' })).toHaveFocus(); expect(router.state.location.pathname).toBe('/reportes');
+    expect(screen.getByRole('region', { name: 'Resumen estadístico' })).toHaveTextContent('Cantidad total');
   }
   expect(reportCalls().map(c => c.url)).toEqual(['/reportes/citas/programadas', '/reportes/citas/por-medico', '/reportes/citas/por-especialidad',
     '/reportes/citas/por-estado', '/reportes/pacientes/registrados', '/reportes/citas/cantidades', '/reportes/agenda-diaria']);
@@ -123,7 +124,7 @@ it('teclado conserva el foco del selector al cambiar tipo y enfoca validación y
   const submit = screen.getByRole('button', { name: 'Consultar reporte' }); submit.focus(); await userEvent.keyboard('{Enter}');
   expect(await screen.findByRole('alert')).toHaveFocus(); expect(reportCalls()).toHaveLength(0);
   await userEvent.click(screen.getByRole('button', { name: 'Seleccionar Médica De prueba' }));
-  submit.focus(); await userEvent.keyboard('{Enter}'); await screen.findByRole('table');
+  submit.focus(); await userEvent.keyboard('{Enter}'); await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   expect(screen.getByRole('region', { name: 'Resultados del reporte' })).toHaveFocus();
   await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' })); await waitFor(() => expect(reportCalls()).toHaveLength(2));
   expect(screen.getByRole('region', { name: 'Resultados del reporte' })).toHaveFocus();

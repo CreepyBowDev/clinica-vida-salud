@@ -83,18 +83,18 @@ it('agenda exige médico/fecha, sin especialidad/rango/orden elegible y sin acci
   expect(screen.queryByText('Especialidad: Todos', { selector: 'summary' })).not.toBeInTheDocument();
   expect(screen.getByText(/Agenda por intersección/)).toBeInTheDocument(); expect(screen.getByText(/Orden fijo/)).toBeInTheDocument();
   await seleccionarMedico(); await userEvent.selectOptions(screen.getByLabelText('Estado'), 'Confirmada');
-  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); const table = await screen.findByRole('table');
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); const table = await screen.findByRole('table', { name: 'Agenda diaria por Médico' });
   expect(table).toHaveTextContent('Confirmada'); expect(requests('agenda-diaria')[0].params).toEqual({ fecha: '2026-10-31', id_medico: medico.id_medico, estado: 'Confirmada', page: 1, per_page: 20 });
   expect(within(table).queryByRole('button')).not.toBeInTheDocument(); expect(within(table).queryByRole('link')).not.toBeInTheDocument();
 });
 it('agenda presenta intersección que inicia el día anterior, conservando fechas de sede, ubicación y duración', async () => {
-  crossing = true; mount(); await preparar('agenda-diaria'); await consultar(); const table = await screen.findByRole('table');
+  crossing = true; mount(); await preparar('agenda-diaria'); await consultar(); const table = await screen.findByRole('table', { name: 'Agenda diaria por Médico' });
   expect(table).toHaveTextContent('30/10/2026, 23:45'); expect(table).toHaveTextContent('31/10/2026, 00:15');
   expect(table).toHaveTextContent('30 min'); expect(table).toHaveTextContent('Consultorio histórico conservado'); expect(table).toHaveTextContent('Sede ficticia');
   expect(requests('cantidades')).toHaveLength(0);
 });
 it('agenda pagina con médico/fecha/estado y total real, reinicia página al aplicar filtro y muestra vacío', async () => {
-  total = 21; mount(); await preparar('agenda-diaria'); await consultar(); await screen.findByRole('table');
+  total = 21; mount(); await preparar('agenda-diaria'); await consultar(); await screen.findByRole('table', { name: 'Agenda diaria por Médico' });
   await userEvent.click(within(region()).getByRole('button', { name: 'Siguiente' })); await screen.findByText('CITA-21');
   expect(requests('agenda-diaria').at(-1).params).toEqual({ fecha: '2026-10-31', id_medico: medico.id_medico, page: 2, per_page: 20 });
   expect(screen.getByRole('status')).toHaveTextContent('Total del servidor: 21');
@@ -104,14 +104,14 @@ it('agenda pagina con médico/fecha/estado y total real, reinicia página al apl
 });
 it.each(['cantidades', 'agenda-diaria'])('%s retira datos durante carga/error y permite reconsulta sin filtrar detalles técnicos', async tipo => {
   mount(); await preparar(tipo); await consultar();
-  if (tipo === 'cantidades') await screen.findByRole('region', { name: 'Cantidades del período' }); else await screen.findByRole('table');
+  if (tipo === 'cantidades') await screen.findByRole('region', { name: 'Cantidades del período' }); else await screen.findByRole('table', { name: 'Agenda diaria por Médico' });
   deferred = true; await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' }));
   expect(region()).toHaveAttribute('aria-busy', 'true'); expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(screen.queryByRole('region', { name: 'Cantidades del período' })).not.toBeInTheDocument();
   await act(async () => resolvePending()); deferred = false; failure = 500;
   await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' })); await screen.findByRole('alert');
   expect(document.body).not.toHaveTextContent(/SQL PRIVADO|SECRETO/); failure = null;
   await userEvent.click(screen.getByRole('button', { name: 'Volver a consultar' }));
-  if (tipo === 'cantidades') await screen.findByRole('region', { name: 'Cantidades del período' }); else await screen.findByRole('table');
+  if (tipo === 'cantidades') await screen.findByRole('region', { name: 'Cantidades del período' }); else await screen.findByRole('table', { name: 'Agenda diaria por Médico' });
 });
 it.each(['cantidades', 'agenda-diaria'])('%s respeta espera 429 y no reenvía al pulsar consultar', async tipo => {
   mount(); await preparar(tipo); failure = 429; await consultar(); await screen.findByRole('alert');
@@ -134,5 +134,5 @@ it('cambiar entre agregado y agenda limpia filtros incompatibles y no atribuye r
   expect(screen.getByLabelText('Fecha')).toHaveValue(''); await seleccionarMedico(); deferred = true; await consultar(); const old = resolvePending;
   deferred = false; fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-11-02' } }); total = 0;
   await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByText('No hay citas para estos filtros');
-  await act(async () => old()); expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(region()).toHaveTextContent('Fecha consultada: 02/11/2026');
+  await act(async () => old()); expect(screen.queryByRole('table', { name: 'Agenda diaria por Médico' })).not.toBeInTheDocument(); expect(region()).toHaveTextContent('Fecha consultada: 02/11/2026');
 });

@@ -30,6 +30,19 @@ class ReportePdf
         if (strlen($html) > self::MAX_HTML_BYTES) {
             $this->exceso();
         }
+        $bytes = $this->renderizar($html);
+        if (strlen($bytes) > self::MAX_PDF_BYTES) {
+            $this->exceso();
+        }
+        if (! str_starts_with($bytes, '%PDF-') || ! str_ends_with(rtrim($bytes), '%%EOF')) {
+            throw new RuntimeException('El renderer no produjo un PDF.');
+        }
+
+        return $bytes;
+    }
+
+    protected function renderizar(string $html): string
+    {
         $options = new Options;
         $options->setIsRemoteEnabled(false);
         $options->setIsPhpEnabled(false);
@@ -44,15 +57,8 @@ class ReportePdf
         $pdf->render();
         $pdf->getCanvas()->page_text(36, 568, 'Página {PAGE_NUM} de {PAGE_COUNT}',
             $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8);
-        $bytes = $pdf->output();
-        if (strlen($bytes) > self::MAX_PDF_BYTES) {
-            $this->exceso();
-        }
-        if (! str_starts_with($bytes, '%PDF-') || ! str_ends_with(rtrim($bytes), '%%EOF')) {
-            throw new RuntimeException('El renderer no produjo un PDF.');
-        }
 
-        return $bytes;
+        return $pdf->output();
     }
 
     private function exceso(): never
@@ -70,6 +76,98 @@ class ReportePdf
         return CarbonImmutable::parse($valor)->setTimezone('America/La_Paz')->format('d/m/Y H:i');
     }
 
+    private function estadisticas(array $contexto): string
+    {
+        if (! isset($contexto['estadisticas'])) {
+            throw new RuntimeException('Faltan las estadísticas del resultado interno.');
+        }
+        // Representación del mismo sobre del Service: sin consultas ni agregados desde detalle.
+        $e = $contexto['estadisticas'];
+        $unidad = $this->escapar($e['unidad']);
+        $minutos = in_array($contexto['reporte'], ['citas/por-medico', 'agenda-diaria'], true);
+        $html = '<h2>Resumen estadístico</h2><p>Conjunto completo con los filtros aplicados.</p>'
+            .'<p>Cantidad total ('.$unidad.'): <strong>'.$this->escapar($e['resumen']['cantidad_total']).'</strong></p>';
+        if ($minutos) {
+            $html .= '<p>Duración histórica completa (minutos): <strong>'.$this->escapar($e['resumen']['duracion_total_minutos']).'</strong></p>'
+                .'<p>Duración histórica completa de las citas incluidas; no representa tiempo trabajado, ocupación ni tiempo atendido.</p>';
+        }
+        if ($contexto['reporte'] === 'agenda-diaria') {
+            $html .= '<p>Las citas que cruzan medianoche pueden aparecer en dos días con su duración completa, sin recorte. No sumar agendas como cantidades o minutos únicos.</p>';
+        }
+        if ($e['unidad'] === 'fichas') {
+            $html .= '<p>Actividad actual de las fichas; períodos por creación de ficha, no alta de cuenta ni incorporación de CI. Cada serie representa el mismo conjunto: no sumar ambas series.</p>';
+        }
+        foreach ($e['series'] as $serie) {
+            $html .= $this->serie($serie, $unidad, $minutos);
+        }
+
+        return $html;
+    }
+
+    private function serie(array $serie, string $unidad, bool $minutos): string
+    {
+        $dimension = ['medico' => 'Médico', 'estado' => 'Estado', 'actividad' => 'Actividad actual', 'periodo' => 'Período'][$serie['dimension']];
+        $titulo = 'Cantidades por '.$dimension;
+        $periodo = $serie['dimension'] === 'periodo';
+        $porcentajes = $serie['porcentajes'] !== null;
+        $html = '<h3>'.$titulo.'</h3>';
+        if ($periodo) {
+            $html .= '<p>Agrupación '.$this->escapar($serie['agrupacion']).'. Intervalos de la sede, America/La_Paz; incluye períodos sin datos.</p>';
+        }
+        if ($serie['grafico']['visible']) {
+            $html .= '<table class="grafico"><thead><tr><th colspan="3">'.$titulo.' — escala común desde 0 hasta '
+                .$this->escapar($serie['grafico']['maximo']).' '.$unidad.'</th></tr>'
+                .'<tr><th style="width:300pt">'.$dimension.'</th><th style="width:240pt">Cantidad desde cero ('.$unidad.')</th><th>Valor ('.$unidad.')</th></tr></thead><tbody>';
+            foreach ($serie['categorias'] as $categoria) {
+                $html .= '<tr><td>'.$this->escapar($categoria['etiqueta']).'</td><td><div class="pista">';
+                if ($categoria['cantidad'] > 0) {
+                    // Solo geometría; máximo y utilidad ya determinados por Laravel.
+                    $ancho = 100 * $categoria['cantidad'] / $serie['grafico']['maximo'];
+                    $html .= '<table class="barra"><tr><td class="relleno" style="width:'.number_format($ancho, 4, '.', '').'%"></td>';
+                    if ($categoria['cantidad'] < $serie['grafico']['maximo']) {
+                        $html .= '<td style="width:'.number_format(100 - $ancho, 4, '.', '').'%"></td>';
+                    }
+                    $html .= '</tr></table>';
+                }
+                $html .= '</div></td><td>'.$this->escapar($categoria['cantidad']).'</td></tr>';
+            }
+            $html .= '</tbody></table>';
+        } else {
+            $html .= '<p>Gráfico omitido: '.match ($serie['grafico']['motivo_omision']) {
+                'sin_datos' => 'sin datos.',
+                'unica_categoria_con_datos' => 'una única categoría con datos.',
+                default => throw new RuntimeException('Motivo de omisión estadística no válido.'),
+            }.' Se conserva la tabla completa.</p>';
+        }
+        $columnas = 2 + (int) $periodo + (int) $minutos + (int) $porcentajes;
+        $html .= '<table class="estadistica"><thead><tr><th colspan="'.$columnas.'">'.$titulo.' — conjunto completo filtrado ('.$unidad.')</th></tr>'
+            .'<tr><th>'.$dimension.'</th>'.($periodo ? '<th>Intervalo incluido (fechas de la sede)</th>' : '')
+            .'<th>Cantidad ('.$unidad.')</th>'.($minutos ? '<th>Duración histórica completa (minutos)</th>' : '')
+            .($porcentajes ? '<th>Porcentaje (%)</th>' : '').'</tr></thead><tbody>';
+        foreach ($serie['categorias'] as $categoria) {
+            $html .= '<tr><td>'.$this->escapar($categoria['etiqueta']).'</td>';
+            if ($periodo) {
+                $intervalo = $categoria['intervalo'];
+                $html .= '<td>'.$this->escapar($intervalo['desde']).' al '.$this->escapar($intervalo['hasta']).($intervalo['parcial'] ? ' (mes parcial)' : '').'</td>';
+            }
+            $html .= '<td>'.$this->escapar($categoria['cantidad']).'</td>'
+                .($minutos ? '<td>'.$this->escapar($categoria['duracion_minutos']).'</td>' : '')
+                .($porcentajes ? '<td>'.($categoria['porcentaje'] === null ? 'No aplica' : $this->escapar(str_replace('.', ',', $categoria['porcentaje'])).' %').'</td>' : '').'</tr>';
+        }
+        if ($serie['categorias'] === []) {
+            $html .= '<tr><td colspan="'.$columnas.'">Sin categorías para los filtros aplicados.</td></tr>';
+        }
+        $html .= '</tbody></table>';
+        if ($porcentajes) {
+            $html .= '<p>Denominador: '.$this->escapar($serie['porcentajes']['denominador']).' citas en Atendida, Cancelada e Inasistencia.</p>';
+            if ($serie['porcentajes']['denominador'] > 0) {
+                $html .= '<p>Los porcentajes pueden sumar 99,9 % o 100,1 % por redondeo.</p>';
+            }
+        }
+
+        return $html;
+    }
+
     public function html(array $d): string
     {
         $c = $d['contexto'];
@@ -79,8 +177,12 @@ class ReportePdf
         $html = '<!doctype html><html lang="es"><head><meta charset="UTF-8"><style>'
             .'@page{margin:30pt 30pt 42pt}body{font-family:"DejaVu Sans",sans-serif;font-size:8pt;color:#18333b}'
             .'h1{font-size:16pt;margin:5pt 0}p{margin:5pt 0}table{border-collapse:collapse;width:100%;table-layout:fixed}'
-            .'thead{display:table-header-group}tr{page-break-inside:avoid}th,td{padding:5pt;border:1px solid #ccd7da;text-align:left;overflow-wrap:break-word}'
-            .'th{background:#edf3f4}small{font-size:7pt}</style></head><body>'
+            .'thead{display:table-header-group}thead tr{page-break-after:avoid}tr{page-break-inside:avoid}th,td{padding:5pt;border:1px solid #ccd7da;text-align:left;overflow-wrap:break-word}'
+            .'th{background:#edf3f4}small{font-size:7pt}h2{font-size:12pt;margin:12pt 0 5pt}h3{font-size:10pt;margin:10pt 0 5pt}'
+            .'h2,h3{page-break-after:avoid}table{margin-bottom:8pt}.pista{width:240pt;height:8pt;background:#edf3f4}'
+            .'table.barra{width:100%;margin:0;border:0;border-collapse:collapse;table-layout:fixed}'
+            .'.barra tr,.barra td{padding:0;border:0;height:8pt;line-height:0;font-size:0;background:transparent}.barra td.relleno{background:#246478}'
+            .'</style></head><body>'
             .'<p>Clínica Vida Salud — proyecto universitario, clínica ficticia</p><h1>'.$this->escapar(self::TITULOS[$tipo]).'</h1>'
             .'<p>Período: '.$this->escapar($c['periodo']['desde']).' a '.$this->escapar($c['periodo']['hasta']).' (inclusive)</p>'
             .'<p>Generado: '.$this->escapar($d['generado_en']).' — America/La_Paz</p>'
@@ -98,6 +200,7 @@ class ReportePdf
         if ($d['total'] === 0) {
             $html .= '<p>Sin resultados para los filtros aplicados.</p>';
         }
+        $html .= $this->estadisticas($c).'<h2>Detalle del reporte</h2>';
         $cabeceras = $cantidades ? ['Atendidas', 'Canceladas', 'Inasistencias', 'Total']
             : ($pacientes ? ['Código de Paciente', 'Paciente', 'Activo', 'Registro (hora local)']
                 : ['Cita', 'Inicio / fin (hora local)', 'Paciente', 'Médico', 'Especialidad', 'Estado / duración', 'Ubicación presencial']);

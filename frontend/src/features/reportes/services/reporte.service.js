@@ -2,6 +2,7 @@ import { api } from '../../../api/api';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { esInstanteCita, ESTADOS_CITA, ZONA_CLINICA } from '../../agenda/utils/agendaFormat';
 import { esPeriodoReporte } from '../utils/periodoReporte';
+import { validarEstadisticasReporte } from './estadisticasReporte';
 
 function exigir(condition) { if (!condition) throw new Error('No se pudo verificar el reporte.'); }
 function entero(value, max) {
@@ -51,6 +52,7 @@ async function consultarReporteCitas(recurso, filtros, signal) {
   exigir(data.every(row => (!params.id_medico || row.medico.id_medico === params.id_medico) && (!params.id_especialidad || row.especialidad.id_especialidad === params.id_especialidad)
     && (!estado || row.estado === estado)));
   return { data, meta: { current_page: meta.current_page, per_page: meta.per_page, last_page: meta.last_page, total: meta.total,
+    reporte: meta.reporte, periodo: meta.periodo, estadisticas: validarEstadisticasReporte(meta, value.data),
     consultado_en: meta.consultado_en, zona_horaria: ZONA_CLINICA, filtros: { fecha: context.fecha, desde: context.desde, hasta: context.hasta, estado: context.estado,
       orden: context.orden, id_medico: context.id_medico, id_especialidad: context.id_especialidad } } };
 }
@@ -84,6 +86,7 @@ export async function consultarPacientesRegistrados(filtros = {}, signal) {
       activo: row.activo, creado_en: row.creado_en };
   });
   return { data, meta: { current_page: meta.current_page, per_page: meta.per_page, last_page: meta.last_page, total: meta.total,
+    reporte: meta.reporte, periodo: meta.periodo, estadisticas: validarEstadisticasReporte(meta, value.data),
     consultado_en: meta.consultado_en, zona_horaria: ZONA_CLINICA,
     filtros: { fecha: context.fecha, desde: context.desde, hasta: context.hasta, activo: context.activo, orden: context.orden } } };
 }
@@ -103,7 +106,8 @@ export async function consultarCantidadesCitas(filtros = {}, signal) {
     && Array.isArray(context.estados) && context.estados.join('|') === 'Atendida|Cancelada|Inasistencia'
     && meta.periodo?.referencia === 'citas.inicio_at' && meta.periodo.criterio === 'inicio_en_periodo');
   return { data: { atendidas: counts.atendidas, canceladas: counts.canceladas, inasistencias: counts.inasistencias, total: counts.total },
-    meta: { consultado_en: meta.consultado_en, zona_horaria: ZONA_CLINICA, filtros: { fecha: context.fecha, desde: context.desde, hasta: context.hasta,
+    meta: { reporte: meta.reporte, periodo: meta.periodo, estadisticas: validarEstadisticasReporte(meta, counts),
+      consultado_en: meta.consultado_en, zona_horaria: ZONA_CLINICA, filtros: { fecha: context.fecha, desde: context.desde, hasta: context.hasta,
       id_medico: context.id_medico, id_especialidad: context.id_especialidad, estados: ['Atendida', 'Cancelada', 'Inasistencia'] } } };
 }
 
@@ -123,6 +127,7 @@ export async function consultarAgendaDiaria(filtros = {}, signal) {
   const medico = persona(meta.medico, 'medico'), data = value.data.map(cita);
   exigir(medico.id_medico === params.id_medico && data.every(row => row.medico.id_medico === params.id_medico && (!params.estado || row.estado === params.estado)));
   return { data, meta: { current_page: meta.current_page, per_page: meta.per_page, last_page: meta.last_page, total: meta.total,
+    reporte: meta.reporte, periodo: meta.periodo, estadisticas: validarEstadisticasReporte(meta, value.data),
     consultado_en: meta.consultado_en, zona_horaria: ZONA_CLINICA, medico,
     filtros: { fecha: context.fecha, id_medico: context.id_medico, estado: context.estado } } };
 }

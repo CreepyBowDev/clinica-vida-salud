@@ -444,6 +444,15 @@ Las transiciones no enumeradas están prohibidas para los flujos ordinarios. Los
 | **VS-REP-02** | Los filtros por fecha/rango y agrupaciones se validan en servidor; mostrar totales cuando corresponde y **cero/lista vacía** si no hay datos, sin confundirlo con error. | CU-29 |
 | **VS-REP-03** | Reportes generales administrativos son del Administrador; las consultas operativas de Recepción y Médico se realizan bajo los límites propios de CU-20/CU-21. Exportación CSV/PDF es **opcional**. | RN12, RF13; CU-20, CU-21, CU-29 |
 
+**Notas verificables de la ampliación estadística opcional aprobada, EST-1 (2026-11-07):** no modifican RF/RN oficiales ni renumeran VS-REP-01–03. Diseño todavía no implementado; fórmulas/tipos/variantes exactos en [contrato §§11–14](cu29-contratos-api.md#11-est-1--contrato-estadístico-previsto-2026-11-07) y pruebas previstas EST-A01–EST-A16 en [matriz EST](cu29-aceptacion-estadisticas.md).
+
+**Actualización EST-2 (2026-11-07):** reglas estadísticas siguientes implementadas en Laravel; cobertura backend/evidencia nueva y límites en matriz EST/`estado-fase.md`. No nuevas reglas oficiales ni cambios de fórmulas/alcance. Representación React/PDF e integración estadística siguen pendientes; EST-1 anterior conserva su carácter histórico.
+
+- Estadísticas de todo el conjunto filtrado/aplicado, nunca página/borrador; filas/total/agregados comparten sentencia/snapshot de datos. Vacío conserva ceros; página fuera de rango conserva estadísticas reales. Identidad, no nombres; estados/actividad/intervalos con ceros explícitos, Médicos solo presentes, sin topN.
+- Programadas solo Programada; especialidad de Cita/inicio programado/estado actual; fichas por creación/actividad actual, no Usuario/CI. Duración histórica completa solo por Médico/agenda, con cantidades/minutos por cinco estados (ceros de excluidos). Agenda mantiene intersección/no sumabilidad, sin recorte a medianoche. Sin pacientes distintos, promedios, tasas, ocupación, disponibilidad ni finanzas.
+- Por estado/fichas:1–31 días inclusivos diarios,32–366 mensuales recortados al rango; intervalos vacíos incluidos y meses parciales identificados. Zona/extremos existentes, sin agrupación elegible nueva. Cantidades: tres finales/denominador exclusivo/HALF_UP a un decimal en Laravel, total0 «No aplica»/advertencia de redondeo; no forzar100%.
+- Alcance C: resumen/tabla/barras de cantidades útiles desde0 tanto React como PDF; omitir solo gráfico con≤1 categoría positiva, conservar tablas completas. Mismos indicadores/nueva lectura PDF avisada;500 filas/HTML2MiB/PDF8MiB intactos y exceso sin parcial. Autorización administrativa antes de bytes, sin permisos operativos nuevos ni reutilizar excepciones de entornos anteriores.
+
 ---
 
 ## 15. Bitácora del Sistema (CU-30)

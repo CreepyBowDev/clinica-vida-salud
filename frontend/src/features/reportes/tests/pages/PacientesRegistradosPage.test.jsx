@@ -45,7 +45,7 @@ it('comparte pantalla, explica creación de ficha y no ofrece filtros/operacione
   expect(screen.getByText(/El período corresponde a la creación de la ficha/)).toBeInTheDocument();
   expect(screen.queryByLabelText('Estado')).not.toBeInTheDocument(); expect(screen.queryByText('Médico: Todos', { selector: 'summary' })).not.toBeInTheDocument();
   expect(within(screen.getByLabelText('Orden')).getAllByRole('option').map(v => v.value)).toEqual(['registro_asc', 'registro_desc', 'nombre_asc']);
-  await consultar(); const table = await screen.findByRole('table');
+  await consultar(); const table = await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ });
   expect(table).toHaveTextContent('Paciente ficticio'); expect(table).toHaveTextContent('Inactivo'); expect(table).toHaveTextContent('ID: 9007199254740993');
   expect(table).toHaveTextContent('31/10/2026, 22:30'); expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
   for (const marker of ['CI-PRIVADO', 'CONTACTO-PRIVADO', 'CUENTA-PRIVADA', 'CLINICA-PRIVADA']) expect(document.body).not.toHaveTextContent(marker);
@@ -54,7 +54,7 @@ it('comparte pantalla, explica creación de ficha y no ofrece filtros/operacione
 });
 it.each([['0', 'Inactivo'], ['1', 'Activo']])('filtra actividad %s sin enviar filtros de citas y conserva total del servidor', async (activo, label) => {
   mount(); await seleccionarReporte(); await userEvent.selectOptions(screen.getByLabelText('Actividad'), activo);
-  await userEvent.selectOptions(screen.getByLabelText('Orden'), 'nombre_asc'); await consultar(); const table = await screen.findByRole('table');
+  await userEvent.selectOptions(screen.getByLabelText('Orden'), 'nombre_asc'); await consultar(); const table = await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ });
   expect(table).toHaveTextContent(label); expect(requests().at(-1).params).toEqual({ fecha: '2026-10-31', activo, orden: 'nombre_asc', page: 1, per_page: 20 });
   expect(screen.getByRole('status')).toHaveTextContent('Total del servidor: 1 pacientes registrados');
 });
@@ -62,24 +62,25 @@ it('admite rango/orden/tamaño, pagina sin sumar filas y reinicia página al cam
   total = 51; mount(); await seleccionarReporte(); await userEvent.selectOptions(screen.getByLabelText('Período'), 'rango');
   fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-01' } }); fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-31' } });
   await userEvent.selectOptions(screen.getByLabelText('Orden'), 'registro_desc'); await userEvent.selectOptions(screen.getByLabelText('Pacientes por página'), '50');
-  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table');
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ });
   expect(screen.getByRole('status')).toHaveTextContent('Total del servidor: 51');
-  const region = screen.getByRole('region'); await userEvent.click(within(region).getByRole('button', { name: 'Siguiente' })); await screen.findByText('PAC-9007199254741043');
+  const region = screen.getByRole('region', { name: 'Resultados del reporte' }); await userEvent.click(within(region).getByRole('button', { name: 'Siguiente' })); await screen.findByText('PAC-9007199254741043');
   expect(requests().at(-1).params).toEqual({ desde: '2026-10-01', hasta: '2026-10-31', orden: 'registro_desc', per_page: 50, page: 2 });
   await userEvent.selectOptions(screen.getByLabelText('Actividad'), '1'); expect(region).toHaveTextContent('Actividad: Todas las fichas');
   await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await waitFor(() => expect(requests().at(-1).params).toMatchObject({ page: 1, activo: '1' }));
 });
 it('vacío y página que quedó fuera del final mantienen el total real', async () => {
-  total = 21; mount(); await seleccionarReporte(); await consultar(); await screen.findByRole('table');
-  await userEvent.click(within(screen.getByRole('region')).getByRole('button', { name: 'Siguiente' })); await screen.findByText('PAC-9007199254741013');
+  total = 21; mount(); await seleccionarReporte(); await consultar(); await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ });
+  await userEvent.click(within(screen.getByRole('region', { name: 'Resultados del reporte' })).getByRole('button', { name: 'Siguiente' })); await screen.findByText('PAC-9007199254741013');
   total = 1; await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' }));
-  await screen.findByText('No hay pacientes registrados para estos filtros'); expect(screen.getByRole('status')).toHaveTextContent('Total del servidor: 1');
-  await userEvent.click(within(screen.getByRole('region')).getByRole('button', { name: 'Anterior' })); await screen.findByRole('table');
+  await screen.findByText('Esta página no contiene filas'); expect(screen.getByRole('status')).toHaveTextContent('Total del servidor: 1');
+  expect(screen.getByRole('region', { name: 'Resumen estadístico' })).toHaveTextContent('Cantidad total (fichas)1');
+  await userEvent.click(within(screen.getByRole('region', { name: 'Resultados del reporte' })).getByRole('button', { name: 'Anterior' })); await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ });
   total = 0; await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' }));
   await screen.findByText('No hay pacientes registrados para estos filtros'); expect(screen.getByRole('status')).toHaveTextContent('Total del servidor: 0');
 });
 it.each([403, 404, 419, 422, 429, 500])('HTTP %s limpia resultados, permite corregir/reconsultar y no filtra errores técnicos', async status => {
-  mount(); await seleccionarReporte(); await consultar(); await screen.findByRole('table'); failure = status;
+  mount(); await seleccionarReporte(); await consultar(); await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ }); failure = status;
   await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' })); await screen.findByRole('alert');
   expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(document.body).not.toHaveTextContent(/SQL PRIVADO|SECRETO TECNICO/);
   if (status === 422) expect(screen.getByText('Revisa la actividad.')).toBeInTheDocument();
@@ -87,7 +88,7 @@ it.each([403, 404, 419, 422, 429, 500])('HTTP %s limpia resultados, permite corr
   if (status === 500) expect(screen.getByRole('alert')).toHaveTextContent('No pudimos consultar el reporte');
 });
 it('fallo de conexión no conserva el listado ni afirma totales nuevos', async () => {
-  mount(); await seleccionarReporte(); await consultar(); await screen.findByRole('table');
+  mount(); await seleccionarReporte(); await consultar(); await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ });
   api.defaults.adapter = async () => { throw new AxiosError('RED PRIVADA'); };
   await userEvent.click(screen.getByRole('button', { name: 'Actualizar reporte' })); await screen.findByRole('alert');
   expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(screen.queryByRole('status')).not.toBeInTheDocument(); expect(document.body).not.toHaveTextContent('RED PRIVADA');
@@ -104,7 +105,7 @@ it('cambiar entre citas y pacientes limpia filtros incompatibles y usa órdenes 
   mount(); await userEvent.selectOptions(screen.getByLabelText('Reporte'), 'por-estado');
   await userEvent.selectOptions(screen.getByLabelText('Estado obligatorio'), 'Cancelada'); await seleccionarReporte();
   expect(screen.getByLabelText('Orden')).toHaveValue('registro_asc'); await userEvent.selectOptions(screen.getByLabelText('Actividad'), '0');
-  await consultar(); await screen.findByRole('table'); await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+  await consultar(); await screen.findByRole('table', { name: /^Pacientes registrados por fecha/ }); await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
   expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(screen.getByLabelText('Actividad')).toHaveValue('');
   await userEvent.selectOptions(screen.getByLabelText('Reporte'), 'programadas'); expect(screen.getByLabelText('Orden')).toHaveValue('fecha_asc');
   expect(screen.queryByLabelText('Actividad')).not.toBeInTheDocument();

@@ -11,6 +11,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use OverflowException;
 
 class AgendaRepository
 {
@@ -31,6 +32,11 @@ class AgendaRepository
 
     public function citas(string $medico, CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): LengthAwarePaginator
     {
+        return $this->paginar($this->citasDelDia($medico, $inicio, $fin, $filtros), $filtros, 'inicio_at ASC, id_cita ASC', 'id_cita');
+    }
+
+    private function citasDelDia(string $medico, CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): Builder
+    {
         $query = $this->citasProyectadas()->where('citas.id_medico', $medico)
             ->where('citas.inicio_at', '<', $fin->format('Y-m-d H:i:s.uP'))
             ->where('citas.fin_at', '>', $inicio->format('Y-m-d H:i:s.uP'));
@@ -38,7 +44,33 @@ class AgendaRepository
             $query->where('citas.estado', $filtros['estado']);
         }
 
-        return $this->paginar($query->toBase(), $filtros, 'inicio_at ASC, id_cita ASC', 'id_cita');
+        return $query->toBase();
+    }
+
+    public function citasConEstadisticas(string $medico, CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): array
+    {
+        $query = $this->citasDelDia($medico, $inicio, $fin, $filtros);
+        $page = (int) ($filtros['page'] ?? 1);
+        $size = (int) ($filtros['per_page'] ?? 20);
+        // Rama administrativa: el mismo builder, una sola sentencia de datos, duración histórica sin recorte.
+        $row = DB::selectOne('WITH filtradas AS MATERIALIZED ('.$query->toSql().'),
+            pagina AS (SELECT * FROM filtradas ORDER BY inicio_at ASC, id_cita ASC LIMIT ? OFFSET ?)
+            SELECT COUNT(*)::text AS total_agenda, COALESCE(SUM(duracion_minutos), 0)::text AS minutos,
+                COALESCE((SELECT jsonb_agg(to_jsonb(pagina) || jsonb_build_object(
+                    \'id_cita\', pagina.id_cita::text, \'id_medico\', pagina.id_medico::text,
+                    \'id_paciente\', pagina.id_paciente::text, \'id_especialidad\', pagina.id_especialidad::text)
+                    ORDER BY inicio_at ASC, id_cita ASC) FROM pagina), \'[]\'::jsonb) AS filas,
+                COALESCE((SELECT json_agg(g) FROM (SELECT estado, COUNT(*)::text AS cantidad,
+                    SUM(duracion_minutos)::text AS minutos FROM filtradas GROUP BY estado) g), \'[]\'::json) AS grupos
+            FROM filtradas', [...$query->getBindings(), $size, ($page - 1) * $size]);
+        $total = $row->total_agenda;
+        if (! ctype_digit($total) || strlen($total) > 16 || (strlen($total) === 16 && strcmp($total, '9007199254740991') > 0)) {
+            throw new OverflowException('Total estadístico no representable.');
+        }
+
+        return ['pagina' => new LengthAwarePaginator(json_decode($row->filas, true, 512, JSON_THROW_ON_ERROR), (int) $total, $size, $page),
+            'agregados' => ['total' => $total, 'minutos' => $row->minutos,
+                'grupos' => json_decode($row->grupos, true, 512, JSON_THROW_ON_ERROR)]];
     }
 
     public function paciente(string $id): ?array

@@ -58,7 +58,7 @@ it('combina selecciones inactivas, fecha, orden y tamaño; lista ambas personas 
   await user.click(screen.getByText('Especialidad: Todos', { selector: 'summary' }));
   await user.click(await screen.findByRole('button', { name: 'Seleccionar Especialidad ficticia' }));
   await user.selectOptions(screen.getByLabelText('Orden'), 'fecha_desc'); await user.selectOptions(screen.getByLabelText('Citas por página'), '50');
-  await consultar(); const table = await screen.findByRole('table');
+  await consultar(); const table = await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   expect(consultarCitasProgramadas.mock.calls.at(-1)[0]).toEqual({ fecha: '2026-10-31', id_medico: medico.id_medico, id_especialidad: '5', orden: 'fecha_desc', page: 1, per_page: 50 });
   expect(table).toHaveTextContent('Paciente De prueba'); expect(table).toHaveTextContent('Médica De prueba'); expect(table).toHaveTextContent('Sala histórica');
   expect(table).toHaveTextContent('31/10/2026, 22:30'); expect(table).not.toHaveTextContent('01/11/2026'); expect(table).not.toHaveTextContent('Confirmada');
@@ -66,7 +66,7 @@ it('combina selecciones inactivas, fecha, orden y tamaño; lista ambas personas 
   expect(screen.queryByRole('button', { name: /cancelar|reprogramar|atendida|publicar/i })).not.toBeInTheDocument();
 });
 it('pagina con total del servidor, conserva filtros aplicados y al consultar de nuevo vuelve a página 1', async () => {
-  consultarCitasProgramadas.mockImplementation(async p => reporte(p, 21)); mount(); await consultar(); await screen.findByRole('table');
+  consultarCitasProgramadas.mockImplementation(async p => reporte(p, 21)); mount(); await consultar(); await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   const region = screen.getByRole('region', { name: 'Resultados del reporte' });
   expect(within(region).getByRole('status')).toHaveTextContent('21');
   await userEvent.click(within(region).getByRole('button', { name: 'Siguiente' })); await screen.findByText('CITA-21');
@@ -128,7 +128,7 @@ it.each([
   mount(); await tipoReporte(tipo); await consultar();
   expect(await screen.findByRole('alert')).toHaveTextContent(mensaje); expect(load).not.toHaveBeenCalled();
   await seleccionar(); await userEvent.selectOptions(screen.getByLabelText('Estado'), 'Cancelada');
-  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); const table = await screen.findByRole('table');
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); const table = await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   expect(table).toHaveTextContent('Cancelada'); expect(load.mock.calls.at(-1)[0]).toMatchObject({ fecha: '2026-10-31', estado: 'Cancelada' });
   expect(load.mock.calls.at(-1)[0][tipo === 'por-medico' ? 'id_medico' : 'id_especialidad']).toBe(tipo === 'por-medico' ? medico.id_medico : '5');
 });
@@ -137,7 +137,7 @@ it('por-estado ofrece los cinco estados, exige selección y combina filtros opci
   expect(within(select).getAllByRole('option').map(v => v.value)).toEqual(['', 'Programada', 'Confirmada', 'Atendida', 'Cancelada', 'Inasistencia']);
   await consultar(); expect(consultarCitasPorEstado).not.toHaveBeenCalled();
   await seleccionarMedico(); await seleccionarEspecialidad(); await userEvent.selectOptions(select, 'Inasistencia');
-  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table');
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   expect(consultarCitasPorEstado.mock.calls.at(-1)[0]).toMatchObject({ estado: 'Inasistencia', id_medico: medico.id_medico, id_especialidad: '5' });
 });
 it('fecha y rango son excluyentes; valida inversión y 367 días, acepta 366 sin convertir fechas civiles', async () => {
@@ -150,9 +150,9 @@ it('fecha y rango son excluyentes; valida inversión y 367 días, acepta 366 sin
   fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2027-01-02' } });
   await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); expect(consultarCitasPorEstado).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2027-01-01' } });
-  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table');
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   expect(consultarCitasPorEstado.mock.calls.at(-1)[0]).toEqual({ desde: '2026-01-01', hasta: '2027-01-01', estado: 'Confirmada', id_medico: '', id_especialidad: '', page: 1, per_page: 20, orden: 'fecha_asc' });
-  expect(screen.getByRole('region')).toHaveTextContent('Período consultado: 01/01/2026 al 01/01/2027');
+  expect(screen.getByRole('region', { name: 'Resultados del reporte' })).toHaveTextContent('Período consultado: 01/01/2026 al 01/01/2027');
   await userEvent.selectOptions(screen.getByLabelText('Período'), 'fecha'); expect(screen.queryByLabelText('Desde')).not.toBeInTheDocument();
   await consultar(); await waitFor(() => expect(consultarCitasPorEstado.mock.calls.at(-1)[0]).toMatchObject({ fecha: '2026-10-31' }));
   expect(consultarCitasPorEstado.mock.calls.at(-1)[0]).not.toHaveProperty('desde');
@@ -164,7 +164,7 @@ it('cambiar tipo aborta la consulta, limpia resultados/filtros y descarta una re
   expect(signal.aborted).toBe(true); expect(screen.getByLabelText('Fecha')).toHaveValue(''); expect(screen.getByLabelText('Estado obligatorio')).toHaveValue('');
   expect(screen.getByText('Médico: Todos', { selector: 'summary' })).toBeInTheDocument();
   await act(async () => resolve()); expect(screen.queryByRole('table')).not.toBeInTheDocument();
-  await userEvent.selectOptions(screen.getByLabelText('Estado obligatorio'), 'Atendida'); await consultar(); await screen.findByRole('table');
+  await userEvent.selectOptions(screen.getByLabelText('Estado obligatorio'), 'Atendida'); await consultar(); await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
   await tipoReporte('programadas'); expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(screen.queryByLabelText('Estado')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Período')).not.toBeInTheDocument();
 });
@@ -173,8 +173,8 @@ it('los reportes nuevos conservan rango/selecciones al paginar y reinician pági
   mount(); await tipoReporte('por-medico'); await seleccionarMedico(); await seleccionarEspecialidad();
   await userEvent.selectOptions(screen.getByLabelText('Período'), 'rango');
   fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-01' } }); fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-31' } });
-  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table');
-  await userEvent.click(within(screen.getByRole('region')).getByRole('button', { name: 'Siguiente' })); await screen.findByText('CITA-21');
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' })); await screen.findByRole('table', { name: name => !name.startsWith('Cantidades por') });
+  await userEvent.click(within(screen.getByRole('region', { name: 'Resultados del reporte' })).getByRole('button', { name: 'Siguiente' })); await screen.findByText('CITA-21');
   expect(consultarCitasPorMedico.mock.calls.at(-1)[0]).toMatchObject({ desde: '2026-10-01', hasta: '2026-10-31', id_medico: medico.id_medico, id_especialidad: '5', page: 2 });
   await userEvent.selectOptions(screen.getByLabelText('Estado'), 'Cancelada'); await userEvent.click(screen.getByRole('button', { name: 'Consultar reporte' }));
   await waitFor(() => expect(consultarCitasPorMedico.mock.calls.at(-1)[0]).toMatchObject({ estado: 'Cancelada', page: 1 }));

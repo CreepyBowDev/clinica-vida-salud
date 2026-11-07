@@ -11,21 +11,17 @@ use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Fixtures\AutenticacionFixtures;
 use Tests\Fixtures\CitasFixtures;
+use Tests\Fixtures\ReportesAisladosFixtures;
 use Tests\TestCase;
 
 class AgendaTest extends TestCase
 {
-    use AutenticacionFixtures, CitasFixtures;
+    use AutenticacionFixtures, CitasFixtures, ReportesAisladosFixtures;
 
     protected function setUp(): void
     {
         parent::setUp();
-        DB::beginTransaction();
-        $this->beforeApplicationDestroyed(function (): void {
-            CarbonImmutable::setTestNow();
-            DB::rollBack();
-        });
-        $this->artisan('migrate', ['--force' => true])->assertSuccessful();
+        $this->aislarReportes();
         config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
         $this->app['env'] = 'local';
         CarbonImmutable::setTestNow('2026-11-02T02:00:00.123456Z'); // Noviembre 1 en La Paz.

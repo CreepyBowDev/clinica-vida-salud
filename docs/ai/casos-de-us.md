@@ -1827,6 +1827,10 @@ Rango inválido o criterios incoherentes: solicitar corrección sin generar resu
 
 Cubrir todos los reportes mínimos de RF13. Consultas operativas de Recepción y Médico se realizan mediante CU-20 y CU-21 según sus atribuciones.
 
+**Ampliación opcional estadística aprobada (2026-11-07), EST-1 documental:** alcance C, resúmenes/tablas/gráficos útiles en pantalla y PDF para los siete reportes; no nueva exigencia del examen ni cambio de la ficha original. [Contrato exacto CU-29 §§11–14](cu29-contratos-api.md#11-est-1--contrato-estadístico-previsto-2026-11-07), [matriz de aceptación EST](cu29-aceptacion-estadisticas.md). Conjunto completo/filtros aplicados, duración histórica completa solo por Médico/agenda, agrupación temporal automática y porcentajes solo de tres estados finales; sin finanzas ni permisos nuevos. Laravel calcula; React/PDF representan. **Diseño, no implementación ni prueba funcional.** Plan independiente EST-1–EST-5; PDF anterior cerrado en Fase3, historial conservado/no reabierto. Sin cambios RF/RN/CU ni persistencia.
+
+**Actualización técnica EST-2:** implementado el bloque Laravel de los siete GET; batería dirigida y regresión agenda/PDF con evidencia nueva en `estado-fase.md` y matriz EST. Solo backend; React/representación PDF/integración estadística EST-3–EST-5 pendientes, sin alterar la ficha oficial ni el contrato aprobado. La nota EST-1 anterior es histórica.
+
 
 ### 4.13. Bitácora del Sistema (`CU-30` a `CU-30`)
 

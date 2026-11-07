@@ -509,6 +509,33 @@ classDiagram
 
 Controller: FormRequests compartidos/HTTP privado. ExportacionService: límite500 filas, conjunto completo, generación y nueva autorización antes de entregar. ReportePdf: columnas administrativas/escape/Dompdf local/A4 horizontal, HTML2MiB/PDF8MiB. ReportePeriodoRequest agrega `reglasListado()` para rechazar paginación solo en exportación; no nuevo Request por reporte ni repositorio genérico. Sin relación con recibos de Pagos/React. Este incremento no recensa ni reclasifica retrospectivamente todas las vistas históricas del documento.
 
+### 8.7.2. Incremento previsto — estadísticas EST-1 (2026-11-07)
+
+**Diseño opcional autorizado, no implementado.** Clases/relaciones PDF anteriores conservadas. `ReporteService → ReporteRepository` prevé página/total/grupos en una sentencia con filtros compartidos y construcción de `contexto.estadisticas` en Service; no entidades/repositorio genérico nuevos. Agenda: `ReporteService → AgendaService::consultarParaReporte → AgendaRepository::citasConEstadisticas`, entradas internas administrativas nuevas que comparten núcleo/builder con operaciones actuales. `consultar()`/`citas()` operativos conservan firmas/permisos/respuestas sin estadísticas generales. No trasladar agenda a ReporteRepository ni tocar historial/finanzas.
+
+`ReporteExportacionService → ReportePdf` transportaría el mismo bloque para resumen/tablas/barras HTML locales proporcionales, manteniendo autorización final por ReporteService. React es frontera de validación/representación, no dominio PHP/productor de indicadores. Sin relaciones de persistencia nuevas ni DER; [contrato/mapa de archivos §§11–13](cu29-contratos-api.md#11-est-1--contrato-estadístico-previsto-2026-11-07). No modifica inventarios históricos ni atribuye existencia a métodos futuros; sin Mermaid nuevo por no añadirse diagrama.
+
+### 8.7.3. Incremento implementado — estadísticas EST-2 (2026-11-07)
+
+Sin cajas/entidades nuevas: se implementan las colaboraciones previstas en §8.7.2. `ReporteService → ReporteRepository` recibe página/agregados y normaliza `contexto.estadisticas`; `ReporteService → AgendaService → AgendaRepository` comparte núcleo/builder operativo, sin trasladar agenda a reportes. Resources/Controllers/exportador/renderer no cambian; el PDF transporta el contexto, pero no representa estadísticas hasta EST-4. Firmas reales añadidas/modificadas (tipos Carbon/Builder externos; `array` interno no implica contrato HTTP nuevo):
+
+| Clase | Firmas implementadas EST-2 |
+| --- | --- |
+| ReporteRepository | `+citas(CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros, string $reporte): array`; `+pacientesRegistrados(CarbonImmutable $inicio, CarbonImmutable $fin, array $filtros): array`; `-paginar(Builder $query, array $filtros, string $orden, string $reporte, CarbonImmutable $inicio, CarbonImmutable $fin): array` |
+| ReporteService | `-entero(mixed $valor): int`; `-porcentaje(int $cantidad,int $total): ?string`; `-categoria(string $id,string $etiqueta,mixed $cantidad,array $dimension,?int $minutos=null,?string $porcentaje=null): array`; `-serie(string $dimension,array $categorias,?string $agrupacion=null,?int $denominador=null): array`; `-serieTemporal(array $periodo,array $grupos): array`; `-estadisticas(string $reporte,array $filtros,array $periodo,array $agregados): array` |
+| AgendaService | `+consultarParaReporte(array $filtros): array`; `-consultarNucleo(array $filtros,bool $estadisticas): array` |
+| AgendaRepository | `+citasConEstadisticas(string $medico,CarbonImmutable $inicio,CarbonImmutable $fin,array $filtros): array`; `-citasDelDia(string $medico,CarbonImmutable $inicio,CarbonImmutable $fin,array $filtros): Builder` |
+
+Pruebas dirigidas ejecutadas y límites en `estado-fase.md`; comprobación SQL estructural, no carrera real ni nuevo render UML. No alterar inventarios históricos, permisos, historial/finanzas, persistencia o DER. EST-3–EST-5 pendientes de autorización.
+
+### 8.7.4. Fronteras React implementadas — EST-3 (2026-11-07)
+
+Colaboración real de UI, no clases de dominio: `ReportesPage → reporte.service.js → validarEstadisticasReporte(meta,data)` y `ReportesPage → EstadisticasReporte({meta}) → SerieEstadistica({serie,unidad,minutos})`. El validador comprueba el contrato aditivo/período y preserva datos del servidor; el componente solo calcula longitud visual `cantidad/maximo`. `useAgendaQuery` existente conserva resultado/contexto vigente, carga/error/cancelación y guardas de sesión/obsolescencia; sin otro hook global ni polling HTTP. `DescargarReportePdf`/servicio PDF intactos: nueva lectura con filtros aplicados, sin estadísticas hasta EST-4. No modelos, tablas, clases PHP, dependencias ni DER nuevos. Comprobación jsdom/Vitest y build, no render UML, integración SQL o aceptación visual; evidencia en `estado-fase.md`. Las menciones EST-3 pendiente en apartados anteriores son históricas.
+
+### 8.7.5. Renderer estadístico implementado — EST-4 (2026-11-07)
+
+Sin clases productivas nuevas: `ReporteExportacionService → ReportePdf::generar(array): string` transporta el contexto estadístico del mismo resultado que el detalle y mantiene `ReporteService::autorizarEntrega()` después de renderizar. `ReportePdf` añade privados `estadisticas(array): string`, `serie(array,string,bool): string` y protegido `renderizar(string): string` (Dompdf existente; separación para límites con dobles), conservando `html(array): string`/`generar(array): string` públicos. No dependencia del renderer hacia Service/Repository/DB/React; solo representación escapada y geometría. Barras con tabla anidada/pista fija240pt, tablas completas/ceros, encabezados repetidos unidos a primera fila, continuidad entre categorías y numeración. Resúmenes/minutos/porcentajes/intervalos/utilidad llegan ya calculados.500/2MiB/8MiB y nueva lectura intactos; sin recibos/DER/dependencias ni cambio de contrato. Aviso React actualizado sin rediseño. Pruebas/estructura/visual sobre documentos sintéticos; autorización/exportación con dobles, **sin SQL por decisión del usuario**, sin render UML ni aceptación integrada. Detalle en `estado-fase.md`; EST-5 no iniciada.
+
 ### 8.8. Reutilizaciones transversales y límites conservados
 
 | Participante E | Uso previsto / ampliación P, sin duplicar clase |

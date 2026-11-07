@@ -17,6 +17,22 @@
 .reports-page .agenda-state { padding: 4px 8px; border-radius: 4px; font-size: .875rem; }
 .reports-page .report-counts { margin-top: 24px; }
 .reports-page .report-export { margin-block: 16px; }
+.reports-page .report-statistics { min-width: 0; margin-block: 24px; overflow-wrap: anywhere; }
+.reports-page .report-stat-summary { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-block: 16px; }
+.reports-page .report-stat-summary > div { min-width: 0; }
+.reports-page .report-stat-summary dd { font-size: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.reports-page .report-stat-series { min-width: 0; margin-block: 24px; }
+.reports-page .report-stat-scroll { max-width: 100%; overflow-x: auto; margin-block: 16px; }
+.reports-page .report-stat-scroll:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.reports-page .report-stat-table { width: 100%; border-collapse: collapse; }
+.reports-page .report-stat-table caption { text-align: left; padding-block: 12px; font-weight: 600; }
+.reports-page .report-stat-table th, .reports-page .report-stat-table td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; min-width: 7rem; }
+.reports-page .report-stat-table td { font-variant-numeric: tabular-nums; }
+.reports-page .report-bars { margin-block: 16px; }
+.reports-page .report-bar-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 16px; margin-block: 16px; }
+.reports-page .report-bar-row strong { text-align: right; font-variant-numeric: tabular-nums; }
+.reports-page .report-bar-track { grid-column: 1 / -1; height: 16px; background: var(--color-background); border-left: 1px solid var(--color-border); }
+.reports-page .report-bar-fill { display: block; height: 100%; background: var(--color-primary); }
 .reports-page .report-export p { max-width: 80ch; overflow-wrap: anywhere; margin-top: 12px; }
 .reports-page .report-export > p:first-of-type { color: var(--color-muted); font-size: .875rem; }
 .reports-page .report-counts h2 { font-size: 1.125rem; }
@@ -28,6 +44,8 @@
   .reports-page .report-selectors { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
+  .reports-page .report-bar-row { grid-template-columns: minmax(0, 1fr); }
+  .reports-page .report-bar-row strong { text-align: left; }
   .reports-page .report-setup { padding: 20px 16px; }
   .reports-page .report-counts dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

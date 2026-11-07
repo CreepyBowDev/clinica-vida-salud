@@ -12,41 +12,22 @@ use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\errors\AppError;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Fixtures\AutenticacionFixtures;
 use Tests\Fixtures\CitasFixtures;
+use Tests\Fixtures\ReportesAisladosFixtures;
 use Tests\TestCase;
 
 class ReportesCantidadesAgendaTest extends TestCase
 {
-    use AutenticacionFixtures, CitasFixtures;
+    use AutenticacionFixtures, CitasFixtures, ReportesAisladosFixtures;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $identity = DB::selectOne('SELECT current_database() AS db, current_user AS usuario');
-        $this->assertSame('clinica_vida_salud_test', $identity->db);
-        $this->assertSame('clinica_vida_salud_test', $identity->usuario);
-        $namespaces = DB::table('pg_namespace')->orderBy('nspname')->pluck('nspname')->all();
-        DB::beginTransaction();
-        $this->beforeApplicationDestroyed(function () use ($namespaces): void {
-            Carbon::setTestNow();
-            CarbonImmutable::setTestNow();
-            while (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-            $this->assertSame($namespaces, DB::table('pg_namespace')->orderBy('nspname')->pluck('nspname')->all());
-        });
-        $schema = 'prueba_reporte_periodo_'.strtolower(Str::random(16));
-        DB::statement('CREATE SCHEMA "'.$schema.'"');
-        DB::select('SELECT set_config(?, ?, true)', ['search_path', $schema.', public, pg_temp']);
-        foreach (glob(base_path('src/data/database/migrations/*.php')) as $file) {
-            (require $file)->up();
-        }
-        DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$schema.'", public, pg_temp');
+        $this->aislarReportes();
         config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
         $this->app['env'] = 'local';
         Carbon::setTestNow('2026-11-02T02:00:00.123456Z');
@@ -96,6 +77,13 @@ class ReportesCantidadesAgendaTest extends TestCase
                 'meta' => ['reporte' => 'citas/cantidades', 'zona_horaria' => 'America/La_Paz', 'consultado_en' => '2026-11-02T02:00:00.123456Z',
                     'filtros' => ['fecha' => '2026-11-01', 'desde' => null, 'hasta' => null, 'id_medico' => null,
                         'id_especialidad' => null, 'estados' => ['Atendida', 'Cancelada', 'Inasistencia']],
+                    'estadisticas' => ['version' => 1, 'unidad' => 'citas', 'estados_incluidos' => ['Atendida', 'Cancelada', 'Inasistencia'],
+                        'resumen' => ['cantidad_total' => 0, 'duracion_total_minutos' => null],
+                        'series' => [['id' => 'por_estado', 'dimension' => 'estado', 'agrupacion' => null,
+                            'porcentajes' => ['denominador' => 0, 'decimales' => 1, 'redondeo' => 'HALF_UP'],
+                            'grafico' => ['tipo' => 'barras_horizontales', 'visible' => false, 'motivo_omision' => 'sin_datos', 'maximo' => 0],
+                            'categorias' => array_map(fn ($estado) => ['id' => 'estado:'.$estado, 'etiqueta' => $estado,
+                                'cantidad' => 0, 'duracion_minutos' => null, 'porcentaje' => null, 'estado' => $estado], ['Atendida', 'Cancelada', 'Inasistencia'])]]],
                     'periodo' => ['desde' => '2026-11-01', 'hasta' => '2026-11-01', 'inicio_at' => '2026-11-01T04:00:00.000000Z',
                         'fin_exclusivo_at' => '2026-11-02T04:00:00.000000Z', 'referencia' => 'citas.inicio_at', 'criterio' => 'inicio_en_periodo']]])
             ->assertJsonMissingPath('links')->assertJsonMissingPath('meta.current_page');
@@ -251,8 +239,8 @@ class ReportesCantidadesAgendaTest extends TestCase
         $this->cita($r);
         $original = $this->app->make(AgendaService::class);
         $agenda = Mockery::mock(AgendaService::class);
-        $agenda->shouldReceive('consultar')->once()->with(['fecha' => '2026-11-01', 'id_medico' => (string) $r['doctors'][0],
-            'estado' => 'Cancelada', 'page' => '1', 'per_page' => '1'])->andReturnUsing(fn ($datos) => $original->consultar($datos));
+        $agenda->shouldReceive('consultarParaReporte')->once()->with(['fecha' => '2026-11-01', 'id_medico' => (string) $r['doctors'][0],
+            'estado' => 'Cancelada', 'page' => '1', 'per_page' => '1'])->andReturnUsing(fn ($datos) => $original->consultarParaReporte($datos));
         $this->app->instance(AgendaService::class, $agenda);
         $repository = Mockery::mock(ReporteRepository::class);
         $repository->shouldNotReceive('citas');
@@ -438,7 +426,7 @@ class ReportesCantidadesAgendaTest extends TestCase
             $this->app->instance(ReporteRepository::class, $repository);
         } else {
             $agenda = Mockery::mock(AgendaService::class);
-            $agenda->shouldReceive('consultar')->once()->andThrow(new RuntimeException('SQL SELECT motivo_breve PRIVADO'));
+            $agenda->shouldReceive('consultarParaReporte')->once()->andThrow(new RuntimeException('SQL SELECT motivo_breve PRIVADO'));
             $this->app->instance(AgendaService::class, $agenda);
         }
         $response = $this->consultar($cookies, $r, $reporte)->assertStatus(500)->assertJsonPath('error.code', 'ERROR_INTERNO')->assertJsonMissingPath('data');

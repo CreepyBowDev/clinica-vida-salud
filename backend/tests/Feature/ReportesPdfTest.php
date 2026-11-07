@@ -8,44 +8,23 @@ use Clinica\data\repositories\usuarios\UsuarioRepository;
 use Clinica\shared\utils\ReportePdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Fixtures\AutenticacionFixtures;
 use Tests\Fixtures\CitasFixtures;
+use Tests\Fixtures\ReportesAisladosFixtures;
 use Tests\TestCase;
 
 class ReportesPdfTest extends TestCase
 {
-    use AutenticacionFixtures, CitasFixtures;
+    use AutenticacionFixtures, CitasFixtures, ReportesAisladosFixtures;
 
     protected function setUp(): void
     {
         parent::setUp();
-        // Comprobación de identidad real ANTES de cualquier escritura/DDL.
-        $identity = DB::selectOne('SELECT current_database() AS db, current_user AS usuario, inet_server_addr() AS host');
-        $this->assertSame('clinica_vida_salud_test', $identity->db);
-        $this->assertSame('clinica_vida_salud_test', $identity->usuario);
-        $this->assertContains($identity->host, ['127.0.0.1', '::1']);
-        $namespaces = DB::table('pg_namespace')->orderBy('nspname')->pluck('nspname')->all();
-        DB::beginTransaction();
-        $this->beforeApplicationDestroyed(function () use ($namespaces): void {
-            Carbon::setTestNow();
-            CarbonImmutable::setTestNow();
-            while (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-            $this->assertSame($namespaces, DB::table('pg_namespace')->orderBy('nspname')->pluck('nspname')->all());
-        });
-        $schema = 'prueba_reporte_pdf_'.strtolower(Str::random(16));
-        DB::statement('CREATE SCHEMA "'.$schema.'"');
-        DB::select('SELECT set_config(?, ?, true)', ['search_path', $schema.', public, pg_temp']);
-        foreach (glob(base_path('src/data/database/migrations/*.php')) as $file) {
-            (require $file)->up();
-        }
-        DB::statement('ALTER FUNCTION bitacora_validar_evento_anterior() SET search_path = "'.$schema.'", public, pg_temp');
+        $this->aislarReportes();
         config(['session.driver' => 'database', 'session.lottery' => [0, 100]]);
         $this->app['env'] = 'local'; // Cookies, sesión y CSRF reales del kernel.
         Carbon::setTestNow('2026-11-02T02:00:00.123456Z');
@@ -158,6 +137,7 @@ class ReportesPdfTest extends TestCase
         $this->assertMatchesRegularExpression('/^attachment; filename="reporte-[a-z-]+-20261101-220000\.pdf"$/', $pdf->headers->get('Content-Disposition'));
         $this->assertSame($json->json('meta.filtros'), $documento['contexto']['filtros']);
         $this->assertSame($json->json('meta.periodo'), $documento['contexto']['periodo']);
+        $this->assertSame($json->json('meta.estadisticas'), $documento['contexto']['estadisticas']);
         $this->assertSame($tipo === 'citas/cantidades' ? $json->json('data.total') : $json->json('meta.total'), $documento['total']);
         $this->assertStringContainsString('2026-11-01 22:00:00 -04:00', $html);
         $this->assertStringContainsString('America/La_Paz', $html);

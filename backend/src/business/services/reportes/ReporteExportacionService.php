@@ -14,7 +14,7 @@ class ReporteExportacionService
 
     public function generar(string $tipo, array $filtros): array
     {
-        // Una única lectura SQL de filas y total, no concatenación de páginas HTTP.
+        // Una única lectura de filas, total y estadísticas; no concatenar páginas HTTP.
         $datos = [...$filtros, 'page' => 1, 'per_page' => self::MAX_FILAS + 1];
         $resultado = match ($tipo) {
             'citas/programadas', 'citas/por-medico', 'citas/por-especialidad', 'citas/por-estado' => $this->reportes->citas($tipo, $datos),

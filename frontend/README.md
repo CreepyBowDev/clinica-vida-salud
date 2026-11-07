@@ -1,5 +1,25 @@
 # Frontend — Clínica Vida Salud
 
+## CU-29 — EST-5 aceptada localmente (2026-11-07)
+
+Sin cambios funcionales nuevos. Chrome real/React/Axios/XHR/cookies/CSRF→Laravel HTTP/PostgreSQL aislado→Dompdf→descarga: siete variantes y siete vacíos,estadísticas completas,página2/borrador/página sin filas con total positivo,cambios ficticios/nueva lectura/Actualizar,permisos/sesión/429. Capturas1440/390px y teclado real/foco/tabla móvil desplazable;26 PDFs descargados y muestras visuales revisadas,qpdf/WinRT/texto correctos. Positivos sin mocks;419/500 CDP inyectados y respuestas reales retenidas identificadas.13 grupos únicos cubiertos entre ejecuciones con fallos/revalidaciones del arnés, no pase único verde.
+
+[Matriz EST](../docs/ai/cu29-aceptacion-estadisticas.md),[relevo/comandos/evidencias/límites](../docs/ai/estado-fase.md). Sin Vitest/build nuevos al no cambiar React; los400 casos/jsdom/build de EST-3 y24/build EST-4 conservan sus límites originales. No certificación de lector de pantalla,otros dispositivos/navegadores ni visual exhaustiva; aceptación solo local. Esquema propio conservado/servidores detenidos; sin dependencias/lockfiles/configuración privada/Pagos. Detenerse; apartados inferiores históricos y plan PDF anterior cerrado en Fase3.
+
+## CU-29 — EST-4 aviso PDF actualizado (2026-11-07)
+
+Tras implementar estadísticas en el renderer PHP, `ReportesPage` indica que el PDF incluye resumen, tablas completas y gráficos útiles. **Único cambio funcional React de EST-4**; nueva lectura/posibles diferencias, descarga/filtros y diseño permanecen intactos. Regresión dirigida `ReportesPdfPage.test.jsx`:24/24 casos correctos con adapter Axios/Blob simulados/jsdom; `pnpm build` correcto, aviso chunk>500kB. Sin nuevo navegador ni recorrido Laravel/PostgreSQL. PDF real sobre documentos sintéticos e inspección de muestras en backend; [evidencia/limitaciones](../docs/ai/estado-fase.md). EST-5 no autorizada/iniciada; estados de apartados inferiores históricos.
+
+## CU-29 — EST-3 estadístico React implementado (2026-11-07)
+
+Ampliación opcional RF13/CU-29. Los siete servicios validan/preservan `meta.estadisticas` y el período real con `services/estadisticasReporte.js`. `EstadisticasReporte` muestra resumen, barras horizontales útiles y tabla completa antes del detalle; solo geometría visual, nunca indicadores desde la página. Porcentajes strings del servidor, intervalos vacíos/parciales, minutos históricos y avisos de agenda conservados. Resultado vigente/filtros aplicados, no borrador; página fuera de rango diferenciada de conjunto vacío. PDF actual conserva filtros/nueva lectura y todavía no representa estadísticas.
+
+Una batería dirigida `pnpm test src/features/reportes/tests --reporter=verbose --reporter=json --outputFile=<evidencia>/vitest-inicial.json`: **400/400 casos correctos en15 archivos**, mocks/adapter Axios y jsdom, no integración Laravel/SQL ni inspección visual. `pnpm build` correcto, aviso chunk>500kB; sin lint configurado. [Relevo y evidencia externa](../docs/ai/estado-fase.md), [matriz por criterio](../docs/ai/cu29-aceptacion-estadisticas.md). Sin backend/dependencias/lockfiles/SQL; EST-4/EST-5 no iniciadas ni autorizadas. Apartados inferiores: historia de fases anteriores.
+
+## CU-29 — EST-1 estadístico, solo diseño (2026-11-07)
+
+Alcance C aprobado: resúmenes/tablas/barras útiles en pantalla/PDF para siete reportes, sobre todo el conjunto filtrado/aplicado. Contrato previsto `meta.estadisticas`: Laravel calcula y React validará/representará, sin indicadores desde la página/borrador. [Contrato/representación](../docs/ai/cu29-contratos-api.md#11-est-1--contrato-estadístico-previsto-2026-11-07), [matriz EST-2–EST-5](../docs/ai/cu29-aceptacion-estadisticas.md). **Solo documentación EST-1, no componentes implementados ni nuevas pruebas/build**; PDF anterior cerrado en Fase3, historial inferior conservado. [Relevo](../docs/ai/estado-fase.md); EST-3 requiere EST-2 y autorización futura.
+
 ## Reportes PDF — aceptación integrada local Fase 3 (2026-11-07)
 
 Siete reportes y siete vacíos descargados realmente con Chrome desde React/Axios→Laravel→PostgreSQL exclusivo y leídos con Windows.Data.Pdf;500 inclusive, exceso501 sin parcial, agregado504, filtros aplicados frente a borrador/página2, totales/orden, permisos/sesión/cancelación/429 y URL revocada contrastados. Visual1440/390px, Enter/foco y muestras PDF multipágina revisadas; qpdf valida21 descargados,19 útiles para aceptación.419/500/PDF inválido se probaron mediante inyección CDP, no errores espontáneos Laravel. Sin cambios funcionales ni build nuevo; fallos del arnés y revalidaciones focales conservados. [Matriz/comandos/evidencias/límites](../docs/ai/cu29-aceptacion-pdf.md). F3 aceptada **solo en local**, sin certificar producción, otros navegadores/lectores ni lector de pantalla. La entrada F2 siguiente es histórica.

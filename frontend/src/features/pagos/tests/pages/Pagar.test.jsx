@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -94,6 +94,7 @@ it('pendiente persistido no hace polling, se recupera al remontar y solo permite
   expect(screen.queryByRole('button', { name: 'Confirmar simulación y consultar resultado' })).not.toBeInTheDocument();
   await click('Revisar cierre sin cobro'); await click('Cerrar sin cobro');
   await screen.findByLabelText('Titular'); expect(data.data.liquidada).toBe(false); expect(data.data.intentos.data).toHaveLength(0);
+  expect(screen.getByText(/Intento académico cerrado sin cobro/)).toBeVisible();
 });
 it('formatos obligatorios y foco antes de revisar; los campos no se envían', async () => {
   mount(); await screen.findByLabelText('Titular');
@@ -119,10 +120,51 @@ it('respuesta perdida consulta persistencia sin reenviar ni declarar fallo; recu
   const first = posts().at(-1); await click('Recuperar la misma operación');
   await waitFor(() => expect(posts()).toHaveLength(3));
   expect(posts().at(-1).headers['Idempotency-Key']).toBe(first.headers['Idempotency-Key']);
+  expect(posts().at(-1).data).toBe(first.data); expect(posts().at(-1).url).toBe(first.url);
 });
 it('conflicto no muestra éxito visual y exige estado vigente', async () => {
   mount(); await start(); await click('Volver al portal'); reject = true;
   await click('Confirmar simulación y consultar resultado');
   await screen.findByText(/Las condiciones cambiaron/); expect(data.data.liquidada).toBe(false);
   expect(screen.queryByText('Pagada — simulación académica')).not.toBeInTheDocument();
+});
+it('progreso representa revisión sin escritura, conserva edición y no expone campos ficticios en revisión', async () => {
+  mount(); await screen.findByLabelText('Titular');
+  expect(screen.getByText('Preparar')).toHaveAttribute('aria-current', 'step');
+  expect(screen.getByRole('group', { name: 'Persona ficticia' })).toContainElement(screen.getByLabelText('Titular'));
+  await userEvent.selectOptions(screen.getByLabelText('Modalidad'), 'paypal');
+  await userEvent.selectOptions(screen.getByLabelText('Escenario académico'), 'pendiente');
+  await click('Revisar inicio simulado');
+  expect(screen.getByText('Revisar importe', { selector: 'li' })).toHaveAttribute('aria-current', 'step');
+  const review = screen.getByRole('region', { name: 'Confirmar importe' });
+  expect(review).toHaveTextContent('PayPal representativo'); expect(review).toHaveTextContent('permanecer pendiente');
+  expect(within(review).getByText('Bs 70,00')).toBeVisible(); expect(within(review).getByText('USD 10,00')).toBeVisible();
+  expect(review).not.toHaveTextContent('DEMO-NO-REAL'); expect(posts()).toHaveLength(0);
+  await click('Volver al formulario'); expect(screen.getByLabelText('Modalidad')).toHaveValue('paypal');
+  expect(screen.queryByRole('button', { name: 'Iniciar pago académico' })).not.toBeInTheDocument();
+});
+it('revisión de cierre concentra la acción y permite volver sin cerrar ni capturar', async () => {
+  mount(); await start('paypal'); await click('Volver al portal'); await click('Aprobar operación académica');
+  await click('Revisar cierre sin cobro');
+  expect(screen.queryByRole('button', { name: 'Revisar captura PayPal' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Revisar cierre' })).toHaveFocus();
+  await click('Volver sin cerrar'); expect(posts()).toHaveLength(2);
+  expect(screen.getByRole('button', { name: 'Revisar captura PayPal' })).toBeVisible();
+  expect(screen.getByText('Continuar operación')).toHaveAttribute('aria-current', 'step');
+  expect(screen.getByText('Resultado consultado', { selector: 'li' })).not.toHaveAttribute('aria-current');
+});
+it('indisponibilidad no atribuye causas que la API no informa', async () => {
+  data.data.simulacion.puede_iniciar = false;
+  mount(); await screen.findByText(/La consulta no habilita iniciar/);
+  expect(screen.getByText(/No informa una causa detallada/)).toBeVisible();
+  expect(screen.queryByText(/Puede haber una operación/)).not.toBeInTheDocument(); expect(posts()).toHaveLength(0);
+});
+it('espera de consulta se anuncia sin polling y deshabilita consultar', async () => {
+  api.defaults.adapter = async config => {
+    calls.push(config);
+    throw new AxiosError('Espera', '429', config, {}, { status: 429, data: { error: { code: 'LIMITE_SOLICITUDES' } }, headers: { 'retry-after': '30' } });
+  };
+  mount(); await screen.findByText(/Espera 30 s antes de volver a consultar/);
+  expect(screen.getByRole('button', { name: 'Consultar estado guardado' })).toBeDisabled();
+  expect(calls).toHaveLength(1); expect(posts()).toHaveLength(0);
 });

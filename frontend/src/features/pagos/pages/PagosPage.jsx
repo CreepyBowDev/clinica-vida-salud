@@ -17,7 +17,7 @@ import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { esFechaCivil, formatearInstanteCita } from '../../agenda/utils/agendaFormat';
 import { consultarPagos } from '../services/pago.service';
 import { usePagoQuery } from '../hooks/usePagoQuery';
-import { esUuid, ESTADOS_INTENTO, PROVEEDORES, decimalVisible, situacionObligacion } from '../utils/pagoFormat';
+import { esUuid, ESTADOS_INTENTO, PROVEEDORES, situacionObligacion } from '../utils/pagoFormat';
 import PrecioPago from '../components/PrecioPago';
 import HistorialPagos, { DevolucionPago } from '../components/HistorialPagos';
 import OperacionPago from '../components/OperacionPago';
@@ -46,8 +46,12 @@ export default function PagosPage() {
   return params.id ? <Detalle key={key} scope={scope} id={params.id} base={base} /> : <Listado key={key} scope={scope} base={base} />;
 }
 function Listado({ scope, base }) {
+  const indicadores = [['exigible', 'Exigible'], ['liquidada', 'Liquidada'], ['vencida', 'Vencida regularizable'], ['operacion_en_verificacion', 'En verificación']];
   const [tipo, setTipo] = useState('obligaciones'), [draft, setDraft] = useState({}), [filters, setFilters] = useState({ page: 1, per_page: 20 }), [error, setError] = useState('');
   const query = usePagoQuery(consultarPagos, { ...scope, ...filters, tipo });
+  const aplicados = [filters.fecha_desde && `Desde ${filters.fecha_desde}`, filters.fecha_hasta && `Hasta ${filters.fecha_hasta}`,
+    ...indicadores.map(([k, label]) => filters[k] ? `${label}: ${filters[k] === '1' ? 'Sí' : 'No'}` : null),
+    filters.proveedor && `Proveedor: ${PROVEEDORES[filters.proveedor]}`, filters.resultado && `Resultado: ${filters.resultado}`].filter(Boolean);
   const field = name => ({ value: draft[name] ?? '', onChange: e => setDraft(v => ({ ...v, [name]: e.target.value })) });
   function submit(e) {
     e.preventDefault();
@@ -56,16 +60,21 @@ function Listado({ scope, base }) {
     }
     setError(''); setFilters({ ...draft, page: 1, per_page: Number(draft.per_page || 20) }); query.reload();
   }
-  return <section className="workspace-page catalog-page payments-page">
+  return <section className="workspace-page catalog-page payments-page payment-list">
     <PageHeading title={scope.id_paciente ? 'Pagos del paciente seleccionado' : 'Mis pagos'} description="Obligaciones e intentos de pruebas académicas. Sin dinero real. La situación financiera no bloquea tu atención." />
-    {scope.id_paciente && <p>Ficha seleccionada: {scope.id_paciente}. Consulta exclusivamente de lectura. <Link to="/pagos">Cambiar paciente</Link></p>}
+    <div className="payment-scope" aria-label="Ámbito de la consulta">
+      <div><strong>{scope.id_paciente ? `Ficha seleccionada: ${scope.id_paciente}` : 'Consulta de tus propias obligaciones e intentos'}</strong>
+        <p>{scope.id_paciente ? 'Solo lectura. No permite pagar por el paciente ni resolver incidencias.' : 'Los resultados corresponden a tu ficha de Paciente.'}</p></div>
+      {scope.id_paciente && <Link to="/pagos">Cambiar paciente</Link>}
+    </div>
     <ActionGroup>{['obligaciones', 'historial'].map(t => <Button key={t} variant={tipo === t ? 'primary' : 'secondary'} aria-pressed={tipo === t}
       disabled={query.remaining > 0} onClick={() => { setTipo(t); setDraft({}); setFilters({ page: 1, per_page: 20 }); setError(''); }}>{t === 'obligaciones' ? 'Obligaciones' : 'Historial de intentos'}</Button>)}</ActionGroup>
-    <p className="catalog-note">Las citas sin precio no son deudas de importe cero. Consulta {scope.id_paciente ? <Link to={`/recepcion/pacientes/${scope.id_paciente}/citas`}>el historial de citas</Link> : <Link to="/mis-citas">Mis citas</Link>} para distinguirlas de las citas antiguas no incorporadas.</p>
+    <details className="payment-filters">
+      <summary>Filtros <span>{aplicados.length ? `${aplicados.length} criterios aplicados` : 'Sin restricciones de búsqueda'}</span></summary>
     <form className="catalog-filters" aria-label="Filtrar pagos" onSubmit={submit}>
       <FormField label="Desde" type="date" hint={tipo === 'obligaciones' ? 'Fecha de emisión de la obligación.' : 'Fecha de creación del intento.'} {...field('fecha_desde')} />
       <FormField label="Hasta" type="date" {...field('fecha_hasta')} />
-      {tipo === 'obligaciones' ? [['exigible', 'Exigible'], ['liquidada', 'Liquidada'], ['vencida', 'Vencida regularizable'], ['operacion_en_verificacion', 'En verificación']].map(([name, label]) =>
+      {tipo === 'obligaciones' ? indicadores.map(([name, label]) =>
         <SelectField key={name} label={label} {...field(name)}><option value="">Todas</option><option value="1">Sí</option><option value="0">No</option></SelectField>) : <>
         <SelectField label="Proveedor" {...field('proveedor')}><option value="">Todos</option>{Object.entries(PROVEEDORES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</SelectField>
         <SelectField label="Resultado del intento" {...field('resultado')}><option value="">Todos</option>{ESTADOS_INTENTO.map(v => <option key={v}>{v}</option>)}</SelectField>
@@ -75,15 +84,22 @@ function Listado({ scope, base }) {
       <ActionGroup><Button type="submit" disabled={query.loading || query.remaining > 0}>Consultar pagos</Button><Button variant="quiet" disabled={query.remaining > 0} onClick={() => { setDraft({}); setFilters({ page: 1, per_page: 20 }); setError(''); query.reload(); }}>Restablecer filtros</Button></ActionGroup>
       {error && <p role="alert">{error}</p>}
     </form>
+    </details>
+    <p className="payment-filter-summary" role="status">{aplicados.length ? `Filtros aplicados: ${aplicados.join('; ')}.` : 'Sin filtros aplicados.'} {filters.per_page} resultados por página.</p>
+    <p className="catalog-note payment-list-note">Las citas sin precio no son deudas de importe cero. Consulta {scope.id_paciente ? <Link to={`/recepcion/pacientes/${scope.id_paciente}/citas`}>el historial de citas</Link> : <Link to="/mis-citas">Mis citas</Link>} para distinguirlas de las citas antiguas no incorporadas.</p>
+    <div className="payment-results" aria-busy={query.loading}>
     <CatalogResults query={query} label="pagos" loadingLabel="Consultando pagos…" emptyTitle="No hay registros para estos filtros" emptyHint="Prueba otros filtros. Una lista vacía no acredita que una operación incierta haya fallado."
       onPage={page => setFilters(v => ({ ...v, page }))}>
       {tipo === 'historial' ? <HistorialPagos intentos={query.data?.data ?? []} detallePath={id => `${base}/obligaciones/${id}`} /> :
-        <div className="catalog-table-wrap"><table className="catalog-table" role="table"><caption>Obligaciones por fecha de emisión descendente</caption><thead><tr>
+        <div className="catalog-table-wrap payment-records"><table className="catalog-table" role="table"><caption>Obligaciones por fecha de emisión descendente</caption><thead><tr>
           <th scope="col">Cita</th><th scope="col">Precio histórico</th><th scope="col">Situación financiera</th></tr></thead>
-          <tbody>{query.data?.data.map(o => <tr key={o.id}><td><Link to={`${base}/obligaciones/${o.id}`}>{o.cita.codigo_cita}</Link><p>{formatearInstanteCita(o.cita.inicio_at)}</p><p>Estado de cita: {o.cita.estado}</p></td>
-            <td><span className="catalog-cell-label">Precio histórico</span>Bs {decimalVisible(o.precio.monto_bob)}<p>USD {decimalVisible(o.precio.monto_usd)}</p></td>
-            <td><span className="catalog-cell-label">Situación financiera</span>{situacionObligacion(o)}{o.operacion_en_verificacion && <p>Operación en verificación</p>}</td></tr>)}</tbody></table></div>}
+           <tbody>{query.data?.data.map(o => <tr key={o.id}><td><Link className="payment-record-title" to={`${base}/obligaciones/${o.id}`}>{o.cita.codigo_cita}</Link><p>Inicio: {formatearInstanteCita(o.cita.inicio_at)}</p><p className="payment-record-meta">Estado de cita: {o.cita.estado}</p></td>
+             <td><PrecioPago precio={o.precio} /></td>
+             <td><span className="catalog-cell-label">Situación financiera</span><strong className="payment-situation">{situacionObligacion(o)}</strong>
+               {o.origen_liquidacion && <p>Origen del pago: {o.origen_liquidacion === 'Simulado' ? 'Simulación académica' : o.origen_liquidacion}</p>}
+               {o.operacion_en_verificacion && <p>Operación en verificación. Consulta el detalle antes de continuar.</p>}</td></tr>)}</tbody></table></div>}
     </CatalogResults>
+    </div>
   </section>;
 }
 function Detalle({ scope, id, base }) {
@@ -94,24 +110,34 @@ function Detalle({ scope, id, base }) {
     <Link className="back-link" to={base}>Volver a obligaciones e historial</Link>
     <PageHeading title="Detalle de obligación" description="Importes históricos y resultados registrados por el servidor. Pagar no confirma llegada ni atención." />
     {query.loading ? <QueryMessage loading title="Consultando obligación…" /> : query.failure ? <Alert><p>{query.failure.message}</p></Alert> : o && <>
-      <section className="catalog-panel"><h2>Cita {o.cita.codigo_cita}</h2><p>Estado asistencial: {o.cita.estado}. Inicio: {formatearInstanteCita(o.cita.inicio_at)}.</p>
-         <p>Situación financiera: <strong>{situacionObligacion(o)}</strong>.</p><PrecioPago precio={o.precio} />
-         {o.recibo_academico && <DescargarRecibo id={o.id} {...scope} recibo={o.recibo_academico} />}
-        <p>Emitida: {formatearInstanteCita(o.emitida_at)}. Vencimiento: {formatearInstanteCita(o.vencimiento_at)}.</p>
-        {o.vencida && <p>Puede regularizarse sin recargos ni bloqueo asistencial, si el servidor habilita el pago.</p>}
-        {o.operacion_en_verificacion && <Alert variant="warning"><p>Hay una operación en verificación. No inicies otro pago para despejarla.</p></Alert>}
-        {!o.exigible && <p>No permite nuevos pagos. El historial y las devoluciones se conservan aunque la cita esté cancelada.</p>}
-        <p>Consulta realizada: {o.calculado_at ? formatearInstanteCita(o.calculado_at) : 'Instante no disponible'}.</p>
-      </section>
-      {scope.rol === ROLES.PACIENTE && o.intento_actual?.proveedor !== 'simulado' && <OperacionPago obligacion={o} onConsultar={query.reload} onRiskChange={setRisk} />}
-      {scope.rol === ROLES.PACIENTE && o.simulacion?.habilitada && (o.simulacion.puede_iniciar || o.intento_actual?.proveedor === 'simulado') && <section className="catalog-panel" aria-label="Pago académico">
-        <h2>Pago académico simulado</h2>
-        <p>Registra el resultado en esta obligación, sin enviar dinero ni contactar con proveedores.</p>
-        <Link className="button button--secondary" to={`/pagos/obligaciones/${o.id}/pagar`}>{o.intento_actual?.proveedor === 'simulado' ? 'Continuar pago académico' : 'Pagar'}</Link>
-      </section>}
-      <section><h2>Historial de intentos y cobros</h2>{o.intentos.data.length ? <HistorialPagos intentos={o.intentos.data} /> : <p>No hay intentos registrados en esta página.</p>}
+      <div className="payment-scope"><div><strong>{scope.rol === ROLES.ADMINISTRADOR ? `Ficha seleccionada: ${scope.id_paciente}` : 'Mis pagos · obligación propia'}</strong>
+        <p>{scope.rol === ROLES.ADMINISTRADOR ? 'Consulta administrativa de solo lectura. Las operaciones de pago corresponden al titular.' : 'Precio y resultados de esta cita, según la consulta al servidor.'}</p></div></div>
+      <div className="payment-detail-grid">
+      <section className="catalog-panel payment-detail-summary"><h2>Cita {o.cita.codigo_cita}</h2>
+         <dl className="payment-detail-facts"><div><dt>Inicio de atención</dt><dd>{formatearInstanteCita(o.cita.inicio_at)}</dd></div><div><dt>Estado asistencial</dt><dd>{o.cita.estado}</dd></div></dl>
+         <div className="payment-detail-situation"><h3>Situación financiera</h3><strong className="payment-situation">{situacionObligacion(o)}</strong>
+         {o.operacion_en_verificacion && <Alert variant="warning"><p>Hay una operación en verificación. No inicies otro pago para despejarla.</p></Alert>}
+         {o.vencida && <p>Puede regularizarse sin recargos ni bloqueo asistencial, si el servidor habilita el pago.</p>}
+         {!o.exigible && <p>No permite nuevos pagos. El historial y las devoluciones se conservan aunque la cita esté cancelada.</p>}
+         {o.liquidada && <p>{o.origen_liquidacion === 'Simulado' ? 'Pago académico aplicado, sin transferencia de dinero real.' : 'La obligación tiene un cobro aplicado registrado por el servidor.'}</p>}</div>
+         <h3>Precio histórico de la cita</h3><PrecioPago precio={o.precio} />
+          {o.recibo_academico && <DescargarRecibo id={o.id} {...scope} recibo={o.recibo_academico} />}
+         <dl className="payment-detail-facts"><div><dt>Emisión</dt><dd>{formatearInstanteCita(o.emitida_at)}</dd></div><div><dt>Vencimiento financiero</dt><dd>{formatearInstanteCita(o.vencimiento_at)}</dd></div></dl>
+         <p className="payment-record-meta">Consulta realizada: {o.calculado_at ? formatearInstanteCita(o.calculado_at) : 'Instante no disponible'}.</p>
+       </section>
+      <div className="payment-detail-actions">
+      {scope.rol === ROLES.PACIENTE && o.simulacion?.habilitada && (o.simulacion.puede_iniciar || o.intento_actual?.proveedor === 'simulado') && <section className="payment-academic-entry" aria-label="Pago académico">
+         <h2>Pago académico simulado</h2>
+         <p>Registra el resultado en esta obligación, sin enviar dinero ni contactar con proveedores.</p>
+         <Link className="button button--primary" to={`/pagos/obligaciones/${o.id}/pagar`}>{o.intento_actual?.proveedor === 'simulado' ? 'Continuar pago académico' : 'Pagar'}</Link>
+       </section>}
+      {scope.rol === ROLES.PACIENTE && o.intento_actual?.proveedor !== 'simulado' && <OperacionPago obligacion={o} onConsultar={query.reload} onRiskChange={setRisk} secondary={Boolean(o.simulacion?.habilitada && o.simulacion.puede_iniciar)} />}
+      {scope.rol === ROLES.PACIENTE && o.intento_actual?.proveedor === 'simulado' && !o.simulacion?.habilitada && <p>Esta consulta no ofrece una acción académica disponible. El intento registrado se conserva en el historial; actualiza el detalle para consultar las capacidades vigentes.</p>}
+      {scope.rol === ROLES.ADMINISTRADOR && <section className="payment-readonly"><h2>Consulta del titular</h2><p>Puedes revisar importes, intentos, cobros y devoluciones. No puedes pagar, capturar ni cerrar intentos en nombre del paciente.</p></section>}
+      </div></div>
+      <section className="payment-detail-history"><h2>Historial de intentos y cobros</h2><p className="payment-record-meta">El resultado de un intento no equivale por sí solo a un cobro aplicado. Las incidencias se muestran junto al cobro correspondiente.</p>{o.intentos.data.length ? <HistorialPagos intentos={o.intentos.data} /> : <p>No hay intentos registrados en esta página.</p>}
         <Pagination meta={o.intentos.meta} label="intentos" onPage={intentos_page => { if (!risk) setPages(v => ({ ...v, intentos_page })); }} /></section>
-      <section><h2>Devoluciones</h2>{o.devoluciones.data.length ? o.devoluciones.data.map(d => <DevolucionPago key={d.id} devolucion={d} />) : <p>No hay devoluciones registradas en esta página.</p>}
+      <section className="payment-detail-refunds"><h2>Devoluciones</h2><p className="payment-record-meta">Se consultan por separado del pago original; no sustituyen su historial.</p>{o.devoluciones.data.length ? o.devoluciones.data.map(d => <DevolucionPago key={d.id} devolucion={d} />) : <p>No hay devoluciones registradas en esta página.</p>}
         <Pagination meta={o.devoluciones.meta} label="devoluciones" onPage={devoluciones_page => { if (!risk) setPages(v => ({ ...v, devoluciones_page })); }} />
         <p>Las incidencias y devoluciones pendientes o fallidas requieren revisión. Este portal no permite resolverlas ni marcar éxitos manuales.</p></section>
     </>}

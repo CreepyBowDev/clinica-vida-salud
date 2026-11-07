@@ -20,6 +20,7 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
   const query = useCatalogQuery(consultarDisponibilidad, { ...criterios, page, per_page: 12 }, campos);
   const heading = useRef(null);
   const helpId = useId();
+  const montoId = useId();
   const data = query.data?.data;
   const adapted = { ...query, data: query.data ? { ...query.data, data: data.turnos } : undefined,
     reload: () => { setTurno(null); query.reload(); } };
@@ -61,16 +62,21 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
         let monto_bob;
         if (data.requiere_monto_bob) {
           try { monto_bob = montoEntrada(monto); setErrorMonto(''); }
-          catch (error) { setErrorMonto(error.message); return; }
+           catch (error) { setErrorMonto(error.message); document.getElementById(montoId)?.focus(); return; }
         }
         onRevisar({ ...criterios, hora_inicio: turno.hora_inicio, revision_turno: turno.revision_turno, motivo_breve, inicioEsperado: turno.inicio_at,
           ...(monto_bob === undefined ? {} : { monto_bob }) });
       } catch { setErrorMotivo('Introduce hasta 500 caracteres, sin saltos de línea ni caracteres de control.'); }
     }}>
-      {data.requiere_monto_bob && <FormField label="Monto de la consulta (BOB)" value={monto} inputMode="decimal" autoComplete="off" required
-        onChange={e => { setMonto(e.target.value); setErrorMonto(''); }} error={errorMonto}
-        hint="De Bs 7,00 a Bs 7.000,00, hasta dos decimales y sin separador de miles. Se revisará antes de confirmar." />}
-      {data.incorporacion_financiera_habilitada && !data.requiere_monto_bob && <p>Tu reserva se registra sin precio inicial. El personal asignará el monto después; no representa una deuda de importe cero.</p>}
+      {data.requiere_monto_bob && <section className="payment-booking" aria-label="Precio de la reserva"><h3>Precio de la reserva</h3>
+        <p>Asigna el monto individual. Antes de registrar la cita revisarás la conversión que devuelve el servidor.</p>
+        <FormField id={montoId} label="Monto de la consulta (BOB)" value={monto} inputMode="decimal" autoComplete="off" required
+         onChange={e => { setMonto(e.target.value); setErrorMonto(''); }} error={errorMonto}
+         hint="De Bs 7,00 a Bs 7.000,00, hasta dos decimales y sin separador de miles. Se revisará antes de confirmar." />
+        <p className="payment-record-meta">Una vez asignado, el precio no se puede editar. No cambia la llegada ni la atención.</p></section>}
+      {data.incorporacion_financiera_habilitada && !data.requiere_monto_bob && <section className="payment-booking" aria-label="Precio pendiente de la reserva"><h3>Precio pendiente de asignación</h3>
+        <p>Tu reserva se registra sin precio inicial. El personal asignará el monto después; no representa una deuda de importe cero.</p>
+        <p className="payment-record-meta">No hay un importe disponible para pagar en este paso.</p></section>}
       <div className="field"><label htmlFor="reserva-motivo">Motivo breve (opcional)</label>
       <input id="reserva-motivo" type="text" autoComplete="off" value={motivo} aria-invalid={Boolean(errorMotivo)}
         aria-describedby={errorMotivo ? 'reserva-motivo-error' : 'reserva-motivo-ayuda'} onChange={e => { setMotivo(e.target.value); setErrorMotivo(''); }} />

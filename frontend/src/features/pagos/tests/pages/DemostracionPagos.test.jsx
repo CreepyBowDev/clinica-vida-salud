@@ -104,6 +104,16 @@ it('Stripe exige revisión e inicio; retorno no implica éxito y solo la consult
   await click('Consultar resultado ficticio');
   expect(screen.getByText(/Pago completado simulado por USD 10,00/)).toHaveTextContent('no verificado por Stripe');
 });
+it('demo usa progreso y precio de fixture en revisión sin conectar una obligación', async () => {
+  mount(); await screen.findByLabelText('Proveedor simulado');
+  expect(screen.getByText('Preparar')).toHaveAttribute('aria-current', 'step');
+  await click('Revisar inicio simulado');
+  expect(screen.getByText('Revisar importe')).toHaveAttribute('aria-current', 'step');
+  const review = screen.getByRole('region', { name: 'Confirmar importe ficticio' });
+  expect(within(review).getByLabelText('Importes históricos')).toHaveTextContent('Bs 70,00');
+  expect(within(review).getByLabelText('Importes históricos')).toHaveTextContent('7,00 BOB por USD');
+  expect(requests).not.toHaveBeenCalled();
+});
 it('PayPal separa aprobación, retorno, consulta, revisión, captura humana por teclado y resultado', async () => {
   mount(); await start('paypal'); await click('Simular aprobación PayPal');
   expect(screen.getByText(/Aprobación ficticia concedida/)).toBeInTheDocument();

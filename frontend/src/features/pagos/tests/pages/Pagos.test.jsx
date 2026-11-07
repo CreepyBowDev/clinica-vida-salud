@@ -180,11 +180,109 @@ it('historial mantiene cobro no aplicado, cancelación y devolución pendiente s
 });
 it('filtros/paginación consultan servidor sin crear obligaciones', async () => {
   list = pagina([obligacion()], { total: 21, last_page: 2 }); mount('/pagos'); await screen.findByText('CITA-FIN-FICTICIA');
+  await userEvent.click(screen.getByText('Filtros', { selector: 'summary' }));
   await userEvent.selectOptions(screen.getByLabelText('Vencida regularizable'), '1'); await userEvent.click(screen.getByRole('button', { name: 'Consultar pagos' }));
   await waitFor(() => expect(calls.at(-1).params.vencida).toBe('1'));
+  expect(screen.getByRole('status')).toHaveTextContent('Vencida regularizable: Sí');
   await userEvent.click(screen.getByRole('button', { name: 'Siguiente' })); await waitFor(() => expect(calls.at(-1).params.page).toBe(2)); expect(posts()).toHaveLength(0);
 });
 it.each([403, 404, 409, 419, 422, 429, 503])('error %s no expone cuerpos ni éxito', async status => {
   task = c => { throw new AxiosError('SQL secreto', undefined, c, null, { status, data: { error: { code: 'ERROR', message: 'SQL secreto' } }, headers: {} }); };
   mount(); await screen.findByRole('alert'); expect(screen.queryByText('SQL secreto')).not.toBeInTheDocument(); expect(screen.queryByLabelText('Proveedor de prueba')).not.toBeInTheDocument();
+});
+it('consulta propia presenta contexto, precio y origen sin desplegar filtros ni escribir', async () => {
+  list = pagina([obligacion({ liquidada: true, origen_liquidacion: 'Simulado' })]);
+  mount('/pagos'); await screen.findByText('CITA-FIN-FICTICIA');
+  expect(screen.getByLabelText('Ámbito de la consulta')).toHaveTextContent('tus propias obligaciones');
+  expect(screen.getByText('Filtros', { selector: 'summary' }).parentElement).not.toHaveAttribute('open');
+  expect(screen.getByText('Bs 70,00')).toBeVisible();
+  expect(screen.getByText('Origen del pago: Simulación académica')).toBeVisible();
+  expect(calls.at(-1).params).not.toHaveProperty('id_paciente'); expect(posts()).toHaveLength(0);
+});
+it('filtros preservan la búsqueda aplicada al plegar, validan fechas y se restablecen', async () => {
+  mount('/pagos'); await screen.findByText('CITA-FIN-FICTICIA');
+  const summary = screen.getByText('Filtros', { selector: 'summary' }); await userEvent.click(summary);
+  fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-11-10' } });
+  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-01' } });
+  const count = calls.length; await userEvent.click(screen.getByRole('button', { name: 'Consultar pagos' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Revisa las fechas'); expect(calls).toHaveLength(count);
+  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-20' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar pagos' }));
+  await waitFor(() => expect(calls.at(-1).params.fecha_hasta).toBe('2026-11-20'));
+  await userEvent.click(summary); expect(screen.getByRole('status')).toHaveTextContent('Desde 2026-11-10; Hasta 2026-11-20');
+  await userEvent.click(summary); await userEvent.click(screen.getByRole('button', { name: 'Restablecer filtros' }));
+  await waitFor(() => expect(calls.at(-1).params).not.toHaveProperty('fecha_desde'));
+  expect(screen.getByRole('status')).toHaveTextContent('Sin filtros aplicados');
+});
+it('historial administrativo conserva ámbito y presenta fechas, referencias y cobros sin acciones', async () => {
+  role = 'Administrador';
+  task = c => c.url === '/pagos/historial' ? ok(c, pagina([intento({ proveedor: 'simulado', origen: 'Simulado', modalidad: 'paypal', cobros: [
+    { id: C, aplicado: true, incidencia: null, centavos_usd: 1000, confirmado_at: at, referencia: 'SIM-FICTICIA-COMPLETA', devolucion: null }
+  ] })])) : null;
+  mount('/pagos/pacientes/9'); await screen.findByText('CITA-FIN-FICTICIA');
+  expect(screen.getByLabelText('Ámbito de la consulta')).toHaveTextContent('Ficha seleccionada: 9');
+  expect(screen.getByLabelText('Ámbito de la consulta')).toHaveTextContent('Solo lectura');
+  await userEvent.click(screen.getByRole('button', { name: 'Historial de intentos' }));
+  await screen.findByText('SIM-FICTICIA-COMPLETA');
+  expect(screen.getByText(/^Creado:/)).toBeVisible(); expect(screen.getByText(/^Actualizado:/)).toBeVisible(); expect(screen.getByText(/^Confirmado:/)).toBeVisible();
+  expect(screen.getByText(I)).toBeVisible(); expect(screen.getByRole('link', { name: 'Ver obligación' })).toHaveAttribute('href', `/pagos/pacientes/9/obligaciones/${O}`);
+  expect(calls.at(-1).params.id_paciente).toBe('9'); expect(posts()).toHaveLength(0);
+  expect(screen.queryByRole('link', { name: 'Pagar', exact: true })).not.toBeInTheDocument();
+});
+it('listado vacío no afirma ausencia de efectos y el historial sin cobros no simula éxito', async () => {
+  list = pagina(); mount('/pagos'); await screen.findByRole('heading', { name: 'No hay registros para estos filtros' });
+  expect(screen.getByText(/Una lista vacía no acredita/)).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Historial de intentos' }));
+  await screen.findByText('Sin cobro verificado registrado en esta consulta.');
+  expect(screen.queryByText(/Cobro aplicado:/)).not.toBeInTheDocument(); expect(posts()).toHaveLength(0);
+});
+it('detalle prioriza Pagar sobre la alternativa externa sin atribuir causas de indisponibilidad', async () => {
+  detail = detalle({ puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [], simulacion: { habilitada: true, puede_iniciar: true, revision: 'academica' } });
+  mount(); const pagar = await screen.findByRole('link', { name: 'Pagar', exact: true });
+  expect(pagar).toHaveClass('button--primary');
+  expect(screen.getByText('Mis pagos · obligación propia')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Precio histórico de la cita' })).toBeVisible();
+  const externo = screen.getByRole('heading', { name: 'Proveedor externo de prueba' });
+  expect(pagar.compareDocumentPosition(externo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByText(/No hay una acción externa disponible/)).toHaveTextContent('La respuesta no indica una causa específica');
+  expect(posts()).toHaveLength(0);
+});
+it('detalle administrativo conserva ficha y solo lectura aunque la respuesta incluya capacidades', async () => {
+  role = 'Administrador'; detail = detalle({ simulacion: { habilitada: true, puede_iniciar: true, revision: 'academica' } });
+  mount(`/pagos/pacientes/9/obligaciones/${O}`); await screen.findByText('Ficha seleccionada: 9');
+  expect(screen.getByText(/Consulta administrativa de solo lectura/)).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Pagar', exact: true })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Proveedor externo de prueba' })).not.toBeInTheDocument();
+  expect(calls.at(-1).params.id_paciente).toBe('9'); expect(posts()).toHaveLength(0);
+});
+it.each([
+  [{}, 'Pendiente de pago'],
+  [{ vencida: true }, 'Vencida regularizable'],
+  [{ liquidada: true, origen_liquidacion: 'Simulado' }, 'Pagada — simulación académica'],
+  [{ exigible: false, liquidada: true, origen_liquidacion: 'Simulado' }, 'No exigible'],
+])('detalle separa la situación de la verificación y del estado asistencial: %s', async (state, label) => {
+  detail = detalle({ ...state, operacion_en_verificacion: true, puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [] });
+  mount(); await screen.findByText(label);
+  expect(screen.getByText(/Hay una operación en verificación/)).toBeVisible();
+  expect(screen.getByText('Programada', { selector: 'dd' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Revisar inicio de pago' })).not.toBeInTheDocument(); expect(posts()).toHaveLength(0);
+});
+it('intento exitoso sin aplicación no anuncia pago y el resultado conserva su referencia', async () => {
+  detail = detalle({ puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [], intento_actual: { id: I, proveedor: 'stripe', estado: 'Procesando' } });
+  operation = operacion({ estado: 'Exitoso', aplicado: false, accion: null });
+  mount(); await userEvent.click(await screen.findByRole('button', { name: 'Consultar resultado' }));
+  await screen.findByRole('heading', { name: 'Resultado consultado' });
+  expect(screen.getByText(/Este intento no tiene un cobro aplicado/)).toBeVisible();
+  expect(screen.queryByText('Cobro verificado y aplicado a esta obligación.')).not.toBeInTheDocument();
+  expect(screen.getByText('Pendiente de pago')).toBeVisible(); expect(screen.getByText(I)).toBeVisible();
+});
+it('devoluciones fallida e incierta no se describen como éxitos ni ofrecen reintentos', async () => {
+  detail = detalle({ puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [], devoluciones: pagina([
+    { id: I, estado: 'Fallida', centavos_usd: 1000, moneda: 'USD', origen: 'Simulado' },
+    { id: C, estado: 'Incierta', centavos_usd: 1000, moneda: 'USD' },
+  ]) });
+  mount(); await screen.findByText('Fallida');
+  expect(screen.getByText(/No se confirmó una devolución exitosa/)).toHaveTextContent('sin transferencia externa');
+  expect(screen.getByText(/El resultado no está confirmado/)).toBeVisible();
+  expect(screen.queryByRole('button', { name: /reintentar|resolver/i })).not.toBeInTheDocument(); expect(posts()).toHaveLength(0);
 });

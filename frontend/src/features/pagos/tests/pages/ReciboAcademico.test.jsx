@@ -74,7 +74,7 @@ it('sin cobro aplicado muestra pendiente y no ofrece recibo; GET no declara éxi
 it('cancelación muestra devolución separada y conserva acceso al recibo original', async () => {
   state = { ...state, exigible: false, devolucion: 'Exitosa' };
   mount(); await screen.findByText('No exigible');
-  expect(screen.getByText(/Devolución simulada: Exitosa/)).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Devolución posterior' })).toHaveTextContent('Devolución simulada: Exitosa');
   expect(screen.getByRole('button', { name: /Descargar recibo/ })).toBeInTheDocument();
 });
 it.each([403, 404, 419, 500])('descarga rechazada %s no entrega bytes ni muestra errores técnicos', async status => {
@@ -106,6 +106,18 @@ it('la misma descarga está disponible desde obligación, no solamente desde age
   mount(`/pagos/obligaciones/${O}`);
   await userEvent.click(await screen.findByRole('button', { name: /Descargar recibo/ }));
   await waitFor(() => expect(click).toHaveBeenCalledOnce());
+  expect(screen.getByRole('region', { name: 'Recibo original' })).toHaveTextContent('Se solicitó al navegador guardar el PDF');
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it('descarga en curso anuncia carga, impide duplicarla y libera su URL al desmontar', async () => {
+  let finish; const valid = binary;
+  binary = c => new Promise(resolve => { finish = () => resolve(valid(c)); });
+  const view = mount(); await userEvent.click(await screen.findByRole('button', { name: /Descargar recibo/ }));
+  expect(screen.getByRole('button', { name: 'Descargando recibo…' })).toBeDisabled();
+  expect(screen.getByRole('status')).toHaveTextContent('Preparando descarga autorizada');
+  await act(async () => finish()); await waitFor(() => expect(click).toHaveBeenCalledOnce());
+  expect(calls.filter(c => c.url.endsWith('/recibo'))).toHaveLength(1);
+  view.unmount(); expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:recibo');
 });
 it.each([{ rol: 'Recepcionista' }, { rol: 'Médico' }, { rol: 'Paciente', id_paciente: '9' }, { rol: 'Administrador' }])('el servicio rechaza ámbito incompatible %j antes de HTTP', async scope => {
   await expect(descargarRecibo({ id: O, numero, ...scope })).rejects.toThrow(); expect(calls).toHaveLength(0);

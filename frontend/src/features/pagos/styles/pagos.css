@@ -1,8 +1,16 @@
 .payments-page { min-width: 0; overflow-wrap: anywhere; }
 .payments-page > section, .payment-operation, .payment-assignment, .payment-appointment { margin-top: var(--space-6); }
 .payments-page .action-group, .payment-operation .action-group { margin-block: var(--space-4); }
-.payment-price { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-block: var(--space-4); }
+.payment-price { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-3) var(--space-6); margin: var(--space-5) 0; padding-block: var(--space-5); border-block: 1px solid var(--color-border); color: var(--color-text); overflow-wrap: anywhere; }
 .payment-price > div { min-width: 0; }
+.payment-price dt { color: var(--color-muted); font-size: var(--text-small); line-height: 1.45; }
+.payment-price dd { margin: var(--space-1) 0 0; font-variant-numeric: tabular-nums; }
+.payment-price strong { font-weight: 600; line-height: 1.2; }
+.payment-price__original { grid-row: span 2; }
+.payment-price__original dd { font-size: clamp(1.75rem, 1.5rem + .5vw, 2rem); }
+.payment-price__converted dd { font-size: var(--text-section); }
+.payment-price__rate { grid-column: 2; }
+.payment-price__rate dd { font-size: var(--text-small); color: var(--color-muted); }
 .payment-reference { overflow-wrap: anywhere; }
 .payment-demo-form { max-width: var(--layout-readable); margin-top: var(--space-4); }
 .payment-demo-form .field { margin-block: var(--space-4); }
@@ -10,4 +18,164 @@
 .payment-operation p, .payment-appointment p { max-width: var(--layout-readable); margin-block: var(--space-3); }
 .payment-charge + .payment-charge { border-top: 1px solid var(--color-border); margin-top: var(--space-4); padding-top: var(--space-3); }
 .payments-page .catalog-table td p { margin-block: var(--space-2); }
-@media (max-width: 700px) { .payment-price { grid-template-columns: minmax(0, 1fr); } }
+/* Fundamentos locales; no modifican las páginas anfitrionas ni las capacidades. */
+.payments-page > h2 { margin-block: var(--space-6) var(--space-4); font-size: var(--text-section); }
+.payments-page > p + p { margin-top: var(--space-3); }
+.payments-page > .button { margin-top: var(--space-5); }
+.payments-page .catalog-panel > p + p { margin-top: var(--space-2); }
+.payments-page .catalog-panel > p + .button,
+.payment-assignment > .button,
+.payment-assignment > form { margin-top: var(--space-4); }
+.payments-page .confirmation-panel:has(.payment-price),
+.payment-assignment .confirmation-panel:has(.payment-price) { background: var(--color-story); border-color: var(--color-primary); }
+.payments-page .confirmation-panel:has(.payment-price) .confirmation-heading svg,
+.payment-assignment .confirmation-panel:has(.payment-price) .confirmation-heading svg { color: var(--color-primary); }
+.payments-page .confirmation-panel .action-group,
+.payment-assignment .confirmation-panel .action-group { gap: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.payment-reference { font-size: var(--text-small); color: var(--color-muted); }
+/* Consulta financiera: contexto, búsqueda secundaria y registros legibles. */
+.payment-scope { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-4); margin-top: var(--space-5); border-left: 3px solid var(--color-primary); background: var(--color-surface); }
+.payment-scope > div { flex: 1 1 24ch; min-width: 0; }
+.payment-scope p, .payment-record-meta { color: var(--color-muted); font-size: var(--text-small); }
+.payment-filters { border-block: 1px solid var(--color-border); margin-top: var(--space-4); }
+.payment-filters summary { padding-block: var(--space-4); cursor: pointer; font-weight: 600; }
+.payment-filters summary span { display: inline-block; margin-left: var(--space-3); font-weight: 400; color: var(--color-muted); font-size: var(--text-small); }
+.payment-filters .catalog-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); border: 0; border-radius: 0; margin: 0; padding: var(--space-4); }
+.payment-filter-summary { color: var(--color-muted); font-size: var(--text-small); margin-block: var(--space-3); }
+.payment-list .payment-list-note { margin-block: var(--space-4) var(--space-5); font-size: var(--text-small); }
+.payment-record-title { font-weight: 600; font-size: var(--text-section); }
+.payment-situation { display: inline-block; padding-left: var(--space-3); border-left: 3px solid var(--color-primary); }
+.payment-records .payment-price { grid-template-columns: minmax(0, 1fr); border: 0; padding: 0; margin: 0; gap: var(--space-3); }
+.payment-records .payment-price__original { grid-row: auto; }
+.payment-records .payment-price__rate { grid-column: auto; }
+.payment-records .payment-price__original dd { font-size: var(--text-section); }
+.payment-records .payment-price__converted dd { font-size: 1rem; }
+.payment-records .payment-price__rate dd { margin-top: 0; }
+.payment-records td { font-variant-numeric: tabular-nums; }
+.payment-history .payment-charge { padding-block: var(--space-3); margin-top: var(--space-3); border-top: 1px solid var(--color-border); }
+.payment-list .pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
+.payment-list .pagination p { color: var(--color-muted); }
+/* Ficha de obligación: contexto y precio antes de acciones, trazabilidad aparte. */
+.payment-detail-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: var(--space-6); margin-top: var(--space-5); align-items: start; }
+.payment-detail-grid > *, .payment-detail-actions > * { min-width: 0; }
+.payment-detail-grid .catalog-panel { margin: 0; }
+.payment-detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-block: var(--space-5); }
+.payment-detail-facts dt { color: var(--color-muted); font-size: var(--text-small); }
+.payment-detail-facts dd { margin: var(--space-1) 0 0; }
+.payment-detail-situation { padding-block: var(--space-4); margin-block: var(--space-4); border-block: 1px solid var(--color-border); }
+.payment-detail-situation h3, .payment-operation-result h3 { margin-bottom: var(--space-3); }
+.payment-detail-summary h3 { font-size: 1rem; }
+.payment-academic-entry, .payment-readonly { padding: var(--space-5); background: var(--color-story); border-left: 3px solid var(--color-primary); }
+.payment-academic-entry p, .payment-readonly p { margin-block: var(--space-3) var(--space-5); max-width: 65ch; }
+.payment-detail-actions > .payment-operation { margin-top: var(--space-5); padding: var(--space-5); }
+.payment-detail-actions > .payment-operation:first-child { margin-top: 0; }
+.payment-detail-actions > .payment-operation--unavailable { background: transparent; border-inline: 0; border-radius: 0; padding-inline: 0; }
+.payment-operation-result { border-block: 1px solid var(--color-border); padding-block: var(--space-4); margin-block: var(--space-5); }
+.payment-detail-history, .payment-detail-refunds { border-top: 1px solid var(--color-border); padding-top: var(--space-5); }
+.payment-detail-history > p, .payment-detail-refunds > p { margin-block: var(--space-3) var(--space-4); max-width: 75ch; }
+.payment-detail-actions .action-group { align-items: stretch; }
+.payment-detail-actions .button { white-space: normal; text-align: center; }
+.payment-detail-refunds .payment-refund { padding-block: var(--space-4); margin: 0; border-bottom: 1px solid var(--color-border); }
+/* Recorrido Pagar y ejemplo independiente: contexto estable y un paso dominante. */
+.payment-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); list-style: none; padding: 0; margin-block: var(--space-6); }
+.payment-progress li { display: flex; align-items: baseline; gap: var(--space-2); color: var(--color-muted); border-top: 3px solid var(--color-border); padding-top: var(--space-3); font-size: var(--text-small); }
+.payment-progress li[aria-current="step"] { color: var(--color-primary); border-color: var(--color-primary); font-weight: 600; }
+.payment-progress li > span { font-variant-numeric: tabular-nums; }
+.payment-journey-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); gap: var(--space-6); align-items: start; margin-block: var(--space-6); }
+.payment-journey-grid > * { min-width: 0; }
+.payment-journey-summary { padding: var(--space-5); background: var(--color-story); border-left: 3px solid var(--color-primary); }
+.payment-journey-summary .payment-price { grid-template-columns: minmax(0, 1fr); }
+.payment-journey-summary .payment-price__original { grid-row: auto; }
+.payment-journey-summary .payment-price__rate { grid-column: auto; }
+.payment-journey-summary > p, .payment-journey-step p { max-width: 70ch; margin-block: var(--space-3); }
+.payment-journey-summary > p:last-child { color: var(--color-muted); font-size: var(--text-small); }
+.payment-journey-step { padding: var(--space-5); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
+.payment-journey-step > h2 { margin-bottom: var(--space-4); }
+.payment-journey-step > fieldset, .payment-form-group { border: 0; padding: 0; margin: 0; min-width: 0; }
+.payment-journey-selection { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.payment-journey-selection > p { grid-column: 1 / -1; font-size: var(--text-small); color: var(--color-muted); }
+.payment-journey .payment-demo-form { margin-top: var(--space-5); }
+.payment-demo-form > p { font-size: var(--text-small); color: var(--color-muted); }
+.payment-demo-form h3 { margin-bottom: var(--space-3); }
+.payment-form-group { margin-top: var(--space-5); }
+.payment-form-group legend { font-weight: 600; padding: 0; }
+.payment-form-group > p { color: var(--color-muted); font-size: var(--text-small); }
+.payment-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.payment-form-row > *, .payment-journey-selection > * { min-width: 0; }
+.payment-journey .field input, .payment-journey .field select { min-width: 0; max-width: 100%; }
+.payment-form-submit, .payment-journey-close { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.payment-form-submit > p { color: var(--color-muted); font-size: var(--text-small); }
+.payment-journey-state { margin-bottom: var(--space-5); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.payment-journey-decision { margin-block: var(--space-5); }
+.payment-journey-step .button { white-space: normal; text-align: center; }
+.payment-journey-step .action-group { align-items: stretch; }
+.payment-journey-status { padding-block: var(--space-6); }
+/* Finanzas dentro de citas y recibo: solo los bloques financieros de sus anfitrionas. */
+.payment-booking { min-width: 0; margin-block: var(--space-5); padding: var(--space-5); border-left: 3px solid var(--color-primary); background: var(--color-story); overflow-wrap: anywhere; }
+.payment-booking h3 { font-size: var(--text-section); }
+.payment-booking p { max-width: 70ch; margin-block: var(--space-3); }
+.payment-booking .field { max-width: 36rem; margin-block: var(--space-4); }
+.payment-booking input, .payment-assignment input { min-width: 0; max-width: 100%; }
+.payment-booking--review .payment-price { margin-block: var(--space-4); }
+.payment-appointment { padding-top: var(--space-5); border-top: 1px solid var(--color-border); min-width: 0; overflow-wrap: anywhere; }
+.payment-appointment-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-6); margin-top: var(--space-5); }
+.payment-appointment-grid > * { min-width: 0; }
+.payment-appointment h3 { font-size: var(--text-section); }
+.payment-appointment-status { border-left: 1px solid var(--color-border); padding-left: var(--space-5); }
+.payment-appointment .payment-assignment { margin-top: var(--space-5); padding: var(--space-5); box-shadow: none; }
+.payment-assignment form > p { margin-block: var(--space-3) var(--space-4); }
+.payment-assignment-review { margin-top: var(--space-5); }
+.payment-appointment-refund { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+.payment-receipt { min-width: 0; margin-top: var(--space-5); padding-block: var(--space-5); border-block: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.payment-receipt-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.payment-receipt-heading > div { flex: 1 1 24ch; min-width: 0; }
+.payment-receipt h3 { font-size: var(--text-section); }
+.payment-receipt p { max-width: 70ch; margin-block: var(--space-3); }
+.payment-appointment .button, .payment-assignment .button, .payment-receipt .button { white-space: normal; text-align: center; max-width: 100%; }
+@media (max-width: 1000px) {
+  .payment-appointment-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .payment-appointment-status { border-left: 0; padding-left: 0; }
+}
+@media (max-width: 700px) {
+  .payment-booking, .payment-appointment .payment-assignment { padding: var(--space-4); }
+  .payment-assignment .action-group { flex-direction: column; }
+  .payment-assignment .action-group > .button { flex: 0 1 auto; }
+  .payment-assignment .button, .payment-receipt .button { width: 100%; }
+}
+@media (max-width: 1100px) {
+  .payment-journey-grid { grid-template-columns: minmax(0, 1fr); }
+  .payment-journey-summary .payment-price { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .payment-journey-summary .payment-price__original { grid-row: span 2; }
+  .payment-journey-summary .payment-price__rate { grid-column: 2; }
+}
+@media (max-width: 700px) {
+  .payment-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .payment-journey-selection, .payment-form-row, .payment-journey-summary .payment-price { grid-template-columns: minmax(0, 1fr); }
+  .payment-journey-summary .payment-price__original { grid-row: auto; }
+  .payment-journey-summary .payment-price__rate { grid-column: auto; }
+  .payment-journey-step, .payment-journey-summary { padding: var(--space-4); }
+  .payment-journey-step .action-group { flex-direction: column; }
+  .payment-journey-step .action-group > .button { flex: 0 1 auto; }
+  .payment-journey-step .button { width: 100%; }
+}
+@media (max-width: 1000px) {
+  .payment-detail-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .payment-filters .catalog-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .payment-detail-facts { grid-template-columns: minmax(0, 1fr); }
+  .payment-detail-actions .action-group { flex-direction: column; }
+  .payment-detail-actions .action-group > .button { flex: 0 1 auto; }
+  .payment-academic-entry > .button { width: 100%; }
+  .payment-filters .catalog-filters { grid-template-columns: minmax(0, 1fr); padding-inline: 0; }
+  .payment-filters summary span { display: block; margin: var(--space-2) 0 0; }
+  .payment-records .catalog-table tbody tr { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .payment-records .catalog-table td + td { padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+  .payment-list .pagination > .action-group { width: 100%; }
+  .payment-list .pagination .button { flex: 1; }
+  .payment-price { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .payment-price__original { grid-row: auto; }
+  .payment-price__rate { grid-column: auto; }
+}

@@ -33,7 +33,8 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
         <div><dt>Modalidad</dt><dd>{p.modalidad}</dd></div>
         <div><dt>Motivo breve</dt><dd>{p.motivo_breve ?? 'No indicado'}</dd></div>
       </dl>
-      {p.precio && <PrecioPago precio={p.precio} />}
+      {p.precio && <section className="payment-booking payment-booking--review" aria-label="Revisión del precio de la reserva"><h3>Revisar precio antes de registrar</h3>
+        <PrecioPago precio={p.precio} /><p>Importes propuestos por el servidor. Al registrar la cita se asignará este precio, sin edición posterior.</p></section>}
       <p>Horario de la sede: {p.zona_horaria}. {['guardando', 'incierto', 'consultando', 'ausente'].includes(status)
         ? 'Este resumen es una propuesta; no acredita que la cita se haya registrado.' : 'El turno no queda reservado hasta completar el registro.'}</p>
     </>}
@@ -53,8 +54,10 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
         <div><dt>Modalidad</dt><dd>{cita.modalidad}</dd></div>
         <div><dt>Motivo breve</dt><dd>{cita.motivo_breve ?? 'No indicado'}</dd></div></dl>
       <p>Horario de America/La_Paz. Registrar la cita no confirma la llegada a la clínica.</p>
-      {cita.situacion_precio && <p>{SITUACIONES_PRECIO[cita.situacion_precio]}</p>}
-      {cita.precio && <PrecioPago precio={cita.precio} />}
+      {cita.situacion_precio && <section className="payment-booking" aria-label="Precio registrado"><h3>{SITUACIONES_PRECIO[cita.situacion_precio]}</h3>
+        {cita.situacion_precio === 'PendienteAsignacion' && <p>El personal asignará el monto después. Todavía no hay un precio para pagar; no es una deuda de importe cero.</p>}
+        {cita.situacion_precio === 'NoIncorporada' && <p>Esta cita no forma parte del módulo financiero. No se le atribuye una deuda ni un precio retroactivo.</p>}
+        {cita.precio && <PrecioPago precio={cita.precio} />}</section>}
     </>}
     <ActionGroup className="form-actions">
       {['revision', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0} onClick={registro.confirmar}>

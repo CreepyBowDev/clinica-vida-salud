@@ -1,5 +1,17 @@
 # Backend — Clínica Vida Salud
 
+## CU-13 — Horario semanal en el catálogo de reserva (2026-11-07)
+
+Mejora de usabilidad autorizada: `GET /api/reservas/medicos` añade `horarios: [{dia_semana, hora_inicio, hora_fin}]` por médico. Día ISO entero 1–7 y horas locales `HH:mm:ss` de America/La_Paz; solo intervalos activos, ordenados por día/inicio/fin. Carga anticipada conjunta para la página, sin N+1. No expone identificadores/estado/versiones de horarios, ocupación ni datos administrativos adicionales. Conserva roles Administrador/Recepcionista/Paciente y filtros/paginación; `/api/medicos/{id}/horarios` sigue siendo administrativo. El horario habitual no garantiza cupos y no sustituye la revalidación de disponibilidad/reserva. Sin cambios de persistencia.
+
+Prueba pura `ReservaHorariosCatalogoTest.php`: 2 casos/22 aserciones correctos con Eloquent y SQL generado reales, resultados SQL simulados, sin kernel/PDO/escrituras. No aceptación HTTP/PostgreSQL nueva. [Relevo](../docs/ai/estado-fase.md).
+
+## Corrección RF13: fechas civiles y fronteras históricas (2026-11-07)
+
+ReporteService y agenda diaria normalizan el fin exclusivo al inicio real del día siguiente; no arrastran la hora de una medianoche inexistente. Series/agrupación y límite366 usan fechas civiles, con fronteras convertidas a America/La_Paz; preservan contratos, permisos y criterios de conteo. Sin migraciones, configuración privada ni cambios SQL de esquema/datos.
+
+Verificación dirigida sin kernel/SQL: `php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php --do-not-cache-result tests/Feature/ReportesFechasHistoricasTest.php tests/Feature/ReportePrecisionEstadisticaTest.php` →28/28 pruebas,109 aserciones. Cubre fronteras0001/1900/1931/1932/9999, series y agrupación31/32, bisiestos/siglo y límite366; DB/actor/repositorio de agenda son dobles explícitos, no consultas PostgreSQL reales. Pint/sintaxis correctos. [Relevo y evidencia](../docs/ai/estado-fase.md). No nueva aceptación integrada/PDF; cierres inferiores históricos.
+
 ## CU-29 — EST-5 aceptada localmente (2026-11-07)
 
 Sin cambios funcionales nuevos. Autorización SQL específica,esquema propio nuevo/propietario verificado; siete recorridos/vacíos reales React→Axios→Laravel HTTP→PostgreSQL→Dompdf→Chrome,26 PDFs descargados/qpdf/WinRT/texto/muestras. Regresión dirigida75 PHP/4517 aserciones correcta;500/501 en seis listados,cantidades504,sesiones/permisos/no-store/429 y autorización final original tras render real/revocación SQL coordinada. Positivos sin mocks; hooks/dobles,fallos CDP y sincronización externa separados en [matriz EST](../docs/ai/cu29-aceptacion-estadisticas.md).13 grupos Chrome cubiertos entre ejecuciones con fallos/revalidaciones del arnés, no pase único verde.

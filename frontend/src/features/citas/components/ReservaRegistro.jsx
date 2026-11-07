@@ -38,7 +38,9 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
       <p>Horario de la sede: {p.zona_horaria}. {['guardando', 'incierto', 'consultando', 'ausente'].includes(status)
         ? 'Este resumen es una propuesta; no acredita que la cita se haya registrado.' : 'El turno no queda reservado hasta completar el registro.'}</p>
     </>}
-    {status === 'ausente' && <Alert variant="info"><p>No se encontró una cita registrada para esta propuesta al consultar. Puedes volver a buscar o decidir confirmar expresamente el mismo resumen. El servidor volverá a comprobar sus condiciones.</p></Alert>}
+    {status === 'ausente' && <Alert variant="info"><p>No se encontró una cita registrada para esta propuesta al consultar. {p
+      ? 'Puedes volver a buscar o decidir confirmar expresamente el mismo resumen. El servidor volverá a comprobar sus condiciones.'
+      : 'Vuelve a buscar y revisa una nueva propuesta antes de confirmar.'}</p></Alert>}
     {status === 'incierto' && <Alert variant="warning"><p>La reserva podría haberse guardado. No inicies otra sin comprobar el resultado. Si sales o recargas, esta comprobación no se conservará.</p></Alert>}
     {status === 'guardando' && <p role="status">Registrando la cita. No envíes otra solicitud…</p>}
     {status === 'consultando' && <p role="status">Consultando si la reserva quedó registrada…</p>}
@@ -60,7 +62,7 @@ export default function ReservaRegistro({ registro, administrativa, onVolver }) 
         {cita.precio && <PrecioPago precio={cita.precio} />}</section>}
     </>}
     <ActionGroup className="form-actions">
-      {['revision', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0} onClick={registro.confirmar}>
+      {p && ['revision', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0} onClick={registro.confirmar}>
         {status === 'ausente' ? 'Confirmar nuevamente esta propuesta' : administrativa ? 'Programar cita' : 'Reservar cita'}</Button>}
       {['incierto', 'ausente'].includes(status) && <Button disabled={busy || remaining > 0 || failure?.status === 403} onClick={registro.consultar}>Consultar resultado</Button>}
       {!busy && status !== 'incierto' && <Button variant="secondary" disabled={remaining > 0} onClick={onVolver}>

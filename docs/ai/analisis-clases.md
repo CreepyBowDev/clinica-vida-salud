@@ -1,5 +1,21 @@
 # Análisis de clases — Clínica Vida Salud
 
+## CU-13 / CU-14 — Horario semanal visible al seleccionar médico (2026-11-07)
+
+Mejora de usabilidad autorizada, no nueva exigencia del examen ni ampliación de permisos administrativos. `DisponibilidadRepository::medicos()` carga anticipadamente la relación `Medico::horarios()` filtrada por actividad y ordenada; proyecta exclusivamente día ISO/inicio/fin en el campo aditivo `horarios` de cada médico del catálogo de reserva. No reutiliza `horarios()` del cálculo de ocupación, que incluye otros médicos del consultorio. Sin clases de dominio, tablas, relaciones ni migraciones nuevas.
+
+Frontera React: `ReservarCitaPage → ReservaHorarioMedico` recibe los intervalos validados por `listarMedicosReserva`, los agrupa por día bajo el médico seleccionado y antes de la fecha; conserva varios intervalos/segundos significativos y avisa que horario habitual no implica disponibilidad. Roles Administrador/Recepcionista/Paciente comparten la vista. Invalidación de selección retira el resumen; servidor anterior sin campo muestra aviso, nunca horarios inventados. CU-12 sigue administrativo y disponibilidad/reserva mantienen sus validaciones. Estética existente preservada conforme a skill local frontend-design; sin controles nuevos ni almacenamiento persistente.
+
+261 pruebas Vitest dirigidas correctas (4 archivos; jsdom/API simulada), 2 PHPUnit puros/22 aserciones (Eloquent/SQL generado reales, resultados simulados, sin PDO/kernel), build externo correcto y Pint dirigido correcto. Dos intentos PHP iniciales fallaron en el arnés, corregido sin cambios productivos adicionales; solo los dos casos afectados revalidados. No nueva integración HTTP/PostgreSQL ni inspección visual real. DER/UML/RF/RN intactos; detalle y evidencia en `estado-fase.md`.
+
+## CU-14 / CU-29 — Correcciones RF06 y RF13 tras auditoría (2026-11-07)
+
+Corrección autorizada, sin ampliar RF/RN ni permisos. `useReservaRegistro → reserva.service → Axios` propaga AbortSignal y época de sesión entre CSRF/POST; abortar antes del envío impide escritura tardía, después no acredita rollback. Estados HTTP ajenos a los rechazos conocidos conservan incertidumbre. `pagehide` retira propuesta/recibo visibles y conserva solo en una ref de la instancia el sobre e identificador esperado para consultar resultado; desmontar los elimina. Sin almacenamiento persistente ni reenvío automático. `ReservaRegistro` no confirma si el resumen fue retirado: resultado ausente exige nueva revisión.
+
+`estadisticasReporte` verifica fronteras reales del calendario America/La_Paz mediante Intl, incluidos offsets históricos y medianoches inexistentes, sin imponer UTC−04 ni recalcular indicadores; meses con setUTCFullYear conservan años 0001–0099. `ReporteService` normaliza el fin exclusivo y recorre fechas civiles UTC convirtiendo cada frontera a la sede; `AgendaService` conserva el mismo fin correcto, `ReporteRepository` elige agrupación por fechas civiles y `ReportePeriodoRequest` conserva el máximo de 366 fechas inclusivas sin deriva horaria. Sin nuevas clases productivas, contrato HTTP, persistencia o relaciones; DER/UML oficiales intactos.
+
+Verificación nueva: 710/710 Vitest en 21 archivos con API/sesión simuladas y jsdom; 28/28 PHPUnit puro, 109 aserciones, sin kernel ni PostgreSQL (repositorio/transacción/actor con dobles explícitos). Build externo correcto con aviso previo chunk>500kB; Pint/sintaxis/diff-check dirigidos correctos. No aceptación integrada/navegador/PDF nueva ni resolución del fallo de foco CU-07 ajeno. Evidencias y pendientes en `estado-fase.md`; cierres inferiores históricos preservados.
+
 ## CU-29 — EST-5, aceptación integrada local (2026-11-07)
 
 Sin nuevas clases ni cambios funcionales. Verificada la colaboración real `ReportesPage → services/Axios → Laravel HTTP → ReporteService/AgendaService → Repositories/PostgreSQL → ReporteExportacionService → ReportePdf/Dompdf → Blob/descarga Chrome`. Siete variantes/vacíos, estadísticas completas independientes de página/borrador, nueva lectura posterior y Actualizar,500/501,separación de roles/sesión y muestras visuales1440/390/PDF. La autorización final original deniega401 tras Dompdf real y revocación SQL independiente mediante sincronización externa identificada; no introducir esa instrumentación en clases productivas.

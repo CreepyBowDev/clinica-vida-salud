@@ -90,7 +90,10 @@ class ReporteRepository
         $pacientes = $reporte === 'pacientes/registrados';
         $temporal = $pacientes || $reporte === 'citas/por-estado';
         $minutos = $reporte === 'citas/por-medico';
-        $diaria = $inicio->setTimezone('America/La_Paz')->diffInDays($fin->setTimezone('America/La_Paz')) <= 31;
+        // La agrupación depende de fechas civiles, no de días locales de 23/25 horas.
+        $desdeCivil = CarbonImmutable::createFromFormat('!Y-m-d', $inicio->setTimezone('America/La_Paz')->format('Y-m-d'), 'UTC');
+        $finCivil = CarbonImmutable::createFromFormat('!Y-m-d', $fin->setTimezone('America/La_Paz')->format('Y-m-d'), 'UTC');
+        $diaria = $desdeCivil->diffInDays($finCivil) <= 31;
         // Solo expresiones cerradas; ninguna dimensión, orden o identificador procede de HTTP.
         if ($temporal) {
             $campo = $pacientes ? 'creado_en' : 'inicio_at';

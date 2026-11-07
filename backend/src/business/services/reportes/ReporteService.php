@@ -34,7 +34,7 @@ class ReporteService
         $desde = $datos['fecha'] ?? $datos['desde'];
         $hasta = $datos['fecha'] ?? $datos['hasta'];
         $inicio = CarbonImmutable::createFromFormat('!Y-m-d', $desde, 'America/La_Paz')->utc();
-        $fin = CarbonImmutable::createFromFormat('!Y-m-d', $hasta, 'America/La_Paz')->addDay()->utc();
+        $fin = CarbonImmutable::createFromFormat('!Y-m-d', $hasta, 'America/La_Paz')->addDay()->startOfDay()->utc();
 
         return ['inicio' => $inicio, 'fin' => $fin,
             'contexto' => ['zona_horaria' => 'America/La_Paz', 'consultado_en' => $ahora->format('Y-m-d\TH:i:s.u\Z'),
@@ -171,8 +171,9 @@ class ReporteService
 
     private function serieTemporal(array $periodo, array $grupos): array
     {
-        $desde = CarbonImmutable::createFromFormat('!Y-m-d', $periodo['desde'], 'America/La_Paz');
-        $hasta = CarbonImmutable::createFromFormat('!Y-m-d', $periodo['hasta'], 'America/La_Paz');
+        // Iterar fechas civiles, no horas locales que pueden desplazarse al saltar medianoche.
+        $desde = CarbonImmutable::createFromFormat('!Y-m-d', $periodo['desde'], 'UTC');
+        $hasta = CarbonImmutable::createFromFormat('!Y-m-d', $periodo['hasta'], 'UTC');
         $diaria = $desde->diffInDays($hasta) + 1 <= 31;
         $conteos = array_column($grupos, 'cantidad', 'periodo');
         $categorias = [];
@@ -180,10 +181,12 @@ class ReporteService
             $fin = $diaria ? $cursor : $cursor->endOfMonth()->startOfDay()->min($hasta);
             $clave = $cursor->format($diaria ? 'Y-m-d' : 'Y-m');
             $parcial = ! $diaria && ($cursor->day !== 1 || $fin->day !== $fin->daysInMonth);
+            $inicioLocal = CarbonImmutable::createFromFormat('!Y-m-d', $cursor->format('Y-m-d'), 'America/La_Paz');
+            $finLocal = CarbonImmutable::createFromFormat('!Y-m-d', $fin->addDay()->format('Y-m-d'), 'America/La_Paz');
             $categorias[] = $this->categoria(($diaria ? 'dia:' : 'mes:').$clave, $clave.($parcial ? ' (parcial)' : ''),
                 $conteos[$clave] ?? 0, ['intervalo' => ['desde' => $cursor->format('Y-m-d'), 'hasta' => $fin->format('Y-m-d'),
-                    'inicio_at' => $cursor->utc()->format('Y-m-d\TH:i:s.u\Z'),
-                    'fin_exclusivo_at' => $fin->addDay()->utc()->format('Y-m-d\TH:i:s.u\Z'), 'parcial' => $parcial]]);
+                    'inicio_at' => $inicioLocal->utc()->format('Y-m-d\TH:i:s.u\Z'),
+                    'fin_exclusivo_at' => $finLocal->utc()->format('Y-m-d\TH:i:s.u\Z'), 'parcial' => $parcial]]);
         }
 
         return $this->serie('periodo', $categorias, $diaria ? 'diaria' : 'mensual');

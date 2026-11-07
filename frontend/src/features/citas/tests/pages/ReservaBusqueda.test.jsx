@@ -13,7 +13,8 @@ const original = api.defaults.adapter;
 const id = '9223372036854775807';
 let calls, role, userId, patients, specialties, doctors, slots, reservable, request, selectedPage;
 const specialty = { id_especialidad: '1', nombre: 'General ficticia' };
-const doctor = { id_medico: '9007199254740993', nombres: 'Médico', apellidos: 'Ficticio', codigo_medico: 'MED-1', consultorio: { id_consultorio: '3', codigo_consultorio: 'SALA-1', nombre: 'Sala ficticia' } };
+const doctor = { id_medico: '9007199254740993', nombres: 'Médico', apellidos: 'Ficticio', codigo_medico: 'MED-1', consultorio: { id_consultorio: '3', codigo_consultorio: 'SALA-1', nombre: 'Sala ficticia' },
+  horarios: [{ dia_semana: 1, hora_inicio: '08:00:00', hora_fin: '12:00:00' }, { dia_semana: 1, hora_inicio: '14:00:00', hora_fin: '18:00:00' }, { dia_semana: 7, hora_inicio: '08:00:01', hora_fin: '09:00:01' }] };
 const slot = { inicio_at: '2026-11-01T12:00:01.000000Z', fin_at: '2026-11-01T12:15:01.000000Z', hora_inicio: '08:00:01', revision_turno: 'a'.repeat(64) };
 const error = (config, status, code = 'VALIDACION', details) => {
   const e = new AxiosError('SQL secreto', undefined, config, null, status ? { status, headers: {}, data: { error: { code, message: 'SQL secreto', details } } } : undefined);
@@ -59,6 +60,31 @@ async function search(user, date = '2026-11-01') {
 it.each(['Médico'])('deniega ambas rutas a %s sin peticiones de reserva', async rol => {
   role = rol; const router = mount('/reservar-cita'); await screen.findByRole('heading', { name: 'Acceso no permitido' });
   await act(() => router.navigate('/recepcion/citas/nueva')); await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);
+});
+it.each(['Paciente', 'Administrador', 'Recepcionista'])('%s ve el horario al seleccionar médico antes de consultar una fecha', async rol => {
+  role = rol; const user = userEvent.setup(); mount(rol === 'Paciente' ? '/reservar-cita' : '/recepcion/citas/nueva');
+  expect(screen.queryByRole('region', { name: 'Horario de atención' })).not.toBeInTheDocument();
+  await select(user);
+  const horario = screen.getByRole('region', { name: 'Horario de atención' });
+  expect(within(horario).getByText('Lunes')).toBeInTheDocument();
+  expect(within(horario).getByText('Domingo')).toBeInTheDocument();
+  expect(within(horario).getByText('08:00')).toHaveAttribute('datetime', '08:00:00');
+  expect(within(horario).getByText('14:00')).toBeInTheDocument();
+  expect(within(horario).getByText('08:00:01')).toBeInTheDocument();
+  expect(within(horario).getByText(/no garantiza disponibilidad/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Fecha de atención')).toHaveValue('');
+  expect(calls.some(c => c.url.endsWith('/disponibilidad') || c.url.includes('/horarios'))).toBe(false);
+});
+it('cambiar médico retira su horario y presenta únicamente el del nuevo seleccionado', async () => {
+  doctors = [doctor, { ...doctor, id_medico: '2', nombres: 'Otra', codigo_medico: 'MED-2', horarios: [{ dia_semana: 2, hora_inicio: '10:00:00', hora_fin: '11:00:00' }] }];
+  const user = userEvent.setup(); mount(); await select(user);
+  await user.click(screen.getByRole('button', { name: 'Cambiar médico' }));
+  fireEvent.change(screen.getByLabelText('Nombre del Médico'), { target: { value: 'Otra' } });
+  expect(screen.queryByRole('region', { name: 'Horario de atención' })).not.toBeInTheDocument();
+  await user.click(await screen.findByRole('button', { name: /Otra Ficticio · MED-2/ }));
+  const horario = screen.getByRole('region', { name: 'Horario de atención' });
+  expect(within(horario).queryByText('Lunes')).not.toBeInTheDocument();
+  expect(within(horario).getByText('Martes')).toBeInTheDocument();
 });
 it.each([['Paciente', '/recepcion/citas/nueva'], ['Recepcionista', '/reservar-cita'], ['Administrador', '/reservar-cita']])('deniega %s en ruta %s', async (rol, path) => {
   role = rol; mount(path); await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0);

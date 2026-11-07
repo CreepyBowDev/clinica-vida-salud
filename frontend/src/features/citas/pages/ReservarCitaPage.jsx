@@ -9,6 +9,7 @@ import PageHeading from '../../../components/PageHeading';
 import WorkflowProgress from '../../../components/WorkflowProgress';
 import ActionGroup from '../../../components/ActionGroup';
 import ReservaCatalogo from '../components/ReservaCatalogo';
+import ReservaHorarioMedico from '../components/ReservaHorarioMedico';
 import DisponibilidadTurnos from '../components/DisponibilidadTurnos';
 import ReservaRegistro from '../components/ReservaRegistro';
 import { useReservaRegistro } from '../hooks/useReservaRegistro';
@@ -84,6 +85,7 @@ function ReservaFlujo({ administrativa }) {
         base={{ id_especialidad: especialidad.id_especialidad }} campos={medicoCampos} seleccionado={medico} identificador="id_medico"
         onInvalidate={clearMedico} onSelect={m => { setMedico(m); setCriterios(null); }}
         describir={m => `${m.nombres} ${m.apellidos} · ${m.codigo_medico} · ${m.consultorio.codigo_consultorio} — ${m.consultorio.nombre}`} />}
+      {medico && <ReservaHorarioMedico horarios={medico.horarios} />}
       {medico && <form className="reserva-section reserva-filters" aria-label="Consultar disponibilidad" noValidate onSubmit={e => {
         e.preventDefault(); setCriterios(null);
         if (!fechaValida(fecha)) { setErrorFecha('Selecciona una fecha válida.'); fechaRef.current?.focus(); return; }

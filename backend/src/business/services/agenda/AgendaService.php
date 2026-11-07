@@ -67,9 +67,10 @@ class AgendaService
         $ahora = CarbonImmutable::now('UTC');
         $fecha = $filtros['fecha'] ?? $ahora->setTimezone('America/La_Paz')->format('Y-m-d');
         $inicio = CarbonImmutable::createFromFormat('!Y-m-d', $fecha, 'America/La_Paz');
+        $fin = $inicio->addDay()->startOfDay();
 
-        $resultado = $estadisticas ? $this->agenda->citasConEstadisticas($id, $inicio, $inicio->addDay(), $filtros)
-            : ['pagina' => $this->agenda->citas($id, $inicio, $inicio->addDay(), $filtros)];
+        $resultado = $estadisticas ? $this->agenda->citasConEstadisticas($id, $inicio, $fin, $filtros)
+            : ['pagina' => $this->agenda->citas($id, $inicio, $fin, $filtros)];
 
         return [...$resultado,
             'contexto' => ['zona_horaria' => 'America/La_Paz', 'consultado_en' => $ahora->format('Y-m-d\TH:i:s.u\Z'),

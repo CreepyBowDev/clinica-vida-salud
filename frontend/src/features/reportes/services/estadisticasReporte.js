@@ -1,5 +1,5 @@
 import { esIdentificador } from '../../usuarios/services/usuario.service';
-import { ESTADOS_CITA, esFechaCivil } from '../../agenda/utils/agendaFormat';
+import { ESTADOS_CITA, ZONA_CLINICA, esFechaCivil, esInstanteCita } from '../../agenda/utils/agendaFormat';
 import { esPeriodoReporte } from '../utils/periodoReporte';
 
 function exigir(value) { if (!value) throw new Error('No se pudo verificar el reporte.'); }
@@ -12,7 +12,20 @@ function iguales(a, b) { exigir(JSON.stringify(a) === JSON.stringify(b)); }
 const dia = value => new Date(`${value}T00:00:00.000Z`);
 const civil = value => value.toISOString().slice(0, 10);
 const siguiente = value => civil(new Date(dia(value).getTime() + 86400000));
-const medianoche = value => `${value}T04:00:00.000000Z`;
+const calendarioLocal = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+  timeZone: ZONA_CLINICA, year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function fechaLocal(instante) {
+  const partes = Object.fromEntries(calendarioLocal.formatToParts(instante).map(p => [p.type, p.value]));
+  return `${partes.year.padStart(4, '0')}-${partes.month}-${partes.day}`;
+}
+function inicioDelDia(value, fecha) {
+  if (!esInstanteCita(value) || !value.endsWith('.000000Z')) return false;
+  const instante = Date.parse(value);
+  // Verificar la frontera real del día, incluidos offsets históricos y saltos de medianoche.
+  // Se conserva el instante del servidor; React no fabrica períodos ni asume UTC−04.
+  return fechaLocal(instante) === fecha && fechaLocal(instante - 1) !== fecha;
+}
 
 // Comprobar fronteras del contrato, nunca generar intervalos para presentar datos ausentes.
 function validarPeriodo(meta) {
@@ -20,7 +33,7 @@ function validarPeriodo(meta) {
   claves(p, ['desde', 'hasta', 'inicio_at', 'fin_exclusivo_at', 'referencia', 'criterio']);
   exigir(esPeriodoReporte({ desde: p.desde, hasta: p.hasta })
     && p.desde === (f.fecha ?? f.desde) && p.hasta === (f.fecha ?? f.hasta)
-    && p.inicio_at === medianoche(p.desde) && p.fin_exclusivo_at === medianoche(siguiente(p.hasta))
+    && inicioDelDia(p.inicio_at, p.desde) && inicioDelDia(p.fin_exclusivo_at, siguiente(p.hasta))
     && p.referencia === (meta.reporte === 'pacientes/registrados' ? 'pacientes.creado_en' : 'citas.inicio_at')
     && p.criterio === (meta.reporte === 'pacientes/registrados' ? 'registro_en_periodo' : meta.reporte === 'agenda-diaria' ? 'interseccion_diaria' : 'inicio_en_periodo'));
 }
@@ -33,12 +46,14 @@ function validarTemporal(serie, periodo) {
     const i = c.intervalo;
     claves(i, ['desde', 'hasta', 'inicio_at', 'fin_exclusivo_at', 'parcial']);
     exigir(esFechaCivil(i.desde) && esFechaCivil(i.hasta) && i.desde === cursor && cursor <= periodo.hasta);
-    const finMes = civil(new Date(Date.UTC(dia(cursor).getUTCFullYear(), dia(cursor).getUTCMonth() + 1, 0)));
+    const ultimoDia = dia(cursor);
+    ultimoDia.setUTCFullYear(ultimoDia.getUTCFullYear(), ultimoDia.getUTCMonth() + 1, 0);
+    const finMes = civil(ultimoDia);
     const fin = diaria ? cursor : (finMes < periodo.hasta ? finMes : periodo.hasta);
     const parcial = !diaria && (cursor.slice(8) !== '01' || fin !== finMes);
     const clave = diaria ? cursor : cursor.slice(0, 7);
-    exigir(i.hasta === fin && i.parcial === parcial && i.inicio_at === medianoche(cursor)
-      && i.fin_exclusivo_at === medianoche(siguiente(fin)) && c.id === `${diaria ? 'dia' : 'mes'}:${clave}`
+    exigir(i.hasta === fin && i.parcial === parcial && inicioDelDia(i.inicio_at, cursor)
+      && inicioDelDia(i.fin_exclusivo_at, siguiente(fin)) && c.id === `${diaria ? 'dia' : 'mes'}:${clave}`
       && c.etiqueta === clave + (parcial ? ' (parcial)' : ''));
     cursor = siguiente(fin);
   }

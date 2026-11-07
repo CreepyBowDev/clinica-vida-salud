@@ -1,5 +1,17 @@
 # Frontend — Clínica Vida Salud
 
+## Horario del médico al programar/reservar (2026-11-07)
+
+Mejora autorizada de CU-13/CU-14: al seleccionar médico se muestra su horario semanal activo antes de elegir fecha, tanto para personal como para Paciente. `ReservaHorarioMedico` agrupa los intervalos por día y conserva segundos significativos; aviso explícito de que el horario habitual no garantiza turnos libres. Mantiene estructura, Source Sans 3, tokens y diseño del formulario; skill local `.opencode/skills/frontend-design/SKILL.md` aplicada sin dependencias nuevas. El servicio valida el campo aditivo `horarios`; ante un backend anterior informa su ausencia sin inventar horarios ni impedir consultar por fecha.
+
+Verificación: 261 pruebas dirigidas/4 archivos correctos con jsdom/API simulada y build externo correcto (aviso previo de chunk>500kB). Sin navegador visual ni integración nueva con Laravel/PostgreSQL. [Relevo](../docs/ai/estado-fase.md).
+
+## Correcciones RF06/RF13 tras auditoría (2026-11-07)
+
+Reserva: aborta solicitudes pendientes al abandonar la instancia; comprueba señal y época de sesión entre CSRF/POST. HTTP408/estados no contractuales mantienen resultado incierto, sin reenvío automático. Pagehide limpia datos visibles y conserva solo referencia de consulta en memoria; ausencia confirmada sin resumen exige nueva revisión. Reportes: valida fronteras reales America/La_Paz, no UTC−04 fijo, y meses anteriores al año100 sin sumar1900. Reglas, permisos y contratos HTTP intactos.
+
+710/710 pruebas dirigidas en21 archivos con API/sesión simuladas/jsdom; build externo correcto/aviso existente chunk>500kB. Backend:28 pruebas puras sin SQL, no integración nueva ni revisión visual. Fallo de foco CU-07 de la auditoría no corregido/revalidado aquí. [Relevo y logs](../docs/ai/estado-fase.md). Secciones inferiores históricas.
+
 ## CU-29 — EST-5 aceptada localmente (2026-11-07)
 
 Sin cambios funcionales nuevos. Chrome real/React/Axios/XHR/cookies/CSRF→Laravel HTTP/PostgreSQL aislado→Dompdf→descarga: siete variantes y siete vacíos,estadísticas completas,página2/borrador/página sin filas con total positivo,cambios ficticios/nueva lectura/Actualizar,permisos/sesión/429. Capturas1440/390px y teclado real/foco/tabla móvil desplazable;26 PDFs descargados y muestras visuales revisadas,qpdf/WinRT/texto correctos. Positivos sin mocks;419/500 CDP inyectados y respuestas reales retenidas identificadas.13 grupos únicos cubiertos entre ejecuciones con fallos/revalidaciones del arnés, no pase único verde.

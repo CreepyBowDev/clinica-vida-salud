@@ -16,6 +16,16 @@ beforeEach(() => {
   });
 });
 afterEach(() => { api.defaults.adapter = original; });
+const medico = { id_medico: '2', codigo_medico: 'MED-2', nombres: 'Nombre', apellidos: 'Ficticio', consultorio: { id_consultorio: '3', codigo_consultorio: 'C-3', nombre: 'Sala ficticia' } };
+it.each([undefined, [], [{ dia_semana: 7, hora_inicio: '08:00:01', hora_fin: '09:00:01' }]])('acepta horario semanal válido o servidor anterior sin inventar intervalos: %j', async horarios => {
+  api.defaults.adapter = async config => ({ config, status: 200, headers: {}, data: { data: [{ ...medico, horarios }], meta: { current_page: 1, last_page: 1, total: 1 } } });
+  const result = await listarMedicosReserva({ id_especialidad: '1' });
+  expect(result.data[0].horarios).toEqual(horarios);
+});
+it.each([null, {}, [null], [{ dia_semana: 0, hora_inicio: '08:00:00', hora_fin: '09:00:00' }], [{ dia_semana: 8, hora_inicio: '08:00:00', hora_fin: '09:00:00' }], [{ dia_semana: 1, hora_inicio: '25:00:00', hora_fin: '26:00:00' }], [{ dia_semana: 1, hora_inicio: '09:00:00', hora_fin: '08:00:00' }]])('rechaza horarios malformados de forma segura: %j', async horarios => {
+  api.defaults.adapter = async config => ({ config, status: 200, headers: {}, data: { data: [{ ...medico, horarios }], meta: { current_page: 1, last_page: 1, total: 1 } } });
+  await expect(listarMedicosReserva({ id_especialidad: '1' })).rejects.toThrow('No se pudo verificar');
+});
 it('catálogo específico de especialidades filtra campos, trim y conserva paginación/cancelación', async () => {
   const signal = new AbortController().signal;
   const result = await listarEspecialidadesReserva({ nombre: ' Clínica_% ', page: 2, per_page: 10, activa: false }, signal);

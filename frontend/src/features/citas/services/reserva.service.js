@@ -1,4 +1,4 @@
-import { api, csrfURL } from '../../../api/api';
+import { api, csrfURL, obtenerEpocaSesion } from '../../../api/api';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { montoEntrada } from '../../pagos/utils/pagoFormat';
 import { precioPago } from '../../pagos/services/pago.service';
@@ -29,7 +29,10 @@ export async function listarMedicosReserva(filtros, signal) {
   }
   const result = (await api.get('/reservas/medicos', { params, signal, sessionBound: true })).data;
   return paginaValida(result, result?.data, item => item && esIdentificador(item.id_medico)
-    && texto(item.codigo_medico) && texto(item.nombres) && texto(item.apellidos) && salaValida(item.consultorio));
+    && texto(item.codigo_medico) && texto(item.nombres) && texto(item.apellidos) && salaValida(item.consultorio)
+    && (item.horarios === undefined || (Array.isArray(item.horarios) && item.horarios.every(h => h
+      && Number.isInteger(h.dia_semana) && h.dia_semana >= 1 && h.dia_semana <= 7
+      && horaValida(h.hora_inicio) && horaValida(h.hora_fin) && h.hora_inicio < h.hora_fin))));
 }
 export async function consultarDisponibilidad(filtros, signal) {
   const params = { ...pagina(filtros), id_especialidad: id(filtros.id_especialidad), id_medico: id(filtros.id_medico), fecha: filtros.fecha };
@@ -50,6 +53,7 @@ export async function consultarDisponibilidad(filtros, signal) {
 
 const instante = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(value) && Number.isFinite(Date.parse(value));
 const texto = value => typeof value === 'string' && value.length > 0;
+const horaValida = value => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(value);
 const salaValida = sala => sala && esIdentificador(sala.id_consultorio) && texto(sala.codigo_consultorio) && texto(sala.nombre);
 export function normalizarMotivo(value) {
   if (value !== undefined && value !== null && typeof value !== 'string') throw new Error('Motivo no válido.');
@@ -67,17 +71,23 @@ function citaValida(cita) {
     && instante(cita.inicio_at) && instante(cita.fin_at) && texto(cita.sede_atencion) && texto(cita.consultorio_atencion)
     && (cita.motivo_breve === null || typeof cita.motivo_breve === 'string');
 }
-async function postReserva(path, payload, validar) {
+async function postReserva(path, payload, validar, signal) {
+  const contexto = { sessionBound: true, sessionEpochExpected: obtenerEpocaSesion(), signal };
   // Distinguir fallo previo de CSRF de un POST que pudo llegar a COMMIT.
-  try { await api.get(csrfURL, { sessionBound: true }); }
+  try {
+    signal?.throwIfAborted();
+    await api.get(csrfURL, contexto);
+    signal?.throwIfAborted();
+  }
   catch (error) { error.reservaEnviada = false; throw error; }
   try {
-    const response = await api.post(path, payload, { sessionBound: true });
+    // Abortar después del envío cancela la espera, no acredita rollback.
+    const response = await api.post(path, payload, contexto);
     if (!validar(response)) throw new Error('No se pudo verificar la respuesta de la reserva.');
     return response.data;
   } catch (error) { error.reservaEnviada = true; throw error; }
 }
-export async function proponerReserva(datos) {
+export async function proponerReserva(datos, signal) {
   const payload = { id_especialidad: id(datos.id_especialidad), id_medico: id(datos.id_medico), fecha: datos.fecha,
     hora_inicio: datos.hora_inicio, revision_turno: datos.revision_turno, motivo_breve: normalizarMotivo(datos.motivo_breve) };
   if (datos.id_paciente !== undefined) payload.id_paciente = id(datos.id_paciente);
@@ -98,24 +108,24 @@ export async function proponerReserva(datos) {
       && (datos.inicioEsperado === undefined || p.inicio_at === datos.inicioEsperado)
       && Number.isInteger(p.duracion_minutos) && p.duracion_minutos > 0 && texto(p.sede_atencion)
       && (p.direccion_sede === null || typeof p.direccion_sede === 'string') && p.motivo_breve === payload.motivo_breve;
-  });
+  }, signal);
   if (result.data.precio) result.data.precio = precioPago(result.data.precio);
   if (payload.monto_bob !== undefined && result.data.precio?.monto_bob !== payload.monto_bob) throw new Error('El monto revisado no coincide con la selección.');
   return result.data;
 }
-export async function confirmarReserva({ propuesta, motivo_breve, pacienteEsperado }) {
+export async function confirmarReserva({ propuesta, motivo_breve, pacienteEsperado }, signal) {
   exigirPropuesta(propuesta);
   return postReserva('/citas', { propuesta, motivo_breve: normalizarMotivo(motivo_breve) }, response =>
     [200, 201].includes(response.status) && citaValida(response.data?.data)
     && (pacienteEsperado === undefined || response.data.data.id_paciente === pacienteEsperado)
     && typeof response.data?.meta?.repetida === 'boolean'
-    && (response.status === 200 ? response.data.meta.repetida : !response.data.meta.repetida));
+    && (response.status === 200 ? response.data.meta.repetida : !response.data.meta.repetida), signal);
 }
-export async function consultarResultadoReserva({ propuesta, pacienteEsperado }) {
+export async function consultarResultadoReserva({ propuesta, pacienteEsperado }, signal) {
   exigirPropuesta(propuesta);
   const result = await postReserva('/reservas/resultado', { propuesta }, response => response.status === 200
     && typeof response.data?.data?.registrada === 'boolean'
     && (!response.data.data.registrada || (citaValida(response.data.data.cita)
-      && (pacienteEsperado === undefined || response.data.data.cita.id_paciente === pacienteEsperado))));
+      && (pacienteEsperado === undefined || response.data.data.cita.id_paciente === pacienteEsperado))), signal);
   return result.data;
 }

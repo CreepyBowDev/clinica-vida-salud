@@ -41,8 +41,9 @@ abstract class ReportePeriodoRequest extends FormRequest
 
                 return;
             }
-            $inicio = CarbonImmutable::createFromFormat('!Y-m-d', $desde, 'America/La_Paz');
-            $fin = CarbonImmutable::createFromFormat('!Y-m-d', $hasta, 'America/La_Paz');
+            // El máximo es de fechas civiles inclusivas, independiente del horario histórico.
+            $inicio = CarbonImmutable::createFromFormat('!Y-m-d', $desde, 'UTC');
+            $fin = CarbonImmutable::createFromFormat('!Y-m-d', $hasta, 'UTC');
             if ($inicio->diffInDays($fin) > 365) {
                 $validator->errors()->add('hasta', 'El período no puede superar 366 días inclusivos.');
             }

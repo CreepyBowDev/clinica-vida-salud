@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AxiosError } from 'axios';
-import { api, csrfURL } from '../../../../api/api';
+import { api, csrfURL, avanzarSesion } from '../../../../api/api';
 import { proponerReserva, confirmarReserva, consultarResultadoReserva, normalizarMotivo } from '../../services/reserva.service';
 import { propuesta, cita, seleccion } from '../utils/reservaFixtures';
 
@@ -79,4 +79,43 @@ it.each(['confirmar', 'resultado'])('respuesta de otro Paciente en %s no se pres
 it('resultado malformado sin booleano no significa ausencia confirmada', async () => {
   task = c => c.url === csrfURL ? ok(c, '') : ok(c, { data: { registrada: 'false' } });
   await expect(consultarResultadoReserva(payload)).rejects.toThrow(); expect(calls).toHaveLength(2);
+});
+
+const operaciones = [
+  ['proponer', signal => proponerReserva(seleccion, signal)],
+  ['confirmar', signal => confirmarReserva(payload, signal)],
+  ['resultado', signal => consultarResultadoReserva(payload, signal)],
+];
+it.each(operaciones)('%s: señal ya abortada no solicita CSRF ni POST', async (nombre, ejecutar) => {
+  const controller = new AbortController(); controller.abort();
+  await expect(ejecutar(controller.signal)).rejects.toMatchObject({ reservaEnviada: false });
+  expect(calls).toHaveLength(0);
+});
+it.each(operaciones)('%s: abortar mientras espera CSRF impide el POST tardío', async (nombre, ejecutar) => {
+  let completar, anunciar;
+  const started = new Promise(resolve => { anunciar = resolve; });
+  task = config => new Promise(resolve => { completar = () => resolve(ok(config, '')); anunciar(); });
+  const controller = new AbortController(), outcome = ejecutar(controller.signal).catch(error => error);
+  await started; controller.abort(); completar();
+  expect(await outcome).toMatchObject({ reservaEnviada: false });
+  expect(calls).toHaveLength(1); expect(calls[0].signal).toBe(controller.signal);
+});
+it.each(operaciones)('%s: cambio de época durante CSRF no envía POST con otra sesión', async (nombre, ejecutar) => {
+  let completar, anunciar;
+  const started = new Promise(resolve => { anunciar = resolve; });
+  task = config => new Promise(resolve => { completar = () => resolve(ok(config, '')); anunciar(); });
+  const outcome = ejecutar().catch(error => error);
+  await started; avanzarSesion(); completar();
+  expect(await outcome).toMatchObject({ code: 'SESSION_SUPERSEDED', reservaEnviada: false });
+  expect(calls).toHaveLength(1);
+});
+it('abortar un POST ya enviado no afirma rollback ni reintenta', async () => {
+  let completar, anunciar;
+  const started = new Promise(resolve => { anunciar = resolve; });
+  task = config => config.url === csrfURL ? ok(config, '') : new Promise(resolve => {
+    completar = () => resolve(ok(config, { data: cita, meta: { repetida: false } }, 201)); anunciar();
+  });
+  const controller = new AbortController(), outcome = confirmarReserva(payload, controller.signal).catch(error => error);
+  await started; controller.abort(); completar();
+  expect(await outcome).toMatchObject({ reservaEnviada: true }); expect(calls).toHaveLength(2);
 });

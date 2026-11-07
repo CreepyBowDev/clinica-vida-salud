@@ -30,6 +30,8 @@ class DisponibilidadRepository
     {
         $query = Medico::query()->select(['id_medico', 'id_consultorio', 'codigo_medico', 'nombres', 'apellidos'])
             ->with('consultorio:id_consultorio,codigo_consultorio,nombre')
+            ->with(['horarios' => fn ($q) => $q->select(['id_medico', 'dia_semana', 'hora_inicio', 'hora_fin'])
+                ->where('activo', true)->orderBy('dia_semana')->orderBy('hora_inicio')->orderBy('hora_fin')])
             ->where('activo', true)->whereHas('especialidades', fn ($q) => $q->where('especialidades.id_especialidad', $filtros['id_especialidad'])
             ->where('especialidades.activa', true)->where('medico_especialidad.habilitada', true))
             ->whereHas('horarios', fn ($q) => $q->where('activo', true))
@@ -47,6 +49,8 @@ class DisponibilidadRepository
             ->paginate($filtros['per_page'] ?? 20, ['*'], 'page', $filtros['page'] ?? 1)
             ->through(fn ($m) => ['id_medico' => (string) $m->getKey(), 'codigo_medico' => $m->codigo_medico,
                 'nombres' => $m->nombres, 'apellidos' => $m->apellidos,
+                'horarios' => $m->horarios->map(fn ($h) => ['dia_semana' => $h->dia_semana,
+                    'hora_inicio' => $h->hora_inicio, 'hora_fin' => $h->hora_fin])->all(),
                 'consultorio' => ['id_consultorio' => (string) $m->id_consultorio,
                     'codigo_consultorio' => $m->consultorio->codigo_consultorio, 'nombre' => $m->consultorio->nombre]]);
     }

@@ -118,7 +118,7 @@ it('motivo demasiado largo se valida antes de solicitar propuesta', async () => 
   const user = userEvent.setup(); mount(); await elegir(user, ''); fireEvent.change(screen.getByLabelText('Motivo breve (opcional)'), { target: { value: 'a'.repeat(501) } });
   await user.click(screen.getByRole('button', { name: 'Revisar cita' })); expect(screen.getByLabelText('Motivo breve (opcional)')).toHaveAttribute('aria-invalid', 'true'); expect(posts('/reservas/propuesta')).toHaveLength(0);
 });
-it.each([undefined, 500])('resultado incierto %s solo consulta y recupera la misma cita', async status => {
+it.each([undefined, 408, 418, 499, 500])('resultado incierto %s solo consulta y recupera la misma cita', async status => {
   confirmTask = c => { throw fail(c, status); }; const user = userEvent.setup(); mount(); await elegir(user); await revisar(user); await confirmar(user);
   await screen.findByRole('heading', { name: 'Consultar resultado de la reserva' }); expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument();
   expect(screen.queryByText('SQL secreto')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(1);
@@ -295,5 +295,43 @@ it('respuesta tardía de propuesta no se conserva al cambiar de rol, incluso ent
   expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Revisar cita' })).not.toBeInTheDocument();
   expect(posts('/citas')).toHaveLength(0);
+});
+it.each(['pagehide', 'salida'])('%s durante CSRF impide registrar después de abandonar la intención', async salida => {
+  let complete, csrf;
+  const user = userEvent.setup(), router = mount(); await elegir(user); await revisar(user);
+  csrfTask = config => new Promise(resolve => { csrf = config; complete = () => resolve(ok(config, '')); });
+  await confirmar(user); await waitFor(() => expect(complete).toBeTypeOf('function'));
+  if (salida === 'pagehide') act(() => window.dispatchEvent(new Event('pagehide')));
+  else {
+    await user.click(screen.getByRole('link', { name: 'Inicio' }));
+    await user.click(await screen.findByRole('button', { name: 'Salir sin conservar la comprobación' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/inicio'));
+  }
+  expect(csrf.signal.aborted).toBe(true); await act(async () => complete());
+  expect(posts('/citas')).toHaveLength(0); expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument();
+  if (salida === 'pagehide') {
+    csrfTask = null; resultTask = config => ok(config, { data: { registrada: false } });
+    await user.click(await screen.findByRole('button', { name: 'Consultar resultado' }));
+    await screen.findByText(/Vuelve a buscar y revisa una nueva propuesta/);
+    expect(screen.queryByRole('button', { name: 'Confirmar nuevamente esta propuesta' })).not.toBeInTheDocument();
+  }
+});
+it('pagehide tras POST conserva solo consulta, recupera cita sin recrear y no persiste datos', async () => {
+  let complete, post;
+  const storage = vi.spyOn(Storage.prototype, 'setItem');
+  const user = userEvent.setup(); mount(); await elegir(user); await revisar(user);
+  confirmTask = config => new Promise(resolve => { post = config; complete = () => resolve(ok(config, { data: cita, meta: { repetida: false } }, 201)); });
+  await confirmar(user); await waitFor(() => expect(complete).toBeTypeOf('function'));
+  act(() => window.dispatchEvent(new Event('pagehide'))); expect(post.signal.aborted).toBe(true);
+  await act(async () => complete());
+  expect(screen.queryByText('CIT-FICTICIO')).not.toBeInTheDocument();
+  expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument();
+  expect(screen.queryByText(propuesta.propuesta)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument();
+  await user.click(await screen.findByRole('button', { name: 'Consultar resultado' }));
+  await screen.findByRole('heading', { name: 'Cita registrada' });
+  expect(posts('/citas')).toHaveLength(1); expect(posts('/reservas/resultado')).toHaveLength(1);
+  expect(JSON.parse(posts('/reservas/resultado')[0].data)).toEqual({ propuesta: propuesta.propuesta });
+  expect(storage).not.toHaveBeenCalled(); storage.mockRestore();
 });
 });

@@ -17,8 +17,8 @@ const fail = (config, status, code, details) => new AxiosError('SQL secreto', un
 const posts = path => calls.filter(c => c.method === 'post' && c.url === path);
 const rutaReserva = () => role === 'Paciente' ? '/reservar-cita' : '/recepcion/citas/nueva';
 const accionReserva = () => role === 'Paciente' ? 'Reservar cita' : 'Programar cita';
-function mount() {
-  const router = createMemoryRouter(crearRutas(), { initialEntries: [rutaReserva()] });
+function mount(path = rutaReserva()) {
+  const router = createMemoryRouter(crearRutas(), { initialEntries: [path] });
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>); return router;
 }
 beforeEach(() => {
@@ -41,12 +41,15 @@ beforeEach(() => {
   };
 });
 afterEach(() => { api.defaults.adapter = original; });
-async function elegir(user, motivo = '0') {
+async function consultarTurnos(user) {
   if (role !== 'Paciente') await user.click(await screen.findByRole('button', { name: /Paciente Ficticio · PAC-FICTICIO/ }));
   await user.click(await screen.findByRole('button', { name: 'General ficticia' }));
   await user.click(await screen.findByRole('button', { name: /Médico Ficticio · MED-FICTICIO/ }));
   fireEvent.change(screen.getByLabelText('Fecha de atención'), { target: { value: seleccion.fecha } });
   await user.click(screen.getByRole('button', { name: 'Consultar turnos' }));
+}
+async function elegir(user, motivo = '0') {
+  await consultarTurnos(user);
   await user.click(await screen.findByRole('radio', { name: '08:00:01' }));
   if (motivo) await user.type(screen.getByLabelText('Motivo breve (opcional)'), motivo);
 }
@@ -54,6 +57,44 @@ async function revisar(user) { await user.click(screen.getByRole('button', { nam
 async function confirmar(user) { await user.click(screen.getByRole('button', { name: role === 'Paciente' ? 'Reservar cita' : 'Programar cita' })); }
 describe.each(['Administrador', 'Recepcionista', 'Paciente'])('registro y resultado de reserva — %s', operador => {
 beforeEach(() => { role = operador; });
+it('D2 consulta → reserva → revisión mantiene titularidad y propone solo después de elegir un turno nuevo', async () => {
+  const user = userEvent.setup(); mount('/consultar-disponibilidad'); await consultarTurnos(user);
+  await screen.findByRole('list', { name: 'Turnos orientativos' });
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+  await user.click(screen.getByRole('link', { name: accionReserva() }));
+  const radio = await screen.findByRole('radio', { name: '08:00:01' });
+  expect(radio).not.toBeChecked(); expect(posts('/reservas/propuesta')).toHaveLength(0);
+  await user.click(radio); await revisar(user);
+  expect(posts('/reservas/propuesta')).toHaveLength(1); expect(posts('/citas')).toHaveLength(0);
+  const { motivo_breve, ...criteriosEsperados } = seleccion;
+  expect(JSON.parse(posts('/reservas/propuesta')[0].data)).toEqual({ ...criteriosEsperados, motivo_breve: null, ...(role === 'Paciente' ? {} : { id_paciente: '3' }) });
+  expect(screen.getByText('Paciente Ficticio · PAC-FICTICIO', { selector: 'dd' })).toBeInTheDocument();
+});
+
+it('D2 cambiar de CU no elimina Retry-After ni habilita una confirmación nueva', async () => {
+  confirmTask = config => { const e = fail(config, 429); e.response.headers['retry-after'] = '60'; throw e; };
+  const user = userEvent.setup(); const router = mount(); await elegir(user); await revisar(user); await confirmar(user);
+  await screen.findByText(/Espera 60 segundos/);
+  await act(() => router.navigate('/consultar-disponibilidad'));
+  await user.click(screen.getByRole('button', { name: 'Cambiar de opción conservando la reserva' }));
+  await user.click(screen.getByRole('link', { name: 'Volver a la reserva pendiente' }));
+  await user.click(screen.getByRole('button', { name: 'Cambiar de opción conservando la reserva' }));
+  expect(await screen.findByRole('button', { name: accionReserva() })).toBeDisabled();
+  expect(posts('/citas')).toHaveLength(1); expect(posts('/reservas/propuesta')).toHaveLength(1);
+});
+
+it('D2 abandonar hacia una URL de reserva ajena al rol no deja un bloqueo invisible', async () => {
+  confirmTask = config => { throw fail(config, 500); };
+  const user = userEvent.setup(); const router = mount(); await elegir(user); await revisar(user); await confirmar(user);
+  await screen.findByRole('button', { name: 'Consultar resultado' });
+  await act(() => router.navigate(role === 'Paciente' ? '/recepcion/citas/nueva' : '/reservar-cita'));
+  await user.click(screen.getByRole('button', { name: 'Salir sin conservar la comprobación' }));
+  await screen.findByRole('heading', { name: 'Acceso no permitido' });
+  await act(() => router.navigate(rutaReserva()));
+  await screen.findByLabelText(role === 'Paciente' ? 'Nombre de especialidad' : 'CI (si existe)');
+  expect(screen.queryByRole('button', { name: 'Consultar resultado' })).not.toBeInTheDocument();
+  expect(posts('/citas')).toHaveLength(1);
+});
 it('guía conserva revisión, resultado y payload sin navegación ficticia', async () => {
   const user = userEvent.setup(); mount(); await elegir(user);
   const progress = screen.getByRole('list', { name: 'Etapas de la reserva' });
@@ -248,12 +289,63 @@ it.each(['propuesta', 'resultado'])('cambio de rol descarta respuesta tardía de
   await screen.findByRole('heading', { name: 'Acceso no permitido' }); await act(async () => resolve());
   expect(screen.queryByText('CIT-FICTICIO')).not.toBeInTheDocument(); expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument();
 });
-it('salir durante propuesta descarta la respuesta sin bloquear como si hubiera guardado', async () => {
+it('salir durante propuesta advierte de revisión pendiente y descarta respuesta solo al confirmar salida', async () => {
   let resolve; proposalTask = c => new Promise(done => { resolve = () => done(ok(c, { data: propuesta })); });
   const user = userEvent.setup(); const router = mount(); await elegir(user); await user.click(screen.getByRole('button', { name: 'Revisar cita' }));
   await waitFor(() => expect(resolve).toBeTypeOf('function')); await user.click(screen.getByRole('link', { name: 'Inicio' }));
+  await screen.findByText(/Hay una revisión de reserva pendiente/);
+  expect(router.state.location.pathname).toBe(rutaReserva());
+  await user.click(screen.getByRole('button', { name: 'Salir sin conservar la comprobación' }));
   await waitFor(() => expect(router.state.location.pathname).toBe('/inicio')); await act(async () => resolve());
   expect(screen.queryByText('Dirección ficticia')).not.toBeInTheDocument(); expect(posts('/citas')).toHaveLength(0);
+});
+
+it.each(['revision', 'preparando', 'guardando', 'incierto', 'consultando'])('D2 cambiar de CU durante %s conserva el ciclo y bloquea salida sin replay', async etapa => {
+  let resolve;
+  const pending = config => new Promise(done => { resolve = () => done(ok(config, { data: etapa === 'preparando' ? propuesta : etapa === 'consultando' ? { registrada: true, cita } : cita, meta: { repetida: false } }, etapa === 'guardando' ? 201 : 200)); });
+  if (etapa === 'preparando') proposalTask = pending;
+  if (etapa === 'guardando') confirmTask = pending;
+  if (['incierto', 'consultando'].includes(etapa)) confirmTask = config => { throw fail(config, 500); };
+  const user = userEvent.setup(); const router = mount(); await elegir(user);
+  await user.click(screen.getByRole('button', { name: 'Revisar cita' }));
+  if (etapa === 'preparando') await screen.findByRole('heading', { name: 'Preparando revisión' });
+  else await screen.findByRole('heading', { name: 'Revisar cita' });
+  if (['guardando', 'incierto', 'consultando'].includes(etapa)) {
+    await confirmar(user);
+    if (etapa !== 'guardando') await screen.findByRole('button', { name: 'Consultar resultado' });
+    if (etapa === 'consultando') { resultTask = pending; await user.click(screen.getByRole('button', { name: 'Consultar resultado' })); }
+  }
+  if (['preparando', 'guardando', 'consultando'].includes(etapa)) await waitFor(() => expect(resolve).toBeTypeOf('function'));
+  const postCount = calls.filter(c => c.method === 'post').length;
+  const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
+  const searchLink = navigation.getByRole('link', { name: 'Buscar médicos y consultar disponibilidad' });
+  await user.click(searchLink);
+  expect(router.state.location.pathname).toBe(rutaReserva()); expect(searchLink).not.toHaveAttribute('aria-current');
+  expect(searchLink).toHaveFocus();
+  await user.click(screen.getByRole('button', { name: 'Permanecer y consultar' }));
+  expect(router.state.location.pathname).toBe(rutaReserva());
+  await user.click(searchLink); await user.click(screen.getByRole('button', { name: 'Cambiar de opción conservando la reserva' }));
+  await screen.findByRole('heading', { name: 'Buscar médicos y consultar disponibilidad' });
+  expect(screen.queryByRole('button', { name: accionReserva() })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Motivo breve (opcional)')).not.toBeInTheDocument();
+  expect(calls.filter(c => c.method === 'post')).toHaveLength(postCount);
+  const volver = screen.getByRole('link', { name: 'Volver a la reserva pendiente' });
+  await user.click(volver); await user.click(screen.getByRole('button', { name: 'Cambiar de opción conservando la reserva' }));
+  const titulo = etapa === 'revision' ? 'Revisar cita' : etapa === 'preparando' ? 'Preparando revisión' : etapa === 'guardando' ? 'Revisar cita' : 'Consultar resultado de la reserva';
+  await screen.findByRole('heading', { name: titulo });
+  expect(calls.filter(c => c.method === 'post')).toHaveLength(postCount);
+  expect(router.state.location.state).toBeNull(); expect(router.state.location.search).toBe('');
+  await act(() => router.navigate(-1));
+  expect(router.state.location.pathname).toBe(rutaReserva());
+  await user.click(screen.getByRole('button', { name: 'Permanecer y consultar' }));
+  if (resolve) {
+    await act(async () => resolve());
+    await screen.findByRole('heading', { name: etapa === 'preparando' ? 'Revisar cita' : 'Cita registrada' });
+  }
+  if (etapa === 'incierto') {
+    await user.click(screen.getByRole('button', { name: 'Consultar resultado' })); await screen.findByRole('heading', { name: 'Cita registrada' });
+    expect(posts('/citas')).toHaveLength(1); expect(posts('/reservas/resultado')).toHaveLength(1);
+  }
 });
 it('advertencia de salida desaparece al completarse guardado y no arrastra navegación vieja', async () => {
   let resolve; confirmTask = c => new Promise(done => { resolve = () => done(ok(c, { data: cita, meta: { repetida: false } }, 201)); });

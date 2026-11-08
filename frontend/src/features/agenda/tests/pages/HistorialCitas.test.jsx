@@ -61,6 +61,24 @@ beforeEach(() => {
 });
 afterEach(() => { api.defaults.adapter = original; });
 
+it.each(['Administrador', 'Recepcionista'].flatMap(actor => ['reprogramar', 'cancelar'].map(operation => [actor, operation])))('D3 %s %s selecciona Paciente y cita sin ficha intermedia ni escrituras', async (actor, operation) => {
+  role = actor; const router = mount(`/recepcion/citas/gestion?operacion=${operation}`);
+  await userEvent.click(await screen.findByRole('button', { name: 'Seleccionar paciente Paciente De prueba' }));
+  expect(router.state.location.pathname + router.state.location.search).toBe(`/recepcion/pacientes/31/citas?operacion=${operation}`);
+  const table = await screen.findByRole('table');
+  const link = within(table).getByRole('link', { name: 'Ver cita CIT-4' });
+  expect(link).toHaveAttribute('href', `/citas/4/gestion?operacion=${operation}`);
+  expect(screen.getByRole('link', { name: 'Seleccionar otro Paciente' })).toHaveAttribute('href', `/recepcion/citas/gestion?operacion=${operation}`);
+  expect(screen.getByRole('link', { name: operation === 'cancelar' ? 'Cancelar una cita' : 'Reprogramar una cita' })).toHaveAttribute('aria-current', 'page');
+  expect(calls.map(call => call.url)).toEqual(['/pacientes', '/pacientes/31/citas']);
+  expect(calls.every(call => call.method === 'get')).toBe(true);
+});
+it.each(['/recepcion/citas/gestion?operacion=atendida', '/recepcion/pacientes/31/citas?operacion=cancelar&operacion=reprogramar'])('D3 selección rechaza %s', async path => {
+  role = 'Administrador'; mount(path);
+  await screen.findByRole('heading', { name: 'Operación no disponible' });
+  expect(screen.queryByRole('table')).not.toBeInTheDocument(); expect(historyCalls()).toHaveLength(0);
+});
+
 it('Mis citas inicia Próximas por contrato, sin consultar perfil/actividad ni enviar ficha', async () => {
   mount(); const table = await screen.findByRole('table');
   expect(calls).toHaveLength(1); expect(calls[0]).toMatchObject({ url: '/mis-citas', params: { page: 1, per_page: 20 }, method: 'get', sessionBound: true });

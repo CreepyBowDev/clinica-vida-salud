@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { clinicalPresentation } from '../../../constants/clinicalPresentation';
+import ClinicalModeError from '../components/ClinicalModeError';
+import SeleccionCitaClinica from '../components/SeleccionCitaClinica';
 import PageHeading from '../../../components/PageHeading';
 import Pagination from '../../../components/Pagination';
 import QueryMessage from '../../../components/QueryMessage';
@@ -18,13 +21,15 @@ import '../styles/clinical-reading.css';
 
 export default function HistoriaClinicaPage() {
   const { id } = useParams(), { usuario } = useAuth();
+  const location = useLocation(), entry = clinicalPresentation(location.pathname, location.search, usuario.rol);
+  if (!entry.valid) return <ClinicalModeError />;
   if (id !== undefined && !esIdentificador(id)) return <section className="workspace-page"><h1>Historia no disponible</h1><Link to="/historia-clinica">Volver a historia clínica</Link></section>;
   return <Historia key={`${usuario.id_usuario}:${usuario.rol}:${id ?? 'entrada'}`} id={id} rol={usuario.rol} />;
 }
 
 function Historia({ id, rol }) {
   if (!id && rol === ROLES.ADMINISTRADOR) return <SeleccionAdministrativa />;
-  if (!id && rol === ROLES.MEDICO) return <section className="workspace-page clinical-page"><PageHeading title="Historia clínica" description="Abre una cita de tu agenda para consultar la historia del paciente relacionado con tu atención." /><Link className="button button--primary" to="/agenda">Consultar agenda médica</Link></section>;
+  if (!id && rol === ROLES.MEDICO) return <SeleccionCitaClinica recorrido="historia" />;
   return <HistoriaPaciente id={id} rol={rol} />;
 }
 
@@ -58,7 +63,7 @@ function HistoriaPaciente({ id, rol }) {
       <section className="clinical-section" aria-labelledby="clinical-visits"><h2 id="clinical-visits">Consultas</h2>
         {data.consultas.length ? <ol className="clinical-visits">{data.consultas.map(c => <li key={c.id_consulta}>
           <p>Fecha programada: <FechaClinica value={c.inicio_at} /></p><h3>{c.medico.nombres} {c.medico.apellidos}</h3><p>{c.tipo_consulta}</p>
-          <Link to={`/citas/${c.id_cita}/consulta`} aria-label={`Ver consulta ${c.codigo_consulta}`}>Ver consulta</Link>
+          <Link to={`/citas/${c.id_cita}/consulta?recorrido=historia`} aria-label={`Ver consulta ${c.codigo_consulta}`}>Ver consulta</Link>
         </li>)}</ol> : <QueryMessage title="No hay consultas registradas" description="Los antecedentes disponibles se muestran por separado." />}
         <Pagination meta={data.meta} label="consultas" onPage={value => { setPage(value); results.current?.focus(); }} />
       </section>

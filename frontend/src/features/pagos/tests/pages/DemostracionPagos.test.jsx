@@ -66,7 +66,7 @@ it.each([ROLES.PACIENTE, ROLES.ADMINISTRADOR])('%s tiene acceso propio sin supla
   expect(screen.getByText(/sin suplantar al Paciente/)).toBeInTheDocument();
   expect(screen.getByLabelText('Proveedor simulado')).toHaveValue('stripe');
   expect(screen.getByRole('link', { name: 'Demostración de pagos' })).toHaveAttribute('href', '/pagos/demostracion');
-   expect(screen.getByRole('link', { name: rol === ROLES.ADMINISTRADOR ? 'Consultar historial financiero de un Paciente' : 'Consultar obligaciones de pago propias e historial de pagos propio' })).toHaveAttribute('href', '/pagos');
+   expect(screen.getByRole('link', { name: rol === ROLES.ADMINISTRADOR ? 'Consultar historial financiero de un Paciente' : 'Consultar obligaciones de pago propias' })).toHaveAttribute('href', rol === ROLES.ADMINISTRADOR ? '/pagos' : '/pagos?vista=obligaciones');
   expect(destinoSeguro('/pagos/demostracion', rol)).toBe('/pagos/demostracion');
   const fixture = screen.getByRole('region', { name: 'Obligación ficticia' });
   expect(fixture).toHaveTextContent(DEMOSTRACION_PAGO.codigo_cita);

@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { citaOperation } from '../../../constants/citaOperations';
+import { CLINICAL_JOURNEYS } from '../../../constants/clinicalPresentation';
+import OperacionNoDisponible from '../../citas/components/OperacionNoDisponible';
 import PageHeading from '../../../components/PageHeading';
 import QueryMessage from '../../../components/QueryMessage';
 import CatalogResults from '../../../components/CatalogResults';
@@ -15,8 +19,10 @@ import '../../../styles/catalogs.css';
 import '../styles/agenda.css';
 import '../styles/agenda-day.css';
 
-export default function AgendaPage({ asistencia = false }) {
+export default function AgendaPage({ asistencia = false, recorrido }) {
   const { usuario } = useAuth();
+  const { search } = useLocation();
+  const entry = citaOperation(search, 'asistencia', usuario.rol);
   const { workspace, setWorkspace } = useAgendaWorkspace();
   const { selectedId, draft, filters, catalog } = workspace;
   const own = usuario.rol === ROLES.MEDICO;
@@ -33,8 +39,10 @@ export default function AgendaPage({ asistencia = false }) {
     if (draft.fecha && !esFechaCivil(draft.fecha)) { setErrors({ fecha: 'Introduce una fecha válida.' }); return; }
     setErrors({}); change({ filters: { fecha: draft.fecha ?? effectiveDate, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); query.reload();
   }
+  if (asistencia && !entry.valid) return <OperacionNoDisponible to="/asistencia" />;
   return <section className="workspace-page catalog-page agenda-page agenda-day">
-    <PageHeading title={asistencia ? 'Seleccionar cita para asistencia' : 'Agenda médica'} description={own ? 'Consulta tus citas asignadas por fecha y estado.' : 'Selecciona un médico y consulta sus citas por fecha y estado.'} />
+    <PageHeading title={recorrido ? CLINICAL_JOURNEYS[recorrido].label : asistencia ? entry.operation?.label ?? 'Seleccionar cita para asistencia' : 'Agenda médica'} description={own ? 'Consulta tus citas asignadas por fecha y estado.' : 'Selecciona un médico y consulta sus citas por fecha y estado.'} />
+    {recorrido && <p>Selecciona una cita. El contexto autorizado del servidor determina las acciones disponibles; elegirla no inicia una operación ni cambia su estado.</p>}
     {!own && <MedicoAgendaSelector selectedId={selectedId} catalog={catalog} onChange={next => change({ catalog: next })}
       onSelect={id => { change({ selectedId: id, filters: { fecha: draft.fecha, estado: draft.estado, per_page: Number(draft.per_page), page: 1 } }); setErrors({}); results.current?.focus(); }} />}
     <AgendaFilters draft={draft} effectiveDate={filters.fecha ?? effectiveDate} onChange={next => { change({ draft: next }); setErrors({}); }} onApply={apply}
@@ -50,7 +58,8 @@ export default function AgendaPage({ asistencia = false }) {
             emptyHint="Consulta otra fecha o selecciona todos los estados. Un resultado vacío no indica disponibilidad para reservar."
             onPage={page => { change({ filters: { ...filters, fecha: effectiveDate, page } }); results.current?.focus(); }}>
             <CitasTable citas={query.data?.data ?? []} caption="Citas de la agenda por hora de inicio ascendente" destacarHorario
-              {...(asistencia ? { detailPath: id => `/citas/${id}/asistencia`, detailState: { origen: 'asistencia' } } : {})}
+              {...(asistencia ? { detailPath: id => `/citas/${id}/asistencia${entry.search}`, detailState: { origen: 'asistencia' } } : {})}
+              {...(recorrido ? { detailPath: id => `/citas/${id}/consulta?recorrido=${recorrido}` } : {})}
               onDetail={() => change({ detailSource: asistencia ? 'asistencia' : 'agenda', filters: { ...filters, fecha: effectiveDate } })} />
           </CatalogResults>
         </>}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import PageHeading from '../../../components/PageHeading';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
@@ -25,6 +26,7 @@ const titulos = {
 };
 
 export default function DemostracionPagosPage() {
+  const location = useLocation();
   const [demo, setDemo] = useState(inicial);
   const [formularios, setFormularios] = useState(() => ({ stripe: { ...DEMOSTRACION_PAGO.stripe }, paypal: { ...DEMOSTRACION_PAGO.paypal } }));
   const heading = useRef(null), first = useRef(true);
@@ -37,6 +39,7 @@ export default function DemostracionPagosPage() {
   const avanzar = (desde, hacia) => setDemo(actual => actual.paso === desde ? { ...actual, paso: hacia } : actual);
   const consultar = () => avanzar('retorno', escenario === 'pendiente' ? 'pendiente' : proveedor === 'paypal' ? 'aprobado' : 'completado');
   const etapa = paso === 'seleccion' ? 0 : paso === 'revision' ? 1 : ['completado', 'pendiente'].includes(paso) ? 3 : 2;
+  if (new URLSearchParams(location.search).has('vista')) return <section className="workspace-page"><h1>Vista de pagos no disponible</h1><p>La demostración es un auxiliar independiente.</p><Link to="/pagos/demostracion">Volver a demostración</Link></section>;
   return <section className="workspace-page catalog-page payments-page payment-demo payment-journey">
     <PageHeading title="Demostración de pagos" description="Recorrido visual ficticio del Paciente, separado de Consultar pagos y de sus datos reales." />
     <Alert variant="warning"><p>Demostración académica con datos ficticios. No realiza cobros ni modifica citas o pagos</p></Alert>

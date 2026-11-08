@@ -35,11 +35,57 @@ function escribir(config){
   historial=[{id_version_resultado:String(80+n),numero_version:n,id_autor:'7',registrada_en:instante,motivo_cambio:body.get('motivo_cambio'),id_version_origen:n>1?'81':null},...historial];
   return response(config,{data:origen},201);
 }
-function mount(strict=false){const router=createMemoryRouter(crearRutas(),{initialEntries:['/laboratorio/solicitudes/71']});const tree=<AuthProvider><RouterProvider router={router}/></AuthProvider>;return{...render(strict?<StrictMode>{tree}</StrictMode>:tree),router};}
+function mount(strict=false,path='/laboratorio/solicitudes/71'){const router=createMemoryRouter(crearRutas(),{initialEntries:[path]});const tree=<AuthProvider><RouterProvider router={router}/></AuthProvider>;return{...render(strict?<StrictMode>{tree}</StrictMode>:tree),router};}
 beforeEach(()=>{vi.clearAllMocks();rol='Administrador';origen=solicitud();destino=solicitud({id_solicitud:'72',paciente:pacienteDestino()});calls=[];historial=[];consultarSesion.mockImplementation(async()=>sesion(rol));respond=config=>config.method==='post'?escribir(config):leer(config);api.defaults.adapter=async config=>{calls.push(config);return respond(config);};});
 afterEach(()=>{api.defaults.adapter=original;vi.restoreAllMocks();});
 const posts=()=>calls.filter(c=>c.method==='post');
 const archivo=()=>new File(['%PDF-1.4\n%%EOF\n'],'ficticio.pdf',{type:'application/pdf'});
+it.each(['consulta', 'documentos', 'revision'])('D4 entrada directa %s monta solo su operación y no escribe/descarga', async mode => {
+  origen = documentada({ devuelta: mode === 'documentos' });
+  mount(false, `/laboratorio/solicitudes/71?operacion=${mode}`);
+  await screen.findByRole('heading', { name: 'Hemograma de prueba' });
+  expect(document.querySelector('.lab-document-workspace') !== null).toBe(mode === 'documentos');
+  expect(document.querySelector('.lab-review-workspace') !== null).toBe(mode === 'revision');
+  expect(posts()).toHaveLength(0); expect(calls.some(c => c.url.endsWith('/archivo'))).toBe(false);
+  expect(screen.getByRole('link', { name: 'Ver estudios de esta consulta' })).toHaveAttribute('href', `/laboratorio/consultas/44?operacion=${mode}`);
+});
+it.each(['otro', '', 'documentos&operacion=documentos', 'consulta&recorrido=historia'])('D4 modo %s inválido no monta escritores ni contenido clínico', async mode => {
+  mount(false, `/laboratorio/solicitudes/71?operacion=${mode}`);
+  await screen.findByRole('heading', { name: 'Operación no disponible' });
+  expect(document.querySelector('.lab-document-workspace')).toBeNull(); expect(document.querySelector('.lab-review-workspace')).toBeNull();
+  expect(screen.queryByText('Persona Ficticia')).not.toBeInTheDocument(); expect(posts()).toHaveLength(0);
+});
+it('D4 archivo seleccionado se conserva al cambiar query/sidebar; no monta revisión y volver conserva File', async () => {
+  const { router } = mount(false, '/laboratorio/solicitudes/71?operacion=documentos');
+  await userEvent.click(await screen.findByRole('button', { name: 'Cargar documento' }));
+  await userEvent.upload(screen.getByLabelText('Documento externo'), archivo());
+  const input = screen.getByLabelText('Documento externo');
+  await userEvent.click(screen.getByRole('link', { name: 'Revisar y autorizar la publicación de resultados' }));
+  expect(router.state.location.search).toBe('?operacion=documentos');
+  await userEvent.click(screen.getByRole('button', { name: 'Permanecer' })); expect(input.files).toHaveLength(1);
+  await userEvent.click(screen.getByRole('link', { name: 'Revisar y autorizar la publicación de resultados' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(router.state.location.pathname).toBe('/laboratorio/solicitudes/71');
+  expect(router.state.location.search).toBe('?operacion=revision'); expect(input).not.toBeVisible();
+  expect(document.querySelector('.lab-review-workspace')).toBeNull();
+  await userEvent.click(screen.getByRole('link', { name: 'Volver al proceso conservado' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByLabelText('Documento externo')).toBe(input); expect(input.files).toHaveLength(1);
+  expect(posts()).toHaveLength(0); expect(localStorage.length + sessionStorage.length).toBe(0);
+});
+it('D4 incertidumbre documental se conserva al cambiar modo y solo se consulta sin replay', async () => {
+  respond = config => config.method === 'post' ? Promise.reject(fail(config, 500)) : leer(config);
+  const { router } = mount(false, '/laboratorio/solicitudes/71?operacion=documentos');
+  await revisarCarga(); await userEvent.click(screen.getByRole('button', { name: 'Cargar documento' }));
+  await screen.findByRole('button', { name: 'Consultar estado documental actual' });
+  await act(() => router.navigate('/laboratorio/solicitudes/71?operacion=consulta'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.queryByRole('button', { name: 'Consultar estado documental actual' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('link', { name: 'Volver al proceso conservado' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar estado documental actual' }));
+  await screen.findByText(/No acredita qué petición/); expect(posts()).toHaveLength(1);
+});
 async function revisarCarga(tipo='Cargar documento'){
   await userEvent.click(await screen.findByRole('button',{name:tipo}));await userEvent.upload(screen.getByLabelText('Documento externo'),archivo());
   if(tipo==='Sustituir documento')await userEvent.type(screen.getByLabelText('Motivo de corrección'),'Copia legible ficticia');

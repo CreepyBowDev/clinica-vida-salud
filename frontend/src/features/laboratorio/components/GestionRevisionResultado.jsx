@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useBlocker, useLocation } from 'react-router-dom';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
 import QueryMessage from '../../../components/QueryMessage';
@@ -7,28 +7,30 @@ import { useRevisionResultado } from '../hooks/useRevisionResultado';
 import RevisionResultadoForm from './RevisionResultadoForm';
 import '../styles/lab-review-editor.css';
 
-export default function GestionRevisionResultado({ id, rol, idActor, query, ejecutor, onRetirarDetalle, onBloquearCambio, onCerrar }) {
+export default function GestionRevisionResultado({ id, rol, idActor, query, ejecutor, onRetirarDetalle, onBloquearCambio, onCerrar, suspended = false }) {
   const escritura = useRevisionResultado(id, rol, idActor), [dirty, setDirty] = useState(false), heading = useRef(null);
   const riesgo = ['enviando', 'incierto', 'consultando'].includes(escritura.status), busy = ['enviando', 'consultando'].includes(escritura.status), contexto = query.data;
-  const blocker = useBlocker(dirty || riesgo);
+  const blocker = useBlocker(dirty || riesgo || escritura.remaining > 0), location = useLocation();
+  const conserva = blocker.location?.pathname === location.pathname;
   useEffect(() => { onRetirarDetalle(['enviando', 'incierto', 'consultando', 'error'].includes(escritura.status)); }, [escritura.status, onRetirarDetalle]);
   useEffect(() => { onBloquearCambio(dirty || riesgo || escritura.remaining > 0); }, [dirty, riesgo, escritura.remaining, onBloquearCambio]);
   useEffect(() => () => onBloquearCambio(false), [onBloquearCambio]);
-  useEffect(() => { if (!dirty && !riesgo && blocker.state === 'blocked') blocker.reset(); }, [dirty, riesgo, blocker]);
+  useEffect(() => { if (!dirty && !riesgo && escritura.remaining === 0 && blocker.state === 'blocked') blocker.reset(); }, [dirty, riesgo, escritura.remaining, blocker]);
   useEffect(() => {
     if (!dirty && !riesgo) return;
     const warn = e => { e.preventDefault(); e.returnValue = ''; }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, riesgo]);
   useEffect(() => {
     if (!['inicial', 'enviando', 'validacion'].includes(escritura.status)) setDirty(false);
-    if (escritura.status !== 'inicial') heading.current?.focus();
-  }, [escritura.status]);
+    if (escritura.status !== 'inicial' && !suspended) heading.current?.focus();
+  }, [escritura.status, suspended]);
   useEffect(() => { if (query.loading || query.failure) setDirty(false); }, [query.loading, query.failure]);
   const refrescar = () => { setDirty(false); escritura.reset(); query.reload(); };
   async function guardar(entrada) { if (await escritura.guardar(entrada)) query.reload(); }
   async function recuperar() { if (await escritura.consultar()) query.reload(); }
   return <section className="lab-section lab-review-workspace" aria-label="Revisión y publicación del resultado">
-    {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'La revisión podría haberse guardado. Salir no revierte una publicación o devolución.' : 'Si sales, se perderán la decisión y el motivo que no guardaste.'}</p><Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar la revisión</Button></Alert>}
+    {blocker.state === 'blocked' && <Alert variant="warning"><p>{conserva ? 'Cambiar de presentación conserva la revisión solo en memoria. Debes volver a este proceso para resolverlo.' : riesgo ? 'La revisión podría haberse guardado. Salir no revierte una publicación o devolución.' : 'Si sales, se perderán la decisión y el motivo que no guardaste.'}</p><Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>{conserva ? 'Continuar conservando el proceso' : 'Salir sin conservar la revisión'}</Button></Alert>}
+    <div hidden={suspended} inert={suspended || undefined}><fieldset disabled={suspended} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
     {escritura.status !== 'inicial' && <section aria-live="polite" aria-label="Resultado de la revisión"><h2 ref={heading} tabIndex={-1}>Resultado de la revisión</h2>
       {busy && <QueryMessage loading title={escritura.status === 'enviando' ? 'Guardando revisión…' : 'Consultando estado actual…'} />}
       {escritura.failure && <Alert variant={escritura.status === 'incierto' ? 'warning' : 'error'}><p>{escritura.failure.message}</p></Alert>}
@@ -44,5 +46,6 @@ export default function GestionRevisionResultado({ id, rol, idActor, query, ejec
         : <RevisionResultadoForm key={`${contexto.epocaSesion}:${JSON.stringify(contexto.revision.originales)}`} contexto={contexto} ejecutor={ejecutor} busy={busy} failure={escritura.status === 'validacion' ? escritura.failure : null}
           onGuardar={guardar} onDirtyChange={setDirty} onCancel={() => { setDirty(false); onCerrar(); }} />}
     </>}
+    </fieldset></div>
   </section>;
 }

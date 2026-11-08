@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { clinicalPresentation, LAB_OPERATIONS } from '../../../constants/clinicalPresentation';
+import ClinicalModeError from '../../historia-clinica/components/ClinicalModeError';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROLES } from '../../../constants/roles';
 import { escucharCambioSesion } from '../../../api/api';
@@ -23,11 +25,14 @@ import '../styles/lab-workflow.css';
 const empty = { estado: '', fecha_desde: '', fecha_hasta: '' };
 export default function LaboratorioPage({ contexto }) {
   const { id } = useParams(), { usuario } = useAuth();
+  const location = useLocation(), entry = clinicalPresentation(location.pathname, location.search, usuario.rol);
+  if (!entry.valid) return <ClinicalModeError to="/laboratorio" />;
   if (contexto && !esIdentificador(id)) return <section className="workspace-page"><h1>Laboratorio no disponible</h1><Link to="/laboratorio">Volver a estudios</Link></section>;
-  if (usuario.rol === ROLES.ADMINISTRADOR && !contexto) return <SeleccionPaciente key={`${usuario.id_usuario}:${usuario.rol}`} />;
-  return <Listado key={`${usuario.id_usuario}:${usuario.rol}:${contexto}:${id}`} rol={usuario.rol} contexto={contexto} id={id} />;
+  if (usuario.rol === ROLES.ADMINISTRADOR && !contexto) return <SeleccionPaciente key={`${usuario.id_usuario}:${usuario.rol}`} entry={entry} />;
+  return <Listado key={`${usuario.id_usuario}:${usuario.rol}:${contexto}:${id}`} rol={usuario.rol} contexto={contexto} id={id} entry={entry} />;
 }
-function SeleccionPaciente() {
+function SeleccionPaciente({ entry }) {
+  const navigate = useNavigate();
   const [hidden, setHidden] = useState(false), [paused, setPaused] = useState(false), [revision, setRevision] = useState(0);
   useEffect(() => {
     const hide = () => setHidden(true), show = () => { setHidden(false); setRevision(v => v + 1); };
@@ -38,9 +43,9 @@ function SeleccionPaciente() {
   if (hidden) return <QueryMessage loading title="Consulta de pacientes pausada" />;
   if (paused) return <section className="workspace-page"><QueryMessage title="La sesión cambió" description="Vuelve a consultar antes de seleccionar un paciente." />
     <Button variant="secondary" onClick={() => { setPaused(false); setRevision(v => v + 1); }}>Volver a consultar</Button></section>;
-  return <PatientsPage key={revision} laboratorio />;
+  return <PatientsPage key={revision} laboratorio {...(entry.value ? { onSeleccionar: paciente => navigate(`/laboratorio/pacientes/${paciente.id_paciente}${entry.search}`), tituloSeleccion: `Seleccionar paciente: ${entry.label ?? LAB_OPERATIONS.consulta.label}`, descripcionSeleccion: 'Selecciona un paciente. La selección no acredita permisos sobre una solicitud ni inicia operaciones.' } : {})} />;
 }
-function Listado({ rol, contexto, id }) {
+function Listado({ rol, contexto, id, entry }) {
   const [draft, setDraft] = useState(empty), [filters, setFilters] = useState({ ...empty, page: 1 }), [error, setError] = useState('');
   const results = useRef(null);
   const query = useLaboratorioQuery(listarSolicitudes, { rol, ...filters, ...(contexto === 'paciente' ? { paciente: id } : contexto === 'consulta' ? { consulta: id } : {}) });
@@ -53,8 +58,8 @@ function Listado({ rol, contexto, id }) {
     setError(''); setFilters({ ...draft, page: 1 }); query.reload(); results.current?.focus();
   }
   return <section className="workspace-page lab-page lab-flow lab-worklist">
-    {contexto && <Link className="back-link" to="/laboratorio">{rol === ROLES.ADMINISTRADOR ? 'Seleccionar otro paciente' : 'Ver todos mis estudios'}</Link>}
-    <PageHeading title="Estudios y resultados" description={contexto === 'consulta' ? 'Estudios de la consulta seleccionada. Horarios en America/La_Paz.' : contexto === 'paciente' ? 'Estudios del paciente seleccionado. Horarios en America/La_Paz.' : rol === ROLES.PACIENTE ? 'Consulta tus estudios y descarga los resultados disponibles. Horarios en America/La_Paz.' : 'Solicitudes de tus consultas y documentos vigentes. Horarios en America/La_Paz.'} />
+    {contexto && <Link className="back-link" to={`/laboratorio${entry.search}`}>{rol === ROLES.ADMINISTRADOR ? 'Seleccionar otro paciente' : 'Ver todos mis estudios'}</Link>}
+    <PageHeading title={entry.label ?? 'Estudios y resultados'} description={contexto === 'consulta' ? 'Estudios de la consulta seleccionada. Horarios en America/La_Paz.' : contexto === 'paciente' ? 'Estudios del paciente seleccionado. Horarios en America/La_Paz.' : rol === ROLES.PACIENTE ? 'Consulta tus estudios y descarga los resultados disponibles. Horarios en America/La_Paz.' : 'Solicitudes de tus consultas y documentos vigentes. Horarios en America/La_Paz.'} />
     {contexto === 'consulta' && rol !== ROLES.PACIENTE && <p><Link to="/laboratorio/solicitar">Para solicitar otro estudio, abre la consulta desde la agenda o historia clínica</Link></p>}
     <form className="lab-filters" aria-label="Filtrar estudios" onSubmit={submit}>
       <SelectField label="Estado" {...field('estado')}><option value="">Todos los estados</option><option>Pendiente</option>{rol !== ROLES.PACIENTE && <option>En revisión</option>}<option>Disponible</option></SelectField>
@@ -65,7 +70,7 @@ function Listado({ rol, contexto, id }) {
     <div className="lab-worklist-results" ref={results} tabIndex={-1} role="region" aria-label="Resultados de estudios"><h2>Estudios solicitados</h2><LaboratorioQuery query={query}>{data => <>
       <p className="lab-worklist-total">Total del servidor: {data.meta.total} {data.meta.total === 1 ? 'estudio' : 'estudios'}</p>
       {contexto === 'paciente' && data.solicitudes[0] && <p className="lab-patient-context"><strong>{data.solicitudes[0].paciente.nombres} {data.solicitudes[0].paciente.apellidos}</strong> — {data.solicitudes[0].paciente.codigo_paciente}</p>}
-      {data.solicitudes.length ? <SolicitudesTable solicitudes={data.solicitudes} propia={rol === ROLES.PACIENTE} /> : <QueryMessage title="No hay estudios para estos filtros" description="Prueba otros filtros o vuelve a consultar más tarde." />}
+      {data.solicitudes.length ? <SolicitudesTable solicitudes={data.solicitudes} propia={rol === ROLES.PACIENTE} operacion={entry.value ?? 'consulta'} /> : <QueryMessage title="No hay estudios para estos filtros" description="Prueba otros filtros o vuelve a consultar más tarde." />}
       <Pagination meta={data.meta} label="estudios" onPage={page => { setFilters(v => ({ ...v, page })); results.current?.focus(); }} />
     </>}</LaboratorioQuery></div>
   </section>;

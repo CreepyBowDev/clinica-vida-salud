@@ -41,6 +41,15 @@ async function login() {
 }
 
 describe('integración HTTP del frontend de autenticación', () => {
+  it('D7 limitación pendiente: el guard conserva pathname pero pierde la vista solicitada al pasar por login', async () => {
+    const calls = transport(config => config.url === '/auth/me' ? anonymous : undefined);
+    const { router } = mount('/pagos?vista=historial');
+    await screen.findByRole('heading', { name: 'Bienvenido de nuevo' });
+    expect(router.state.location.pathname).toBe('/login');
+    expect(router.state.location.state.from).toBe('/pagos');
+    expect(calls.every(call => call.method === 'get')).toBe(true);
+    // Caracteriza el impedimento, no aprueba el retorno sin vista. D7 no autoriza cambiar guards.
+  });
   it.each([
     ['Administrador', '/administracion', 'Administración'],
     ['Recepcionista', '/recepcion', 'Recepción'],

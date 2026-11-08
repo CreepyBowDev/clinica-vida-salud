@@ -67,9 +67,7 @@ it.each(['Administrador', 'Recepcionista'])('%s: sidebar → ficha inactiva sin 
       paciente: cita.paciente, filtros: { periodo: config.params.periodo ?? 'todas', estado: config.params.estado ?? null } }) };
     return response(config);
   };
-  const router = mount('/inicio'); const user = userEvent.setup();
-  await user.click(await screen.findByRole('button', { name: 'Reprogramación y cancelación' }));
-  await user.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name: 'Reprogramar una cita o cancelar una cita' }));
+  const router = mount('/recepcion/citas/gestion'); const user = userEvent.setup();
   await screen.findByRole('heading', { name: 'Seleccionar paciente para gestionar una cita' });
   expect(screen.queryByRole('link', { name: 'Registrar paciente' })).not.toBeInTheDocument();
   await user.click(await screen.findByRole('link', { name: 'Ver ficha de Paciente De prueba' }));

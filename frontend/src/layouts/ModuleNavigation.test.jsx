@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MainLayout from './MainLayout';
 import HomePage from '../features/auth/pages/HomePage';
 import { ROLES } from '../constants/roles';
+import { navigationForRole } from '../constants/navigation';
 
 const auth = vi.hoisted(() => ({ usuario: {}, logout: vi.fn() }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => useContext(auth.Context) }));
@@ -21,16 +22,136 @@ function mount(path = '/inicio', element = <h1>Contenido existente</h1>) {
 }
 
 describe('sidebar modular y orientación', () => {
+  it.each(Object.values(ROLES))('D6 Inicio y sidebar de %s comparten orden, nombres completos y excepciones', async role => {
+    auth.usuario.rol = role; mount('/inicio'); const user = userEvent.setup();
+    const modules = navigationForRole(role);
+    for (const module of modules) await user.click(within(nav()).getByRole('button', { name: module.label }));
+    const links = within(nav()).getAllByRole('link').slice(2);
+    const home = within(screen.getByRole('region', { name: 'Funciones disponibles' })).getAllByRole('link');
+    expect(links.map(link => [link.textContent, link.getAttribute('href')])).toEqual(home.map(link => [link.textContent, link.getAttribute('href')]));
+    expect(links.map(link => link.textContent)).toEqual(modules.flatMap(module => module.items.map(item => item.label)));
+    expect(within(nav()).queryAllByText('Acceso auxiliar')).toHaveLength(modules.flatMap(module => module.items).filter(item => item.auxiliary).length);
+    expect(nav()).not.toHaveTextContent(/CU-\d/);
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+  });
+  it.each([
+    [ROLES.MEDICO, '/citas/42/consulta/editar?recorrido=consulta', 'Registrar o actualizar una consulta médica'],
+    [ROLES.MEDICO, '/citas/42/consulta/solicitar-estudio?recorrido=solicitar-estudio', 'Solicitar estudios de laboratorio'],
+    [ROLES.ADMINISTRADOR, '/pagos/pacientes/9/obligaciones/42?vista=historial', 'Consultar historial financiero de un Paciente'],
+  ])('D6 enlace activo %s/%s conserva proceso; misma URL espera blocker sin desmontaje', async (role, path, label) => {
+    let blocker, mounts = 0;
+    function ProtectedCycle() { blocker = useBlocker(true); useEffect(() => { mounts++; }, []); return <input aria-label="Borrador ficticio D6" defaultValue="Revisión conservada" />; }
+    auth.usuario.rol = role; const { router } = mount(path, <ProtectedCycle />); const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    const link = within(nav()).getByRole('link', { name: label }); expect(link).toHaveAttribute('href', path);
+    await user.click(link);
+    expect(blocker.state).toBe('blocked'); expect(link).toHaveFocus(); expect(nav()).toHaveClass('is-open');
+    const previousTitle = document.title, previousKey = router.state.location.key;
+    const breadcrumb = screen.getByRole('navigation', { name: 'Ubicación actual' }).textContent;
+    act(() => blocker.reset());
+    expect(link).toHaveFocus(); expect(document.title).toBe(previousTitle);
+    expect(router.state.location.key).toBe(previousKey); expect(nav()).toHaveClass('is-open');
+    await user.click(link); await act(async () => blocker.proceed());
+    expect(router.state.location.pathname + router.state.location.search).toBe(path);
+    expect(router.state.location.key).not.toBe(previousKey); expect(mounts).toBe(1);
+    expect(screen.getByLabelText('Borrador ficticio D6')).toHaveValue('Revisión conservada');
+    expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent(breadcrumb);
+    expect(document.title).toBe(previousTitle); expect(link).toHaveAttribute('aria-current', 'page');
+    expect(nav()).not.toHaveClass('is-open'); expect(screen.getByRole('main')).toHaveFocus();
+  });
+  it.each([
+    ['obligaciones', 'Consultar obligaciones de pago propias'],
+    ['pagar', 'Pagar una cita'],
+    ['historial', 'Consultar historial de pagos propio'],
+  ])('D5 %s conserva obligación, opción activa y paquete expandido', (view, label) => {
+    auth.usuario.rol = ROLES.PACIENTE;
+    mount(`/pagos/obligaciones/42?vista=${view}`);
+    const button = within(nav()).getByRole('button', { name: 'Pagos' });
+    expect(button).toHaveAttribute('aria-expanded', 'true'); expect(button).toHaveAttribute('aria-disabled', 'true');
+    const link = within(nav()).getByRole('link', { name: label });
+    expect(link).toHaveAttribute('href', `/pagos/obligaciones/42?vista=${view}`); expect(link).toHaveAttribute('aria-current', 'page');
+    expect(document.title).toBe(`${label} | Clínica Vida Salud`);
+  });
+  it('D5 detalle histórico financiero es neutral, sin seleccionar un CU propio por defecto', () => {
+    auth.usuario.rol = ROLES.PACIENTE; mount('/pagos/obligaciones/42');
+    expect(nav().querySelector('[aria-current="page"]')).toBeNull();
+    expect(within(nav()).getByRole('button', { name: 'Pagos' })).toHaveAttribute('aria-expanded', 'true');
+    expect(document.title).toBe('Detalle de obligación | Clínica Vida Salud');
+  });
+  it.each(['Cargar o corregir documentos de laboratorio', 'Revisar y autorizar la publicación de resultados'])('D4 cambio a %s espera navegación confirmada incluso misma URL', async label => {
+    function Pending() { const blocker = useBlocker(true); return blocker.state === 'blocked' && <><button onClick={() => blocker.reset()}>Permanecer</button><button onClick={() => blocker.proceed()}>Continuar</button></>; }
+    const { router } = mount('/laboratorio/solicitudes/71?operacion=documentos', <Pending />);
+    const user = userEvent.setup(); await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    const link = within(nav()).getByRole('link', { name: label }); await user.click(link);
+    expect(router.state.location.search).toBe('?operacion=documentos'); expect(link).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Cerrar menú' })).toHaveAttribute('aria-expanded', 'true');
+    expect(document.title).toBe('Cargar o corregir documentos de laboratorio | Clínica Vida Salud');
+    await user.click(screen.getByRole('button', { name: 'Permanecer' })); await user.click(link); await user.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(router.state.location.pathname).toBe('/laboratorio/solicitudes/71');
+    expect(link).toHaveAttribute('aria-current', 'page'); expect(document.title).toBe(`${label} | Clínica Vida Salud`);
+    expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent(label);
+    expect(screen.getByRole('main')).toHaveFocus(); expect(screen.getByRole('button', { name: 'Abrir menú' })).toHaveAttribute('aria-expanded', 'false');
+  });
+  it('D4 detalle histórico expande laboratorio sin atribuir una operación por su modo local', () => {
+    mount('/laboratorio/solicitudes/71'); expect(nav().querySelector('[aria-current="page"]')).toBeNull();
+    expect(within(nav()).getByRole('button', { name: 'Laboratorio digital' })).toHaveAttribute('aria-expanded', 'true');
+    expect(document.title).toBe('Solicitud de laboratorio | Clínica Vida Salud');
+  });
+  it.each([
+    ['/citas/42/gestion?operacion=cancelar', 'Reprogramar una cita', '/citas/42/gestion?operacion=reprogramar'],
+    ['/recepcion/pacientes/31/citas?operacion=reprogramar', 'Cancelar una cita', '/recepcion/pacientes/31/citas?operacion=cancelar'],
+    ['/citas/42/asistencia?operacion=llegada', 'Marcar una cita como Atendida', '/citas/42/asistencia?operacion=atendida'],
+  ])('D3 sidebar en %s conserva montaje y contexto al cambiar operación', async (path, label, destination) => {
+    let mounts = 0;
+    function ExistingCycle() { useEffect(() => { mounts += 1; }, []); return <h1>Ciclo existente</h1>; }
+    const { router } = mount(path, <ExistingCycle />);
+    const link = within(nav()).getByRole('link', { name: label });
+    expect(link).toHaveAttribute('href', destination);
+    await userEvent.click(link);
+    expect(router.state.location.pathname + router.state.location.search).toBe(destination);
+    expect(mounts).toBe(1);
+    expect(link).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+  it.each(['Confirmar la llegada del Paciente', 'Registrar la inasistencia del Paciente'])('D3 navegación a %s solo actualiza menú y foco después del blocker, incluso misma URL', async label => {
+    function Pending() {
+      const blocker = useBlocker(true);
+      return blocker.state === 'blocked' && <><button onClick={() => blocker.reset()}>Permanecer</button><button onClick={() => blocker.proceed()}>Continuar</button></>;
+    }
+    const { router } = mount('/asistencia?operacion=llegada', <Pending />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    const link = within(nav()).getByRole('link', { name: label });
+    await user.click(link);
+    expect(router.state.location.search).toBe('?operacion=llegada');
+    expect(screen.getByRole('button', { name: 'Cerrar menú' })).toHaveAttribute('aria-expanded', 'true');
+    expect(link).toHaveFocus();
+    expect(document.title).toBe('Confirmar la llegada del Paciente | Clínica Vida Salud');
+    await user.click(screen.getByRole('button', { name: 'Permanecer' }));
+    await user.click(link); await user.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(router.state.location.search).toBe(label === 'Confirmar la llegada del Paciente' ? '?operacion=llegada' : '?operacion=inasistencia');
+    expect(link).toHaveAttribute('aria-current', 'page');
+    expect(document.title).toBe(`${label} | Clínica Vida Salud`);
+    expect(screen.getByRole('navigation', { name: 'Ubicación actual' })).toHaveTextContent(label);
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Abrir menú' })).toHaveAttribute('aria-expanded', 'false');
+  });
+  it.each(['/asistencia', '/citas/42/asistencia', '/recepcion/citas/gestion', '/citas/42/gestion'])('D3 URL histórica %s mantiene paquete abierto sin seleccionar una operación falsa', path => {
+    mount(path);
+    expect(nav().querySelector('[aria-current="page"]')).toBeNull();
+    expect(nav().querySelector('.nav-module.is-current .nav-module-toggle')).toHaveAttribute('aria-expanded', 'true');
+  });
   it.each([
     ['/recepcion/pacientes/42/editar', 'Pacientes y perfil personal', 'Gestionar el registro administrativo de pacientes', 'Editar paciente'],
     ['/recepcion/activacion-web', 'Pacientes y perfil personal', 'Activación web', 'Activación web'],
-    ['/recepcion/citas/nueva', 'Registro y reserva de citas médicas', 'Buscar médicos, consultar disponibilidad y programar una cita presencial', 'Buscar médicos, consultar disponibilidad y programar una cita presencial'],
+    ['/consultar-disponibilidad', 'Registro y reserva de citas médicas', 'Buscar médicos y consultar disponibilidad', 'Buscar médicos y consultar disponibilidad'],
+    ['/recepcion/citas/nueva', 'Registro y reserva de citas médicas', 'Programar o reservar una cita presencial', 'Programar o reservar una cita presencial'],
     ['/recepcion/pacientes/42/citas', 'Agenda e historial de citas', 'Consultar el historial y seguimiento de citas', 'Historial de citas'],
-    ['/recepcion/citas/gestion', 'Reprogramación y cancelación', 'Reprogramar una cita o cancelar una cita', 'Reprogramar una cita o cancelar una cita'],
-    ['/citas/42/gestion', 'Reprogramación y cancelación', 'Reprogramar una cita o cancelar una cita', 'Gestionar cita'],
-    ['/asistencia', 'Estados de citas y control de asistencia', 'Confirmar la llegada del Paciente, registrar su inasistencia o marcar una cita como Atendida', 'Gestionar asistencia'],
-    ['/citas/42/asistencia', 'Estados de citas y control de asistencia', 'Confirmar la llegada del Paciente, registrar su inasistencia o marcar una cita como Atendida', 'Asistencia de la cita'],
-    ['/laboratorio/solicitudes/71', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados', 'Solicitud de laboratorio'],
+    ['/recepcion/citas/gestion?operacion=reprogramar', 'Reprogramación y cancelación', 'Reprogramar una cita', 'Reprogramar una cita'],
+    ['/citas/42/gestion?operacion=cancelar', 'Reprogramación y cancelación', 'Cancelar una cita', 'Cancelar una cita'],
+    ['/asistencia?operacion=llegada', 'Estados de citas y control de asistencia', 'Confirmar la llegada del Paciente', 'Confirmar la llegada del Paciente'],
+    ['/citas/42/asistencia?operacion=atendida', 'Estados de citas y control de asistencia', 'Marcar una cita como Atendida', 'Marcar una cita como Atendida'],
+    ['/laboratorio/solicitudes/71?operacion=consulta', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados', 'Consultar solicitudes y descargar resultados autorizados'],
     ['/laboratorio/pacientes/21', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados', 'Estudios del paciente'],
     ['/citas/41/consulta/solicitar-estudio', 'Laboratorio digital', 'Solicitar estudios de laboratorio', 'Solicitar estudio de laboratorio'],
   ])('Administrador reconoce %s como flujo compartido manteniendo su área y foco', (path, module, link, title) => {
@@ -42,9 +163,9 @@ describe('sidebar modular y orientación', () => {
     expect(screen.getByRole('main')).toHaveFocus();
   });
   it.each([
-    [ROLES.ADMINISTRADOR, 'Médicos y especialidades', 'Gestionar médicos y sus especialidades', 'Buscar médicos, consultar disponibilidad y reservar una cita presencial'],
+    [ROLES.ADMINISTRADOR, 'Médicos y especialidades', 'Gestionar médicos y sus especialidades', 'Actualizar el perfil personal'],
     [ROLES.RECEPCIONISTA, 'Pacientes y perfil personal', 'Gestionar el registro administrativo de pacientes', 'Administrar cuentas de usuario y su acceso'],
-    [ROLES.PACIENTE, 'Registro y reserva de citas médicas', 'Buscar médicos, consultar disponibilidad y reservar una cita presencial', 'Buscar médicos, consultar disponibilidad y programar una cita presencial'],
+    [ROLES.PACIENTE, 'Registro y reserva de citas médicas', 'Programar o reservar una cita presencial', 'Gestionar el registro administrativo de pacientes'],
     [ROLES.MEDICO, 'Usuarios y autenticación', 'Cambiar contraseña propia', 'Gestionar el registro administrativo de pacientes'],
   ])('%s puede desplegar sus módulos sin CU visibles ni funciones ajenas', async (role, module, label, forbidden) => {
     auth.usuario.rol = role; mount('/otra'); const user = userEvent.setup();
@@ -143,10 +264,10 @@ describe('sidebar modular y orientación', () => {
   it.each([
     [ROLES.MEDICO, '/citas/42/consulta/editar', 'Historia clínica y consultas médicas', 'Registrar o actualizar una consulta médica'],
     [ROLES.PACIENTE, '/citas/42/consulta', 'Historia clínica y consultas médicas', 'Consultar la historia clínica autorizada'],
-    [ROLES.MEDICO, '/laboratorio/solicitudes/42', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados'],
-    [ROLES.PACIENTE, '/laboratorio/solicitudes/42', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados'],
+    [ROLES.MEDICO, '/laboratorio/solicitudes/42?operacion=consulta', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados'],
+    [ROLES.PACIENTE, '/laboratorio/solicitudes/42?operacion=consulta', 'Laboratorio digital', 'Consultar solicitudes y descargar resultados autorizados'],
     [ROLES.ADMINISTRADOR, '/pagos/pacientes/42/obligaciones/17', 'Pagos', 'Consultar historial financiero de un Paciente'],
-    [ROLES.PACIENTE, '/pagos/obligaciones/17/pagar', 'Pagos', 'Consultar obligaciones de pago propias e historial de pagos propio'],
+    [ROLES.PACIENTE, '/pagos/obligaciones/17/pagar', 'Pagos', 'Pagar una cita'],
   ])('%s abre y mantiene seleccionado el paquete de %s', async (role, path, module, label) => {
     auth.usuario.rol = role; mount(path); const user = userEvent.setup();
     const button = within(nav()).getByRole('button', { name: module });

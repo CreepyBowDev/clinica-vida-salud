@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useBlocker, useLocation, useParams } from 'react-router-dom';
 import PageHeading from '../../../components/PageHeading';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
@@ -8,6 +8,7 @@ import ConfirmationPanel from '../../../components/ConfirmationPanel';
 import ActionGroup from '../../../components/ActionGroup';
 import { escucharCambioSesion } from '../../../api/api';
 import { ROLES } from '../../../constants/roles';
+import { paymentPresentation } from '../../../constants/paymentPresentation';
 import { consultarPagos, operarSimulacion } from '../services/pago.service';
 import { usePagoQuery } from '../hooks/usePagoQuery';
 import { errorPago } from '../utils/pagoError';
@@ -20,16 +21,21 @@ import '../../../styles/catalogs.css';
 import '../../../styles/workflows.css';
 import '../styles/pagos.css';
 
-export default function PagarPage() {
+export default function PagarPage({ suspended = false, onRiskChange }) {
   const { id } = useParams();
-  return <Recorrido key={id} id={id} />;
+  return <Recorrido key={id} id={id} suspended={suspended} onRiskChange={onRiskChange} />;
 }
-function Recorrido({ id }) {
+function Recorrido({ id, suspended, onRiskChange }) {
+  const location = useLocation(), entry = paymentPresentation(location.pathname, location.search, ROLES.PACIENTE);
   const query = usePagoQuery(consultarPagos, { tipo: 'detalle', id, rol: ROLES.PACIENTE }, esUuid(id));
   const [modalidad, setModalidad] = useState('stripe'), [escenario, setEscenario] = useState('completado');
   const [formularios, setFormularios] = useState(() => ({ stripe: { ...DEMOSTRACION_PAGO.stripe }, paypal: { ...DEMOSTRACION_PAGO.paypal } }));
   const [paso, setPaso] = useState('seleccion'), [busy, setBusy] = useState(false), [failure, setFailure] = useState(null), [incierta, setIncierta] = useState(false);
   const pending = useRef(null), locked = useRef(false), generation = useRef(0), heading = useRef(null);
+  const [dirty, setDirty] = useState(false);
+  const protectedCycle = Boolean(dirty || busy || incierta || ['revision', 'captura', 'cierre'].includes(paso));
+  const blocker = useBlocker(protectedCycle);
+  useEffect(() => { onRiskChange?.(protectedCycle); return () => onRiskChange?.(false); }, [onRiskChange, protectedCycle]);
   useEffect(() => {
     const clear = () => { generation.current++; locked.current = false; pending.current = null; setBusy(false); setIncierta(false); setFormularios({ stripe: { ...DEMOSTRACION_PAGO.stripe }, paypal: { ...DEMOSTRACION_PAGO.paypal } }); };
     const off = escucharCambioSesion(clear);
@@ -57,11 +63,13 @@ function Recorrido({ id }) {
     } finally { if (seq === generation.current) { locked.current = false; setBusy(false); } }
   }
   const o = query.data, i = o?.intento_actual?.proveedor === 'simulado' ? o.intento_actual : null;
-  const enabled = o?.simulacion?.habilitada, blocked = busy || incierta;
+  const enabled = o?.simulacion?.habilitada, blocked = busy || incierta || suspended || !entry.valid;
   const etapa = o?.liquidada ? 3 : i || incierta ? 2 : paso === 'revision' ? 1 : 0;
   const titulo = o?.liquidada ? 'Resultado consultado' : paso === 'salida' && i ? 'Salida simulada' : paso === 'captura' && i ? 'Revisar captura' : paso === 'cierre' && i ? 'Revisar cierre' : i ? 'Continuar intento académico' : paso === 'revision' ? 'Revisar importe' : 'Recorrido académico';
-  return <section className="workspace-page catalog-page payments-page payment-demo payment-journey">
-    <Link className="back-link" to={`/pagos/obligaciones/${id}`}>Volver a la obligación e historial</Link>
+  return <><section hidden={suspended} inert={suspended || undefined} className="workspace-page catalog-page payments-page payment-demo payment-journey">
+    <Link className="back-link" to={`/pagos/obligaciones/${id}${entry.search}`}>Volver a la obligación e historial</Link>
+    {!entry.valid && <Alert><h1>Vista de pagos no disponible</h1><p>Revisa la opción solicitada antes de continuar.</p><Link to={`/pagos/obligaciones/${id}/pagar`}>Volver al recorrido académico</Link></Alert>}
+    <div hidden={!entry.valid} inert={!entry.valid || undefined}>
     <PageHeading title="Pagar" description="Recorrido académico vinculado a la obligación de tu cita." />
     <Alert variant="warning"><p>Pago académico simulado. Registra un resultado local, sin enviar dinero ni contactar con Stripe o PayPal. No introduzcas datos reales.</p></Alert>
     <p>Los formularios son representaciones locales, no Checkout ni autenticación auténticos.</p>
@@ -78,12 +86,12 @@ function Recorrido({ id }) {
       {enabled && !o.liquidada && o.exigible && !i && o.simulacion.puede_iniciar && <fieldset disabled={blocked}>
         {paso !== 'revision' ? <>
           <div className="payment-journey-selection">
-          <SelectField label="Modalidad" value={modalidad} onChange={e => { setModalidad(e.target.value); setPaso('seleccion'); }}><option value="stripe">Stripe (representación)</option><option value="paypal">PayPal (representación)</option></SelectField>
-          <SelectField label="Escenario académico" value={escenario} onChange={e => setEscenario(e.target.value)}><option value="completado">Completar operación</option><option value="pendiente">Permanecer pendiente</option></SelectField>
+          <SelectField label="Modalidad" value={modalidad} onChange={e => { setDirty(true); setModalidad(e.target.value); setPaso('seleccion'); }}><option value="stripe">Stripe (representación)</option><option value="paypal">PayPal (representación)</option></SelectField>
+          <SelectField label="Escenario académico" value={escenario} onChange={e => { setDirty(true); setEscenario(e.target.value); }}><option value="completado">Completar operación</option><option value="pendiente">Permanecer pendiente</option></SelectField>
           <p>{modalidad === 'paypal' ? 'PayPal: aprobar no paga. Después deberás revisar y solicitar la captura humana.' : 'Stripe: después del retorno deberás confirmar la simulación expresamente.'} {escenario === 'pendiente' ? 'El intento permanecerá pendiente, sin consultas automáticas.' : 'Elegir este escenario no confirma un cobro: habrá que consultar el resultado guardado.'}</p>
           </div>
           <FormularioPagoDemo key={modalidad} persistente proveedor={modalidad} datos={formularios[modalidad]}
-            onChange={datos => setFormularios(v => ({ ...v, [modalidad]: datos }))} onRevisar={() => setPaso('revision')} />
+            onChange={datos => { setDirty(true); setFormularios(v => ({ ...v, [modalidad]: datos })); }} onRevisar={() => setPaso('revision')} />
         </> : <ConfirmationPanel title="Confirmar importe"><PrecioPago precio={o.precio} />
           <p>Modalidad: <strong>{modalidad === 'paypal' ? 'PayPal' : 'Stripe'} representativo</strong>. Escenario: {escenario === 'pendiente' ? 'permanecer pendiente' : 'completar operación'}.</p>
           <p>Revisa el importe histórico y la tasa académica 7:1 antes de iniciar con {modalidad === 'paypal' ? 'PayPal' : 'Stripe'} representativo.</p>
@@ -111,9 +119,12 @@ function Recorrido({ id }) {
       </section></div>
     </> : <Alert><p>No hay información de la obligación para mostrar.</p></Alert>}
     {failure && <Alert><p>{failure.message}</p></Alert>}
-    {incierta && <Alert><p>Resultado incierto: la escritura pudo confirmarse. Consulta la obligación; no inicies otro pago.</p><Button disabled={busy} onClick={() => enviar(null, true)}>Recuperar la misma operación</Button></Alert>}
+    {incierta && <Alert><p>Resultado incierto: la escritura pudo confirmarse. Consulta la obligación; no inicies otro pago.</p><Button disabled={busy || suspended || !entry.valid} onClick={() => enviar(null, true)}>Recuperar la misma operación</Button></Alert>}
     {busy && <p role="status">Registrando operación…</p>}
     {query.remaining > 0 && <p role="status">Espera {query.remaining} s antes de volver a consultar. No se consulta automáticamente.</p>}
-    <Button variant="secondary" disabled={busy || query.loading || query.remaining > 0} onClick={query.reload}>Consultar estado guardado</Button>
-  </section>;
+    <Button variant="secondary" disabled={busy || suspended || !entry.valid || query.loading || query.remaining > 0} onClick={query.reload}>Consultar estado guardado</Button>
+    </div>
+  </section>
+    {blocker.state === 'blocked' && <Alert variant="warning"><p>Salir del recorrido puede perder la preparación o recuperación en memoria. Cambiar solo la presentación conserva el proceso.</p><ActionGroup><Button onClick={() => blocker.reset()}>Permanecer aquí</Button><Button variant="secondary" onClick={() => blocker.proceed()}>Salir y consultar después</Button></ActionGroup></Alert>}
+  </>;
 }

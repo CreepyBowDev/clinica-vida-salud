@@ -30,10 +30,46 @@ function escribir(config){
   else raw.edicion.ultima_revision.motivo=p.motivo;
   return response(config,{data:raw},201);
 }
-function mount(strict=false){const router=createMemoryRouter(crearRutas(),{initialEntries:['/laboratorio/solicitudes/71']});const tree=<AuthProvider><RouterProvider router={router}/></AuthProvider>;return{...render(strict?<StrictMode>{tree}</StrictMode>:tree),router};}
+function mount(strict=false,path='/laboratorio/solicitudes/71'){const router=createMemoryRouter(crearRutas(),{initialEntries:[path]});const tree=<AuthProvider><RouterProvider router={router}/></AuthProvider>;return{...render(strict?<StrictMode>{tree}</StrictMode>:tree),router};}
 beforeEach(()=>{vi.clearAllMocks();rol='Médico';raw=documentada();calls=[];consultarSesion.mockImplementation(async()=>sesion(rol));respond=config=>config.method==='post'?escribir(config):leer(config);api.defaults.adapter=async config=>{calls.push(config);return respond(config);};});
 afterEach(()=>{api.defaults.adapter=original;vi.restoreAllMocks();});
 const posts=()=>calls.filter(c=>c.method==='post');
+it('D4 revisión pendiente conserva decisión al cambiar solo search y volver; nunca monta documentos', async () => {
+  rol = 'Administrador'; const { router } = mount(false, '/laboratorio/solicitudes/71?operacion=revision');
+  await screen.findByRole('combobox', { name: 'Decisión de revisión' }); await revisar('Devolver');
+  await act(() => router.navigate('/laboratorio/solicitudes/71?operacion=documentos'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(document.querySelector('.lab-document-workspace')).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Devolver para corrección' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('link', { name: 'Volver al proceso conservado' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('heading', { name: 'Devolver para corrección' })).toBeInTheDocument();
+  expect(posts()).toHaveLength(0);
+});
+it('D4 envío de revisión mantiene lock durante cambio de modo y resultado incierto sin replay', async () => {
+  let rejectPost; respond = config => config.method === 'post' ? new Promise((_, reject) => { rejectPost = () => reject(fail(config, 503)); }) : leer(config);
+  const { router } = mount(false, '/laboratorio/solicitudes/71?operacion=revision');
+  await screen.findByRole('combobox', { name: 'Decisión de revisión' }); await revisar();
+  await userEvent.click(screen.getByRole('button', { name: 'Autorizar publicación' })); await waitFor(() => expect(rejectPost).toBeTypeOf('function'));
+  await act(() => router.navigate('/laboratorio/solicitudes/71?operacion=consulta'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  await act(async () => rejectPost());
+  await userEvent.click(screen.getByRole('link', { name: 'Volver al proceso conservado' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('button', { name: 'Consultar estado de la revisión' })).toBeEnabled();
+  expect(posts()).toHaveLength(1); expect(calls.some(c => c.url.endsWith('/archivo'))).toBe(false);
+});
+it('D4 Retry-After 429 mantiene la misma espera al cambiar presentación y volver', async () => {
+  respond = config => { if (config.method !== 'post') return leer(config); const e = fail(config, 429); e.response.headers['retry-after'] = '60'; return Promise.reject(e); };
+  const { router } = mount(false, '/laboratorio/solicitudes/71?operacion=revision');
+  await screen.findByRole('combobox', { name: 'Decisión de revisión' }); await revisar();
+  await userEvent.click(screen.getByRole('button', { name: 'Autorizar publicación' })); await screen.findByText('Espera 60 segundos antes de continuar.');
+  await act(() => router.navigate('/laboratorio/solicitudes/71?operacion=consulta'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  await userEvent.click(screen.getByRole('link', { name: 'Volver al proceso conservado' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('button', { name: 'Consultar contexto y preparar nueva decisión' })).toBeDisabled(); expect(posts()).toHaveLength(1);
+});
 async function abrir(){await userEvent.click(await screen.findByRole('button',{name:'Revisar resultado'}));await screen.findByRole('combobox',{name:'Decisión de revisión'});expect(screen.getByText('Revisión del resultado vigente')).toHaveFocus();}
 async function revisar(decision='Autorizar',motivo='Documento ficticio ilegible'){
   await userEvent.selectOptions(screen.getByRole('combobox',{name:'Decisión de revisión'}),decision);

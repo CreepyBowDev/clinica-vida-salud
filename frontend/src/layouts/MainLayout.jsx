@@ -13,7 +13,7 @@ export default function MainLayout() {
   const current = AREAS[usuario.rol];
   const location = useLocation();
   const modules = navigationForRole(usuario.rol);
-  const active = navigationAtPath(modules, location.pathname);
+  const active = navigationAtPath(modules, location.pathname, location.search);
   const title = navigationTitle(location.pathname, active, current);
   const [menu, setMenu] = useState(false);
   const main = useRef(null);
@@ -45,15 +45,7 @@ export default function MainLayout() {
     document.documentElement.scrollTop = 0;
     document.title = `${title} | Clínica Vida Salud`;
     setMenu(false);
-  }, [location.pathname, title, usuario.id_usuario, usuario.rol]);
-
-  function closeNavigation(event) {
-    // Los destinos distintos cierran al confirmarse la ruta, no mientras un blocker decide.
-    if (event.currentTarget.getAttribute('href') === location.pathname) {
-      setMenu(false);
-      main.current?.focus({ preventScroll: true });
-    }
-  }
+  }, [location.key, location.pathname, location.search, title, usuario.id_usuario, usuario.rol]);
 
   return <div className="workspace-shell">
     <a className="skip-link" href="#contenido" onClick={event => { event.preventDefault(); main.current?.focus(); }}>Saltar al contenido</a>
@@ -69,9 +61,9 @@ export default function MainLayout() {
           if (!event.currentTarget.contains(event.relatedTarget) && window.getComputedStyle(event.currentTarget).display !== 'none') navigationFocused.current = false;
         }}
         onKeyDown={(event) => { if (event.key === 'Escape') { setMenu(false); menuButton.current?.focus(); } }}>
-        <NavLink to="/inicio" onClick={closeNavigation}><Icon name="home" />Inicio</NavLink>
-        <NavLink to={current.path} end onClick={closeNavigation}><Icon name="grid" />{current.label}</NavLink>
-        <ModuleNavigation key={`${usuario.id_usuario}:${usuario.rol}`} modules={modules} active={active} pathname={location.pathname} onNavigate={closeNavigation} />
+        <NavLink to="/inicio"><Icon name="home" />Inicio</NavLink>
+        <NavLink to={current.path} end><Icon name="grid" />{current.label}</NavLink>
+        <ModuleNavigation key={`${usuario.id_usuario}:${usuario.rol}`} modules={modules} active={active} pathname={location.pathname} search={location.search} />
       </nav>
       <div className="sidebar-caption"><span className="small-cross" aria-hidden="true">+</span><p>Atención cercana.<br />Cuidado presente.</p></div>
     </aside>
@@ -80,7 +72,7 @@ export default function MainLayout() {
         <div><strong>{usuario.nombre_visible}</strong><span>{usuario.rol}</span></div></div></header>
       <main id="contenido" className="workspace-main" ref={main} tabIndex="-1">
         {active && <nav className="workspace-breadcrumb" aria-label="Ubicación actual"><ol><li><Link to={current.path}>{current.label}</Link></li>
-          {active.module.label !== title && active.module.label !== active.item.label && <li>{active.module.label}</li>}{location.pathname.replace(/\/$/, '') !== active.item.to && <li><Link to={active.item.to} aria-label={`Volver a ${active.item.label.toLowerCase()}`}>{active.item.label}</Link></li>}
+          {active.module.label !== title && active.module.label !== active.item.label && <li>{active.module.label}</li>}{active.item.label !== title && location.pathname.replace(/\/$/, '') + location.search !== active.item.to && <li><Link to={active.item.to} aria-label={`Volver a ${active.item.label.toLowerCase()}`}>{active.item.label}</Link></li>}
           <li aria-current="page">{title}</li></ol></nav>}<Outlet /></main>
       <footer className="workspace-footer"><span>Clínica Vida Salud</span><LogoutButton /></footer>
     </div>

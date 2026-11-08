@@ -25,6 +25,33 @@ function mount(path = '/laboratorio') {
   return { ...render(<RouterProvider router={router} />), router };
 }
 const meta = { current_page: 1, per_page: 20, last_page: 1, total: 1 };
+it.each(['documentos', 'revision', 'consulta'])('D4 A selecciona Paciente, solicitud y conserva %s en ámbito y retorno', async mode => {
+  auth.value.usuario.rol = ROLES.ADMINISTRADOR;
+  const { router } = mount(`/laboratorio?operacion=${mode}`);
+  await userEvent.click(await screen.findByRole('button', { name: 'Seleccionar paciente Persona Ficticia' }));
+  expect(router.state.location.pathname + router.state.location.search).toBe(`/laboratorio/pacientes/21?operacion=${mode}`);
+  await screen.findByText('Hemograma de prueba');
+  expect(listarSolicitudes.mock.calls.at(-1)[0]).toMatchObject({ paciente: '21', rol: ROLES.ADMINISTRADOR });
+  expect(listarSolicitudes.mock.calls.at(-1)[0]).not.toHaveProperty('operacion');
+  const label = mode === 'documentos' ? 'Gestionar documentos' : mode === 'revision' ? 'Revisar resultado' : 'Ver solicitud';
+  expect(screen.getByRole('link', { name: new RegExp(`^${label} de`) })).toHaveAttribute('href', `/laboratorio/solicitudes/71?operacion=${mode}`);
+  expect(screen.getByRole('link', { name: 'Seleccionar otro paciente' })).toHaveAttribute('href', `/laboratorio?operacion=${mode}`);
+});
+it.each([['Médico', 'documentos'], ['Paciente', 'revision'], ['Paciente', 'documentos'], ['Paciente', 'otro'], ['Administrador', 'consulta&operacion=consulta']])('D4 %s no selecciona en modo incompatible %s', async (role, mode) => {
+  auth.value.usuario.rol = role; mount(`/laboratorio?operacion=${mode}`);
+  await screen.findByRole('heading', { name: 'Operación no disponible' });
+  expect(listarSolicitudes).not.toHaveBeenCalled(); expect(usePatientQuery).not.toHaveBeenCalled();
+});
+it('D4 atrás/adelante cambia presentación y conserva filtros; nuevo montaje sin selección no elige Paciente', async () => {
+  auth.value.usuario.rol = ROLES.MEDICO; const view = mount('/laboratorio?operacion=revision');
+  await screen.findByText('Hemograma de prueba'); await userEvent.selectOptions(screen.getByLabelText('Estado'), 'Pendiente');
+  await act(() => view.router.navigate('/laboratorio?operacion=consulta'));
+  expect(screen.getByLabelText('Estado')).toHaveValue('Pendiente');
+  await act(() => view.router.navigate(-1)); expect(screen.getByRole('link', { name: /^Revisar resultado de/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71?operacion=revision');
+  await act(() => view.router.navigate(1)); expect(screen.getByRole('link', { name: /^Ver solicitud de/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71?operacion=consulta');
+  view.unmount(); auth.value.usuario.rol = ROLES.ADMINISTRADOR; listarSolicitudes.mockClear(); mount('/laboratorio?operacion=documentos');
+  await screen.findByRole('button', { name: 'Seleccionar paciente Persona Ficticia' }); expect(listarSolicitudes).not.toHaveBeenCalled();
+});
 beforeEach(() => {
   vi.clearAllMocks(); auth.value = { status: 'authenticated', usuario: { id_usuario: '1', rol: ROLES.PACIENTE } };
   listarSolicitudes.mockResolvedValue({ solicitudes: [solicitud()], meta });
@@ -35,7 +62,7 @@ it('Paciente lista propios con filtros públicos y enlace a detalle, sin gestion
   mount(); await screen.findByText('Hemograma de prueba');
   expect(listarSolicitudes.mock.calls[0][0]).toMatchObject({ rol: ROLES.PACIENTE, page: 1 });
   expect(screen.queryByRole('option', { name: 'En revisión' })).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: /Ver solicitud/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71');
+  expect(screen.getByRole('link', { name: /Ver solicitud/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71?operacion=consulta');
   expect(screen.queryByText(/cargar documento|autorizar publicación|solicitar estudio/i)).not.toBeInTheDocument();
 });
 it('Admin selecciona paciente sin consultar bandeja global ni registrar ficha', async () => {
@@ -54,7 +81,7 @@ it('identifica los resultados y conserva columnas propias sin recalcular el tota
   expect(within(region).getByRole('heading', { name: 'Estudios solicitados' })).toBeInTheDocument();
   expect(within(region).getAllByRole('columnheader')).toHaveLength(4);
   expect(within(region).queryByRole('columnheader', { name: 'Paciente' })).not.toBeInTheDocument();
-  expect(within(region).getByRole('link', { name: /Ver solicitud/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71');
+  expect(within(region).getByRole('link', { name: /Ver solicitud/ })).toHaveAttribute('href', '/laboratorio/solicitudes/71?operacion=consulta');
 });
 it('Médico consulta solicitudes propias sin buscador administrativo', async () => {
   auth.value.usuario.rol = ROLES.MEDICO; mount(); await screen.findByText('Hemograma de prueba');

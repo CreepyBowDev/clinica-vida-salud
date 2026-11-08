@@ -32,6 +32,19 @@ async function preparar() {
   await userEvent.click(screen.getByRole('button', { name: 'Revisar registro' }));
   await screen.findByRole('heading', { name: 'Revisar registro de consulta' });
 }
+it('D4 revisión clínica sobrevive modo incompatible y retorno al mismo editor sin POST', async () => {
+  const router = mount('/citas/41/consulta/editar?recorrido=consulta'); await preparar();
+  await act(() => router.navigate('/citas/41/consulta/editar?recorrido=solicitar-estudio'));
+  await userEvent.click(screen.getByRole('button', { name: 'Permanecer' })); expect(screen.getByRole('heading', { name: 'Revisar registro de consulta' })).toBeInTheDocument();
+  await act(() => router.navigate('/citas/41/consulta/editar?recorrido=solicitar-estudio'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('heading', { name: 'Operación no disponible' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Guardar consulta' })).not.toBeInTheDocument();
+  await act(() => router.navigate('/citas/41/consulta/editar?recorrido=consulta'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('heading', { name: 'Revisar registro de consulta' })).toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
 it.each(['Administrador', 'Médico'])('%s registra desde contexto autorizado, revisión y declaración sin modificar Cita', async role => {
   rol = role; mount(); const checkbox = await screen.findByRole('checkbox'); expect(checkbox).not.toBeChecked();
   // La elegibilidad viene del servidor incluso cuando el inicio está por delante del reloj cliente.
@@ -119,9 +132,10 @@ it('salida con borrador pide confirmación sin persistir contenido en navegació
   await userEvent.click(screen.getByRole('link', { name: 'Volver a consulta' })); await screen.findByText('Si sales, se perderán los datos del formulario que no guardaste.');
   await userEvent.click(screen.getByRole('button', { name: 'Permanecer' })); expect(screen.getByLabelText('Motivo de consulta')).toHaveValue('Borrador ficticio');
 });
-it('selector médico guía a agenda sin consultas generales de pacientes', async () => {
-  mount('/registrar-consulta'); await screen.findByRole('heading', { name: 'Seleccionar cita para registrar consulta' });
-  expect(within(screen.getByRole('main')).getByRole('link', { name: 'Consultar agenda médica' })).toHaveAttribute('href', '/agenda'); expect(calls).toHaveLength(0);
+it('D4 selector médico integra agenda sin consultas generales de pacientes', async () => {
+  mount('/registrar-consulta'); await screen.findByRole('heading', { name: 'Registrar o actualizar una consulta médica' });
+  expect(calls.every(c => c.method === 'get' && c.url === '/agenda')).toBe(true);
+  expect(screen.queryByLabelText('CI')).not.toBeInTheDocument();
 });
 it('401 durante POST retira toda información clínica y exige iniciar sesión', async () => {
   const normal = respond; respond = config => config.method === 'post' ? Promise.reject(fail(config, 401)) : normal(config);
@@ -134,6 +148,6 @@ it('respuesta POST tardía no muestra éxito tras abandonar una operación incie
   const router = mount(); await preparar(); await userEvent.click(screen.getByRole('button', { name: 'Guardar consulta' }));
   await waitFor(() => expect(resolvePost).toBeTypeOf('function'));
   await act(() => router.navigate('/registrar-consulta')); await screen.findByText('La consulta podría haberse guardado. Salir no revierte la operación.');
-  await userEvent.click(screen.getByRole('button', { name: 'Salir sin conservar el formulario' })); await screen.findByRole('heading', { name: 'Seleccionar cita para registrar consulta' });
+  await userEvent.click(screen.getByRole('button', { name: 'Salir sin conservar el formulario' })); await screen.findByRole('heading', { name: 'Registrar o actualizar una consulta médica' });
   await act(async () => resolvePost()); expect(screen.queryByText(/Consulta registrada. El estado/)).not.toBeInTheDocument();
 });

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useBlocker, useParams } from 'react-router-dom';
+import { Link, useBlocker, useLocation, useParams } from 'react-router-dom';
+import { clinicalPresentation } from '../../../constants/clinicalPresentation';
+import ClinicalModeError from '../../historia-clinica/components/ClinicalModeError';
+import SeleccionCitaClinica from '../../historia-clinica/components/SeleccionCitaClinica';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROLES } from '../../../constants/roles';
 import PageHeading from '../../../components/PageHeading';
 import Button from '../../../components/Button';
 import Alert from '../../../components/Alert';
@@ -19,23 +21,22 @@ import '../styles/lab-workflow.css';
 
 export default function SolicitarEstudioPage({ seleccionar = false }) {
   const { id } = useParams(), { usuario } = useAuth();
-  if (seleccionar) return <section className="workspace-page lab-page lab-flow lab-order-guide"><PageHeading title="Solicitar estudios" description="Cada estudio corresponde a una consulta registrada y una atención real." />
-    <div className="lab-order-sheet">
-    <p>Abre una cita de la agenda y consulta su información clínica. Si ya tiene una consulta registrada, selecciona Solicitar estudio y comprueba el contexto autorizado.</p>
-    <p><Link className="button button--primary" to="/agenda">Consultar agenda médica</Link></p>
-    {usuario.rol === ROLES.ADMINISTRADOR && <p><Link to="/historia-clinica">Seleccionar paciente y consultar su historia clínica</Link></p>}
-    <p>No se crea una consulta automáticamente ni se cambia el estado de la cita al solicitar un estudio.</p></div></section>;
+  const location = useLocation(), entry = clinicalPresentation(location.pathname, location.search, usuario.rol);
+  if (seleccionar) return entry.valid ? <SeleccionCitaClinica recorrido="solicitar-estudio" /> : <ClinicalModeError to="/laboratorio/solicitar" />;
   if (!esIdentificador(id)) return <section className="workspace-page"><h1>Consulta no disponible</h1><Link to="/laboratorio/solicitar">Volver a solicitar estudios</Link></section>;
   return <Solicitud key={`${usuario.id_usuario}:${usuario.rol}:${id}`} id={id} usuario={usuario} />;
 }
 
 const impedimentos = { LAB_EDICION_OBSOLETA: 'No se pudo comprobar la versión vigente de la consulta.', LAB_ESTADO_NO_PERMITIDO: 'La atención no admite solicitar estudios en este momento, según el servidor.' };
 function Solicitud({ id, usuario }) {
+  const location = useLocation(), entry = clinicalPresentation(location.pathname, location.search, usuario.rol);
+  const visited = useRef(entry.valid); if (entry.valid) visited.current = true;
   const query = useLaboratorioQuery(consultarContextoSolicitud, { id, rol: usuario.rol });
   const escritura = useSolicitudEstudio(id, usuario.rol, usuario.id_usuario);
   const [dirty, setDirty] = useState(false), heading = useRef(null);
   const riesgo = ['enviando', 'incierto', 'consultando'].includes(escritura.status), busy = ['enviando', 'consultando'].includes(escritura.status);
   const blocker = useBlocker(dirty || riesgo);
+  const conserva = blocker.location?.pathname === location.pathname;
   useEffect(() => { if (!dirty && !riesgo && blocker.state === 'blocked') blocker.reset(); }, [dirty, riesgo, blocker]);
   useEffect(() => {
     if (!dirty && !riesgo) return;
@@ -48,16 +49,18 @@ function Solicitud({ id, usuario }) {
   }, [escritura.status]);
   const refrescar = () => { setDirty(false); escritura.reset(); query.reload(); };
   return <section className="workspace-page lab-page lab-flow lab-order-page">
-    <Link className="back-link" to={`/citas/${id}/consulta`}>Volver a consulta</Link>
+    <Link className="back-link" to={`/citas/${id}/consulta?recorrido=solicitar-estudio`}>Volver a consulta</Link>
+    {!entry.valid && <ClinicalModeError to="/laboratorio/solicitar" />}
     <PageHeading title="Solicitar estudio de laboratorio" description="Comprueba paciente, consulta y Médico responsable antes de enviar." />
-    {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'La solicitud podría haberse registrado. Salir no revierte la operación.' : 'Si sales, se perderá el formulario que no guardaste.'}</p>
-      <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar el formulario</Button></Alert>}
+    {blocker.state === 'blocked' && <Alert variant="warning"><p>{conserva ? 'Cambiar la presentación conserva esta solicitud solo en memoria; no inicia otra operación.' : riesgo ? 'La solicitud podría haberse registrado. Salir no revierte la operación.' : 'Si sales, se perderá el formulario que no guardaste.'}</p>
+      <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>{conserva ? 'Continuar conservando el proceso' : 'Salir sin conservar el formulario'}</Button></Alert>}
+    {visited.current && <div hidden={!entry.valid} inert={!entry.valid || undefined}>
     {escritura.status !== 'inicial' && <section className="lab-order-outcome" aria-label="Resultado de la solicitud" aria-live="polite" aria-busy={busy}>
       <h2 ref={heading} tabIndex={-1}>Resultado de la solicitud</h2>
       {busy && <QueryMessage loading title={escritura.status === 'enviando' ? 'Registrando solicitud…' : 'Consultando solicitudes actuales…'} />}
       {escritura.failure && <Alert variant={escritura.status === 'incierto' ? 'warning' : 'error'}><p>{escritura.failure.message}</p></Alert>}
       {escritura.status === 'registrada' && <><Alert variant="success"><p>Solicitud registrada en estado Pendiente. El estado de la cita no se modificó.</p></Alert>
-        <p>{escritura.resultado.estudio_solicitado}</p><p><Link to={`/laboratorio/solicitudes/${escritura.resultado.id_solicitud}`}>Ver solicitud registrada</Link></p>
+        <p>{escritura.resultado.estudio_solicitado}</p><p><Link to={`/laboratorio/solicitudes/${escritura.resultado.id_solicitud}?operacion=consulta`}>Ver solicitud registrada</Link></p>
         <Link to={`/laboratorio/consultas/${escritura.resultado.id_consulta}`}>Consultar estudios actualizados de esta consulta</Link></>}
       {escritura.status === 'incierto' && <><p>No se reenviará automáticamente. No identifiques un envío anterior solo por el nombre o la fecha del estudio.</p>
         <Button disabled={escritura.remaining > 0} onClick={escritura.consultar}>Consultar solicitudes actuales</Button></>}
@@ -75,5 +78,6 @@ function Solicitud({ id, usuario }) {
         : <SolicitudEstudioForm key={`${data.epocaSesion}:${data.edicion.originales.id_version_consulta}`} contexto={data} ejecutor={usuario.nombre_visible}
           busy={busy} failure={escritura.status === 'validacion' ? escritura.failure : null} onGuardar={escritura.guardar} onDirtyChange={setDirty} />}
     </>}</LaboratorioQuery>}
+    </div>}
   </section>;
 }

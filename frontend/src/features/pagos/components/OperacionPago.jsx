@@ -9,13 +9,14 @@ import { PROVEEDORES } from '../utils/pagoFormat';
 import { useOperacionPago } from '../hooks/useOperacionPago';
 import { DevolucionPago } from './HistorialPagos';
 
-export default function OperacionPago({ obligacion, intento, onConsultar, onRiskChange, retorno = false, secondary = false }) {
+export default function OperacionPago({ obligacion, intento, onConsultar, onRiskChange, retorno = false, secondary = false, suspended = false }) {
   const op = useOperacionPago(), [proveedor, setProveedor] = useState(''), [decision, setDecision] = useState(null);
   const response = op.response, data = response?.data;
   const actual = data ? { id: data.id, proveedor: data.proveedor, estado: data.estado } : intento ?? obligacion?.intento_actual;
-  const blocker = useBlocker(Boolean(op.busy || op.uncertain));
-  useEffect(() => { onRiskChange?.(Boolean(op.busy || op.uncertain)); return () => onRiskChange?.(false); }, [onRiskChange, op.busy, op.uncertain]);
-  const disabled = op.busy || op.remaining > 0 || op.uncertain || op.paused;
+  const protectedCycle = Boolean(proveedor || decision || op.busy || op.uncertain || op.remaining > 0 || response);
+  const blocker = useBlocker(protectedCycle);
+  useEffect(() => { onRiskChange?.(protectedCycle); return () => onRiskChange?.(false); }, [onRiskChange, protectedCycle]);
+  const disabled = suspended || op.busy || op.remaining > 0 || op.uncertain || op.paused;
   const iniciar = !op.needsReview && !op.stale && !response && !op.uncertain && !op.paused && obligacion?.puede_iniciar_pago;
   const captura = !retorno && actual?.proveedor === 'paypal' && data && response.status === 200 && data.estado === 'RequiereAccion' && !data.accion && data.obligacion.exigible
     && !data.obligacion.liquidada && !data.operacion_en_verificacion && !op.needsReview && !op.stale;
@@ -24,7 +25,7 @@ export default function OperacionPago({ obligacion, intento, onConsultar, onRisk
     const tipo = decision; setDecision(null);
     op.ejecutar(tipo === 'iniciar' ? { tipo, id: obligacion.id, proveedor, revision_pago: obligacion.revision_pago } : { tipo, id: actual.id });
   }
-  return <section className={`catalog-panel payment-operation${!iniciar && !actual ? ' payment-operation--unavailable' : ''}`} aria-label="Operaciones del titular" aria-busy={op.busy}>
+  return <><section hidden={suspended} inert={suspended || undefined} className={`catalog-panel payment-operation${!iniciar && !actual ? ' payment-operation--unavailable' : ''}`} aria-label="Operaciones del titular" aria-busy={op.busy}>
     <h2>{retorno ? 'Consultar el resultado del intento' : 'Proveedor externo de prueba'}</h2>
     <p>{secondary ? 'Alternativa externa al pago académico. ' : ''}Stripe Checkout test o PayPal Sandbox, sin dinero real. El retorno del navegador y la aprobación de PayPal no acreditan un pago.</p>
     {actual && <p className="payment-record-meta">Proveedor: {PROVEEDORES[actual.proveedor]}<br />Referencia del intento: <span className="payment-reference">{actual.id}</span></p>}
@@ -49,22 +50,23 @@ export default function OperacionPago({ obligacion, intento, onConsultar, onRisk
     </>}
     {!iniciar && !actual && !op.busy && <p>No hay una acción externa disponible en esta consulta. La respuesta no indica una causa específica.</p>}
     <ActionGroup>
-      {op.uncertain && <Button disabled={op.busy || op.remaining > 0} onClick={op.recuperar}>Recuperar misma solicitud</Button>}
+      {op.uncertain && <Button disabled={suspended || op.busy || op.remaining > 0} onClick={op.recuperar}>Recuperar misma solicitud</Button>}
       {actual && !op.uncertain && <Button variant={!decision && !data?.accion && !captura ? 'primary' : 'secondary'} disabled={disabled} onClick={() => { setDecision(null); op.ejecutar({ tipo: 'resultado', id: actual.id }); }}>Consultar resultado</Button>}
       {data?.accion && !disabled && <a className={`button button--${decision ? 'secondary' : 'primary'}`} href={data.accion.url} rel="noreferrer" referrerPolicy="no-referrer">Continuar en {PROVEEDORES[data.proveedor]}</a>}
       {captura && <Button variant={decision ? 'secondary' : 'primary'} disabled={disabled} onClick={() => revisar('captura')}>Revisar captura PayPal</Button>}
       {actual && ['Preparando', 'RequiereAccion', 'Procesando', 'Incierto'].includes(actual.estado) && !op.needsReview && <Button variant="secondary" disabled={disabled} onClick={() => revisar('cierre')}>Solicitar cierre del intento</Button>}
       {onConsultar && !op.uncertain && <Button variant="quiet" disabled={disabled} onClick={onConsultar}>Consultar obligación vigente</Button>}
-      {retorno && data && !op.uncertain && !op.busy && <Link className="button button--secondary" to={`/pagos/obligaciones/${data.obligacion_id}`}>Revisar importe y obligación</Link>}
+      {retorno && data && !op.uncertain && !op.busy && <Link className="button button--secondary" to={`/pagos/obligaciones/${data.obligacion_id}?vista=pagar`}>Revisar importe y obligación</Link>}
     </ActionGroup>
     {decision && <ConfirmationPanel title={decision === 'captura' ? 'Confirmar captura PayPal' : decision === 'cierre' ? 'Confirmar solicitud de cierre' : 'Confirmar inicio de pago'}>
       <p>{decision === 'captura' ? 'Solicitarás al servidor capturar el importe USD histórico mostrado. Aprobar en PayPal no era todavía pagar.'
         : decision === 'cierre' ? 'Solo se solicita cerrar este intento. La cita no se cancela. Si el resultado es incierto, no podrás cambiar de proveedor.'
           : `Se iniciará un intento con ${PROVEEDORES[proveedor]} por el importe USD histórico revisado. No cambies de proveedor si el resultado queda incierto.`}</p>
       <ActionGroup><Button disabled={disabled} onClick={enviar}>{decision === 'captura' ? 'Capturar pago con PayPal' : decision === 'cierre' ? 'Solicitar cierre' : 'Iniciar pago de prueba'}</Button>
-        <Button variant="quiet" disabled={op.busy} onClick={() => setDecision(null)}>Volver a revisar</Button></ActionGroup>
+        <Button variant="quiet" disabled={suspended || op.busy} onClick={() => setDecision(null)}>Volver a revisar</Button></ActionGroup>
     </ConfirmationPanel>}
-    {blocker.state === 'blocked' && <Alert variant="warning"><p>Al salir perderás la recuperación en memoria. La operación puede seguir pendiente en el servidor.</p>
+  </section>
+    {blocker.state === 'blocked' && <Alert variant="warning"><p>La salida puede perder la recuperación en memoria; cambiar solo la vista de esta obligación conserva el proceso. La operación puede seguir pendiente en el servidor.</p>
       <ActionGroup><Button onClick={() => blocker.reset()}>Permanecer aquí</Button><Button variant="secondary" onClick={() => blocker.proceed()}>Salir y consultar después</Button></ActionGroup></Alert>}
-  </section>;
+  </>;
 }

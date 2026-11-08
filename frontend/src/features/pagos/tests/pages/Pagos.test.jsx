@@ -36,7 +36,7 @@ beforeEach(() => {
 afterEach(() => { api.defaults.adapter = original; vi.unstubAllGlobals(); });
 async function start(proveedor = 'stripe') {
   await screen.findByRole('heading', { name: 'Cita CITA-FIN-FICTICIA' });
-  await userEvent.selectOptions(screen.getByLabelText('Proveedor de prueba'), proveedor);
+   await userEvent.selectOptions(await screen.findByLabelText('Proveedor de prueba'), proveedor);
   await userEvent.click(screen.getByRole('button', { name: 'Revisar inicio de pago' }));
   await userEvent.click(screen.getByRole('button', { name: 'Iniciar pago de prueba' }));
 }
@@ -109,7 +109,8 @@ it.each([true, false])('Pagar vincula la obligación cuando el backend habilita 
   mount();
   const link = await screen.findByRole('link', { name: 'Pagar', exact: true });
   expect(link).toHaveAttribute('href', `/pagos/obligaciones/${O}/pagar`);
-  expect(Boolean(screen.queryByLabelText('Proveedor de prueba'))).toBe(elegible);
+   if (elegible) expect(await screen.findByLabelText('Proveedor de prueba')).toBeVisible();
+   else expect(screen.queryByLabelText('Proveedor de prueba')).not.toBeInTheDocument();
   await userEvent.click(link); await screen.findByLabelText('Titular');
   expect(screen.getByText(/Cita REAL-NO-TRANSFERIR/)).toBeInTheDocument();
   expect(screen.getByText('Bs 140,00')).toBeVisible();
@@ -133,7 +134,7 @@ it.each(['stripe', 'paypal'])('cierre %s no habilita otro proveedor sin consulta
   detail = detalle({ puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [], intento_actual: { id: I, proveedor, estado: 'RequiereAccion' } });
   operation = operacion({ proveedor, estado: 'Cerrado', accion: null, puede_reintentar: true });
   mount(); await screen.findByText('Bs 70,00');
-  await userEvent.click(screen.getByRole('button', { name: 'Solicitar cierre del intento' })); expect(posts()).toHaveLength(0);
+   await userEvent.click(await screen.findByRole('button', { name: 'Solicitar cierre del intento' })); expect(posts()).toHaveLength(0);
   await userEvent.click(screen.getByRole('button', { name: 'Solicitar cierre', exact: true })); await screen.findByText(/El cierre del intento no cancela la cita/);
   expect(screen.queryByLabelText('Proveedor de prueba')).not.toBeInTheDocument();
   detail = detalle({ proveedores_disponibles: [proveedor === 'stripe' ? 'paypal' : 'stripe'] });
@@ -143,7 +144,7 @@ it.each(['stripe', 'paypal'])('cierre %s no habilita otro proveedor sin consulta
 it('cierre pendiente no equivale a cita cancelada ni a permiso para cambiar proveedor', async () => {
   detail = detalle({ puede_iniciar_pago: false, revision_pago: null, proveedores_disponibles: [], intento_actual: { id: I, proveedor: 'paypal', estado: 'Incierto' } });
   task = c => c.method === 'post' ? ok(c, { data: operacion({ proveedor: 'paypal', accion: null, estado: 'Incierto', operacion_en_verificacion: true }) }, 202, { 'retry-after': '5' }) : null;
-  mount(); await screen.findByText('Bs 70,00'); await userEvent.click(screen.getByRole('button', { name: 'Solicitar cierre del intento' }));
+   mount(); await screen.findByText('Bs 70,00'); await userEvent.click(await screen.findByRole('button', { name: 'Solicitar cierre del intento' }));
   await userEvent.click(screen.getByRole('button', { name: 'Solicitar cierre', exact: true })); await screen.findByText(/Verificación pendiente\. No equivale/);
   expect(screen.queryByLabelText('Proveedor de prueba')).not.toBeInTheDocument(); expect(screen.queryByText('Cancelada')).not.toBeInTheDocument();
 });
@@ -225,7 +226,7 @@ it('historial administrativo conserva ámbito y presenta fechas, referencias y c
   await userEvent.click(screen.getByRole('button', { name: 'Historial de intentos' }));
   await screen.findByText('SIM-FICTICIA-COMPLETA');
   expect(screen.getByText(/^Creado:/)).toBeVisible(); expect(screen.getByText(/^Actualizado:/)).toBeVisible(); expect(screen.getByText(/^Confirmado:/)).toBeVisible();
-  expect(screen.getByText(I)).toBeVisible(); expect(screen.getByRole('link', { name: 'Ver obligación' })).toHaveAttribute('href', `/pagos/pacientes/9/obligaciones/${O}`);
+   expect(screen.getByText(I)).toBeVisible(); expect(screen.getByRole('link', { name: 'Ver obligación' })).toHaveAttribute('href', `/pagos/pacientes/9/obligaciones/${O}?vista=historial`);
   expect(calls.at(-1).params.id_paciente).toBe('9'); expect(posts()).toHaveLength(0);
   expect(screen.queryByRole('link', { name: 'Pagar', exact: true })).not.toBeInTheDocument();
 });
@@ -242,7 +243,7 @@ it('detalle prioriza Pagar sobre la alternativa externa sin atribuir causas de i
   expect(pagar).toHaveClass('button--primary');
   expect(screen.getByText('Mis pagos · obligación propia')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Precio histórico de la cita' })).toBeVisible();
-  const externo = screen.getByRole('heading', { name: 'Proveedor externo de prueba' });
+   const externo = await screen.findByRole('heading', { name: 'Proveedor externo de prueba' });
   expect(pagar.compareDocumentPosition(externo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByText(/No hay una acción externa disponible/)).toHaveTextContent('La respuesta no indica una causa específica');
   expect(posts()).toHaveLength(0);

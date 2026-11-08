@@ -34,13 +34,13 @@ it.each([
 it.each(['Administrador', 'Médico', 'Paciente'])('%s llega al detalle común y tiene título/sidebar coherentes', async role => {
   rol = role; mount('/laboratorio/solicitudes/71'); await screen.findByRole('heading', { name: 'Hemograma de prueba' });
   expect(document.title).toBe('Solicitud de laboratorio | Clínica Vida Salud');
-  expect(screen.getByRole('link', { name: 'Consultar solicitudes y descargar resultados autorizados' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Consultar solicitudes y descargar resultados autorizados' })).not.toHaveAttribute('aria-current');
   expect(calls.every(c => c.method === 'get' && c.sessionBound)).toBe(true);
 });
 it('enlace desde consulta usa id_consulta 31, no id_cita 41', async () => {
   respond = config => response(config, detalle()); mount('/citas/41/consulta');
   const link = await screen.findByRole('link', { name: 'Ver estudios de esta consulta' }); expect(link).toHaveAttribute('href', '/laboratorio/consultas/31');
-  expect(screen.getByRole('link', { name: 'Ver solicitud de laboratorio' })).toHaveAttribute('href', '/laboratorio/solicitudes/61');
+  expect(screen.getByRole('link', { name: 'Ver solicitud de laboratorio' })).toHaveAttribute('href', '/laboratorio/solicitudes/61?operacion=consulta');
 });
 it('401 de descarga Blob pasa por interceptor vigente y retira expediente al login', async () => {
   mount('/laboratorio/solicitudes/71'); await screen.findByRole('heading', { name: 'Hemograma de prueba' });

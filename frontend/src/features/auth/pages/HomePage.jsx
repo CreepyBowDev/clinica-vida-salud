@@ -9,12 +9,11 @@ export default function HomePage({ area = false }) {
   const modules = navigationForRole(usuario.rol);
   const available = modules.filter(module => module.items.some(item => item.kind === 'page'));
   const pending = modules.filter(module => module.items.some(item => item.kind === 'pending'));
-  const primary = {
-    [ROLES.ADMINISTRADOR]: { to: '/administracion/cuentas', label: 'Consultar cuentas de usuario' },
-    [ROLES.RECEPCIONISTA]: { to: '/recepcion/pacientes', label: 'Consultar pacientes' },
-    [ROLES.PACIENTE]: { to: '/mi-perfil', label: 'Consultar mi perfil' },
-    [ROLES.MEDICO]: { to: '/mi-cuenta/contrasena', label: 'Cambiar contraseña' },
+  const primaryId = {
+    [ROLES.ADMINISTRADOR]: 'cuentas', [ROLES.RECEPCIONISTA]: 'pacientes',
+    [ROLES.PACIENTE]: 'perfil', [ROLES.MEDICO]: 'contrasena',
   }[usuario.rol];
+  const primary = modules.flatMap(module => module.items).find(item => item.id === primaryId);
   return <div className="workspace-page workspace-home">
     <header className="page-heading"><h1>{area ? current.label : `Hola, ${usuario.nombre_visible}`}</h1>
       <p>{area ? current.description : 'Bienvenido a tu espacio en Clínica Vida Salud.'}</p></header>
@@ -31,7 +30,8 @@ export default function HomePage({ area = false }) {
     </section>
     <section className="home-access" aria-labelledby="available-title"><header><h2 id="available-title">Funciones disponibles</h2><p>Selecciona una tarea para comenzar.</p></header>
       <div className="home-module-grid">{available.map(module => <section key={module.id} className="home-module"><h3>{module.label}</h3>
-        <ul>{module.items.filter(item => item.kind === 'page').map(item => <li key={item.id}><Link to={item.to}>{item.label}</Link></li>)}</ul></section>)}</div>
+        <ul>{module.items.filter(item => item.kind === 'page').map(item => <li key={item.id}><Link to={item.to}>{item.label}</Link>
+          {item.auxiliary && <small className="navigation-auxiliary">Acceso auxiliar</small>}</li>)}</ul></section>)}</div>
     </section>
     {pending.length > 0 && <section className="home-pending" aria-labelledby="pending-title"><h2 id="pending-title">Próximos módulos</h2>
       <p>Estas funciones están pendientes de implementación. No están disponibles todavía.</p>

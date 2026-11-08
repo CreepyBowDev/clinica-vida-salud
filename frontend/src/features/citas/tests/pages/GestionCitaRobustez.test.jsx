@@ -24,8 +24,8 @@ function server(config) {
   if (config.url.endsWith('/gestion')) return ok(config, { data: gestion() });
   return ok(config, { data: detalle(rol) });
 }
-function mount() {
-  const router = createMemoryRouter(crearRutas(), { initialEntries: [`/citas/${cita.id_cita}/gestion`] });
+function mount(search = '') {
+  const router = createMemoryRouter(crearRutas(), { initialEntries: [`/citas/${cita.id_cita}/gestion${search}`] });
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>); return router;
 }
 async function revisar(accion) {
@@ -48,6 +48,101 @@ beforeEach(() => {
   api.defaults.adapter = async config => { calls.push(config); return respond(config); };
 });
 afterEach(() => { api.defaults.adapter = adapter; });
+
+it.each(['Administrador', 'Recepcionista'].flatMap(role => ['reprogramar', 'cancelar'].map(operation => [role, operation])))('D3 %s %s: entrada directa exclusiva y retorno con modo, solo GET', async (role, operation) => {
+  rol = role; mount(`?operacion=${operation}`);
+  await screen.findByRole('region', { name: 'Condiciones de gestión' });
+  expect(screen.getByRole('link', { name: 'Volver a seleccionar una cita' })).toHaveAttribute('href', `/recepcion/pacientes/${cita.paciente.id_paciente}/citas?operacion=${operation}`);
+  expect(Boolean(screen.queryByRole('textbox', { name: 'Motivo de cancelación (opcional)' }))).toBe(operation === 'cancelar');
+  expect(Boolean(screen.queryByRole('button', { name: 'Consultar alternativas' }))).toBe(operation === 'reprogramar');
+  expect(screen.queryByRole('button', { name: 'Preparar cancelación' })).not.toBeInTheDocument();
+  expect(document.title).toBe(`${operation === 'cancelar' ? 'Cancelar una cita' : 'Reprogramar una cita'} | Clínica Vida Salud`);
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it.each(['?operacion=otra', '?operacion=', '?operacion=cancelar&operacion=cancelar', '?operacion=llegada'])('D3 rechaza %s sin ofrecer otra operación', async search => {
+  mount(search); await screen.findByRole('heading', { name: 'Operación no disponible' });
+  expect(screen.queryByRole('button', { name: /Consultar alternativas|Revisar cancelación/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Volver a seleccionar una operación' })).toHaveAttribute('href', '/recepcion/citas/gestion');
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it('D3 conserva borrador y revisión al cambiar search, permanecer y atrás/adelante sin escrituras', async () => {
+  const router = mount('?operacion=cancelar');
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Motivo de cancelación (opcional)' }), { target: { value: privado } });
+  await userEvent.click(screen.getByRole('button', { name: 'Revisar cancelación' }));
+  await act(async () => router.navigate(`?operacion=reprogramar`));
+  expect(router.state.location.search).toBe('?operacion=cancelar');
+  await userEvent.click(screen.getByRole('button', { name: 'Permanecer y consultar' }));
+  expect(screen.getByRole('button', { name: 'Confirmar cancelación' })).toBeVisible();
+  await act(async () => router.navigate('?operacion=reprogramar'));
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(screen.getByRole('button', { name: 'Consultar alternativas' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Confirmar cancelación' })).not.toBeInTheDocument();
+  await act(async () => router.navigate(-1));
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(screen.getByRole('textbox', { name: 'Motivo de cancelación (opcional)' })).toHaveValue(privado);
+  expect(screen.getByRole('button', { name: 'Confirmar cancelación' })).toBeVisible();
+  await act(async () => router.navigate(1));
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(router.state.location.search).toBe('?operacion=reprogramar');
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it.each(['envio', 'incierto', '429'])('D3 cambio de operación durante %s conserva ciclo y no replay', async phase => {
+  let complete;
+  respond = config => {
+    if (config.method !== 'patch') return server(config);
+    if (phase === 'envio') return new Promise((resolve, reject) => { complete = () => reject(fallo(config, 408)); });
+    throw fallo(config, phase === '429' ? 429 : 408, '30');
+  };
+  const router = mount('?operacion=cancelar');
+  await screen.findByRole('button', { name: 'Revisar cancelación' });
+  await userEvent.click(screen.getByRole('button', { name: 'Revisar cancelación' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Confirmar cancelación' }));
+  await screen.findByRole('heading', { name: 'Resultado de cancelación' });
+  const change = screen.getByRole('link', { name: 'Reprogramar una cita' });
+  expect(change).toHaveAttribute('href', `/citas/${cita.id_cita}/gestion?operacion=reprogramar`);
+  await userEvent.click(change);
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(router.state.location.pathname).toBe(`/citas/${cita.id_cita}/gestion`);
+  expect(screen.getByRole('heading', { name: 'Resultado de cancelación' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Consultar alternativas' })).not.toBeInTheDocument();
+  if (complete) await act(async () => complete());
+  if (phase !== '429') {
+    await userEvent.click(await screen.findByRole('button', { name: 'Consultar estado actual' }));
+    await screen.findByText(/Estado actual consultado. No demuestra/);
+  }
+  expect(calls.filter(c => c.method === 'patch')).toHaveLength(1);
+});
+it.each([403, 404, 409])('D3 cancelación: rechazo %s no cambia de operación ni reenvía', async status => {
+  respond = config => { if (status !== 409 || config.method === 'patch') throw fallo(config, status); return server(config); };
+  mount('?operacion=cancelar');
+  if (status === 409) {
+    await userEvent.click(await screen.findByRole('button', { name: 'Revisar cancelación' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar cancelación' }));
+    await screen.findByRole('button', { name: 'Consultar gestión y comenzar una nueva revisión' });
+  } else await screen.findByRole('alert');
+  expect(screen.queryByRole('button', { name: 'Consultar alternativas' })).not.toBeInTheDocument();
+  expect(calls.filter(c => c.method === 'patch')).toHaveLength(status === 409 ? 1 : 0);
+});
+it.each(['reprogramar', 'cancelar'])('D3 contexto cambiado elimina capacidad de %s sin sustituir operación', async operation => {
+  mount(`?operacion=${operation}`);
+  await screen.findByRole('region', { name: 'Condiciones de gestión' });
+  respond = config => config.url.endsWith('/gestion') ? ok(config, { data: { ...gestion(), version_programacion: 2,
+    acciones: { reprogramar: false, cancelar: false }, impedimentos: ['CITA_GESTION_NO_PERMITIDA'] } }) : server(config);
+  await userEvent.click(screen.getByRole('button', { name: 'Actualizar gestión' }));
+  await screen.findByText(/La cita no admite la operación seleccionada/);
+  expect(screen.queryByRole('button', { name: /Consultar alternativas|Revisar cancelación|Preparar cancelación/ })).not.toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it('D3 recarga simulada por un router nuevo conserva solo operación, no borrador ni revisión', async () => {
+  const router = createMemoryRouter(crearRutas(), { initialEntries: [`/citas/${cita.id_cita}/gestion?operacion=cancelar`] });
+  const mounted = render(<AuthProvider><RouterProvider router={router} /></AuthProvider>);
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Motivo de cancelación (opcional)' }), { target: { value: privado } });
+  mounted.unmount(); mount('?operacion=cancelar');
+  expect(await screen.findByRole('textbox', { name: 'Motivo de cancelación (opcional)' })).toHaveValue('');
+  expect(screen.queryByRole('button', { name: 'Confirmar cancelación' })).not.toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+  expect(localStorage.length + sessionStorage.length).toBe(0);
+});
 
 it.each(matriz)('%s %s: pagehide antes de terminar CSRF impide PATCH tardío', async (role, accion) => {
   rol = role; let complete, configCsrf;

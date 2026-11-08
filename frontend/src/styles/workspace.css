@@ -22,6 +22,8 @@
 .nav-module-items { list-style: none; margin: 4px 0 12px 20px; padding: 0 0 0 10px; border-left: 1px solid var(--color-border); }
 .nav-module-items[hidden] { display: none; }
 .workspace-nav .nav-module-items a { min-height: 44px; padding: 10px 12px; font-size: 15px; }
+.navigation-auxiliary { display: block; color: var(--color-muted); font-size: var(--text-small); }
+.nav-module-items .navigation-auxiliary { padding: 0 12px 10px; }
 .nav-pending { display: block; padding: 10px 12px; color: var(--color-muted); font-size: 15px; }
 .nav-planned { border-top: 1px solid var(--color-border); padding-top: 20px; margin-top: 20px; }
 .nav-planned > p { margin: 0 10px 12px; color: var(--color-muted); font-size: 14px; }

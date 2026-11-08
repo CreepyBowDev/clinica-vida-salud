@@ -44,10 +44,21 @@ async function revisar(text = 'Hemograma ficticio') {
   await userEvent.click(screen.getByRole('checkbox', { name: /Declaro/ })); await userEvent.click(screen.getByRole('button', { name: 'Revisar solicitud' }));
   expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toHaveFocus(); expect(postCalls()).toHaveLength(antes);
 }
-it.each(['Administrador', 'Médico'])('%s tiene guía operativa y no crea consultas ni captura IDs libres', async role => {
-  rol = role; mount('/laboratorio/solicitar'); await screen.findByRole('heading', { name: 'Solicitar estudios' });
-  expect(screen.getByRole('link', { name: 'Consultar agenda médica' })).toHaveAttribute('href', '/agenda'); expect(calls).toHaveLength(0); expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /Seleccionar paciente/ }) !== null).toBe(role === 'Administrador');
+it('D4 preparación de estudio conserva revisión al cambiar solo search inválido y volver sin replay', async () => {
+  const { router } = mount('/citas/41/consulta/solicitar-estudio?recorrido=solicitar-estudio'); await revisar();
+  await act(() => router.navigate('/citas/41/consulta/solicitar-estudio?recorrido=consulta'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('heading', { name: 'Operación no disponible' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Solicitar estudio' })).not.toBeInTheDocument();
+  await act(() => router.navigate('/citas/41/consulta/solicitar-estudio?recorrido=solicitar-estudio'));
+  await userEvent.click(screen.getByRole('button', { name: 'Continuar conservando el proceso' }));
+  expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeInTheDocument(); expect(postCalls()).toHaveLength(0);
+});
+it.each(['Administrador', 'Médico'])('D4 %s tiene selección real y no crea consultas ni captura IDs libres', async role => {
+  rol = role; mount('/laboratorio/solicitar'); await screen.findByRole('heading', { name: 'Solicitar estudios de laboratorio' });
+  expect(screen.queryByRole('textbox', { name: 'Estudio solicitado' })).not.toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get' && c.url.startsWith('/agenda'))).toBe(true);
+  expect(screen.queryByLabelText('CI')).not.toBeInTheDocument();
 });
 it.each(['Paciente', 'Recepcionista'].flatMap(role => ['/laboratorio/solicitar', '/citas/41/consulta/solicitar-estudio'].map(path => [role, path])))('%s no carga contexto de alta por %s', async (role, path) => {
   rol = role; mount(path); await screen.findByRole('heading', { name: 'Acceso no permitido' }); expect(calls).toHaveLength(0); expect(destinoSeguro(path, rol)).toBe('/inicio');
@@ -59,7 +70,7 @@ it.each(['Administrador', 'Médico'])('%s revisa identidad y estudio; envía una
   await screen.findByText('Solicitud registrada en estado Pendiente. El estado de la cita no se modificó.');
   expect(postCalls()).toHaveLength(1); expect(postCalls()[0].url).toBe('/consultas/31/solicitudes-laboratorio');
   expect(JSON.parse(postCalls()[0].data)).toEqual({ estudio_solicitado: 'Hemograma ficticio', atencion_real_verificada: true, originales: { id_version_consulta: version } });
-  expect(screen.getByRole('link', { name: 'Ver solicitud registrada' })).toHaveAttribute('href', '/laboratorio/solicitudes/71');
+  expect(screen.getByRole('link', { name: 'Ver solicitud registrada' })).toHaveAttribute('href', '/laboratorio/solicitudes/71?operacion=consulta');
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument(); expect(localStorage.length + sessionStorage.length).toBe(0);
 });
 it('obligatorios y longitud se validan antes de revisión/CSRF', async () => {
@@ -116,7 +127,7 @@ it('bloqueo de navegación advierte pérdida sin borrar por desplegar sidebar', 
   await userEvent.click(screen.getByRole('button', { name: 'Permanecer' })); expect(screen.getByRole('heading', { name: 'Revisar solicitud de estudio' })).toBeVisible();
 });
 it('enlace desde consulta registrada abre ruta de cita, no usa id_consulta como id_cita', async () => {
-  mount('/citas/41/consulta'); const link = await screen.findByRole('link', { name: 'Solicitar estudio' }); expect(link).toHaveAttribute('href', '/citas/41/consulta/solicitar-estudio');
+  mount('/citas/41/consulta'); const link = await screen.findByRole('link', { name: 'Solicitar estudio' }); expect(link).toHaveAttribute('href', '/citas/41/consulta/solicitar-estudio?recorrido=solicitar-estudio');
 });
 it.each([403, 404, 419])('HTTP %s posterior al envío retira formulario y no informa éxito', async status => {
   respond = config => config.method === 'post' ? Promise.reject(fail(config, status)) : read(config);

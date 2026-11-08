@@ -15,7 +15,7 @@ import '../styles/history-own.css';
 
 const inicial = owner => ({ owner, draft: { estado: '', per_page: '20' }, filters: { page: 1, per_page: 20 } });
 
-export default function HistorialCitas({ own = false, pacienteId }) {
+export default function HistorialCitas({ own = false, pacienteId, operation, operationSearch = '' }) {
   const { workspace, setWorkspace } = useAgendaWorkspace();
   const owner = own ? 'propio' : pacienteId;
   // Otra ficha empieza de cero sin reutilizar ni mostrar criterios/datos de la anterior.
@@ -29,10 +29,10 @@ export default function HistorialCitas({ own = false, pacienteId }) {
   useEffect(() => { if (query.failure?.status === 422) form.current?.querySelector('[aria-invalid="true"]')?.focus(); }, [query.failure]);
   const change = patch => setWorkspace(current => ({ ...current, historial: { ...state, ...patch } }));
   const period = query.data?.meta.filtros.periodo ?? filters.periodo ?? defaultPeriod;
-  const detailPath = id => own ? `/mis-citas/${id}` : `/recepcion/historial-citas/${id}`;
+  const detailPath = id => operation ? `/citas/${id}/gestion${operationSearch}` : own ? `/mis-citas/${id}` : `/recepcion/historial-citas/${id}`;
   return <section className={`workspace-page catalog-page agenda-page agenda-day ${own ? 'history-own' : 'history-administrative'}`}>
-    {!own && <Link className="back-link" to={`/recepcion/pacientes/${pacienteId}`}>Volver a la ficha del paciente</Link>}
-    <PageHeading title={own ? 'Mis citas' : 'Historial de citas'} description={own ? 'Consulta las citas vinculadas a tu ficha. El período y el estado se filtran por separado.' : 'Consulta administrativa de las citas del paciente seleccionado, incluidas las anteriores y canceladas.'} />
+    {!own && <Link className="back-link" to={operation ? `/recepcion/citas/gestion${operationSearch}` : `/recepcion/pacientes/${pacienteId}`}>{operation ? 'Seleccionar otro Paciente' : 'Volver a la ficha del paciente'}</Link>}
+    <PageHeading title={operation?.label ?? (own ? 'Mis citas' : 'Historial de citas')} description={operation ? 'Selecciona una cita. Su presencia en el historial no garantiza que admita la operación.' : own ? 'Consulta las citas vinculadas a tu ficha. El período y el estado se filtran por separado.' : 'Consulta administrativa de las citas del paciente seleccionado, incluidas las anteriores y canceladas.'} />
     <HistorialFilters draft={draft} defaultPeriod={defaultPeriod} onChange={next => change({ draft: next })}
       onApply={() => { change({ filters: { periodo: draft.periodo ?? defaultPeriod, estado: draft.estado, situacion_precio: draft.situacion_precio ?? '', per_page: Number(draft.per_page), page: 1 } }); query.reload(); }}
       onClear={() => { change(inicial(owner)); query.reload(); }} disabled={query.remaining > 0} errors={query.failure?.fields ?? {}} formRef={form} />

@@ -11,7 +11,7 @@ import FormField from '../../../components/FormField';
 import { montoEntrada } from '../../pagos/utils/pagoFormat';
 
 const campos = ['fecha', 'id_medico', 'id_especialidad', 'id_paciente', 'page', 'per_page'];
-export default function DisponibilidadTurnos({ criterios, onRevisar }) {
+export default function DisponibilidadTurnos({ criterios, onRevisar, consultiva = false }) {
   const [page, setPage] = useState(1);
   const [turno, setTurno] = useState(null);
   const [motivo, setMotivo] = useState('');
@@ -31,7 +31,7 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
   }
   return <section className="reserva-section booking-slots" aria-busy={query.loading}>
     <h2 ref={heading} tabIndex="-1">Turnos disponibles</h2>
-    <p id={helpId}>La disponibilidad es orientativa. Seleccionar un turno no registra ni garantiza una cita.</p>
+    <p id={helpId}>{consultiva ? 'La disponibilidad es orientativa. Para reservar, continúa a la opción de reserva y selecciona un turno después de consultar nuevamente.' : 'La disponibilidad es orientativa. Seleccionar un turno no registra ni garantiza una cita.'}</p>
     {failure?.fields.fecha && <p className="field-error">Fecha de atención: {failure.fields.fecha}</p>}
     {data && <>
       <dl className="reserva-context"><div><dt>Médico</dt><dd>{data.medico.nombres} {data.medico.apellidos}</dd></div>
@@ -44,18 +44,18 @@ export default function DisponibilidadTurnos({ criterios, onRevisar }) {
     <CatalogResults query={adapted} label="turnos" loadingLabel="Consultando turnos…"
       emptyTitle="No hay turnos disponibles para esta fecha" emptyHint="Consulta otra fecha o selecciona otro Médico."
       onPage={next => { setTurno(null); setPage(next); heading.current?.focus(); }}>
-      <fieldset className="reserva-slots" disabled={!data?.paciente_reservable} aria-describedby={helpId}>
+      {consultiva ? <ul className="reserva-options reserva-slot-grid" aria-label="Turnos orientativos">{data?.turnos.map(slot => <li key={slot.inicio_at}><time dateTime={slot.inicio_at}>{slot.hora_inicio}</time></li>)}</ul> : <fieldset className="reserva-slots" disabled={!data?.paciente_reservable} aria-describedby={helpId}>
         <legend>Selecciona un turno del {formatearFechaCivil(data?.fecha)}</legend>
         <div className="reserva-slot-grid">{data?.turnos.map(slot => <label key={slot.inicio_at}>
           <input type="radio" name="turno" value={slot.inicio_at} checked={turno?.inicio_at === slot.inicio_at}
             onChange={() => setTurno(slot)} />
           <span>{slot.hora_inicio}</span>
         </label>)}</div>
-      </fieldset>
+      </fieldset>}
     </CatalogResults>
     {turno && data?.paciente_reservable && <p role="status" className="reserva-selection">Turno seleccionado: {formatearFechaCivil(data.fecha)}, {turno.hora_inicio} (hora de la sede). Todavía no hay una cita registrada.</p>}
     {data && <Button variant="secondary" disabled={query.remaining > 0} onClick={() => { setTurno(null); query.reload(); }}>Actualizar disponibilidad</Button>}
-    {turno && data?.paciente_reservable && <form className="reserva-reason" aria-label="Revisar turno seleccionado" noValidate onSubmit={e => {
+    {!consultiva && turno && data?.paciente_reservable && <form className="reserva-reason" aria-label="Revisar turno seleccionado" noValidate onSubmit={e => {
       e.preventDefault();
       try {
         const motivo_breve = normalizarMotivo(motivo); setErrorMotivo('');

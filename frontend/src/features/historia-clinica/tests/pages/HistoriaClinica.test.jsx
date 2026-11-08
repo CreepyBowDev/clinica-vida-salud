@@ -49,10 +49,10 @@ it('Paciente entra por perfil y solo ve vigentes, sin versiones, autoría, motiv
   expect(calls.some(c => c.url.includes('/versiones'))).toBe(false);
   expect(localStorage.length).toBe(0); expect(sessionStorage.length).toBe(0);
 });
-it('Médico entra desde su agenda sin hacer búsqueda general de pacientes', async () => {
-  mount('/historia-clinica'); await screen.findByRole('heading', { name: 'Historia clínica' });
-  expect(within(screen.getByRole('main')).getByRole('link', { name: 'Consultar agenda médica' })).toHaveAttribute('href', '/agenda');
-  expect(calls).toHaveLength(0); expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+it('D4 Médico entra con agenda propia integrada sin búsqueda general de pacientes', async () => {
+  mount('/historia-clinica'); await screen.findByRole('heading', { name: 'Consultar la historia clínica autorizada' });
+  expect(screen.queryByRole('form', { name: 'Buscar pacientes' })).not.toBeInTheDocument();
+  expect(calls.every(c => c.url === '/agenda')).toBe(true);
 });
 it('la hoja de lectura conserva todo el texto y los saltos de línea sin controles que plieguen contenido clínico', async () => {
   const d = detalle(); d.data.consulta.version_vigente.observaciones = 'Primera línea ficticia\nSegunda línea ficticia';

@@ -27,8 +27,8 @@ function server(config) {
   if (config.method === 'patch') return ok(config, { data: op[2](original) });
   return ok(config, { data: config.url.endsWith('/asistencia') ? original : { ...detalle(rol), id_cita: idActual } });
 }
-function mount() {
-  const router = createMemoryRouter(crearRutas(), { initialEntries: [`/citas/${cita.id_cita}/asistencia`] });
+function mount(search = '') {
+  const router = createMemoryRouter(crearRutas(), { initialEntries: [`/citas/${cita.id_cita}/asistencia${search}`] });
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>); return router;
 }
 async function revisar() {
@@ -43,6 +43,77 @@ beforeEach(() => {
   consultarSesion.mockImplementation(async () => sesion(rol)); api.defaults.adapter = async config => { calls.push(config); return respond(config); };
 });
 afterEach(() => { api.defaults.adapter = adapter; });
+
+it.each(matriz)('D3 %s %s entrada directa exclusiva, retorno y refresco mantienen modo sin PATCH', async (role, nombre) => {
+  configurar(role, nombre); const operation = nombre === 'atención' ? 'atendida' : nombre;
+  const router = mount(`?operacion=${operation}`);
+  await screen.findByRole('checkbox');
+  expect(screen.getByRole('button', { name: `Revisar ${nombre}` })).toBeVisible();
+  expect(screen.queryByRole('button', { name: /Preparar atención|Preparar inasistencia|Abandonar atención|Abandonar inasistencia/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Volver a seleccionar una cita' })).toHaveAttribute('href', `/asistencia?operacion=${operation}`);
+  await userEvent.click(screen.getByRole('button', { name: 'Actualizar asistencia' }));
+  await screen.findByRole('checkbox');
+  expect(screen.getByRole('button', { name: `Revisar ${nombre}` })).toBeVisible();
+  expect(router.state.location.search).toBe(`?operacion=${operation}`);
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it.each([['Recepcionista', 'atendida'], ['Médico', 'llegada'], ['Médico', 'inasistencia'], ['Administrador', 'cancelar'], ['Administrador', 'otra'], ['Administrador', 'llegada&operacion=llegada']])('D3 %s rechaza modo incompatible %s', async (role, operation) => {
+  rol = role; mount(`?operacion=${operation}`);
+  await screen.findByRole('heading', { name: 'Operación no disponible' });
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it('D3 capacidad ausente no sustituye inasistencia por llegada', async () => {
+  mount('?operacion=inasistencia');
+  await screen.findByText(/La cita no admite la operación seleccionada/);
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Revisar llegada' })).not.toBeInTheDocument();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it('D3 revisión de inasistencia se conserva en memoria al cambiar operación y volver', async () => {
+  configurar('Administrador', 'inasistencia');
+  const router = mount('?operacion=inasistencia');
+  await userEvent.click(await screen.findByRole('checkbox'));
+  await userEvent.click(screen.getByRole('button', { name: 'Revisar inasistencia' }));
+  await act(async () => router.navigate('?operacion=atendida'));
+  await userEvent.click(screen.getByRole('button', { name: 'Permanecer y consultar' }));
+  expect(screen.getByRole('button', { name: 'Registrar inasistencia' })).toBeVisible();
+  await act(async () => router.navigate('?operacion=atendida'));
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.queryByRole('button', { name: 'Registrar inasistencia' })).not.toBeInTheDocument();
+  await act(async () => router.navigate(-1));
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(screen.getByRole('checkbox')).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Registrar inasistencia' })).toBeVisible();
+  expect(calls.every(c => c.method === 'get')).toBe(true);
+});
+it.each(['envio', 'incierto', '429'])('D3 asistencia conserva ciclo durante %s y cambio solo de search', async phase => {
+  configurar('Administrador', 'inasistencia'); let complete;
+  respond = config => {
+    if (config.method !== 'patch') return server(config);
+    if (phase === 'envio') return new Promise((resolve, reject) => { complete = () => reject(fallo(config, 408)); });
+    throw fallo(config, phase === '429' ? 429 : 408, '30');
+  };
+  const router = mount('?operacion=inasistencia');
+  await userEvent.click(await screen.findByRole('checkbox'));
+  await userEvent.click(screen.getByRole('button', { name: 'Revisar inasistencia' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Registrar inasistencia' }));
+  await screen.findByRole('heading', { name: 'Resultado de inasistencia' });
+  const change = screen.getByRole('link', { name: 'Marcar una cita como Atendida' });
+  expect(change).toHaveAttribute('href', `/citas/${cita.id_cita}/asistencia?operacion=atendida`);
+  await userEvent.click(change);
+  await userEvent.click(screen.getByRole('button', { name: 'Cambiar operación conservando el proceso' }));
+  expect(router.state.location.pathname).toBe(`/citas/${cita.id_cita}/asistencia`);
+  expect(screen.getByRole('heading', { name: 'Resultado de inasistencia' })).toBeVisible();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  if (complete) await act(async () => complete());
+  if (phase !== '429') {
+    await userEvent.click(await screen.findByRole('button', { name: 'Consultar estado actual' }));
+    await screen.findByText(/Estado actual consultado. No demuestra/);
+  }
+  expect(calls.filter(c => c.method === 'patch')).toHaveLength(1);
+});
 
 it.each(matriz)('%s %s: pagehide antes de completar CSRF impide PATCH tardío', async (role, nombre) => {
   configurar(role, nombre); let complete, csrf;

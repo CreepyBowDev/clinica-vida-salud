@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useBlocker, useParams } from 'react-router-dom';
+import { Link, useBlocker, useLocation, useParams } from 'react-router-dom';
+import { clinicalPresentation } from '../../../constants/clinicalPresentation';
+import ClinicalModeError from '../components/ClinicalModeError';
+import SeleccionCitaClinica from '../components/SeleccionCitaClinica';
 import PageHeading from '../../../components/PageHeading';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
 import QueryMessage from '../../../components/QueryMessage';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROLES } from '../../../constants/roles';
 import { esIdentificador } from '../../usuarios/services/usuario.service';
 import { consultarConsulta } from '../services/historiaClinica.service';
 import { useClinicaQuery } from '../hooks/useClinicaQuery';
@@ -18,11 +20,8 @@ import '../styles/clinical-editor.css';
 
 export default function ConsultaEditorPage({ seleccionar = false }) {
   const { id } = useParams(), { usuario } = useAuth();
-  if (seleccionar) return <section className="workspace-page clinical-page"><PageHeading title="Seleccionar cita para registrar consulta" description="El registro clínico siempre corresponde a una cita y una atención real. No crea ni marca automáticamente una cita como Atendida." />
-    <p>Selecciona una cita, abre su consulta médica y comprueba si el servidor permite registrar o corregir la documentación de esa atención.</p>
-    <Link className="button button--primary" to="/agenda">Consultar agenda médica</Link>
-    {usuario.rol === ROLES.ADMINISTRADOR && <p><Link to="/recepcion/historial-citas">Seleccionar paciente y consultar sus citas</Link></p>}
-  </section>;
+  const location = useLocation(), entry = clinicalPresentation(location.pathname, location.search, usuario.rol);
+  if (seleccionar) return entry.valid ? <SeleccionCitaClinica recorrido="consulta" /> : <ClinicalModeError to="/registrar-consulta" />;
   if (!esIdentificador(id)) return <section className="workspace-page"><h1>Consulta no disponible</h1><Link to="/historia-clinica">Volver a historia clínica</Link></section>;
   return <Editor key={`${usuario.id_usuario}:${usuario.rol}:${id}`} id={id} usuario={usuario} />;
 }
@@ -31,12 +30,15 @@ const impedimentos = { CLINICA_EDICION_OBSOLETA: 'La información cambió o no s
   CLINICA_CITA_NO_PERMITIDA: 'El estado de la cita no permite documentar esta atención.', CLINICA_ATENCION_ANTICIPADA: 'La cita aún no alcanzó su inicio según el servidor.',
   CLINICA_CONSULTA_EXISTENTE: 'La cita ya tiene una consulta. Vuelve a consultar su información vigente.', RECURSO_NO_ENCONTRADO: 'No hay una consulta vigente disponible para corregir.' };
 function Editor({ id, usuario }) {
+  const location = useLocation(), entry = clinicalPresentation(location.pathname, location.search, usuario.rol);
+  const visited = useRef(entry.valid); if (entry.valid) visited.current = true;
   const query = useClinicaQuery(consultarConsulta, { id, rol: usuario.rol, paraRegistro: true });
   const escritura = useRegistroConsulta(id, usuario.rol, usuario.id_usuario);
   const actualizar = Boolean(query.data?.consulta);
   const [dirty, setDirty] = useState(false), heading = useRef(null);
   const riesgo = ['guardando', 'incierto', 'consultando'].includes(escritura.status), busy = ['guardando', 'consultando'].includes(escritura.status);
   const blocker = useBlocker(dirty || riesgo);
+  const conserva = blocker.location?.pathname === location.pathname;
   useEffect(() => { if (!dirty && !riesgo && blocker.state === 'blocked') blocker.reset(); }, [dirty, riesgo, blocker]);
   useEffect(() => {
     if (!dirty && !riesgo) return;
@@ -53,10 +55,12 @@ function Editor({ id, usuario }) {
   }, []);
   const refrescar = () => { setDirty(false); escritura.reset(); query.reload(); };
   return <section className="workspace-page clinical-page clinical-editor-page">
-    <Link className="back-link" to={`/citas/${id}/consulta`}>Volver a consulta</Link>
+    <Link className="back-link" to={`/citas/${id}/consulta?recorrido=consulta`}>Volver a consulta</Link>
+    {!entry.valid && <ClinicalModeError to="/registrar-consulta" />}
     <PageHeading title={actualizar ? 'Corregir consulta médica' : 'Registrar consulta médica'} description="Documenta una atención real de esta cita. Horarios en America/La_Paz." />
-    {blocker.state === 'blocked' && <Alert variant="warning"><p>{riesgo ? 'La consulta podría haberse guardado. Salir no revierte la operación.' : 'Si sales, se perderán los datos del formulario que no guardaste.'}</p>
-      <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar el formulario</Button></Alert>}
+    {blocker.state === 'blocked' && <Alert variant="warning"><p>{conserva ? 'Cambiar la presentación conserva este proceso clínico solo en memoria; no inicia otra operación.' : riesgo ? 'La consulta podría haberse guardado. Salir no revierte la operación.' : 'Si sales, se perderán los datos del formulario que no guardaste.'}</p>
+      <Button variant="secondary" onClick={() => blocker.reset()}>Permanecer</Button><Button variant="quiet" onClick={() => blocker.proceed()}>{conserva ? 'Continuar conservando el proceso' : 'Salir sin conservar el formulario'}</Button></Alert>}
+    {visited.current && <div hidden={!entry.valid} inert={!entry.valid || undefined}>
     {escritura.status !== 'inicial' && <section className="clinical-editor-outcome" aria-label="Resultado del registro" aria-live="polite" aria-busy={busy}>
       <h2 tabIndex={-1} ref={heading}>Resultado del registro</h2>
       {busy && <QueryMessage loading title={escritura.status === 'guardando' ? 'Guardando consulta…' : 'Consultando estado actual…'} />}
@@ -68,7 +72,7 @@ function Editor({ id, usuario }) {
       {escritura.resultado && <p>{escritura.resultado.consulta ? `Consulta vigente: ${escritura.resultado.consulta.codigo_consulta}.` : 'No hay una consulta visible en este momento; esto no demuestra que el envío anterior haya fallado.'}</p>}
       {escritura.status === 'incierto' && <><p>No se reenviará automáticamente. Consulta el estado actual antes de decidir otra operación.</p><Button disabled={escritura.remaining > 0} onClick={escritura.consultar}>Consultar estado actual</Button></>}
       {escritura.status === 'error' && ![401, 403, 404].includes(escritura.failure?.status) && <Button variant="secondary" disabled={escritura.remaining > 0} onClick={refrescar}>Consultar contexto y comenzar nueva revisión</Button>}
-      {['guardada', 'recuperada'].includes(escritura.status) && <Link className="button button--secondary" to={`/citas/${id}/consulta`}>Consultar información vigente</Link>}
+      {['guardada', 'recuperada'].includes(escritura.status) && <Link className="button button--secondary" to={`/citas/${id}/consulta?recorrido=consulta`}>Consultar información vigente</Link>}
       {escritura.remaining > 0 && <p>Espera {escritura.remaining} segundos antes de continuar.</p>}
     </section>}
     {['inicial', 'guardando', 'validacion'].includes(escritura.status) && <ClinicaQuery query={query}>{data => <>
@@ -82,5 +86,6 @@ function Editor({ id, usuario }) {
             contexto={data} busy={busy} failure={escritura.status === 'validacion' ? escritura.failure : null} ejecutor={usuario.nombre_visible}
             onDirtyChange={setDirty} onGuardar={escritura.guardar} />}
     </>}</ClinicaQuery>}
+    </div>}
   </section>;
 }

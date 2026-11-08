@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useRef } from 'react';
+import { Link, matchPath, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROLES } from '../../../constants/roles';
 import Button from '../../../components/Button';
@@ -12,7 +12,7 @@ import ReservaCatalogo from '../components/ReservaCatalogo';
 import ReservaHorarioMedico from '../components/ReservaHorarioMedico';
 import DisponibilidadTurnos from '../components/DisponibilidadTurnos';
 import ReservaRegistro from '../components/ReservaRegistro';
-import { useReservaRegistro } from '../hooks/useReservaRegistro';
+import { useReservaWorkspace } from '../components/ReservaWorkspace';
 import { listarEspecialidadesReserva, listarMedicosReserva } from '../services/reserva.service';
 import { listarPacientes } from '../../pacientes/services/paciente.service';
 import '../../../styles/catalogs.css';
@@ -31,43 +31,42 @@ function fechaValida(value) {
 }
 export default function ReservarCitaPage() {
   const { usuario } = useAuth();
-  // Otra identidad/rol nunca hereda una selección privada de esta instancia.
-  return <ReservaFlujo key={`${usuario.id_usuario}:${usuario.rol}`} administrativa={[ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(usuario.rol)} />;
-}
-function ReservaFlujo({ administrativa }) {
-  const registro = useReservaRegistro();
-  const blocker = useBlocker(registro.peligro);
-  useEffect(() => {
-    // Si el resultado ya se conoce, no conservar una advertencia de incertidumbre anterior.
-    if (!registro.peligro && blocker.state === 'blocked') blocker.reset();
-  }, [registro.peligro, blocker]);
-  const [paciente, setPaciente] = useState(null);
-  const [especialidad, setEspecialidad] = useState(null);
-  const [medico, setMedico] = useState(null);
-  const [fecha, setFecha] = useState('');
-  const [errorFecha, setErrorFecha] = useState('');
-  const [criterios, setCriterios] = useState(null);
-  const [revision, setRevision] = useState(0);
-  const [epoch, setEpoch] = useState(0);
+  const administrativa = [ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA].includes(usuario.rol);
+  const location = useLocation();
+  const consultiva = Boolean(matchPath('/consultar-disponibilidad', location.pathname));
+  const destinoReserva = administrativa ? '/recepcion/citas/nueva' : '/reservar-cita';
+  const flujo = useReservaWorkspace();
+  const { registro, blocker } = flujo;
+  const [paciente, setPaciente] = flujo.paciente;
+  const [especialidad, setEspecialidad] = flujo.especialidad;
+  const [medico, setMedico] = flujo.medico;
+  const [fecha, setFecha] = flujo.fecha;
+  const [errorFecha, setErrorFecha] = flujo.errorFecha;
+  const [criterios, setCriterios] = flujo.criterios;
+  const [revision, setRevision] = flujo.revision;
+  const [epoch] = flujo.epoch;
   const fechaRef = useRef(null);
   const clearMedico = () => { setMedico(null); setCriterios(null); };
   const clearEspecialidad = () => { setEspecialidad(null); clearMedico(); };
   const clearPaciente = () => { setPaciente(null); clearEspecialidad(); };
-  useEffect(() => {
-    const clear = () => { setPaciente(null); setEspecialidad(null); setMedico(null); setCriterios(null); setFecha(''); setEpoch(n => n + 1); };
-    window.addEventListener('pagehide', clear);
-    return () => window.removeEventListener('pagehide', clear);
-  }, []);
+  const cambioInterno = Boolean(blocker.location && ['/consultar-disponibilidad', destinoReserva].some(path => matchPath(path, blocker.location.pathname)));
   return <section className="workspace-page reserva-page booking-page">
-    <PageHeading title={administrativa ? 'Programar cita' : 'Reservar cita'} description="Busca un turno presencial en la sede de la clínica. Los horarios se consultan en America/La_Paz." />
-    <WorkflowProgress label="Etapas de la reserva" steps={etapas} current={registro.status === 'busqueda' ? 'busqueda' : ['registrada', 'incierto', 'consultando', 'ausente'].includes(registro.status) ? 'resultado' : 'revision'} />
-    {blocker.state === 'blocked' && <Alert variant="warning"><p>La cita podría haberse registrado. Si sales perderás esta comprobación; no se enviará otra reserva automáticamente.</p>
+    <PageHeading title={consultiva ? 'Buscar médicos y consultar disponibilidad' : 'Programar o reservar una cita presencial'} description={consultiva
+      ? 'Consulta Médicos, horarios y turnos presenciales. Esta consulta no registra una cita.'
+      : 'Selecciona un turno, revisa los datos y registra la cita presencial. Los horarios se consultan en America/La_Paz.'} />
+    {!consultiva && <WorkflowProgress label="Etapas de la reserva" steps={etapas} current={registro.status === 'busqueda' ? 'busqueda' : ['registrada', 'incierto', 'consultando', 'ausente'].includes(registro.status) ? 'resultado' : 'revision'} />}
+    {blocker.state === 'blocked' && <Alert variant="warning"><p>{cambioInterno
+      ? 'Hay una revisión o comprobación de reserva pendiente. Cambiar de opción la conserva en memoria; vuelve a reserva para continuar. No se enviará otra reserva automáticamente.'
+      : registro.peligro ? 'La cita podría haberse registrado. Si sales perderás esta comprobación; no se enviará otra reserva automáticamente.'
+      : 'Hay una revisión de reserva pendiente. Si sales perderás la revisión; no se registrará una cita automáticamente.'}</p>
       <ActionGroup><Button variant="secondary" onClick={() => blocker.reset()}>Permanecer y consultar</Button>
-      <Button variant="quiet" onClick={() => blocker.proceed()}>Salir sin conservar la comprobación</Button></ActionGroup></Alert>}
-    {registro.status !== 'busqueda' ? <ReservaRegistro registro={registro} administrativa={administrativa} onVolver={() => {
+      <Button variant="quiet" onClick={() => blocker.proceed()}>{cambioInterno ? 'Cambiar de opción conservando la reserva' : 'Salir sin conservar la comprobación'}</Button></ActionGroup></Alert>}
+    {consultiva && registro.status !== 'busqueda' ? <Alert variant="info"><p>Se conserva el proceso de reserva anterior. Regresa para revisar su estado antes de iniciar otra selección.</p>
+      <Link className="button button--secondary" to={destinoReserva}>Volver a la reserva pendiente</Link></Alert>
+    : !consultiva && registro.status !== 'busqueda' ? <ReservaRegistro registro={registro} administrativa={administrativa} onVolver={() => {
       registro.reset(); setCriterios(null); setRevision(n => n + 1);
     }} /> : <div className="booking-search">
-    <p className="reserva-guidance">{administrativa && !paciente ? 'Comienza seleccionando la ficha del Paciente.' : !especialidad ? 'Selecciona la especialidad para consultar sus Médicos.' : !medico ? 'Selecciona un Médico para consultar una fecha de atención.' : 'Elige una fecha, consulta los turnos y revisa tu selección antes de registrar.'}{!administrativa && ' La reserva es únicamente para tu propia ficha.'}</p>
+    <p className="reserva-guidance">{administrativa && !paciente ? 'Comienza seleccionando la ficha del Paciente.' : !especialidad ? 'Selecciona la especialidad para consultar sus Médicos.' : !medico ? 'Selecciona un Médico para consultar una fecha de atención.' : consultiva ? 'Elige una fecha y consulta los turnos disponibles.' : 'Elige una fecha, consulta los turnos y revisa tu selección antes de registrar.'}{!administrativa && ' La consulta y la reserva son únicamente para tu propia ficha.'}</p>
     {administrativa && <>
       <ReservaCatalogo key={`pacientes:${epoch}`} titulo="Seleccionar Paciente" tituloSeleccionado="Paciente" etiqueta="pacientes" load={listarPacientes} accionCambio="Cambiar paciente" prefijoSeleccion="Paciente seleccionado"
         campos={pacienteCampos} seleccionado={paciente} identificador="id_paciente" onInvalidate={clearPaciente}
@@ -99,7 +98,9 @@ function ReservaFlujo({ administrativa }) {
         <Button type="submit">Consultar turnos</Button>
         <p>Hora local de la sede. El servidor comprueba que el turno no haya comenzado.</p>
       </form>}
-      {criterios && <DisponibilidadTurnos key={`${JSON.stringify(criterios)}:${revision}`} criterios={criterios} onRevisar={registro.proponer} />}
+      {criterios && <DisponibilidadTurnos key={`${consultiva}:${JSON.stringify(criterios)}:${revision}`} criterios={criterios} consultiva={consultiva} onRevisar={consultiva ? undefined : registro.proponer} />}
+      {consultiva && <section className="reserva-section"><h2>Continuar a reserva</h2><p>Se conservarán solo tus criterios y selecciones en memoria. Consulta nuevamente la disponibilidad y selecciona un turno antes de revisar la cita.</p>
+        <ActionGroup><Link className="button button--secondary" to={destinoReserva}>{administrativa ? 'Programar cita' : 'Reservar cita'}</Link></ActionGroup></section>}
     </>}
     </div>}
   </section>;

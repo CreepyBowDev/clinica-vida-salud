@@ -25,7 +25,7 @@ export default function CancelacionCita({ contexto, onGuardar, onVolver }) {
       <FormField ref={campo} label="Motivo de cancelación (opcional)" autoComplete="off" value={motivo} error={error}
         hint="Hasta 500 caracteres. No incluyas diagnósticos ni información clínica; el motivo se registra de forma privada."
         onChange={event => { setMotivo(event.target.value); setError(''); setRevision(null); }} />
-      <ActionGroup><Button type="submit">Revisar cancelación</Button><Button variant="quiet" onClick={onVolver}>Volver sin cancelar</Button></ActionGroup>
+      <ActionGroup><Button type="submit">Revisar cancelación</Button><Button variant="quiet" onClick={onVolver ?? (() => { setRevision(null); setError(''); campo.current?.focus(); })}>Volver sin cancelar</Button></ActionGroup>
     </form>
     {revision && <section aria-labelledby="cancelacion-revision"><h3 id="cancelacion-revision" tabIndex="-1" ref={heading}>Confirmar cancelación de {cita.codigo_cita}</h3>
       <dl className="catalog-data record-data">
@@ -40,7 +40,7 @@ export default function CancelacionCita({ contexto, onGuardar, onVolver }) {
       </dl>
       <Alert variant="warning"><p>La cita pasará a Cancelada y liberará su intervalo solo si el servidor confirma la operación. Se conserva el historial.</p></Alert>
       <ActionGroup><Button variant="danger" onClick={() => onGuardar({ original: cita, motivo: revision.motivo })}>Confirmar cancelación</Button>
-        <Button variant="quiet" onClick={onVolver}>Abandonar cancelación</Button></ActionGroup>
+        <Button variant="quiet" onClick={onVolver ?? (() => { setRevision(null); campo.current?.focus(); })}>Abandonar cancelación</Button></ActionGroup>
     </section>}
   </section>;
 }

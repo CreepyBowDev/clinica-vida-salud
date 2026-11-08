@@ -49,6 +49,24 @@ beforeEach(() => {
 });
 afterEach(() => { api.defaults.adapter = original; });
 
+it.each([['Administrador', 'llegada'], ['Recepcionista', 'inasistencia'], ['Administrador', 'atendida'], ['Médico', 'atendida']])('D3 %s %s selecciona contexto autorizado y propaga operación sin escritura', async (actor, operation) => {
+  rol = actor; mount(`/asistencia?operacion=${operation}`);
+  if (actor !== 'Médico') {
+    await screen.findByRole('button', { name: 'Consultar agenda de Profesional Ficticio' });
+    expect(agendaCalls()).toHaveLength(0); await selectFirst();
+  }
+  const link = await screen.findByRole('link', { name: 'Ver cita CIT-1' });
+  expect(link).toHaveAttribute('href', `/citas/1/asistencia?operacion=${operation}`);
+  expect(agendaCalls().at(-1).params).toEqual({ page: 1, per_page: 20, ...(actor === 'Médico' ? {} : { id_medico: cita.medico.id_medico }) });
+  expect(calls.every(call => call.method === 'get')).toBe(true);
+});
+it.each([['Recepcionista', 'atendida'], ['Médico', 'llegada'], ['Administrador', 'cancelar'], ['Administrador', 'llegada&operacion=llegada']])('D3 agenda %s rechaza %s sin seleccionar recursos', async (actor, operation) => {
+  rol = actor; mount(`/asistencia?operacion=${operation}`);
+  await screen.findByRole('heading', { name: 'Operación no disponible' });
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(calls.every(call => call.method === 'get')).toBe(true);
+});
+
 it.each(['Administrador', 'Recepcionista'])('%s selecciona explícitamente Médico, incluidos inactivos, sin agenda arbitraria', async role => {
   rol = role; mount();
   await screen.findByRole('button', { name: 'Consultar agenda de Profesional Ficticio' });

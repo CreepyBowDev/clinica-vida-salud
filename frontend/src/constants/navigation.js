@@ -1,10 +1,15 @@
 import { matchPath } from 'react-router-dom';
 import { AREAS, ROLES } from './roles';
+import { citaOperation, CITA_OPERATIONS } from './citaOperations';
+import { clinicalPresentation, LAB_OPERATIONS } from './clinicalPresentation';
+import { paymentPresentation, PAYMENT_PATTERNS, PAYMENT_VIEWS } from './paymentPresentation';
 
 const { ADMINISTRADOR: A, RECEPCIONISTA: R, MEDICO: M, PACIENTE: P } = ROLES;
 const all = [A, R, M, P];
 // Los CU son trazabilidad interna, nunca etiquetas de navegación ni permisos del servidor.
 const page = (id, label, to, roles, cases, children = []) => ({ id, label, to, roles, cases, patterns: [to, ...children], kind: 'page' });
+const operationPage = (id, path, cu, children) => ({ ...page(id, CITA_OPERATIONS[id].label, `${path}?operacion=${id}`, CITA_OPERATIONS[id].roles, [cu]),
+  operation: id, patterns: [path, ...children] });
 
 export const NAVIGATION = [
   { id: 'usuarios', package: 'P1', label: 'Usuarios y autenticación', icon: 'lock', items: [
@@ -13,7 +18,7 @@ export const NAVIGATION = [
   ] },
   { id: 'pacientes', package: 'P2', label: 'Pacientes y perfil personal', icon: 'user', items: [
     page('pacientes', 'Gestionar el registro administrativo de pacientes', '/recepcion/pacientes', [A, R], ['CU-07'], ['/recepcion/pacientes/nuevo', '/recepcion/pacientes/:id', '/recepcion/pacientes/:id/editar', '/recepcion/pacientes/:id/activacion']),
-    page('activacion', 'Activación web', '/recepcion/activacion-web', [A, R], ['CU-07']),
+    { ...page('activacion', 'Activación web', '/recepcion/activacion-web', [A, R], []), auxiliary: true },
     page('perfil', 'Actualizar el perfil personal', '/mi-perfil', [P], ['CU-08'], ['/mi-perfil/correo']),
   ] },
   { id: 'medicos', package: 'P3', label: 'Médicos y especialidades', icon: 'grid', items: [
@@ -25,14 +30,18 @@ export const NAVIGATION = [
     page('horarios', 'Configurar horarios y duración de citas', '/administracion/horarios', [A], ['CU-12'], ['/administracion/horarios/configuracion', '/administracion/horarios/medicos/:id']),
   ] },
   { id: 'reserva', package: 'P5', label: 'Registro y reserva de citas médicas', icon: 'calendar', items: [
-    page('programar', 'Buscar médicos, consultar disponibilidad y programar una cita presencial', '/recepcion/citas/nueva', [A, R], ['CU-13', 'CU-14']),
-    page('reservar', 'Buscar médicos, consultar disponibilidad y reservar una cita presencial', '/reservar-cita', [P], ['CU-13', 'CU-14']),
+    page('disponibilidad', 'Buscar médicos y consultar disponibilidad', '/consultar-disponibilidad', [A, R, P], ['CU-13']),
+    page('programar', 'Programar o reservar una cita presencial', '/recepcion/citas/nueva', [A, R], ['CU-14']),
+    page('reservar', 'Programar o reservar una cita presencial', '/reservar-cita', [P], ['CU-14']),
   ] },
   { id: 'gestion-citas', package: 'P6', label: 'Reprogramación y cancelación', icon: 'calendar', items: [
-    page('gestion-citas', 'Reprogramar una cita o cancelar una cita', '/recepcion/citas/gestion', [A, R], ['CU-15', 'CU-16'], ['/citas/:id/gestion']),
+    operationPage('reprogramar', '/recepcion/citas/gestion', 'CU-15', ['/citas/:id/gestion', '/recepcion/pacientes/:id/citas']),
+    operationPage('cancelar', '/recepcion/citas/gestion', 'CU-16', ['/citas/:id/gestion', '/recepcion/pacientes/:id/citas']),
   ] },
   { id: 'asistencia', package: 'P7', label: 'Estados de citas y control de asistencia', icon: 'calendar', items: [
-    page('asistencia-citas', 'Confirmar la llegada del Paciente, registrar su inasistencia o marcar una cita como Atendida', '/asistencia', [A, R, M], ['CU-17', 'CU-18', 'CU-19'], ['/citas/:id/asistencia']),
+    operationPage('llegada', '/asistencia', 'CU-17', ['/citas/:id/asistencia']),
+    operationPage('inasistencia', '/asistencia', 'CU-18', ['/citas/:id/asistencia']),
+    operationPage('atendida', '/asistencia', 'CU-19', ['/citas/:id/asistencia']),
   ] },
   { id: 'agenda', package: 'P8', label: 'Agenda e historial de citas', icon: 'calendar', items: [
     page('agenda', 'Consultar la agenda médica', '/agenda', [A, R, M], ['CU-20'], ['/citas/:id']),
@@ -45,7 +54,8 @@ export const NAVIGATION = [
   ] },
   { id: 'laboratorio', package: 'P10', label: 'Laboratorio digital', icon: 'people', items: [
     page('solicitar', 'Solicitar estudios de laboratorio', '/laboratorio/solicitar', [A, M], ['CU-24'], ['/citas/:id/consulta/solicitar-estudio']),
-    page('resultados', 'Consultar solicitudes y descargar resultados autorizados', '/laboratorio', [A, M, P], ['CU-27'], ['/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id']),
+    ...['documentos', 'revision'].map(mode => ({ ...page(mode, LAB_OPERATIONS[mode].label, `/laboratorio?operacion=${mode}`, LAB_OPERATIONS[mode].roles, [LAB_OPERATIONS[mode].cu]), labMode: mode, patterns: ['/laboratorio', '/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id'] })),
+    { ...page('resultados', 'Consultar solicitudes y descargar resultados autorizados', '/laboratorio', [A, M, P], ['CU-27'], ['/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id']), labMode: 'consulta' },
   ] },
   { id: 'recordatorios', package: 'P11', label: 'Recordatorios automáticos', icon: 'calendar', items: [
     page('avisos', 'Consultar recordatorios de próximas citas y recibir Web Push opcional', '/recordatorios', [P, A], ['CU-28']),
@@ -57,8 +67,10 @@ export const NAVIGATION = [
     page('eventos', 'Consultar bitácora del sistema', '/administracion/bitacora', [A], ['CU-30'], ['/administracion/bitacora/:id']),
   ] },
   { id: 'pagos', package: 'P14', label: 'Pagos', icon: 'info', items: [
-    page('pagos', 'Consultar obligaciones de pago propias e historial de pagos propio', '/pagos', [P, A], ['CU-31', 'CU-33', 'CU-34'], ['/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id', '/pagos/retorno/:proveedor/:intento?']),
-    page('demostracion-pagos', 'Demostración de pagos', '/pagos/demostracion', [P, A], []),
+    ...Object.entries(PAYMENT_VIEWS).map(([view, { label, cu }]) => ({ ...page(`pagos-${view}`, label, `/pagos?vista=${view}`, [P], [cu]), paymentView: view,
+      patterns: ['/pagos', '/pagos/obligaciones/:id', ...(view === 'pagar' ? ['/pagos/obligaciones/:id/pagar', '/pagos/retorno/:proveedor/:intento?'] : [])] })),
+    page('pagos', 'Consultar historial financiero de un Paciente', '/pagos', [A], ['CU-34'], ['/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id']),
+    { ...page('demostracion-pagos', 'Demostración de pagos', '/pagos/demostracion', [P, A], []), auxiliary: true },
   ] },
 ];
 
@@ -78,22 +90,93 @@ export const ACCESS_FLOWS = [
 ];
 
 export function navigationForRole(role) {
-  return NAVIGATION.map(module => ({ ...module, label: module.labels?.[role] ?? module.label, items: module.items.filter(item => item.roles.includes(role)).map(item =>
+  return NAVIGATION.map(module => ({ ...module, role, label: module.labels?.[role] ?? module.label, items: module.items.filter(item => item.roles.includes(role)).map(item =>
     item.id === 'avisos' && role === A ? { ...item, label: 'Consultar recordatorios de próximas citas' }
-      : item.id === 'asistencia-citas' ? { ...item,
-      label: role === M ? 'Marcar una cita como Atendida' : role === R ? 'Confirmar la llegada del Paciente o registrar la inasistencia del Paciente' : item.label,
-      cases: role === M ? ['CU-19'] : role === R ? ['CU-17', 'CU-18'] : item.cases }
-      : item.id === 'pagos' ? { ...item, label: role === A ? 'Consultar historial financiero de un Paciente' : item.label, cases: role === A ? ['CU-34'] : ['CU-31', 'CU-33'],
-      patterns: role === A ? ['/pagos', '/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id'] : ['/pagos', '/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/retorno/:proveedor/:intento?'] }
       : item.id === 'historia' && role === P ? { ...item, patterns: ['/historia-clinica', '/citas/:id/consulta'] }
-      : item.id === 'resultados' && role !== A ? { ...item, patterns: item.patterns.filter(p => p !== '/laboratorio/pacientes/:id') } : item) }))
+      : item.labMode && role !== A ? { ...item, patterns: item.patterns.filter(p => p !== '/laboratorio/pacientes/:id') } : item) }))
     .filter(module => module.items.length);
 }
 
-export function navigationAtPath(modules, pathname) {
+export function navigationDestination(item, pathname, search = '') {
+  if (item.id === 'pagos' && ['/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id'].some(pattern => matchPath(pattern, pathname))) {
+    const entry = paymentPresentation(pathname, search, A);
+    return `${pathname}${entry.valid ? entry.search : ''}`;
+  }
+  if (item.paymentView && matchPath('/pagos/obligaciones/:id/pagar', pathname)) return `${pathname.replace(/\/pagar\/?$/i, '')}?vista=${item.paymentView}`;
+  if (item.paymentView && matchPath('/pagos/obligaciones/:id', pathname)) return `${pathname}?vista=${item.paymentView}`;
+  if (item.labMode && ['/laboratorio/solicitudes/:id', '/laboratorio/pacientes/:id', '/laboratorio/consultas/:id'].some(pattern => matchPath(pattern, pathname))) return `${pathname}?operacion=${item.labMode}`;
+  if (['historia', 'consulta', 'solicitar'].includes(item.id)) {
+    const context = ['/citas/:id/consulta', '/citas/:id/consulta/editar', '/citas/:id/consulta/solicitar-estudio', '/citas/:id/consulta/versiones'].map(pattern => matchPath(pattern, pathname)).find(Boolean);
+    if (context) {
+      const ownProcess = item.id === 'consulta' && matchPath('/citas/:id/consulta/editar', pathname)
+        || item.id === 'solicitar' && matchPath('/citas/:id/consulta/solicitar-estudio', pathname);
+      return `${ownProcess ? pathname : `/citas/${context.params.id}/consulta`}?recorrido=${item.id === 'solicitar' ? 'solicitar-estudio' : item.id}`;
+    }
+  }
+  // Cambiar de operación con una cita seleccionada no abandona ni desmonta su ciclo privado.
+  // La vuelta explícita al selector sigue disponible en el detalle y respeta su blocker.
+  const group = CITA_OPERATIONS[item.operation]?.group;
+  const contextual = group === 'gestion' ? ['/citas/:id/gestion', '/recepcion/pacientes/:id/citas']
+    : group === 'asistencia' ? ['/citas/:id/asistencia'] : [];
+  return contextual.some(pattern => matchPath(pattern, pathname)) ? `${pathname}?operacion=${item.operation}` : item.to;
+}
+
+export function navigationAtPath(modules, pathname, search = '') {
+  if (PAYMENT_PATTERNS.some(pattern => matchPath(pattern, pathname))) {
+    const module = modules.find(m => m.id === 'pagos');
+    if (!module) return null;
+    const admin = module.items.some(i => i.id === 'pagos') && (!module.items.some(i => i.paymentView) || !['/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/retorno/:proveedor/:intento?'].some(p => matchPath(p, pathname)));
+    const role = module.role ?? (admin ? A : P), entry = paymentPresentation(pathname, search, role);
+    // No atribuir rutas de otro actor al paquete visible.
+    if ((admin && ['/pagos/obligaciones/:id', '/pagos/obligaciones/:id/pagar', '/pagos/retorno/:proveedor/:intento?'].some(p => matchPath(p, pathname))) ||
+      (!admin && ['/pagos/pacientes/:pacienteId', '/pagos/pacientes/:pacienteId/obligaciones/:id'].some(p => matchPath(p, pathname)))) return null;
+    if (!entry.valid) return { module, item: { id: 'pagos-contexto', label: 'Vista de pagos no disponible', to: '/pagos', kind: 'context', presentation: true } };
+    const fixed = ['/pagos/obligaciones/:id/pagar', '/pagos/retorno/:proveedor/:intento?'].some(p => matchPath(p, pathname));
+    const neutral = !admin && !entry.value && matchPath('/pagos/obligaciones/:id', pathname);
+    const item = module.items.find(i => i.id === (matchPath('/pagos/demostracion', pathname) ? 'demostracion-pagos' : admin ? 'pagos' : `pagos-${entry.value ?? (fixed ? 'pagar' : 'obligaciones')}`));
+    return { module, item: neutral ? { id: 'pagos-contexto', label: 'Detalle de obligación', to: '/pagos', kind: 'context', presentation: true } : { ...item, presentation: Boolean(entry.value) } };
+  }
+  const clinical = ['/historia-clinica', '/historia-clinica/pacientes/:id', '/citas/:id/consulta', '/citas/:id/consulta/versiones', '/historia-clinica/pacientes/:id/antecedentes/versiones', '/registrar-consulta', '/citas/:id/consulta/editar', '/laboratorio', '/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id', '/laboratorio/solicitar', '/citas/:id/consulta/solicitar-estudio'].some(pattern => matchPath(pattern, pathname));
+  if (clinical) {
+    const params = new URLSearchParams(search), lab = ['/laboratorio', '/laboratorio/pacientes/:id', '/laboratorio/consultas/:id', '/laboratorio/solicitudes/:id'].some(pattern => matchPath(pattern, pathname));
+    const requested = lab ? params.get('operacion') : params.get('recorrido');
+    const fixedId = ['/registrar-consulta', '/citas/:id/consulta/editar'].some(pattern => matchPath(pattern, pathname)) ? 'consulta'
+      : ['/laboratorio/solicitar', '/citas/:id/consulta/solicitar-estudio'].some(pattern => matchPath(pattern, pathname)) ? 'solicitar'
+        : ['/historia-clinica', '/historia-clinica/pacientes/:id', '/historia-clinica/pacientes/:id/antecedentes/versiones'].some(pattern => matchPath(pattern, pathname)) ? 'historia' : null;
+    const id = lab ? requested === 'documentos' || requested === 'revision' ? requested : 'resultados'
+      : fixedId ?? (requested === 'solicitar-estudio' ? 'solicitar' : requested === 'consulta' ? 'consulta' : 'historia');
+    const module = modules.find(m => m.items.some(i => i.id === id));
+    const fallback = modules.find(m => m.id === (lab ? 'laboratorio' : 'historia'));
+    const fixedOperation = ['/registrar-consulta', '/citas/:id/consulta/editar', '/laboratorio/solicitar', '/citas/:id/consulta/solicitar-estudio'].some(pattern => matchPath(pattern, pathname));
+    if (fixedOperation && !module) return null;
+    if (!module && !fallback) return null;
+    if (!modules.some(scope => scope.items.some(candidate => candidate.patterns.some(pattern => matchPath(pattern, pathname))))) return null;
+    const item = module?.items.find(i => i.id === id);
+    const entry = clinicalPresentation(pathname, search, (module ?? fallback).role ?? item?.roles[0]);
+    const neutral = lab && matchPath('/laboratorio/solicitudes/:id', pathname) && !params.has('operacion');
+    // No reconocer ámbitos que el catálogo filtrado excluye para el actor.
+    if (item && !item.patterns.some(pattern => matchPath(pattern, pathname)) && !(['/citas/:id/consulta', '/citas/:id/consulta/versiones'].some(pattern => matchPath(pattern, pathname)) && ['consulta', 'solicitar'].includes(id))) return null;
+    return { module: module ?? fallback, item: entry.valid && item && !neutral ? { ...item, presentation: Boolean(entry.value) } : { id: 'clinica-contexto', label: entry.valid && neutral ? 'Solicitud de laboratorio' : 'Operación no disponible', to: lab ? '/laboratorio' : '/historia-clinica', kind: 'context', presentation: true } };
+  }
+  const operationPaths = [
+    ['gestion-citas', 'gestion', ['/recepcion/citas/gestion', '/citas/:id/gestion']],
+    ['asistencia', 'asistencia', ['/asistencia', '/citas/:id/asistencia']],
+  ];
+  if (new URLSearchParams(search).has('operacion')) operationPaths[0][2].push('/recepcion/pacientes/:id/citas');
+  for (const [moduleId, group, patterns] of operationPaths) {
+    if (!patterns.some(pattern => matchPath(pattern, pathname))) continue;
+    const module = modules.find(value => value.id === moduleId);
+    if (!module) return null;
+    // El catálogo ya está filtrado por actor; nunca recuperar un ítem excluido por rol.
+    const requested = module.items.find(item => item.operation === new URLSearchParams(search).get('operacion'));
+    const role = module.role ?? requested?.roles[0];
+    const entry = citaOperation(search, group, role);
+    const item = entry.valid && entry.operation && module.items.find(item => item.operation === new URLSearchParams(search).get('operacion'));
+    return { module, item: item || { id: `${moduleId}-contexto`, label: entry.valid ? (group === 'gestion' ? 'Gestionar cita' : matchPath('/citas/:id/asistencia', pathname) ? 'Asistencia de la cita' : 'Gestionar asistencia') : 'Operación no disponible', to: group === 'gestion' ? '/recepcion/citas/gestion' : '/asistencia', kind: 'context' } };
+  }
   // Patrones completos: asignación pertenece a consultorios, no al prefijo /medicos.
   for (const module of modules) {
-    const item = module.items.find(item => item.patterns?.some(pattern => matchPath(pattern, pathname)));
+    const item = module.items.find(item => !item.operation && item.patterns?.some(pattern => matchPath(pattern, pathname)));
     if (item) return { module, item };
   }
   // El detalle compartido directo no concede acceso a la agenda del Médico.
@@ -154,5 +237,6 @@ export function navigationTitle(pathname, active, area) {
   if (pathname === area.path) return area.label;
   if (!active) return navigationAtPath(NAVIGATION, pathname) || Object.values(AREAS).some(value => value.path === pathname)
     ? 'Acceso no permitido' : 'Página no encontrada';
+  if (active.item.presentation || ['gestion-citas', 'asistencia'].includes(active.module.id)) return active.item.label;
   return contextPages.find(([pattern]) => matchPath(pattern, pathname))?.[1] ?? active.item.label;
 }

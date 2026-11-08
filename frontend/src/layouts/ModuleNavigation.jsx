@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon';
+import { navigationDestination } from '../constants/navigation';
 
-export default function ModuleNavigation({ modules, active, pathname, onNavigate }) {
+export default function ModuleNavigation({ modules, active, pathname, search, onNavigate }) {
   const [expanded, setExpanded] = useState(() => active ? [active.module.id] : []);
   const activeId = active?.module.id;
   useEffect(() => {
@@ -22,8 +23,9 @@ export default function ModuleNavigation({ modules, active, pathname, onNavigate
       </button>
       <ul id={`module-${module.id}`} hidden={!open} className="nav-module-items">
         {module.items.map(item => <li key={item.id}>{item.kind === 'page'
-          ? <Link to={item.to} onClick={onNavigate} className={active?.item.id === item.id ? 'active' : undefined}
-            aria-current={active?.item.id === item.id ? 'page' : undefined}>{item.label}</Link>
+          ? <><Link to={navigationDestination(item, pathname, search)} onClick={onNavigate} className={active?.item.id === item.id ? 'active' : undefined}
+             aria-current={active?.item.id === item.id ? 'page' : undefined}>{item.label}</Link>
+            {item.auxiliary && <small className="navigation-auxiliary">Acceso auxiliar</small>}</>
           : <span className="nav-pending">{item.label}<small>Pendiente</small></span>}</li>)}
       </ul>
     </div>;

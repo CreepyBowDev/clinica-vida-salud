@@ -13,6 +13,7 @@ export const AREAS = Object.freeze({
 });
 
 export function destinoSeguro(pathname, rol) {
+  if (pathname === '/consultar-disponibilidad') return [ROLES.ADMINISTRADOR, ROLES.RECEPCIONISTA, ROLES.PACIENTE].includes(rol) ? pathname : '/inicio';
   if (typeof pathname === 'string' && (pathname === '/pagos' || pathname.startsWith('/pagos/'))) {
     if (![ROLES.PACIENTE, ROLES.ADMINISTRADOR].includes(rol)) return '/inicio';
     if (pathname === '/pagos') return pathname;

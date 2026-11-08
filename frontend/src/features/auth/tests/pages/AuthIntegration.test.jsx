@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { AxiosError } from 'axios';
@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { AuthProvider } from '../../context/AuthContext';
 import { crearRutas } from '../../../../app/router';
 import { api, csrfURL } from '../../../../api/api';
+import { cita, pagina } from '../../../agenda/tests/utils/agendaFixtures';
+import { pagina as paginaPagos } from '../../../pagos/tests/utils/pagoFixtures';
+import { detalle as consultaDetalle } from '../../../historia-clinica/tests/utils/clinicaFixtures';
 
 // Integración del cliente: páginas/contexto/servicios/interceptores reales.
 // Solo se sustituye el transporte HTTP. No acredita cookies/CSRF ni reglas de Laravel.
@@ -41,14 +44,62 @@ async function login() {
 }
 
 describe('integración HTTP del frontend de autenticación', () => {
-  it('D7 limitación pendiente: el guard conserva pathname pero pierde la vista solicitada al pasar por login', async () => {
+  it('retorno autorizado conserva solo la vista pública de presentación en state, no datos privados', async () => {
     const calls = transport(config => config.url === '/auth/me' ? anonymous : undefined);
-    const { router } = mount('/pagos?vista=historial');
+    const { router } = mount({ pathname: '/pagos', search: '?vista=historial&token=FICTICIO', state: { propuesta: 'NO-COPIAR' }, hash: '#privado' });
     await screen.findByRole('heading', { name: 'Bienvenido de nuevo' });
     expect(router.state.location.pathname).toBe('/login');
-    expect(router.state.location.state.from).toBe('/pagos');
+    expect(router.state.location.state).toEqual({ from: '/pagos?vista=historial' });
     expect(calls.every(call => call.method === 'get')).toBe(true);
-    // Caracteriza el impedimento, no aprueba el retorno sin vista. D7 no autoriza cambiar guards.
+    expect(localStorage.length + sessionStorage.length).toBe(0);
+  });
+  it.each([
+    ['Paciente', '/pagos?vista=historial', 'Consultar historial de pagos propio', '/pagos/historial'],
+    ['Recepcionista', '/asistencia?operacion=inasistencia', 'Registrar la inasistencia del Paciente', '/agenda/medicos'],
+    ['Médico', '/asistencia?operacion=atendida', 'Marcar una cita como Atendida', '/agenda'],
+    ['Administrador', '/laboratorio?operacion=documentos', 'Cargar o corregir documentos de laboratorio', '/pacientes'],
+    ['Médico', '/citas/41/consulta?recorrido=solicitar-estudio', 'Solicitar estudios de laboratorio', '/citas/41/consulta'],
+    ['Administrador', '/consultar-disponibilidad', 'Buscar médicos y consultar disponibilidad', '/pacientes'],
+    ['Paciente', '/consultar-disponibilidad', 'Buscar médicos y consultar disponibilidad', '/reservas/especialidades'],
+  ])('%s: destino %s → login → misma vista, sin escritura de negocio', async (rol, destination, label, endpoint) => {
+    let session = null;
+    const calls = transport(config => {
+      if (config.url === '/auth/me') return session ? { data: { data: session } } : anonymous;
+      if (config.url === '/auth/login') { session = persona(rol); return { data: { data: session } }; }
+      if (config.url === '/pagos/historial') return { data: paginaPagos() };
+      if (config.url === '/citas/41/consulta') return { data: consultaDetalle() };
+      if (config.url === '/agenda') return { data: pagina([], { medico: cita.medico, filtros: { fecha: '2026-11-07', estado: null } }) };
+      if (['/agenda/medicos', '/pacientes', '/reservas/especialidades'].includes(config.url)) return { data: pagina([], { per_page: config.params?.per_page ?? 20 }) };
+    });
+    const { router } = mount(destination);
+    await screen.findByRole('heading', { name: 'Bienvenido de nuevo' });
+    expect(router.state.location.state.from).toBe(destination);
+    expect(calls.every(call => call.method === 'get')).toBe(true);
+    await login();
+    await waitFor(() => expect(router.state.location.pathname + router.state.location.search).toBe(destination));
+    await waitFor(() => expect(document.title).toContain(label));
+    const nav = screen.getByRole('navigation', { name: 'Navegación principal' });
+    expect(within(nav).getByRole('link', { name: label })).toHaveAttribute('aria-current', 'page');
+    await waitFor(() => expect(calls.some(call => call.url === endpoint)).toBe(true));
+    expect(calls.filter(call => call.method !== 'get').map(call => call.url)).toEqual(['/auth/login']);
+    expect(localStorage.length + sessionStorage.length).toBe(0);
+  });
+  it.each([
+    ['Recepcionista', '/pagos?vista=historial'],
+    ['Médico', '/asistencia?operacion=inasistencia'],
+    ['Paciente', '/laboratorio?operacion=revision'],
+    ['Administrador', '/pagos?vista=pagar'],
+  ])('login como %s revalida el modo de %s sin consultar ni operar recursos ajenos', async (rol, destination) => {
+    let session = null;
+    const calls = transport(config => {
+      if (config.url === '/auth/me') return session ? { data: { data: session } } : anonymous;
+      if (config.url === '/auth/login') { session = persona(rol); return { data: { data: session } }; }
+    });
+    const { router } = mount(destination);
+    await login();
+    await screen.findByRole('heading', { name: 'Hola, Persona Ficticia' });
+    expect(router.state.location.pathname).toBe('/inicio');
+    expect(calls.every(call => ['/auth/me', csrfURL, '/auth/login'].includes(call.url))).toBe(true);
   });
   it.each([
     ['Administrador', '/administracion', 'Administración'],
